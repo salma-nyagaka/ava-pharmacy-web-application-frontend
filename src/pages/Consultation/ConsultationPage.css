@@ -1,0 +1,261 @@
+.consultation {
+  padding: 2rem 0 4rem;
+}
+
+.consultation h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+}
+
+.consultation__layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.doctors-sidebar {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  height: fit-content;
+}
+
+.doctors-sidebar h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.doctors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.doctor-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.doctor-item:hover {
+  background-color: var(--color-background-light);
+}
+
+.doctor-item--available {
+  border-left: 3px solid var(--color-success);
+}
+
+.doctor-item__avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+}
+
+.doctor-item__info h4 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.doctor-item__info p {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.doctor-status {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.doctor-status--online {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+}
+
+.doctor-status--offline {
+  background-color: rgba(156, 163, 175, 0.1);
+  color: var(--color-text-muted);
+}
+
+.chat-container {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.chat-header__avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+}
+
+.chat-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.chat-header p {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.chat-status {
+  margin-left: auto;
+  padding: 0.375rem 0.875rem;
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+  border-radius: var(--radius-full);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.message {
+  display: flex;
+}
+
+.message--doctor {
+  justify-content: flex-start;
+}
+
+.message--user {
+  justify-content: flex-end;
+}
+
+.message__content {
+  max-width: 70%;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+}
+
+.message--doctor .message__content {
+  background-color: var(--color-background-light);
+}
+
+.message--user .message__content {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.message__content p {
+  margin-bottom: 0.5rem;
+}
+
+.message__time {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.chat-input {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 0.9375rem;
+}
+
+.chat-input input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.chat-input .btn {
+  border-radius: var(--radius-full);
+  padding: 0.75rem 1.5rem;
+}
+
+.consultation-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.info-card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+}
+
+.info-card h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.info-card ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.info-card li {
+  margin-bottom: 0.5rem;
+  color: var(--color-text-secondary);
+}
+
+.info-card p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+@media (max-width: 1024px) {
+  .consultation__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .doctors-sidebar {
+    display: none;
+  }
+
+  .consultation-info {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-container {
+    height: 500px;
+  }
+
+  .message__content {
+    max-width: 85%;
+  }
+}

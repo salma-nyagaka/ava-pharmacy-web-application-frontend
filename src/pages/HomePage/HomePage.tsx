@@ -1,16 +1,511 @@
+import { Link } from 'react-router-dom'
 import './HomePage.css'
 
 function HomePage() {
-  const environment = import.meta.env.VITE_APP_ENV || 'development'
+  const categories = [
+    {
+      id: 1,
+      name: 'Medicines',
+      image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&h=400&fit=crop',
+      link: '/category/medicines',
+    },
+    {
+      id: 2,
+      name: 'Health & Wellness',
+      image: 'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&h=400&fit=crop',
+      link: '/category/health-wellness',
+    },
+    {
+      id: 3,
+      name: 'Beauty & Skincare',
+      image: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=400&fit=crop',
+      link: '/category/beauty-skincare',
+    },
+    {
+      id: 4,
+      name: 'Baby & Mom',
+      image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=400&h=400&fit=crop',
+      link: '/category/baby-mom',
+    },
+    {
+      id: 5,
+      name: 'Medical Devices',
+      image: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400&h=400&fit=crop',
+      link: '/category/medical-devices',
+    },
+    {
+      id: 6,
+      name: 'Personal Care',
+      image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop',
+      link: '/category/personal-care',
+    },
+  ]
+
+  const featuredProducts = [
+    {
+      id: 1,
+      name: 'Vitamin C 1000mg',
+      brand: 'HealthPlus',
+      price: 1250,
+      originalPrice: 1500,
+      image: 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=400&h=400&fit=crop',
+      badge: 'Best Seller',
+      rating: 4.8,
+      reviews: 124,
+    },
+    {
+      id: 2,
+      name: 'Digital Blood Pressure Monitor',
+      brand: 'MedTech',
+      price: 4500,
+      originalPrice: 5500,
+      image: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=400&h=400&fit=crop',
+      badge: '18% Off',
+      rating: 4.6,
+      reviews: 89,
+    },
+    {
+      id: 3,
+      name: 'Moisturizing Face Cream',
+      brand: 'SkinGlow',
+      price: 890,
+      originalPrice: null,
+      image: 'https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?w=400&h=400&fit=crop',
+      badge: null,
+      rating: 4.5,
+      reviews: 67,
+    },
+    {
+      id: 4,
+      name: 'Omega-3 Fish Oil Capsules',
+      brand: 'NutraLife',
+      price: 2100,
+      originalPrice: 2500,
+      image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=400&fit=crop',
+      badge: 'New',
+      rating: 4.7,
+      reviews: 156,
+    },
+    {
+      id: 5,
+      name: 'Baby Diapers Pack of 60',
+      brand: 'BabyCare',
+      price: 1800,
+      originalPrice: 2200,
+      image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop',
+      badge: '18% Off',
+      rating: 4.9,
+      reviews: 234,
+    },
+    {
+      id: 6,
+      name: 'Hand Sanitizer 500ml',
+      brand: 'CleanGuard',
+      price: 450,
+      originalPrice: 550,
+      image: 'https://images.unsplash.com/photo-1584483766114-2cea6facdf57?w=400&h=400&fit=crop',
+      badge: null,
+      rating: 4.4,
+      reviews: 45,
+    },
+    {
+      id: 7,
+      name: 'Infrared Thermometer',
+      brand: 'MedTech',
+      price: 2800,
+      originalPrice: 3500,
+      image: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=400&h=400&fit=crop',
+      badge: '20% Off',
+      rating: 4.6,
+      reviews: 112,
+    },
+    {
+      id: 8,
+      name: 'Multivitamin Tablets',
+      brand: 'VitaMax',
+      price: 1650,
+      originalPrice: null,
+      image: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=400&h=400&fit=crop',
+      badge: 'Popular',
+      rating: 4.7,
+      reviews: 198,
+    },
+  ]
+
+  const healthTips = [
+    {
+      id: 1,
+      title: 'Boost Your Immunity This Season',
+      excerpt: 'Discover essential vitamins and supplements to keep your immune system strong...',
+      image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop',
+      category: 'Wellness',
+      date: 'Jan 5, 2026',
+    },
+    {
+      id: 2,
+      title: 'Managing Diabetes: A Complete Guide',
+      excerpt: 'Learn about monitoring blood sugar, medication management, and lifestyle changes...',
+      image: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&h=400&fit=crop',
+      category: 'Health',
+      date: 'Jan 3, 2026',
+    },
+    {
+      id: 3,
+      title: 'Skincare Routine for Healthy Skin',
+      excerpt: 'Expert tips on building a skincare routine that works for your skin type...',
+      image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&fit=crop',
+      category: 'Beauty',
+      date: 'Dec 28, 2025',
+    },
+  ]
+
+  const formatPrice = (price: number) => {
+    return `KSh ${price.toLocaleString()}`
+  }
+
+  const renderStars = (rating: number) => {
+    const fullStars = Math.floor(rating)
+    const hasHalfStar = rating % 1 >= 0.5
+    const stars = []
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <svg key={`full-${i}`} className="product-card__star product-card__star--filled" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      )
+    }
+
+    if (hasHalfStar) {
+      stars.push(
+        <svg key="half" className="product-card__star product-card__star--half" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      )
+    }
+
+    const emptyStars = 5 - stars.length
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(
+        <svg key={`empty-${i}`} className="product-card__star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      )
+    }
+
+    return stars
+  }
 
   return (
     <div className="home">
-      <section className="home__hero">
-        <h1 className="home__title">Welcome to Ava Pharmacy</h1>
-        <p className="home__subtitle">
-          Your trusted online pharmacy for all your healthcare needs
-        </p>
-        <span className="home__env-badge">{environment}</span>
+      {/* Hero Section */}
+      <section className="hero">
+        <div className="container">
+          <div className="hero__content">
+            <div className="hero__text">
+              <span className="hero__badge">Trusted Healthcare Partner</span>
+              <h1 className="hero__title">
+                Your Health, <br />
+                <span className="hero__title-highlight">Our Priority</span>
+              </h1>
+              <p className="hero__description">
+                Get genuine medicines, health products, and expert advice delivered to your doorstep.
+                Experience healthcare made simple and accessible.
+              </p>
+              <div className="hero__actions">
+                <Link to="/shop" className="btn btn--primary btn--lg">
+                  Shop Now
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </Link>
+                <Link to="/prescriptions" className="btn btn--secondary btn--lg">
+                  Upload Prescription
+                </Link>
+              </div>
+              <div className="hero__features">
+                <div className="hero__feature">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  <span>100% Genuine Products</span>
+                </div>
+                <div className="hero__feature">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="1" y="3" width="15" height="13"/>
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                    <circle cx="5.5" cy="18.5" r="2.5"/>
+                    <circle cx="18.5" cy="18.5" r="2.5"/>
+                  </svg>
+                  <span>Fast Delivery</span>
+                </div>
+                <div className="hero__feature">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                  <span>Secure Payments</span>
+                </div>
+              </div>
+            </div>
+            <div className="hero__image">
+              <img
+                src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=600&h=600&fit=crop"
+                alt="Healthcare professional"
+              />
+              <div className="hero__image-badge">
+                <span className="hero__image-badge-number">50K+</span>
+                <span className="hero__image-badge-text">Happy Customers</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Promotional Banner */}
+      <section className="promo-banner">
+        <div className="container">
+          <div className="promo-banner__content">
+            <div className="promo-banner__item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="1" y="3" width="15" height="13"/>
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                <circle cx="5.5" cy="18.5" r="2.5"/>
+                <circle cx="18.5" cy="18.5" r="2.5"/>
+              </svg>
+              <div>
+                <strong>Free Delivery</strong>
+                <span>On orders over KSh 3,000</span>
+              </div>
+            </div>
+            <div className="promo-banner__item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <div>
+                <strong>24/7 Support</strong>
+                <span>Expert pharmacist advice</span>
+              </div>
+            </div>
+            <div className="promo-banner__item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <div>
+                <strong>Easy Returns</strong>
+                <span>30-day return policy</span>
+              </div>
+            </div>
+            <div className="promo-banner__item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <div>
+                <strong>Secure Checkout</strong>
+                <span>100% secure payments</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Categories Section */}
+      <section className="section categories">
+        <div className="container">
+          <div className="section__header">
+            <h2 className="section__title">Shop by Category</h2>
+            <p className="section__subtitle">
+              Browse our wide range of healthcare products and find what you need
+            </p>
+          </div>
+          <div className="categories__grid">
+            {categories.map((category) => (
+              <Link key={category.id} to={category.link} className="category-card">
+                <div className="category-card__image">
+                  <img src={category.image} alt={category.name} />
+                </div>
+                <h3 className="category-card__name">{category.name}</h3>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products Section */}
+      <section className="section section--alt featured-products">
+        <div className="container">
+          <div className="section__header">
+            <h2 className="section__title">Featured Products</h2>
+            <p className="section__subtitle">
+              Discover our most popular health and wellness products
+            </p>
+          </div>
+          <div className="products__grid">
+            {featuredProducts.map((product) => (
+              <article key={product.id} className="product-card">
+                <div className="product-card__image">
+                  {product.badge && (
+                    <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
+                      {product.badge}
+                    </span>
+                  )}
+                  <img src={product.image} alt={product.name} />
+                  <div className="product-card__actions">
+                    <button className="product-card__action" title="Add to Wishlist">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
+                    <button className="product-card__action" title="Quick View">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="product-card__content">
+                  <span className="product-card__brand">{product.brand}</span>
+                  <h3 className="product-card__name">
+                    <Link to={`/product/${product.id}`}>{product.name}</Link>
+                  </h3>
+                  <div className="product-card__rating">
+                    <div className="product-card__stars">
+                      {renderStars(product.rating)}
+                    </div>
+                    <span className="product-card__reviews">({product.reviews})</span>
+                  </div>
+                  <div className="product-card__pricing">
+                    <span className="product-card__price">{formatPrice(product.price)}</span>
+                    {product.originalPrice && (
+                      <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
+                    )}
+                  </div>
+                  <button className="product-card__add-to-cart">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="9" cy="21" r="1"/>
+                      <circle cx="20" cy="21" r="1"/>
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                    </svg>
+                    Add to Cart
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="featured-products__cta">
+            <Link to="/shop" className="btn btn--primary btn--lg">
+              View All Products
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Promotional Section */}
+      <section className="section promo-section">
+        <div className="container">
+          <div className="promo-cards">
+            <div className="promo-card promo-card--primary">
+              <div className="promo-card__content">
+                <span className="promo-card__tag">Limited Offer</span>
+                <h3 className="promo-card__title">Up to 30% Off on Vitamins</h3>
+                <p className="promo-card__description">
+                  Boost your immunity with our premium vitamin supplements at special prices
+                </p>
+                <Link to="/offers/vitamins" className="btn btn--secondary">
+                  Shop Vitamins
+                </Link>
+              </div>
+              <div className="promo-card__image">
+                <img
+                  src="https://images.unsplash.com/photo-1550572017-edd951b55104?w=400&h=300&fit=crop"
+                  alt="Vitamins offer"
+                />
+              </div>
+            </div>
+            <div className="promo-card promo-card--secondary">
+              <div className="promo-card__content">
+                <span className="promo-card__tag">New Arrivals</span>
+                <h3 className="promo-card__title">Premium Skincare Range</h3>
+                <p className="promo-card__description">
+                  Discover our new collection of dermatologist-recommended skincare products
+                </p>
+                <Link to="/category/beauty-skincare" className="btn btn--outline">
+                  Explore Now
+                </Link>
+              </div>
+              <div className="promo-card__image">
+                <img
+                  src="https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=400&h=300&fit=crop"
+                  alt="Skincare products"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Health Tips Section */}
+      <section className="section section--alt health-tips">
+        <div className="container">
+          <div className="section__header">
+            <h2 className="section__title">Health Tips & Articles</h2>
+            <p className="section__subtitle">
+              Stay informed with the latest health and wellness advice from our experts
+            </p>
+          </div>
+          <div className="health-tips__grid">
+            {healthTips.map((tip) => (
+              <article key={tip.id} className="tip-card">
+                <div className="tip-card__image">
+                  <img src={tip.image} alt={tip.title} />
+                  <span className="tip-card__category">{tip.category}</span>
+                </div>
+                <div className="tip-card__content">
+                  <span className="tip-card__date">{tip.date}</span>
+                  <h3 className="tip-card__title">
+                    <Link to={`/blog/${tip.id}`}>{tip.title}</Link>
+                  </h3>
+                  <p className="tip-card__excerpt">{tip.excerpt}</p>
+                  <Link to={`/blog/${tip.id}`} className="tip-card__link">
+                    Read More
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Newsletter Section */}
+      <section className="newsletter">
+        <div className="container">
+          <div className="newsletter__content">
+            <div className="newsletter__text">
+              <h2 className="newsletter__title">Subscribe to Our Newsletter</h2>
+              <p className="newsletter__description">
+                Get exclusive offers, health tips, and updates delivered straight to your inbox
+              </p>
+            </div>
+            <form className="newsletter__form">
+              <input
+                type="email"
+                placeholder="Enter your email address"
+                className="newsletter__input"
+              />
+              <button type="submit" className="btn btn--primary">
+                Subscribe
+              </button>
+            </form>
+          </div>
+        </div>
       </section>
     </div>
   )
