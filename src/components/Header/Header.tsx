@@ -6,18 +6,68 @@ import logo from '../../assets/images/logos/avalogo.jpg'
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [activeMenu, setActiveMenu] = useState<string | null>(null)
 
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
+  const toggleMenu = () => {
+    setIsMenuOpen((prev) => !prev)
+    if (isMenuOpen) {
+      setActiveMenu(null)
+    }
+  }
   const toggleSearch = () => setIsSearchOpen(!isSearchOpen)
 
   const categories = [
-    { name: 'Medicines', path: '/category/medicines' },
-    { name: 'Health & Wellness', path: '/category/health-wellness' },
-    { name: 'Beauty & Skincare', path: '/category/beauty-skincare' },
-    { name: 'Baby & Mom', path: '/category/baby-mom' },
-    { name: 'Medical Devices', path: '/category/medical-devices' },
+    { name: 'All Products', path: '/products' },
+    { name: 'HealthCare', path: '/category/health-care' },
+    { name: 'Vitamins & Supplements', path: '/category/vitamins-supplements' },
+    { name: 'Skin Care', path: '/category/skin-care' },
+    { name: 'Beauty & Make Up', path: '/category/beauty-skincare' },
+    { name: 'Devices & Diagnostics', path: '/category/medical-devices' },
+    { name: 'Family Planning', path: '/category/family-planning' },
+    { name: 'Hair Care', path: '/category/hair-care' },
+    { name: 'Mens', path: '/category/mens' },
+    { name: 'Mum & Baby', path: '/category/baby-mom' },
     { name: 'Personal Care', path: '/category/personal-care' },
+    { name: 'Prescription Products', path: '/category/prescription-products' },
+    { name: 'Travel', path: '/category/travel' },
   ]
+
+  const conditions = [
+    { name: 'Aches & Pains', path: '/conditions/aches-pains' },
+    { name: 'Acne', path: '/conditions/acne' },
+    { name: 'Allergy & Hayfever', path: '/conditions/allergy-hayfever' },
+    { name: 'Anti Infectives', path: '/conditions/anti-infectives' },
+    { name: 'Bites & Stings', path: '/conditions/bites-stings' },
+    { name: 'Cough, Cold & Flu', path: '/conditions/cold-flu-cough' },
+    { name: 'Dry Skin', path: '/conditions/dry-skin' },
+    { name: 'Eczema', path: '/conditions/eczema' },
+    { name: 'Eye & Ear Care', path: '/conditions/eye-ear-care' },
+    { name: 'First Aid & Bandages', path: '/conditions/first-aid' },
+    { name: 'Oral Care', path: '/conditions/oral-care' },
+    { name: 'Skin Treatments', path: '/conditions/skin-treatments' },
+  ]
+
+  const brands = [
+    { name: 'Panadol', path: '/brands/panadol' },
+    { name: 'Nivea', path: '/brands/nivea' },
+    { name: 'CeraVe', path: '/brands/cerave' },
+    { name: 'Durex', path: '/brands/durex' },
+    { name: 'Eucerin', path: '/brands/eucerin' },
+    { name: 'Vichy', path: '/brands/vichy' },
+    { name: 'Centrum', path: '/brands/centrum' },
+    { name: 'Sebamed', path: '/brands/sebamed' },
+    { name: 'Huggies', path: '/brands/huggies' },
+    { name: 'Accu-chek', path: '/brands/accu-chek' },
+  ]
+
+  const handleToggleMenu = (menuKey: string) => {
+    setActiveMenu((prev) => (prev === menuKey ? null : menuKey))
+  }
+
+  const closeMenus = () => {
+    setActiveMenu(null)
+    setIsMenuOpen(false)
+  }
 
   return (
     <header className="header">
@@ -28,22 +78,18 @@ function Header() {
             <div className="header__topbar-left">
               <span className="header__topbar-item">
                 <svg className="header__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  <path d="M3 12h18"/>
+                  <path d="M9 6h6"/>
+                  <path d="M9 18h6"/>
                 </svg>
-                +254 700 000 000
-              </span>
-              <span className="header__topbar-item">
-                <svg className="header__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                info@avapharmacy.co.ke
+                Free delivery for orders above KSh 2,500
               </span>
             </div>
             <div className="header__topbar-right">
-              <Link to="/track-order" className="header__topbar-link">Track Order</Link>
-              <Link to="/store-locator" className="header__topbar-link">Find a Store</Link>
-              <Link to="/help" className="header__topbar-link">Help</Link>
+              <Link to="/about" className="header__topbar-link">About Us</Link>
+              <Link to="/blog" className="header__topbar-link">Blog</Link>
+              <Link to="/help" className="header__topbar-link">FAQ</Link>
+              <Link to="/store-locator" className="header__topbar-link">Store Locator</Link>
             </div>
           </div>
         </div>
@@ -66,7 +112,7 @@ function Header() {
               </svg>
               <input
                 type="text"
-                placeholder="Search for medicines, health products..."
+                placeholder="Search medicines, brands, and services"
                 className="header__search-input"
               />
               <button className="header__search-btn">Search</button>
@@ -81,19 +127,20 @@ function Header() {
                 </svg>
               </button>
 
+              <a href="https://wa.me/254700000000" className="header__action-btn" aria-label="WhatsApp">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 11.5a8.5 8.5 0 0 1-12.18 7.72L3 21l1.86-5.64A8.5 8.5 0 1 1 21 11.5z"/>
+                  <path d="M9.5 9.5c.4 1.2 1.3 2.2 2.5 2.8l.7-.4c.2-.1.5 0 .6.2l.8 1.2c.1.2 0 .5-.2.6-1 .5-2.2.6-3.4.2-1.5-.5-2.8-1.6-3.7-3.1-.7-1.2-1-2.5-.8-3.8 0-.2.2-.4.4-.4h1.4c.2 0 .4.1.4.3l.2 1.3c0 .2-.1.4-.3.5l-.7.4z"/>
+                </svg>
+                <span className="header__action-text">WhatsApp</span>
+              </a>
+
               <Link to="/account" className="header__action-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                   <circle cx="12" cy="7" r="4"/>
                 </svg>
                 <span className="header__action-text">Account</span>
-              </Link>
-
-              <Link to="/wishlist" className="header__action-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                </svg>
-                <span className="header__action-text">Wishlist</span>
               </Link>
 
               <Link to="/cart" className="header__action-btn header__action-btn--cart">
@@ -125,19 +172,107 @@ function Header() {
       </div>
 
       {/* Navigation */}
-      <nav className={`header__nav ${isMenuOpen ? 'header__nav--open' : ''}`}>
+      <nav className={`header__nav ${isMenuOpen ? 'header__nav--open' : ''}`} aria-label="Primary">
         <div className="container">
           <ul className="header__nav-list">
-            {categories.map((category) => (
-              <li key={category.name} className="header__nav-item">
-                <Link to={category.path} className="header__nav-link">
-                  {category.name}
-                </Link>
-              </li>
-            ))}
-            <li className="header__nav-item header__nav-item--highlight">
-              <Link to="/offers" className="header__nav-link header__nav-link--highlight">
-                Offers
+            <li
+              className={`header__nav-item header__nav-item--mega ${activeMenu === 'category' ? 'header__nav-item--open' : ''}`}
+              onMouseLeave={closeMenus}
+            >
+              <button
+                className="header__nav-button"
+                onClick={() => handleToggleMenu('category')}
+                aria-expanded={activeMenu === 'category'}
+                type="button"
+              >
+                Shop By Category
+                <span className="header__nav-caret">▾</span>
+              </button>
+              <div className="mega-panel">
+                <div className="mega-panel__grid">
+                  <div className="mega-panel__col">
+                    <h4>Categories</h4>
+                    <ul className="mega-panel__links">
+                      {categories.map((category) => (
+                        <li key={category.name}>
+                          <Link to={category.path} onClick={closeMenus}>{category.name}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="mega-panel__col">
+                    <h4>Health Care Conditions</h4>
+                    <ul className="mega-panel__links">
+                      {conditions.map((condition) => (
+                        <li key={condition.name}>
+                          <Link to={condition.path} onClick={closeMenus}>{condition.name}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="mega-panel__col">
+                    <h4>Brands</h4>
+                    <ul className="mega-panel__links">
+                      {brands.map((brand) => (
+                        <li key={brand.name}>
+                          <Link to={brand.path} onClick={closeMenus}>{brand.name}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="mega-panel__col mega-panel__cta">
+                    <div className="advisor-card">
+                      <p className="advisor-card__title">Speak to an Advisor</p>
+                      <p className="advisor-card__text">Book a free, one-to-one consultation with our qualified advisors.</p>
+                      <Link to="/health-services" className="btn btn--primary btn--sm">Find out more</Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li className={`header__nav-item ${activeMenu === 'condition' ? 'header__nav-item--open' : ''}`} onMouseLeave={closeMenus}>
+              <button
+                className="header__nav-button"
+                onClick={() => handleToggleMenu('condition')}
+                aria-expanded={activeMenu === 'condition'}
+                type="button"
+              >
+                Shop By Condition
+                <span className="header__nav-caret">▾</span>
+              </button>
+              <div className="dropdown-panel">
+                <ul>
+                  {conditions.map((condition) => (
+                    <li key={condition.name}>
+                      <Link to={condition.path} onClick={closeMenus}>{condition.name}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </li>
+
+            <li className="header__nav-item">
+              <Link to="/brands" className="header__nav-link" onClick={closeMenus}>Shop By Brand</Link>
+            </li>
+            <li className="header__nav-item">
+              <Link to="/offers" className="header__nav-link" onClick={closeMenus}>Sale &amp; Offers</Link>
+            </li>
+            <li className="header__nav-item">
+              <Link to="/prescriptions" className="header__nav-link header__nav-link--cta" onClick={closeMenus}>
+                Submit Prescription
+              </Link>
+            </li>
+            <li className="header__nav-item">
+              <Link to="/skin-test" className="header__nav-link" onClick={closeMenus}>Skin Test</Link>
+            </li>
+            <li className="header__nav-item">
+              <Link to="/health-services" className="header__nav-link" onClick={closeMenus}>Health Services</Link>
+            </li>
+            <li className="header__nav-item">
+              <Link to="/store-locator" className="header__nav-link header__nav-link--icon" onClick={closeMenus}>
+                <span className="header__nav-icon">📍</span>
+                Store Locator
               </Link>
             </li>
           </ul>

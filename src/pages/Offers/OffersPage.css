@@ -1,0 +1,16 @@
+.offer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.offer-card__banner {
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  background: linear-gradient(135deg, rgba(232, 23, 80, 0.12), rgba(153, 27, 31, 0.12));
+}
+
+.offer-card__banner h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}

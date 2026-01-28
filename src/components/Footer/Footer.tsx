@@ -16,7 +16,7 @@ function Footer() {
 
   const customerLinks = [
     { name: 'My Account', path: '/account' },
-    { name: 'Order History', path: '/orders' },
+    { name: 'Order History', path: '/account/orders' },
     { name: 'Track Order', path: '/track-order' },
     { name: 'Wishlist', path: '/wishlist' },
     { name: 'Returns & Refunds', path: '/returns' },

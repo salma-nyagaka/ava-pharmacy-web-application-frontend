@@ -1,0 +1,16 @@
+.faq-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.faq-item {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  background: var(--color-white);
+}
+
+.faq-item h4 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}

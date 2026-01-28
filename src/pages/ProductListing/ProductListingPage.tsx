@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import './ProductListingPage.css'
 
 function ProductListingPage() {
   const [searchParams] = useSearchParams()
-  const category = searchParams.get('category') || 'all'
+  const { category: categoryParam } = useParams()
+  const category = categoryParam || searchParams.get('category') || 'all'
 
   const [_filters, _setFilters] = useState({
     priceRange: { min: 0, max: 10000 },

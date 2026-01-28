@@ -1,0 +1,29 @@
+.tracking-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.tracking-summary__item {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-background-light);
+  border: 1px solid var(--color-border-light);
+}
+
+.tracking-summary__label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.tracking-summary__value {
+  font-weight: 700;
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 900px) {
+  .tracking-summary {
+    grid-template-columns: 1fr;
+  }
+}

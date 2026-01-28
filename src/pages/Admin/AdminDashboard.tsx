@@ -52,6 +52,10 @@ function AdminDashboard() {
             <span>🛍️</span>
             <span>Manage Products</span>
           </Link>
+          <Link to="/admin/inventory" className="admin-action">
+            <span>📦</span>
+            <span>Inventory</span>
+          </Link>
           <Link to="/admin/orders" className="admin-action">
             <span>📦</span>
             <span>Manage Orders</span>
@@ -59,6 +63,10 @@ function AdminDashboard() {
           <Link to="/admin/users" className="admin-action">
             <span>👥</span>
             <span>Manage Users</span>
+          </Link>
+          <Link to="/admin/doctors" className="admin-action">
+            <span>🩺</span>
+            <span>Doctors</span>
           </Link>
           <Link to="/admin/prescriptions" className="admin-action">
             <span>💊</span>
