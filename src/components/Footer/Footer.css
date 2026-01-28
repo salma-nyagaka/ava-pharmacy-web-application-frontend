@@ -1,6 +1,11 @@
 /* Footer */
 .footer {
-  background-color: var(--color-text-primary);
+  background-color: var(--color-footer-bg);
+  background-image: linear-gradient(var(--color-footer-overlay), var(--color-footer-overlay)),
+    var(--footer-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   color: var(--color-white);
 }
 
@@ -85,6 +90,20 @@
 
 .footer__links li a:hover {
   color: var(--color-primary);
+}
+
+.footer__map {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-md);
+}
+
+.footer__map img {
+  width: 100%;
+  height: 220px;
+  display: block;
+  object-fit: cover;
 }
 
 /* Bottom Bar */

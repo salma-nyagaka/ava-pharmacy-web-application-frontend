@@ -1,4 +1,6 @@
 import PageHeader from '../../components/PageHeader/PageHeader'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { productOmega3, productBpMonitor, productBabyDiapers } from '../../assets/images/remote'
 import './WishlistPage.css'
 
 function WishlistPage() {
@@ -7,19 +9,19 @@ function WishlistPage() {
       id: 1,
       name: 'Omega-3 Fish Oil Capsules',
       price: 'KSh 2,100',
-      image: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=600&h=400&fit=crop',
+      image: productOmega3,
     },
     {
       id: 2,
       name: 'Digital Blood Pressure Monitor',
       price: 'KSh 4,500',
-      image: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=600&h=400&fit=crop',
+      image: productBpMonitor,
     },
     {
       id: 3,
       name: 'Baby Diapers Pack',
       price: 'KSh 1,800',
-      image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&h=400&fit=crop',
+      image: productBabyDiapers,
     },
   ]
 
@@ -35,7 +37,7 @@ function WishlistPage() {
           <div className="page-grid page-grid--3">
             {items.map((item) => (
               <div key={item.id} className="card wishlist-item">
-                <img src={item.image} alt={item.name} />
+                <ImageWithFallback src={item.image} alt={item.name} />
                 <div>
                   <h3 className="card__title">{item.name}</h3>
                   <div className="wishlist-item__meta">

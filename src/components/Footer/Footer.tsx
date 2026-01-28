@@ -1,39 +1,21 @@
 import { Link } from 'react-router-dom'
 import './Footer.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
+import mapImage from '../../assets/images/maps/map-the-hub-karen.svg'
 
 function Footer() {
   const currentYear = new Date().getFullYear()
 
-  const shopLinks = [
-    { name: 'Medicines', path: '/category/medicines' },
-    { name: 'Health & Wellness', path: '/category/health-wellness' },
-    { name: 'Beauty & Skincare', path: '/category/beauty-skincare' },
-    { name: 'Baby & Mom', path: '/category/baby-mom' },
-    { name: 'Medical Devices', path: '/category/medical-devices' },
-    { name: 'Personal Care', path: '/category/personal-care' },
-  ]
-
-  const customerLinks = [
-    { name: 'My Account', path: '/account' },
-    { name: 'Order History', path: '/account/orders' },
-    { name: 'Track Order', path: '/track-order' },
-    { name: 'Wishlist', path: '/wishlist' },
-    { name: 'Returns & Refunds', path: '/returns' },
-  ]
-
-  const companyLinks = [
+  const quickLinks = [
     { name: 'About Us', path: '/about' },
     { name: 'Contact Us', path: '/contact' },
-    { name: 'Store Locator', path: '/store-locator' },
-    { name: 'Careers', path: '/careers' },
-    { name: 'Blog', path: '/blog' },
+    { name: 'Our Services', path: '/health-services' },
   ]
 
-  const legalLinks = [
-    { name: 'Privacy Policy', path: '/privacy' },
-    { name: 'Terms of Service', path: '/terms' },
-    { name: 'Cookie Policy', path: '/cookies' },
+  const popularLinks = [
+    { name: 'About Us', path: '/about' },
+    { name: 'Contact Us', path: '/contact' },
+    { name: 'Our Services', path: '/health-services' },
   ]
 
   return (
@@ -47,15 +29,16 @@ function Footer() {
                 <img src={logo} alt="Ava Pharmacy" />
               </Link>
               <p className="footer__description">
-                Your trusted online pharmacy delivering genuine medicines and health products
-                right to your doorstep. Quality healthcare made accessible.
+                We are your one-stop destination for premium wellness products, expert skincare solutions,
+                and health essentials designed to nourish your body, uplift your spirit, and help you glow
+                from the inside out.
               </p>
               <div className="footer__contact">
                 <div className="footer__contact-item">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                   </svg>
-                  <span>+254 700 000 000</span>
+                  <span>+254 (0) 715 737 330</span>
                 </div>
                 <div className="footer__contact-item">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -69,16 +52,23 @@ function Footer() {
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                     <circle cx="12" cy="10" r="3"/>
                   </svg>
-                  <span>Nairobi, Kenya</span>
+                  <span>Karen/The hub, Karen, Nairobi, Kenya</span>
+                </div>
+                <div className="footer__contact-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                  </svg>
+                  <span>Mon-Sun 09am-5pm</span>
                 </div>
               </div>
             </div>
 
-            {/* Shop Links */}
+            {/* Quick Links */}
             <div className="footer__column">
-              <h4 className="footer__title">Shop</h4>
+              <h4 className="footer__title">Quick Links</h4>
               <ul className="footer__links">
-                {shopLinks.map((link) => (
+                {quickLinks.map((link) => (
                   <li key={link.name}>
                     <Link to={link.path}>{link.name}</Link>
                   </li>
@@ -86,11 +76,11 @@ function Footer() {
               </ul>
             </div>
 
-            {/* Customer Service */}
+            {/* Popular Links */}
             <div className="footer__column">
-              <h4 className="footer__title">Customer Service</h4>
+              <h4 className="footer__title">Popular Links</h4>
               <ul className="footer__links">
-                {customerLinks.map((link) => (
+                {popularLinks.map((link) => (
                   <li key={link.name}>
                     <Link to={link.path}>{link.name}</Link>
                   </li>
@@ -98,16 +88,12 @@ function Footer() {
               </ul>
             </div>
 
-            {/* Company */}
+            {/* Map */}
             <div className="footer__column">
-              <h4 className="footer__title">Company</h4>
-              <ul className="footer__links">
-                {companyLinks.map((link) => (
-                  <li key={link.name}>
-                    <Link to={link.path}>{link.name}</Link>
-                  </li>
-                ))}
-              </ul>
+              <h4 className="footer__title">Map</h4>
+              <div className="footer__map" aria-label="Ava Pharmacy location map">
+                <img src={mapImage} alt="Ava Pharmacy location map" />
+              </div>
             </div>
           </div>
         </div>
@@ -118,16 +104,8 @@ function Footer() {
         <div className="container">
           <div className="footer__bottom-content">
             <p className="footer__copyright">
-              &copy; {currentYear} Ava Pharmacy. All rights reserved.
+              &copy; {currentYear} AVA Pharmacy. All Rights Reserved.
             </p>
-            <div className="footer__legal">
-              {legalLinks.map((link, index) => (
-                <span key={link.name}>
-                  <Link to={link.path}>{link.name}</Link>
-                  {index < legalLinks.length - 1 && <span className="footer__separator">|</span>}
-                </span>
-              ))}
-            </div>
             <div className="footer__social">
               <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="footer__social-link" aria-label="Facebook">
                 <svg viewBox="0 0 24 24" fill="currentColor">

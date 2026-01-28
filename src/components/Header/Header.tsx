@@ -17,20 +17,48 @@ function Header() {
   const toggleSearch = () => setIsSearchOpen(!isSearchOpen)
 
   const categories = [
-    { name: 'All Products', path: '/products' },
-    { name: 'HealthCare', path: '/category/health-care' },
-    { name: 'Vitamins & Supplements', path: '/category/vitamins-supplements' },
-    { name: 'Skin Care', path: '/category/skin-care' },
-    { name: 'Beauty & Make Up', path: '/category/beauty-skincare' },
-    { name: 'Devices & Diagnostics', path: '/category/medical-devices' },
-    { name: 'Family Planning', path: '/category/family-planning' },
-    { name: 'Hair Care', path: '/category/hair-care' },
-    { name: 'Mens', path: '/category/mens' },
-    { name: 'Mum & Baby', path: '/category/baby-mom' },
-    { name: 'Personal Care', path: '/category/personal-care' },
-    { name: 'Prescription Products', path: '/category/prescription-products' },
-    { name: 'Travel', path: '/category/travel' },
+    {
+      name: 'Health & Wellness',
+      path: '/category/health-wellness',
+      items: [
+        'Immune boosters & daily vitamins',
+        'Natural supplements & herbal remedies',
+        'Stress relief & relaxation products',
+        "Women's and men's wellness essentials",
+      ],
+    },
+    {
+      name: 'Beauty & Skincare',
+      path: '/category/beauty-skincare',
+      items: [
+        'Dermatologist-recommended skincare',
+        'Organic beauty solutions',
+        'Body care & personal hygiene',
+        'Hair care for all types and textures',
+      ],
+    },
+    {
+      name: 'Mother & Baby Care',
+      path: '/category/mother-baby-care',
+      items: [
+        'Safe baby skincare & bath products',
+        'Maternity wellness items',
+        'Diapers, wipes & baby feeding accessories',
+      ],
+    },
+    {
+      name: 'Self-Care & Lifestyle',
+      path: '/category/self-care-lifestyle',
+      items: [
+        'Aromatherapy & essential oils',
+        'Wellness teas & detox blends',
+        'Fitness and body toning accessories',
+        'Sustainable personal care tools',
+      ],
+    },
   ]
+
+  const [activeCategory, setActiveCategory] = useState(categories[0]?.name ?? '')
 
   const conditions = [
     { name: 'Aches & Pains', path: '/conditions/aches-pains' },
@@ -63,6 +91,13 @@ function Header() {
   const handleToggleMenu = (menuKey: string) => {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey))
   }
+
+  const activeCategoryData =
+    categories.find((category) => category.name === activeCategory) || categories[0]
+  const activeItems = activeCategoryData?.items ?? []
+  const itemsSplitIndex = Math.ceil(activeItems.length / 2)
+  const itemsColumnOne = activeItems.slice(0, itemsSplitIndex)
+  const itemsColumnTwo = activeItems.slice(itemsSplitIndex)
 
   const closeMenus = () => {
     setActiveMenu(null)
@@ -127,13 +162,13 @@ function Header() {
                 </svg>
               </button>
 
-              <a href="https://wa.me/254700000000" className="header__action-btn" aria-label="WhatsApp">
+              <Link to="/contact" className="header__action-btn" aria-label="WhatsApp">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 11.5a8.5 8.5 0 0 1-12.18 7.72L3 21l1.86-5.64A8.5 8.5 0 1 1 21 11.5z"/>
                   <path d="M9.5 9.5c.4 1.2 1.3 2.2 2.5 2.8l.7-.4c.2-.1.5 0 .6.2l.8 1.2c.1.2 0 .5-.2.6-1 .5-2.2.6-3.4.2-1.5-.5-2.8-1.6-3.7-3.1-.7-1.2-1-2.5-.8-3.8 0-.2.2-.4.4-.4h1.4c.2 0 .4.1.4.3l.2 1.3c0 .2-.1.4-.3.5l-.7.4z"/>
                 </svg>
                 <span className="header__action-text">WhatsApp</span>
-              </a>
+              </Link>
 
               <Link to="/account" className="header__action-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -190,35 +225,42 @@ function Header() {
               </button>
               <div className="mega-panel">
                 <div className="mega-panel__grid">
-                  <div className="mega-panel__col">
+                  <div className="mega-panel__col mega-panel__menu">
                     <h4>Categories</h4>
-                    <ul className="mega-panel__links">
+                    <ul className="mega-panel__menu-list">
                       {categories.map((category) => (
                         <li key={category.name}>
-                          <Link to={category.path} onClick={closeMenus}>{category.name}</Link>
+                          <Link
+                            to={category.path}
+                            onMouseEnter={() => setActiveCategory(category.name)}
+                            onFocus={() => setActiveCategory(category.name)}
+                            onClick={closeMenus}
+                            className={`mega-panel__menu-link ${category.name === activeCategory ? 'mega-panel__menu-link--active' : ''}`}
+                          >
+                            {category.name}
+                          </Link>
                         </li>
                       ))}
                     </ul>
                   </div>
-                  <div className="mega-panel__col">
-                    <h4>Health Care Conditions</h4>
-                    <ul className="mega-panel__links">
-                      {conditions.map((condition) => (
-                        <li key={condition.name}>
-                          <Link to={condition.path} onClick={closeMenus}>{condition.name}</Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="mega-panel__col">
-                    <h4>Brands</h4>
-                    <ul className="mega-panel__links">
-                      {brands.map((brand) => (
-                        <li key={brand.name}>
-                          <Link to={brand.path} onClick={closeMenus}>{brand.name}</Link>
-                        </li>
-                      ))}
-                    </ul>
+                  <div className="mega-panel__col mega-panel__values">
+                    <h4>{activeCategoryData?.name}</h4>
+                    <div className="mega-panel__values-grid">
+                      <ul className="mega-panel__values-list">
+                        {itemsColumnOne.map((item) => (
+                          <li key={item}>
+                            <Link to={activeCategoryData?.path ?? '/'} onClick={closeMenus}>{item}</Link>
+                          </li>
+                        ))}
+                      </ul>
+                      <ul className="mega-panel__values-list">
+                        {itemsColumnTwo.map((item) => (
+                          <li key={item}>
+                            <Link to={activeCategoryData?.path ?? '/'} onClick={closeMenus}>{item}</Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                   <div className="mega-panel__col mega-panel__cta">
                     <div className="advisor-card">

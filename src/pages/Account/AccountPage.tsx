@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import avatarJohn from '../../assets/images/avatars/avatar-john.svg'
 import './AccountPage.css'
 
 function AccountPage() {
@@ -6,7 +8,7 @@ function AccountPage() {
     name: 'John Doe',
     email: 'john.doe@example.com',
     phone: '+254 700 000 000',
-    avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=E81750&color=fff&size=128',
+    avatar: avatarJohn,
   }
 
   const recentOrders = [
@@ -34,7 +36,7 @@ function AccountPage() {
         <div className="account-page__layout">
           {/* Profile Card */}
           <div className="profile-card">
-            <img src={user.avatar} alt={user.name} className="profile-card__avatar" />
+            <ImageWithFallback src={user.avatar} alt={user.name} className="profile-card__avatar" />
             <h2 className="profile-card__name">{user.name}</h2>
             <p className="profile-card__email">{user.email}</p>
             <p className="profile-card__phone">{user.phone}</p>

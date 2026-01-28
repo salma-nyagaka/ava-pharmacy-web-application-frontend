@@ -1,5 +1,11 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import {
+  productVitaminC,
+  productOmega3,
+  productMultivitamin,
+} from '../../assets/images/remote'
 import './ProductDetailPage.css'
 
 function ProductDetailPage() {
@@ -19,9 +25,9 @@ function ProductDetailPage() {
     sku: 'HP-VIT-C-1000',
     category: 'Vitamins & Supplements',
     images: [
-      'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=600&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=600&h=600&fit=crop',
-      'https://images.unsplash.com/photo-1550572017-edd951b55104?w=600&h=600&fit=crop',
+      productVitaminC,
+      productOmega3,
+      productMultivitamin,
     ],
     description: 'High-quality Vitamin C 1000mg tablets to support your immune system and overall health. Each tablet contains pure ascorbic acid in an easy-to-swallow format.',
     features: [
@@ -41,21 +47,21 @@ function ProductDetailPage() {
       id: 2,
       name: 'Multivitamin Complex',
       price: 1650,
-      image: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=300&h=300&fit=crop',
+      image: productMultivitamin,
       rating: 4.7,
     },
     {
       id: 3,
       name: 'Omega-3 Fish Oil',
       price: 2100,
-      image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=300&h=300&fit=crop',
+      image: productOmega3,
       rating: 4.7,
     },
     {
       id: 4,
       name: 'Vitamin D3 5000 IU',
       price: 980,
-      image: 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=300&h=300&fit=crop',
+      image: productVitaminC,
       rating: 4.6,
     },
   ]
@@ -127,7 +133,7 @@ function ProductDetailPage() {
           {/* Images */}
           <div className="pdp__gallery">
             <div className="pdp__main-image">
-              <img src={product.images[selectedImage]} alt={product.name} />
+              <ImageWithFallback src={product.images[selectedImage]} alt={product.name} />
             </div>
             <div className="pdp__thumbnails">
               {product.images.map((image, index) => (
@@ -136,7 +142,7 @@ function ProductDetailPage() {
                   className={`pdp__thumbnail ${selectedImage === index ? 'pdp__thumbnail--active' : ''}`}
                   onClick={() => setSelectedImage(index)}
                 >
-                  <img src={image} alt={`${product.name} ${index + 1}`} />
+                  <ImageWithFallback src={image} alt={`${product.name} ${index + 1}`} />
                 </button>
               ))}
             </div>
@@ -292,7 +298,7 @@ function ProductDetailPage() {
           <div className="related-products">
             {relatedProducts.map((relatedProduct) => (
               <Link key={relatedProduct.id} to={`/product/${relatedProduct.id}`} className="related-product">
-                <img src={relatedProduct.image} alt={relatedProduct.name} />
+                <ImageWithFallback src={relatedProduct.image} alt={relatedProduct.name} />
                 <h4>{relatedProduct.name}</h4>
                 <div className="related-product__stars">{renderStars(relatedProduct.rating)}</div>
                 <p className="related-product__price">{formatPrice(relatedProduct.price)}</p>

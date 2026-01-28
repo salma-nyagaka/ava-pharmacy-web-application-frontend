@@ -1,5 +1,17 @@
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import {
+  productVitaminC,
+  productBpMonitor,
+  productFaceCream,
+  productOmega3,
+  productSanitizer,
+  productMultivitamin,
+  productThermometer,
+  productBabyDiapers,
+  productPainRelief,
+} from '../../assets/images/remote'
 import './ProductListingPage.css'
 
 function ProductListingPage() {
@@ -23,7 +35,7 @@ function ProductListingPage() {
       brand: 'HealthPlus',
       price: 1250,
       originalPrice: 1500,
-      image: 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=400&h=400&fit=crop',
+      image: productVitaminC,
       rating: 4.8,
       reviews: 124,
       inStock: true,
@@ -35,7 +47,7 @@ function ProductListingPage() {
       brand: 'MedTech',
       price: 4500,
       originalPrice: 5500,
-      image: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=400&h=400&fit=crop',
+      image: productBpMonitor,
       rating: 4.6,
       reviews: 89,
       inStock: true,
@@ -47,7 +59,7 @@ function ProductListingPage() {
       brand: 'SkinGlow',
       price: 890,
       originalPrice: null,
-      image: 'https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?w=400&h=400&fit=crop',
+      image: productFaceCream,
       rating: 4.5,
       reviews: 67,
       inStock: true,
@@ -59,7 +71,7 @@ function ProductListingPage() {
       brand: 'NutraLife',
       price: 2100,
       originalPrice: 2500,
-      image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=400&fit=crop',
+      image: productOmega3,
       rating: 4.7,
       reviews: 156,
       inStock: true,
@@ -71,7 +83,7 @@ function ProductListingPage() {
       brand: 'CleanGuard',
       price: 450,
       originalPrice: 550,
-      image: 'https://images.unsplash.com/photo-1584483766114-2cea6facdf57?w=400&h=400&fit=crop',
+      image: productSanitizer,
       rating: 4.4,
       reviews: 45,
       inStock: false,
@@ -83,7 +95,7 @@ function ProductListingPage() {
       brand: 'VitaMax',
       price: 1650,
       originalPrice: null,
-      image: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=400&h=400&fit=crop',
+      image: productMultivitamin,
       rating: 4.7,
       reviews: 198,
       inStock: true,
@@ -95,7 +107,7 @@ function ProductListingPage() {
       brand: 'MedTech',
       price: 2800,
       originalPrice: 3500,
-      image: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=400&h=400&fit=crop',
+      image: productThermometer,
       rating: 4.6,
       reviews: 112,
       inStock: true,
@@ -107,7 +119,7 @@ function ProductListingPage() {
       brand: 'BabyCare',
       price: 1800,
       originalPrice: 2200,
-      image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop',
+      image: productBabyDiapers,
       rating: 4.9,
       reviews: 234,
       inStock: true,
@@ -119,7 +131,7 @@ function ProductListingPage() {
       brand: 'MediRelief',
       price: 650,
       originalPrice: 800,
-      image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400&h=400&fit=crop',
+      image: productPainRelief,
       rating: 4.3,
       reviews: 78,
       inStock: true,
@@ -259,7 +271,7 @@ function ProductListingPage() {
                     {!product.inStock && (
                       <div className="product-card__overlay">Out of Stock</div>
                     )}
-                    <img src={product.image} alt={product.name} />
+                    <ImageWithFallback src={product.image} alt={product.name} />
                   </Link>
 
                   <div className="product-card__content">

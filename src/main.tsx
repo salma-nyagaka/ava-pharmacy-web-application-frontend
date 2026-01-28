@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import './styles/fonts.css'
 import './styles/index.css'
 import './styles/shared.css'
 import './styles/portal.css'

@@ -1,4 +1,8 @@
 import { useState } from 'react'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import avatarSarah from '../../assets/images/avatars/avatar-sarah.svg'
+import avatarMichael from '../../assets/images/avatars/avatar-michael.svg'
+import avatarEmily from '../../assets/images/avatars/avatar-emily.svg'
 import './ConsultationPage.css'
 
 function ConsultationPage() {
@@ -16,21 +20,21 @@ function ConsultationPage() {
       name: 'Dr. Sarah Johnson',
       specialty: 'General Physician',
       available: true,
-      avatar: 'https://ui-avatars.com/api/?name=Sarah+Johnson&background=E81750&color=fff',
+      avatar: avatarSarah,
     },
     {
       id: 2,
       name: 'Dr. Michael Chen',
       specialty: 'Cardiologist',
       available: false,
-      avatar: 'https://ui-avatars.com/api/?name=Michael+Chen&background=991b1f&color=fff',
+      avatar: avatarMichael,
     },
     {
       id: 3,
       name: 'Dr. Emily Davis',
       specialty: 'Dermatologist',
       available: true,
-      avatar: 'https://ui-avatars.com/api/?name=Emily+Davis&background=E81750&color=fff',
+      avatar: avatarEmily,
     },
   ]
 
@@ -52,7 +56,7 @@ function ConsultationPage() {
             <div className="doctors-list">
               {doctors.map((doctor) => (
                 <div key={doctor.id} className={`doctor-item ${doctor.available ? 'doctor-item--available' : ''}`}>
-                  <img src={doctor.avatar} alt={doctor.name} className="doctor-item__avatar" />
+                  <ImageWithFallback src={doctor.avatar} alt={doctor.name} className="doctor-item__avatar" />
                   <div className="doctor-item__info">
                     <h4>{doctor.name}</h4>
                     <p>{doctor.specialty}</p>
@@ -68,11 +72,7 @@ function ConsultationPage() {
           {/* Chat Area */}
           <div className="chat-container">
             <div className="chat-header">
-              <img
-                src="https://ui-avatars.com/api/?name=Sarah+Johnson&background=E81750&color=fff"
-                alt="Dr. Sarah Johnson"
-                className="chat-header__avatar"
-              />
+              <ImageWithFallback src={avatarSarah} alt="Dr. Sarah Johnson" className="chat-header__avatar" />
               <div>
                 <h3>Dr. Sarah Johnson</h3>
                 <p>General Physician</p>

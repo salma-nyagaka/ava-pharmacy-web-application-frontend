@@ -1,4 +1,11 @@
 import { useState } from 'react'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import {
+  adminParacetamol,
+  adminIbuprofen,
+  productVitaminC,
+  productPainRelief,
+} from '../../assets/images/remote'
 import './ProductManagement.css'
 
 interface Product {
@@ -17,14 +24,14 @@ function ProductManagement() {
   const [selectedCategory, setSelectedCategory] = useState('all')
 
   const products: Product[] = [
-    { id: 1, name: 'Paracetamol 500mg', category: 'Pain Relief', price: 250, stock: 150, status: 'active', image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=100' },
-    { id: 2, name: 'Ibuprofen 400mg', category: 'Pain Relief', price: 350, stock: 80, status: 'active', image: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=100' },
-    { id: 3, name: 'Vitamin C 1000mg', category: 'Supplements', price: 800, stock: 200, status: 'active', image: 'https://images.unsplash.com/photo-1550572017-edd951aa8f72?w=100' },
-    { id: 4, name: 'Amoxicillin 250mg', category: 'Antibiotics', price: 1200, stock: 5, status: 'active', image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=100' },
-    { id: 5, name: 'Cetrizine 10mg', category: 'Allergy', price: 450, stock: 120, status: 'active', image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=100' },
-    { id: 6, name: 'Omeprazole 20mg', category: 'Digestive', price: 600, stock: 90, status: 'active', image: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=100' },
-    { id: 7, name: 'Multivitamin Daily', category: 'Supplements', price: 1500, stock: 0, status: 'inactive', image: 'https://images.unsplash.com/photo-1550572017-edd951aa8f72?w=100' },
-    { id: 8, name: 'Aspirin 75mg', category: 'Pain Relief', price: 300, stock: 180, status: 'active', image: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=100' },
+    { id: 1, name: 'Paracetamol 500mg', category: 'Pain Relief', price: 250, stock: 150, status: 'active', image: adminParacetamol },
+    { id: 2, name: 'Ibuprofen 400mg', category: 'Pain Relief', price: 350, stock: 80, status: 'active', image: adminIbuprofen },
+    { id: 3, name: 'Vitamin C 1000mg', category: 'Supplements', price: 800, stock: 200, status: 'active', image: productVitaminC },
+    { id: 4, name: 'Amoxicillin 250mg', category: 'Antibiotics', price: 1200, stock: 5, status: 'active', image: productPainRelief },
+    { id: 5, name: 'Cetrizine 10mg', category: 'Allergy', price: 450, stock: 120, status: 'active', image: adminParacetamol },
+    { id: 6, name: 'Omeprazole 20mg', category: 'Digestive', price: 600, stock: 90, status: 'active', image: adminIbuprofen },
+    { id: 7, name: 'Multivitamin Daily', category: 'Supplements', price: 1500, stock: 0, status: 'inactive', image: productVitaminC },
+    { id: 8, name: 'Aspirin 75mg', category: 'Pain Relief', price: 300, stock: 180, status: 'active', image: productPainRelief },
   ]
 
   return (
@@ -72,7 +79,7 @@ function ProductManagement() {
               <tr key={product.id}>
                 <td>
                   <div className="product-info">
-                    <img src={product.image} alt={product.name} />
+                      <ImageWithFallback src={product.image} alt={product.name} />
                     <span>{product.name}</span>
                   </div>
                 </td>

@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { productVitaminC, productBpMonitor } from '../../assets/images/remote'
 import './CartPage.css'
 
 function CartPage() {
@@ -9,7 +11,7 @@ function CartPage() {
       brand: 'HealthPlus',
       price: 1250,
       quantity: 2,
-      image: 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=200&h=200&fit=crop',
+      image: productVitaminC,
     },
     {
       id: 2,
@@ -17,7 +19,7 @@ function CartPage() {
       brand: 'MedTech',
       price: 4500,
       quantity: 1,
-      image: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=200&h=200&fit=crop',
+      image: productBpMonitor,
     },
   ]
 
@@ -36,7 +38,7 @@ function CartPage() {
           <div className="cart-page__items">
             {cartItems.map((item) => (
               <div key={item.id} className="cart-item">
-                <img src={item.image} alt={item.name} className="cart-item__image" />
+                <ImageWithFallback src={item.image} alt={item.name} className="cart-item__image" />
                 <div className="cart-item__details">
                   <h3 className="cart-item__name">{item.name}</h3>
                   <p className="cart-item__brand">{item.brand}</p>

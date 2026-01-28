@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="Ava Pharmacy Hero">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8f9fc"/>
+      <stop offset="100%" stop-color="#fdeff4"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <circle cx="640" cy="140" r="120" fill="#ffe0ea"/>
+  <circle cx="150" cy="480" r="160" fill="#f2f4f8"/>
+  <text x="60" y="120" fill="#031b4e" font-size="40" font-family="Arial, Helvetica, sans-serif" font-weight="700">AVA Pharmacy</text>
+  <text x="60" y="170" fill="#8a91ac" font-size="20" font-family="Arial, Helvetica, sans-serif">Healthcare Hero Image</text>
+  <rect x="60" y="220" width="320" height="12" fill="#E81750" rx="6"/>
+  <rect x="60" y="250" width="240" height="12" fill="#d9deea" rx="6"/>
+</svg>

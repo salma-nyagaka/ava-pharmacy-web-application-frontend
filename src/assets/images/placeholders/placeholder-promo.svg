@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300" role="img" aria-label="Promo Image">
+  <rect width="400" height="300" fill="#f8f9fc"/>
+  <path d="M0 220 C80 200 120 260 200 240 C280 220 320 260 400 240 L400 300 L0 300 Z" fill="#ffe0ea"/>
+  <text x="40" y="80" fill="#031b4e" font-size="22" font-family="Arial, Helvetica, sans-serif" font-weight="700">Promo</text>
+  <text x="40" y="110" fill="#8a91ac" font-size="14" font-family="Arial, Helvetica, sans-serif">Ava Pharmacy</text>
+  <rect x="40" y="140" width="120" height="10" rx="5" fill="#E81750"/>
+</svg>

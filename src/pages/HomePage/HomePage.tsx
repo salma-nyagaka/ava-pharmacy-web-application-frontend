@@ -1,43 +1,49 @@
 import { Link } from 'react-router-dom'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import {
+  categoryHealth,
+  categoryBeauty,
+  categoryBaby,
+  categoryPersonal,
+  productVitaminC,
+  productBpMonitor,
+  productFaceCream,
+  productOmega3,
+  productBabyDiapers,
+  productSanitizer,
+  productThermometer,
+  productMultivitamin,
+  articleImmunity,
+  articleDiabetes,
+  articleSkincare,
+} from '../../assets/images/remote'
 import './HomePage.css'
 
 function HomePage() {
   const categories = [
     {
       id: 1,
-      name: 'Medicines',
-      image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&h=400&fit=crop',
-      link: '/category/medicines',
-    },
-    {
-      id: 2,
       name: 'Health & Wellness',
-      image: 'https://images.unsplash.com/photo-1505576399279-565b52d4ac71?w=400&h=400&fit=crop',
+      image: categoryHealth,
       link: '/category/health-wellness',
     },
     {
-      id: 3,
+      id: 2,
       name: 'Beauty & Skincare',
-      image: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=400&fit=crop',
+      image: categoryBeauty,
       link: '/category/beauty-skincare',
     },
     {
+      id: 3,
+      name: 'Mother & Baby Care',
+      image: categoryBaby,
+      link: '/category/mother-baby-care',
+    },
+    {
       id: 4,
-      name: 'Baby & Mom',
-      image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=400&h=400&fit=crop',
-      link: '/category/baby-mom',
-    },
-    {
-      id: 5,
-      name: 'Medical Devices',
-      image: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400&h=400&fit=crop',
-      link: '/category/medical-devices',
-    },
-    {
-      id: 6,
-      name: 'Personal Care',
-      image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&h=400&fit=crop',
-      link: '/category/personal-care',
+      name: 'Self-Care & Lifestyle',
+      image: categoryPersonal,
+      link: '/category/self-care-lifestyle',
     },
   ]
 
@@ -48,7 +54,7 @@ function HomePage() {
       brand: 'HealthPlus',
       price: 1250,
       originalPrice: 1500,
-      image: 'https://images.unsplash.com/photo-1584017911766-d451b3d0e843?w=400&h=400&fit=crop',
+      image: productVitaminC,
       badge: 'Best Seller',
       rating: 4.8,
       reviews: 124,
@@ -59,7 +65,7 @@ function HomePage() {
       brand: 'MedTech',
       price: 4500,
       originalPrice: 5500,
-      image: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?w=400&h=400&fit=crop',
+      image: productBpMonitor,
       badge: '18% Off',
       rating: 4.6,
       reviews: 89,
@@ -70,7 +76,7 @@ function HomePage() {
       brand: 'SkinGlow',
       price: 890,
       originalPrice: null,
-      image: 'https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?w=400&h=400&fit=crop',
+      image: productFaceCream,
       badge: null,
       rating: 4.5,
       reviews: 67,
@@ -81,7 +87,7 @@ function HomePage() {
       brand: 'NutraLife',
       price: 2100,
       originalPrice: 2500,
-      image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=400&fit=crop',
+      image: productOmega3,
       badge: 'New',
       rating: 4.7,
       reviews: 156,
@@ -92,7 +98,7 @@ function HomePage() {
       brand: 'BabyCare',
       price: 1800,
       originalPrice: 2200,
-      image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop',
+      image: productBabyDiapers,
       badge: '18% Off',
       rating: 4.9,
       reviews: 234,
@@ -103,7 +109,7 @@ function HomePage() {
       brand: 'CleanGuard',
       price: 450,
       originalPrice: 550,
-      image: 'https://images.unsplash.com/photo-1584483766114-2cea6facdf57?w=400&h=400&fit=crop',
+      image: productSanitizer,
       badge: null,
       rating: 4.4,
       reviews: 45,
@@ -114,7 +120,7 @@ function HomePage() {
       brand: 'MedTech',
       price: 2800,
       originalPrice: 3500,
-      image: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=400&h=400&fit=crop',
+      image: productThermometer,
       badge: '20% Off',
       rating: 4.6,
       reviews: 112,
@@ -125,7 +131,7 @@ function HomePage() {
       brand: 'VitaMax',
       price: 1650,
       originalPrice: null,
-      image: 'https://images.unsplash.com/photo-1550572017-edd951b55104?w=400&h=400&fit=crop',
+      image: productMultivitamin,
       badge: 'Popular',
       rating: 4.7,
       reviews: 198,
@@ -137,7 +143,7 @@ function HomePage() {
       id: 1,
       title: 'Boost Your Immunity This Season',
       excerpt: 'Discover essential vitamins and supplements to keep your immune system strong...',
-      image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=600&h=400&fit=crop',
+      image: articleImmunity,
       category: 'Wellness',
       date: 'Jan 5, 2026',
     },
@@ -145,7 +151,7 @@ function HomePage() {
       id: 2,
       title: 'Managing Diabetes: A Complete Guide',
       excerpt: 'Learn about monitoring blood sugar, medication management, and lifestyle changes...',
-      image: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&h=400&fit=crop',
+      image: articleDiabetes,
       category: 'Health',
       date: 'Jan 3, 2026',
     },
@@ -153,7 +159,7 @@ function HomePage() {
       id: 3,
       title: 'Skincare Routine for Healthy Skin',
       excerpt: 'Expert tips on building a skincare routine that works for your skin type...',
-      image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=400&fit=crop',
+      image: articleSkincare,
       category: 'Beauty',
       date: 'Dec 28, 2025',
     },
@@ -249,10 +255,7 @@ function HomePage() {
               </div>
             </div>
             <div className="hero__image">
-              <img
-                src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=600&h=600&fit=crop"
-                alt="Healthcare professional"
-              />
+              <ImageWithFallback src={articleImmunity} alt="Healthcare professional" />
               <div className="hero__image-badge">
                 <span className="hero__image-badge-number">50K+</span>
                 <span className="hero__image-badge-text">Happy Customers</span>
@@ -326,7 +329,7 @@ function HomePage() {
             {categories.map((category) => (
               <Link key={category.id} to={category.link} className="category-card">
                 <div className="category-card__image">
-                  <img src={category.image} alt={category.name} />
+                  <ImageWithFallback src={category.image} alt={category.name} />
                 </div>
                 <h3 className="category-card__name">{category.name}</h3>
               </Link>
@@ -353,7 +356,7 @@ function HomePage() {
                       {product.badge}
                     </span>
                   )}
-                  <img src={product.image} alt={product.name} />
+                  <ImageWithFallback src={product.image} alt={product.name} />
                   <div className="product-card__actions">
                     <button className="product-card__action" title="Add to Wishlist">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -421,10 +424,7 @@ function HomePage() {
                 </Link>
               </div>
               <div className="promo-card__image">
-                <img
-                  src="https://images.unsplash.com/photo-1550572017-edd951b55104?w=400&h=300&fit=crop"
-                  alt="Vitamins offer"
-                />
+                <ImageWithFallback src={productMultivitamin} alt="Vitamins offer" />
               </div>
             </div>
             <div className="promo-card promo-card--secondary">
@@ -439,10 +439,7 @@ function HomePage() {
                 </Link>
               </div>
               <div className="promo-card__image">
-                <img
-                  src="https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=400&h=300&fit=crop"
-                  alt="Skincare products"
-                />
+                <ImageWithFallback src={articleSkincare} alt="Skincare products" />
               </div>
             </div>
           </div>
@@ -462,7 +459,7 @@ function HomePage() {
             {healthTips.map((tip) => (
               <article key={tip.id} className="tip-card">
                 <div className="tip-card__image">
-                  <img src={tip.image} alt={tip.title} />
+                  <ImageWithFallback src={tip.image} alt={tip.title} />
                   <span className="tip-card__category">{tip.category}</span>
                 </div>
                 <div className="tip-card__content">
