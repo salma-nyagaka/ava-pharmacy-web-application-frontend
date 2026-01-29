@@ -155,10 +155,56 @@
 }
 
 /* Categories Section */
-.categories__grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
+.categories__carousel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.categories__track {
+  display: flex;
   gap: 1.5rem;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  padding: 0.5rem 0.25rem 1rem;
+  scrollbar-width: none;
+  flex: 1;
+}
+
+.categories__track::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel__btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  font-size: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.carousel__btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.carousel__btn--prev {
+  margin-left: -0.25rem;
+}
+
+.carousel__btn--next {
+  margin-right: -0.25rem;
 }
 
 .category-card {
@@ -171,6 +217,8 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   transition: all var(--transition-base);
+  min-width: 210px;
+  scroll-snap-align: start;
 }
 
 .category-card:hover {
@@ -201,6 +249,14 @@
 
 .category-card:hover .category-card__name {
   color: var(--color-primary);
+}
+
+.services-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 2rem;
 }
 
 /* Products Grid */
@@ -654,8 +710,8 @@
     font-size: 2.75rem;
   }
 
-  .categories__grid {
-    grid-template-columns: repeat(3, 1fr);
+  .categories__carousel {
+    gap: 0.75rem;
   }
 
   .products__grid {
@@ -747,13 +803,13 @@
     gap: 1.5rem;
   }
 
-  .categories__grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+  .categories__carousel {
+    gap: 0.5rem;
   }
 
   .category-card {
     padding: 1rem;
+    min-width: 170px;
   }
 
   .category-card__image {

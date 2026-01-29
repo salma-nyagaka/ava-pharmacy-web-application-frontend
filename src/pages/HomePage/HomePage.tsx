@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import {
@@ -14,12 +15,13 @@ import {
   productThermometer,
   productMultivitamin,
   articleImmunity,
-  articleDiabetes,
   articleSkincare,
 } from '../../assets/images/remote'
 import './HomePage.css'
 
 function HomePage() {
+  const categoryTrackRef = useRef<HTMLDivElement | null>(null)
+
   const categories = [
     {
       id: 1,
@@ -83,6 +85,20 @@ function HomePage() {
     },
     {
       id: 4,
+      name: 'Hand Sanitizer 500ml',
+      brand: 'CleanGuard',
+      price: 450,
+      originalPrice: 550,
+      image: productSanitizer,
+      badge: null,
+      rating: 4.4,
+      reviews: 45,
+    },
+  ]
+
+  const newProducts = [
+    {
+      id: 101,
       name: 'Omega-3 Fish Oil Capsules',
       brand: 'NutraLife',
       price: 2100,
@@ -93,7 +109,7 @@ function HomePage() {
       reviews: 156,
     },
     {
-      id: 5,
+      id: 102,
       name: 'Baby Diapers Pack of 60',
       brand: 'BabyCare',
       price: 1800,
@@ -104,18 +120,7 @@ function HomePage() {
       reviews: 234,
     },
     {
-      id: 6,
-      name: 'Hand Sanitizer 500ml',
-      brand: 'CleanGuard',
-      price: 450,
-      originalPrice: 550,
-      image: productSanitizer,
-      badge: null,
-      rating: 4.4,
-      reviews: 45,
-    },
-    {
-      id: 7,
+      id: 103,
       name: 'Infrared Thermometer',
       brand: 'MedTech',
       price: 2800,
@@ -126,7 +131,7 @@ function HomePage() {
       reviews: 112,
     },
     {
-      id: 8,
+      id: 104,
       name: 'Multivitamin Tablets',
       brand: 'VitaMax',
       price: 1650,
@@ -135,33 +140,6 @@ function HomePage() {
       badge: 'Popular',
       rating: 4.7,
       reviews: 198,
-    },
-  ]
-
-  const healthTips = [
-    {
-      id: 1,
-      title: 'Boost Your Immunity This Season',
-      excerpt: 'Discover essential vitamins and supplements to keep your immune system strong...',
-      image: articleImmunity,
-      category: 'Wellness',
-      date: 'Jan 5, 2026',
-    },
-    {
-      id: 2,
-      title: 'Managing Diabetes: A Complete Guide',
-      excerpt: 'Learn about monitoring blood sugar, medication management, and lifestyle changes...',
-      image: articleDiabetes,
-      category: 'Health',
-      date: 'Jan 3, 2026',
-    },
-    {
-      id: 3,
-      title: 'Skincare Routine for Healthy Skin',
-      excerpt: 'Expert tips on building a skincare routine that works for your skin type...',
-      image: articleSkincare,
-      category: 'Beauty',
-      date: 'Dec 28, 2025',
     },
   ]
 
@@ -200,6 +178,16 @@ function HomePage() {
     }
 
     return stars
+  }
+
+  const scrollCategories = (direction: 'prev' | 'next') => {
+    const track = categoryTrackRef.current
+    if (!track) return
+    const card = track.querySelector<HTMLElement>('.category-card')
+    const cardWidth = card?.offsetWidth ?? 200
+    const gap = 24
+    const amount = (cardWidth + gap) * 2
+    track.scrollBy({ left: direction === 'next' ? amount : -amount, behavior: 'smooth' })
   }
 
   return (
@@ -325,15 +313,33 @@ function HomePage() {
               Browse our wide range of healthcare products and find what you need
             </p>
           </div>
-          <div className="categories__grid">
-            {categories.map((category) => (
-              <Link key={category.id} to={category.link} className="category-card">
-                <div className="category-card__image">
-                  <ImageWithFallback src={category.image} alt={category.name} />
-                </div>
-                <h3 className="category-card__name">{category.name}</h3>
-              </Link>
-            ))}
+          <div className="categories__carousel">
+            <button
+              className="carousel__btn carousel__btn--prev"
+              type="button"
+              aria-label="Scroll categories left"
+              onClick={() => scrollCategories('prev')}
+            >
+              ‹
+            </button>
+            <div className="categories__track" ref={categoryTrackRef}>
+              {categories.map((category) => (
+                <Link key={category.id} to={category.link} className="category-card">
+                  <div className="category-card__image">
+                    <ImageWithFallback src={category.image} alt={category.name} />
+                  </div>
+                  <h3 className="category-card__name">{category.name}</h3>
+                </Link>
+              ))}
+            </div>
+            <button
+              className="carousel__btn carousel__btn--next"
+              type="button"
+              aria-label="Scroll categories right"
+              onClick={() => scrollCategories('next')}
+            >
+              ›
+            </button>
           </div>
         </div>
       </section>
@@ -446,37 +452,74 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Health Tips Section */}
-      <section className="section section--alt health-tips">
+      {/* New Products Section */}
+      <section className="section section--alt new-products">
         <div className="container">
           <div className="section__header">
-            <h2 className="section__title">Health Tips & Articles</h2>
+            <h2 className="section__title">New Products</h2>
             <p className="section__subtitle">
-              Stay informed with the latest health and wellness advice from our experts
+              Fresh arrivals curated for your daily wellness needs
             </p>
           </div>
-          <div className="health-tips__grid">
-            {healthTips.map((tip) => (
-              <article key={tip.id} className="tip-card">
-                <div className="tip-card__image">
-                  <ImageWithFallback src={tip.image} alt={tip.title} />
-                  <span className="tip-card__category">{tip.category}</span>
+          <div className="products__grid">
+            {newProducts.map((product) => (
+              <article key={product.id} className="product-card">
+                <div className="product-card__image">
+                  {product.badge && (
+                    <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
+                      {product.badge}
+                    </span>
+                  )}
+                  <ImageWithFallback src={product.image} alt={product.name} />
+                  <div className="product-card__actions">
+                    <button className="product-card__action" title="Add to Wishlist">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
+                    <button className="product-card__action" title="Quick View">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <div className="tip-card__content">
-                  <span className="tip-card__date">{tip.date}</span>
-                  <h3 className="tip-card__title">
-                    <Link to={`/blog/${tip.id}`}>{tip.title}</Link>
+                <div className="product-card__content">
+                  <span className="product-card__brand">{product.brand}</span>
+                  <h3 className="product-card__name">
+                    <Link to={`/product/${product.id}`}>{product.name}</Link>
                   </h3>
-                  <p className="tip-card__excerpt">{tip.excerpt}</p>
-                  <Link to={`/blog/${tip.id}`} className="tip-card__link">
-                    Read More
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                  <div className="product-card__rating">
+                    <div className="product-card__stars">
+                      {renderStars(product.rating)}
+                    </div>
+                    <span className="product-card__reviews">({product.reviews})</span>
+                  </div>
+                  <div className="product-card__pricing">
+                    <span className="product-card__price">{formatPrice(product.price)}</span>
+                    {product.originalPrice && (
+                      <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
+                    )}
+                  </div>
+                  <button className="product-card__add-to-cart">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="9" cy="21" r="1"/>
+                      <circle cx="20" cy="21" r="1"/>
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
                     </svg>
-                  </Link>
+                    Add to Cart
+                  </button>
                 </div>
               </article>
             ))}
+          </div>
+          <div className="services-cta">
+            <Link to="/contact" className="btn btn--outline">Contact Us</Link>
+            <Link to="/consultation" className="btn btn--primary">Doctor Consultation</Link>
+            <Link to="/pediatrician/dashboard" className="btn btn--primary">Pediatric Services</Link>
+            <Link to="/lab-tests" className="btn btn--primary">Laboratory Services</Link>
+            <Link to="/prescriptions" className="btn btn--primary">Prescription Fulfillment</Link>
           </div>
         </div>
       </section>
@@ -488,7 +531,7 @@ function HomePage() {
             <div className="newsletter__text">
               <h2 className="newsletter__title">Subscribe to Our Newsletter</h2>
               <p className="newsletter__description">
-                Get exclusive offers, health tips, and updates delivered straight to your inbox
+                Get exclusive offers and new product updates delivered straight to your inbox
               </p>
             </div>
             <form className="newsletter__form">

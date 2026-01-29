@@ -2,6 +2,16 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import './Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
+import brandPanadol from '../../assets/images/brands/panadol.jpeg'
+import brandNivea from '../../assets/images/brands/nivea.png'
+import brandCerave from '../../assets/images/brands/cerave.png'
+import brandDurex from '../../assets/images/brands/durex.png'
+import brandEucerin from '../../assets/images/brands/eucerin.png'
+import brandVichy from '../../assets/images/brands/vichy.png'
+import brandCentrum from '../../assets/images/brands/centrum.jpeg'
+import brandSebamed from '../../assets/images/brands/sebamed.png'
+import brandHuggies from '../../assets/images/brands/huggies.jpeg'
+import brandAccuChek from '../../assets/images/brands/accu-check.png'
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -76,16 +86,16 @@ function Header() {
   ]
 
   const brands = [
-    { name: 'Panadol', path: '/brands/panadol' },
-    { name: 'Nivea', path: '/brands/nivea' },
-    { name: 'CeraVe', path: '/brands/cerave' },
-    { name: 'Durex', path: '/brands/durex' },
-    { name: 'Eucerin', path: '/brands/eucerin' },
-    { name: 'Vichy', path: '/brands/vichy' },
-    { name: 'Centrum', path: '/brands/centrum' },
-    { name: 'Sebamed', path: '/brands/sebamed' },
-    { name: 'Huggies', path: '/brands/huggies' },
-    { name: 'Accu-chek', path: '/brands/accu-chek' },
+    { name: 'Panadol', path: '/brands/panadol', logo: brandPanadol },
+    { name: 'Nivea', path: '/brands/nivea', logo: brandNivea },
+    { name: 'CeraVe', path: '/brands/cerave', logo: brandCerave },
+    { name: 'Durex', path: '/brands/durex', logo: brandDurex },
+    { name: 'Eucerin', path: '/brands/eucerin', logo: brandEucerin },
+    { name: 'Vichy', path: '/brands/vichy', logo: brandVichy },
+    { name: 'Centrum', path: '/brands/centrum', logo: brandCentrum },
+    { name: 'Sebamed', path: '/brands/sebamed', logo: brandSebamed },
+    { name: 'Huggies', path: '/brands/huggies', logo: brandHuggies },
+    { name: 'Accu-chek', path: '/brands/accu-chek', logo: brandAccuChek },
   ]
 
   const handleToggleMenu = (menuKey: string) => {
@@ -98,6 +108,8 @@ function Header() {
   const itemsSplitIndex = Math.ceil(activeItems.length / 2)
   const itemsColumnOne = activeItems.slice(0, itemsSplitIndex)
   const itemsColumnTwo = activeItems.slice(itemsSplitIndex)
+
+  const closeActiveMenu = () => setActiveMenu(null)
 
   const closeMenus = () => {
     setActiveMenu(null)
@@ -162,12 +174,13 @@ function Header() {
                 </svg>
               </button>
 
-              <Link to="/contact" className="header__action-btn" aria-label="WhatsApp">
+              <Link to="/contact" className="header__action-btn" aria-label="Contact us">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 11.5a8.5 8.5 0 0 1-12.18 7.72L3 21l1.86-5.64A8.5 8.5 0 1 1 21 11.5z"/>
-                  <path d="M9.5 9.5c.4 1.2 1.3 2.2 2.5 2.8l.7-.4c.2-.1.5 0 .6.2l.8 1.2c.1.2 0 .5-.2.6-1 .5-2.2.6-3.4.2-1.5-.5-2.8-1.6-3.7-3.1-.7-1.2-1-2.5-.8-3.8 0-.2.2-.4.4-.4h1.4c.2 0 .4.1.4.3l.2 1.3c0 .2-.1.4-.3.5l-.7.4z"/>
+                  <path d="M21 8V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v1"/>
+                  <path d="M21 8l-9 6L3 8"/>
+                  <path d="M3 8v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8"/>
                 </svg>
-                <span className="header__action-text">WhatsApp</span>
+                <span className="header__action-text">Contact Us</span>
               </Link>
 
               <Link to="/account" className="header__action-btn">
@@ -212,7 +225,8 @@ function Header() {
           <ul className="header__nav-list">
             <li
               className={`header__nav-item header__nav-item--mega ${activeMenu === 'category' ? 'header__nav-item--open' : ''}`}
-              onMouseLeave={closeMenus}
+              onMouseEnter={() => setActiveMenu('category')}
+              onMouseLeave={closeActiveMenu}
             >
               <button
                 className="header__nav-button"
@@ -237,7 +251,8 @@ function Header() {
                             onClick={closeMenus}
                             className={`mega-panel__menu-link ${category.name === activeCategory ? 'mega-panel__menu-link--active' : ''}`}
                           >
-                            {category.name}
+                            <span className="mega-panel__menu-text">{category.name}</span>
+                            <span className="mega-panel__menu-arrow" aria-hidden="true">›</span>
                           </Link>
                         </li>
                       ))}
@@ -273,7 +288,11 @@ function Header() {
               </div>
             </li>
 
-            <li className={`header__nav-item ${activeMenu === 'condition' ? 'header__nav-item--open' : ''}`} onMouseLeave={closeMenus}>
+            <li
+              className={`header__nav-item header__nav-item--conditions ${activeMenu === 'condition' ? 'header__nav-item--open' : ''}`}
+              onMouseEnter={() => setActiveMenu('condition')}
+              onMouseLeave={closeActiveMenu}
+            >
               <button
                 className="header__nav-button"
                 onClick={() => handleToggleMenu('condition')}
@@ -283,35 +302,71 @@ function Header() {
                 Shop By Condition
                 <span className="header__nav-caret">▾</span>
               </button>
-              <div className="dropdown-panel">
-                <ul>
+              <div className="conditions-panel">
+                <div className="conditions-panel__grid">
                   {conditions.map((condition) => (
-                    <li key={condition.name}>
-                      <Link to={condition.path} onClick={closeMenus}>{condition.name}</Link>
-                    </li>
+                    <Link
+                      key={condition.name}
+                      to={condition.path}
+                      onClick={closeMenus}
+                      className="conditions-panel__card"
+                    >
+                      {condition.name}
+                    </Link>
                   ))}
-                </ul>
+                </div>
               </div>
             </li>
 
-            <li className="header__nav-item">
-              <Link to="/brands" className="header__nav-link" onClick={closeMenus}>Shop By Brand</Link>
+            <li
+              className={`header__nav-item header__nav-item--brands ${activeMenu === 'brands' ? 'header__nav-item--open' : ''}`}
+              onMouseEnter={() => setActiveMenu('brands')}
+              onMouseLeave={closeActiveMenu}
+            >
+              <button
+                className="header__nav-button"
+                onClick={() => handleToggleMenu('brands')}
+                aria-expanded={activeMenu === 'brands'}
+                type="button"
+              >
+                Shop By Brand
+                <span className="header__nav-caret">▾</span>
+              </button>
+              <div className="brands-panel">
+                <div className="brands-panel__header">
+                  <div>
+                    <h4>Brands</h4>
+                    <p>Explore our trusted pharmacy and beauty partners.</p>
+                  </div>
+                  {/* <Link to="/brands" onClick={closeMenus} className="brands-panel__view-all">View all</Link> */}
+                </div>
+                <div className="brands-panel__grid">
+                  {brands.map((brand) => (
+                    <Link key={brand.name} to={brand.path} onClick={closeMenus} className="brands-panel__card">
+                      <span className="brands-panel__logo">
+                        <img src={brand.logo} alt={`${brand.name} logo`} className="brands-panel__logo-img" />
+                      </span>
+                      <span>{brand.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </li>
-            <li className="header__nav-item">
+            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/offers" className="header__nav-link" onClick={closeMenus}>Sale &amp; Offers</Link>
             </li>
-            <li className="header__nav-item">
+            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/prescriptions" className="header__nav-link header__nav-link--cta" onClick={closeMenus}>
                 Submit Prescription
               </Link>
             </li>
-            <li className="header__nav-item">
+            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/skin-test" className="header__nav-link" onClick={closeMenus}>Skin Test</Link>
             </li>
-            <li className="header__nav-item">
+            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/health-services" className="header__nav-link" onClick={closeMenus}>Health Services</Link>
             </li>
-            <li className="header__nav-item">
+            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/store-locator" className="header__nav-link header__nav-link--icon" onClick={closeMenus}>
                 <span className="header__nav-icon">📍</span>
                 Store Locator
