@@ -206,44 +206,39 @@ function HomePage() {
                 Get genuine medicines, health products, and expert advice delivered to your doorstep.
                 Experience healthcare made simple and accessible.
               </p>
-              <div className="hero__actions">
-                <Link to="/shop" className="btn btn--primary btn--lg">
-                  Shop Now
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
+              <div className="hero__actions hero__actions--split">
+                <Link to="/products" className="hero__cta hero__cta--primary">
+                  <span className="hero__cta-title">Shop OTC Products</span>
+                  <span className="hero__cta-subtitle">Vitamins, wellness, and beauty essentials</span>
                 </Link>
-                <Link to="/prescriptions" className="btn btn--secondary btn--lg">
-                  Upload Prescription
+                <Link to="/prescriptions" className="hero__cta hero__cta--secondary">
+                  <span className="hero__cta-title">Upload Prescription</span>
+                  <span className="hero__cta-subtitle">Fast pharmacist review and approval</span>
                 </Link>
-              </div>
-              <div className="hero__features">
-                <div className="hero__feature">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
-                  </svg>
-                  <span>100% Genuine Products</span>
-                </div>
-                <div className="hero__feature">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="1" y="3" width="15" height="13"/>
-                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-                    <circle cx="5.5" cy="18.5" r="2.5"/>
-                    <circle cx="18.5" cy="18.5" r="2.5"/>
-                  </svg>
-                  <span>Fast Delivery</span>
-                </div>
-                <div className="hero__feature">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                  </svg>
-                  <span>Secure Payments</span>
-                </div>
               </div>
             </div>
             <div className="hero__image">
-              <ImageWithFallback src={articleImmunity} alt="Healthcare professional" />
+              <div className="hero__banner">
+                <div className="hero__banner-tag">Fresh deals on essentials</div>
+                <div className="hero__banner-products">
+                  <div className="hero__banner-card hero__banner-card--primary">
+                    <ImageWithFallback src={productFaceCream} alt="Moisturizing face cream" />
+                  </div>
+                  <div className="hero__banner-card hero__banner-card--secondary">
+                    <ImageWithFallback src={productVitaminC} alt="Vitamin C supplements" />
+                  </div>
+                  <div className="hero__banner-card hero__banner-card--tertiary">
+                    <ImageWithFallback src={productOmega3} alt="Omega-3 fish oil capsules" />
+                  </div>
+                  <div className="hero__banner-card hero__banner-card--accent">
+                    <ImageWithFallback src={productBabyDiapers} alt="Baby diapers pack" />
+                  </div>
+                </div>
+                <div className="hero__banner-offer">
+                  <span>Save up to</span>
+                  <strong>20% Off</strong>
+                </div>
+              </div>
               <div className="hero__image-badge">
                 <span className="hero__image-badge-number">50K+</span>
                 <span className="hero__image-badge-text">Happy Customers</span>
