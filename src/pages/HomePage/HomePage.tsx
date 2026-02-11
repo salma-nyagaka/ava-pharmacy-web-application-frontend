@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import {
@@ -14,13 +14,60 @@ import {
   productSanitizer,
   productThermometer,
   productMultivitamin,
-  articleImmunity,
   articleSkincare,
 } from '../../assets/images/remote'
+import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
+import { cartService } from '../../services/cartService'
 import './HomePage.css'
 
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [addedId, setAddedId] = useState<number | null>(null)
+
+  const slides = [
+    {
+      id: 1,
+      tag: 'NOW AVAILABLE',
+      title: 'Premium Skincare Collection',
+      subtitle: 'Dermatologist Recommended',
+      description: 'Shop our exclusive range of professional-grade skincare products',
+      discount: 'Up to 30% Off',
+      bgColor: 'linear-gradient(135deg, #c8e6c9 0%, #81c784 100%)',
+      products: [productFaceCream, articleSkincare, productVitaminC, productOmega3],
+      buttonText: 'ORDER NOW',
+    },
+    {
+      id: 2,
+      tag: 'SPECIAL OFFER',
+      title: 'Health Monitoring Devices',
+      subtitle: 'Professional Grade Equipment',
+      description: 'Advanced medical devices for home healthcare monitoring',
+      discount: 'Save Big Today',
+      bgColor: 'linear-gradient(135deg, #90caf9 0%, #42a5f5 100%)',
+      products: [productBpMonitor, productThermometer, productSanitizer, productBabyDiapers],
+      buttonText: 'SHOP NOW',
+    },
+  ]
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [slides.length])
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index)
+  }
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length)
+  }
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
+  }
 
   const categories = [
     {
@@ -56,6 +103,7 @@ function HomePage() {
       brand: 'HealthPlus',
       price: 1250,
       originalPrice: 1500,
+      category: 'Health & Wellness',
       image: productVitaminC,
       badge: 'Best Seller',
       rating: 4.8,
@@ -67,6 +115,7 @@ function HomePage() {
       brand: 'MedTech',
       price: 4500,
       originalPrice: 5500,
+      category: 'Health & Wellness',
       image: productBpMonitor,
       badge: '18% Off',
       rating: 4.6,
@@ -78,6 +127,7 @@ function HomePage() {
       brand: 'SkinGlow',
       price: 890,
       originalPrice: null,
+      category: 'Beauty & Skincare',
       image: productFaceCream,
       badge: null,
       rating: 4.5,
@@ -89,6 +139,7 @@ function HomePage() {
       brand: 'CleanGuard',
       price: 450,
       originalPrice: 550,
+      category: 'Health & Wellness',
       image: productSanitizer,
       badge: null,
       rating: 4.4,
@@ -103,6 +154,7 @@ function HomePage() {
       brand: 'NutraLife',
       price: 2100,
       originalPrice: 2500,
+      category: 'Health & Wellness',
       image: productOmega3,
       badge: 'New',
       rating: 4.7,
@@ -114,6 +166,7 @@ function HomePage() {
       brand: 'BabyCare',
       price: 1800,
       originalPrice: 2200,
+      category: 'Mother & Baby Care',
       image: productBabyDiapers,
       badge: '18% Off',
       rating: 4.9,
@@ -125,6 +178,7 @@ function HomePage() {
       brand: 'MedTech',
       price: 2800,
       originalPrice: 3500,
+      category: 'Health & Wellness',
       image: productThermometer,
       badge: '20% Off',
       rating: 4.6,
@@ -136,12 +190,21 @@ function HomePage() {
       brand: 'VitaMax',
       price: 1650,
       originalPrice: null,
+      category: 'Health & Wellness',
       image: productMultivitamin,
       badge: 'Popular',
       rating: 4.7,
       reviews: 198,
     },
   ]
+
+  const promotions = loadPromotions()
+  const featuredDeals = featuredProducts.map((product) =>
+    applyPromotionsToProduct(product, promotions)
+  )
+  const newDeals = newProducts.map((product) =>
+    applyPromotionsToProduct(product, promotions)
+  )
 
   const formatPrice = (price: number) => {
     return `KSh ${price.toLocaleString()}`
@@ -190,60 +253,85 @@ function HomePage() {
     track.scrollBy({ left: direction === 'next' ? amount : -amount, behavior: 'smooth' })
   }
 
+  const handleAddToCart = (product: {
+    id: number
+    name: string
+    brand: string
+    price: number
+    image: string
+  }) => {
+    void cartService.add({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      image: product.image,
+      stockSource: 'branch',
+    })
+    setAddedId(product.id)
+    window.setTimeout(() => {
+      setAddedId((prev) => (prev === product.id ? null : prev))
+    }, 1200)
+  }
+
   return (
     <div className="home">
       {/* Hero Section */}
       <section className="hero">
-        <div className="container">
-          <div className="hero__content">
-            <div className="hero__text">
-              <span className="hero__badge">Trusted Healthcare Partner</span>
-              <h1 className="hero__title">
-                Your Health, <br />
-                <span className="hero__title-highlight">Our Priority</span>
-              </h1>
-              <p className="hero__description">
-                Get genuine medicines, health products, and expert advice delivered to your doorstep.
-                Experience healthcare made simple and accessible.
-              </p>
-              <div className="hero__actions hero__actions--split">
-                <Link to="/products" className="hero__cta hero__cta--primary">
-                  <span className="hero__cta-title">Shop OTC Products</span>
-                  <span className="hero__cta-subtitle">Vitamins, wellness, and beauty essentials</span>
-                </Link>
-                <Link to="/prescriptions" className="hero__cta hero__cta--secondary">
-                  <span className="hero__cta-title">Upload Prescription</span>
-                  <span className="hero__cta-subtitle">Fast pharmacist review and approval</span>
-                </Link>
-              </div>
-            </div>
-            <div className="hero__image">
-              <div className="hero__banner">
-                <div className="hero__banner-tag">Fresh deals on essentials</div>
-                <div className="hero__banner-products">
-                  <div className="hero__banner-card hero__banner-card--primary">
-                    <ImageWithFallback src={productFaceCream} alt="Moisturizing face cream" />
-                  </div>
-                  <div className="hero__banner-card hero__banner-card--secondary">
-                    <ImageWithFallback src={productVitaminC} alt="Vitamin C supplements" />
-                  </div>
-                  <div className="hero__banner-card hero__banner-card--tertiary">
-                    <ImageWithFallback src={productOmega3} alt="Omega-3 fish oil capsules" />
-                  </div>
-                  <div className="hero__banner-card hero__banner-card--accent">
-                    <ImageWithFallback src={productBabyDiapers} alt="Baby diapers pack" />
+        <div className="hero__slideshow">
+          <button className="hero__slideshow-nav hero__slideshow-nav--prev" onClick={prevSlide} aria-label="Previous slide">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+
+          <div className="hero__slideshow-container">
+            {slides.map((slide, index) => (
+              <div
+                key={slide.id}
+                className={`hero__slide ${index === currentSlide ? 'hero__slide--active' : ''}`}
+                style={{ background: slide.bgColor }}
+              >
+                <div className="container">
+                  <div className="hero__slide-content">
+                    <div className="hero__slide-text">
+                      <span className="hero__badge">{slide.tag}</span>
+                      <h1 className="hero__title">{slide.title}</h1>
+                      <p className="hero__subtitle">{slide.subtitle}</p>
+                      <p className="hero__description">{slide.description}</p>
+                      <div className="hero__discount">{slide.discount}</div>
+                      <Link to="/products" className="hero__cta">
+                        {slide.buttonText}
+                      </Link>
+                    </div>
+                    <div className="hero__slide-products">
+                      {slide.products.map((product, idx) => (
+                        <div key={idx} className={`hero__product-card hero__product-card--${idx + 1}`}>
+                          <ImageWithFallback src={product} alt="Product" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div className="hero__banner-offer">
-                  <span>Save up to</span>
-                  <strong>20% Off</strong>
-                </div>
               </div>
-              <div className="hero__image-badge">
-                <span className="hero__image-badge-number">50K+</span>
-                <span className="hero__image-badge-text">Happy Customers</span>
-              </div>
-            </div>
+            ))}
+          </div>
+
+          <button className="hero__slideshow-nav hero__slideshow-nav--next" onClick={nextSlide} aria-label="Next slide">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+
+          <div className="hero__slideshow-dots">
+            {slides.map((_, index) => (
+              <button
+                key={index}
+                className={`hero__slideshow-dot ${index === currentSlide ? 'hero__slideshow-dot--active' : ''}`}
+                onClick={() => goToSlide(index)}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -349,7 +437,7 @@ function HomePage() {
             </p>
           </div>
           <div className="products__grid">
-            {featuredProducts.map((product) => (
+            {featuredDeals.map((product) => (
               <article key={product.id} className="product-card">
                 <div className="product-card__image">
                   {product.badge && (
@@ -389,20 +477,20 @@ function HomePage() {
                       <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
                     )}
                   </div>
-                  <button className="product-card__add-to-cart">
+                  <button className="product-card__add-to-cart" type="button" onClick={() => handleAddToCart(product)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="9" cy="21" r="1"/>
                       <circle cx="20" cy="21" r="1"/>
                       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
                     </svg>
-                    Add to Cart
+                    {addedId === product.id ? 'Added' : 'Add to Cart'}
                   </button>
                 </div>
               </article>
             ))}
           </div>
           <div className="featured-products__cta">
-            <Link to="/shop" className="btn btn--primary btn--lg">
+            <Link to="/products" className="btn btn--primary btn--lg">
               View All Products
             </Link>
           </div>
@@ -420,7 +508,7 @@ function HomePage() {
                 <p className="promo-card__description">
                   Boost your immunity with our premium vitamin supplements at special prices
                 </p>
-                <Link to="/offers/vitamins" className="btn btn--secondary">
+                <Link to="/offers" className="btn btn--secondary">
                   Shop Vitamins
                 </Link>
               </div>
@@ -457,7 +545,7 @@ function HomePage() {
             </p>
           </div>
           <div className="products__grid">
-            {newProducts.map((product) => (
+            {newDeals.map((product) => (
               <article key={product.id} className="product-card">
                 <div className="product-card__image">
                   {product.badge && (
@@ -497,13 +585,13 @@ function HomePage() {
                       <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
                     )}
                   </div>
-                  <button className="product-card__add-to-cart">
+                  <button className="product-card__add-to-cart" type="button" onClick={() => handleAddToCart(product)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="9" cy="21" r="1"/>
                       <circle cx="20" cy="21" r="1"/>
                       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
                     </svg>
-                    Add to Cart
+                    {addedId === product.id ? 'Added' : 'Add to Cart'}
                   </button>
                 </div>
               </article>
@@ -513,7 +601,7 @@ function HomePage() {
             <Link to="/contact" className="btn btn--outline">Contact Us</Link>
             <Link to="/consultation" className="btn btn--primary">Doctor Consultation</Link>
             <Link to="/pediatrician/dashboard" className="btn btn--primary">Pediatric Services</Link>
-            <Link to="/lab-tests" className="btn btn--primary">Laboratory Services</Link>
+            <Link to="/labaratory" className="btn btn--primary">Laboratory Services</Link>
             <Link to="/prescriptions" className="btn btn--primary">Prescription Fulfillment</Link>
           </div>
         </div>

@@ -1,0 +1,180 @@
+.lab-test-management .admin-page__header {
+  align-items: flex-start;
+}
+
+.lab-test-management__subtitle {
+  margin-top: 0.35rem;
+  color: var(--color-text-muted);
+}
+
+.lab-test-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.lab-test-description {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  max-width: 420px;
+}
+
+.lab-test-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lab-tests-empty {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--color-text-muted);
+}
+
+.lab-tests-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.lab-tests-pagination .pagination__pages {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lab-tests-pagination .pagination__button,
+.lab-tests-pagination .pagination__page {
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lab-tests-pagination .pagination__button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lab-tests-pagination .pagination__page--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.lab-tests-pagination .pagination__button:not([disabled]):hover,
+.lab-tests-pagination .pagination__page:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.lab-test-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.lab-test-form-group {
+  margin-bottom: 1.25rem;
+}
+
+.lab-test-form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.lab-test-form-group input,
+.lab-test-form-group select,
+.lab-test-form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.lab-test-form-group textarea {
+  resize: vertical;
+}
+
+.lab-test-form-error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 0.85rem;
+}
+
+.lab-test-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.lab-test-modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.lab-test-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.lab-test-modal__header h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.lab-test-modal__close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #666;
+  line-height: 1;
+  padding: 0;
+}
+
+.lab-test-modal__content {
+  padding: 1.5rem;
+}
+
+.lab-test-modal__footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .lab-test-form-row {
+    grid-template-columns: 1fr;
+  }
+}

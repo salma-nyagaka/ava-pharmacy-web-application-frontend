@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import './Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import brandPanadol from '../../assets/images/brands/panadol.jpeg'
@@ -12,11 +12,17 @@ import brandCentrum from '../../assets/images/brands/centrum.jpeg'
 import brandSebamed from '../../assets/images/brands/sebamed.png'
 import brandHuggies from '../../assets/images/brands/huggies.jpeg'
 import brandAccuChek from '../../assets/images/brands/accu-check.png'
+import { categoryData } from '../../data/categories'
+import { loadBanners } from '../../data/banners'
+import { cartService } from '../../services/cartService'
 
 function Header() {
+  const navigate = useNavigate()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [cartCount, setCartCount] = useState(0)
 
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev)
@@ -26,49 +32,22 @@ function Header() {
   }
   const toggleSearch = () => setIsSearchOpen(!isSearchOpen)
 
-  const categories = [
-    {
-      name: 'Health & Wellness',
-      path: '/category/health-wellness',
-      items: [
-        'Immune boosters & daily vitamins',
-        'Natural supplements & herbal remedies',
-        'Stress relief & relaxation products',
-        "Women's and men's wellness essentials",
-      ],
-    },
-    {
-      name: 'Beauty & Skincare',
-      path: '/category/beauty-skincare',
-      items: [
-        'Dermatologist-recommended skincare',
-        'Organic beauty solutions',
-        'Body care & personal hygiene',
-        'Hair care for all types and textures',
-      ],
-    },
-    {
-      name: 'Mother & Baby Care',
-      path: '/category/mother-baby-care',
-      items: [
-        'Safe baby skincare & bath products',
-        'Maternity wellness items',
-        'Diapers, wipes & baby feeding accessories',
-      ],
-    },
-    {
-      name: 'Self-Care & Lifestyle',
-      path: '/category/self-care-lifestyle',
-      items: [
-        'Aromatherapy & essential oils',
-        'Wellness teas & detox blends',
-        'Fitness and body toning accessories',
-        'Sustainable personal care tools',
-      ],
-    },
-  ]
+  useEffect(() => {
+    const refresh = () => {
+      void cartService.count().then((response) => setCartCount(response.data))
+    }
+    refresh()
+    const unsubscribe = cartService.subscribe(() => {
+      refresh()
+    })
+    return unsubscribe
+  }, [])
 
-  const [activeCategory, setActiveCategory] = useState(categories[0]?.name ?? '')
+  const categories = categoryData
+
+  const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? '')
+  const banners = loadBanners()
+  const activeBanner = banners.find((banner) => banner.status === 'active')
 
   const conditions = [
     { name: 'Aches & Pains', path: '/conditions/aches-pains' },
@@ -103,8 +82,8 @@ function Header() {
   }
 
   const activeCategoryData =
-    categories.find((category) => category.name === activeCategory) || categories[0]
-  const activeItems = activeCategoryData?.items ?? []
+    categories.find((category) => category.slug === activeCategory) || categories[0]
+  const activeItems = activeCategoryData?.subcategories ?? []
   const itemsSplitIndex = Math.ceil(activeItems.length / 2)
   const itemsColumnOne = activeItems.slice(0, itemsSplitIndex)
   const itemsColumnTwo = activeItems.slice(itemsSplitIndex)
@@ -116,6 +95,17 @@ function Header() {
     setIsMenuOpen(false)
   }
 
+  const buildSubcategoryPath = (categoryPath: string, subSlug: string) =>
+    `${categoryPath}?subcategory=${encodeURIComponent(subSlug)}`
+
+  const submitSearch = () => {
+    const query = searchQuery.trim()
+    navigate(query ? `/products?query=${encodeURIComponent(query)}` : '/products')
+    setIsSearchOpen(false)
+    setActiveMenu(null)
+    setIsMenuOpen(false)
+  }
+
   return (
     <header className="header">
       {/* Top Bar */}
@@ -123,14 +113,25 @@ function Header() {
         <div className="container">
           <div className="header__topbar-content">
             <div className="header__topbar-left">
-              <span className="header__topbar-item">
-                <svg className="header__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 12h18"/>
-                  <path d="M9 6h6"/>
-                  <path d="M9 18h6"/>
-                </svg>
-                Free delivery for orders above KSh 2,500
-              </span>
+              {activeBanner?.link ? (
+                <Link to={activeBanner.link} className="header__topbar-item">
+                  <svg className="header__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 12h18"/>
+                    <path d="M9 6h6"/>
+                    <path d="M9 18h6"/>
+                  </svg>
+                  {activeBanner.message}
+                </Link>
+              ) : (
+                <span className="header__topbar-item">
+                  <svg className="header__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 12h18"/>
+                    <path d="M9 6h6"/>
+                    <path d="M9 18h6"/>
+                  </svg>
+                  {activeBanner?.message ?? 'Free delivery for orders above KSh 2,500'}
+                </span>
+              )}
             </div>
             <div className="header__topbar-right">
               <Link to="/about" className="header__topbar-link">About Us</Link>
@@ -161,8 +162,16 @@ function Header() {
                 type="text"
                 placeholder="Search medicines, brands, and services"
                 className="header__search-input"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    submitSearch()
+                  }
+                }}
               />
-              <button className="header__search-btn">Search</button>
+              <button className="header__search-btn" type="button" onClick={submitSearch}>Search</button>
             </div>
 
             {/* Actions */}
@@ -197,7 +206,7 @@ function Header() {
                   <circle cx="20" cy="21" r="1"/>
                   <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
                 </svg>
-                <span className="header__cart-badge">3</span>
+                <span className="header__cart-badge">{cartCount}</span>
                 <span className="header__action-text">Cart</span>
               </Link>
 
@@ -240,16 +249,26 @@ function Header() {
               <div className="mega-panel">
                 <div className="mega-panel__grid">
                   <div className="mega-panel__col mega-panel__menu">
-                    <h4>Categories</h4>
+                    <h4>Shop by Category</h4>
                     <ul className="mega-panel__menu-list">
+                      <li>
+                        <Link
+                          to="/products"
+                          onClick={closeMenus}
+                          className="mega-panel__menu-link mega-panel__menu-link--all"
+                        >
+                          <span className="mega-panel__menu-text">All Products</span>
+                          <span className="mega-panel__menu-arrow" aria-hidden="true">›</span>
+                        </Link>
+                      </li>
                       {categories.map((category) => (
-                        <li key={category.name}>
+                        <li key={category.slug}>
                           <Link
                             to={category.path}
-                            onMouseEnter={() => setActiveCategory(category.name)}
-                            onFocus={() => setActiveCategory(category.name)}
+                            onMouseEnter={() => setActiveCategory(category.slug)}
+                            onFocus={() => setActiveCategory(category.slug)}
                             onClick={closeMenus}
-                            className={`mega-panel__menu-link ${category.name === activeCategory ? 'mega-panel__menu-link--active' : ''}`}
+                            className={`mega-panel__menu-link ${category.slug === activeCategory ? 'mega-panel__menu-link--active' : ''}`}
                           >
                             <span className="mega-panel__menu-text">{category.name}</span>
                             <span className="mega-panel__menu-arrow" aria-hidden="true">›</span>
@@ -263,15 +282,19 @@ function Header() {
                     <div className="mega-panel__values-grid">
                       <ul className="mega-panel__values-list">
                         {itemsColumnOne.map((item) => (
-                          <li key={item}>
-                            <Link to={activeCategoryData?.path ?? '/'} onClick={closeMenus}>{item}</Link>
+                          <li key={item.slug}>
+                            <Link to={activeCategoryData ? buildSubcategoryPath(activeCategoryData.path, item.slug) : '/'} onClick={closeMenus}>
+                              {item.name}
+                            </Link>
                           </li>
                         ))}
                       </ul>
                       <ul className="mega-panel__values-list">
                         {itemsColumnTwo.map((item) => (
-                          <li key={item}>
-                            <Link to={activeCategoryData?.path ?? '/'} onClick={closeMenus}>{item}</Link>
+                          <li key={item.slug}>
+                            <Link to={activeCategoryData ? buildSubcategoryPath(activeCategoryData.path, item.slug) : '/'} onClick={closeMenus}>
+                              {item.name}
+                            </Link>
                           </li>
                         ))}
                       </ul>
@@ -360,9 +383,7 @@ function Header() {
                 Submit Prescription
               </Link>
             </li>
-            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/skin-test" className="header__nav-link" onClick={closeMenus}>Skin Test</Link>
-            </li>
+          
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/health-services" className="header__nav-link" onClick={closeMenus}>Health Services</Link>
             </li>

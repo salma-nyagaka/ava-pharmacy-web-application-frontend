@@ -17,8 +17,16 @@ import ConsultationPage from './pages/Consultation/ConsultationPage'
 import AdminDashboard from './pages/Admin/AdminDashboard'
 import ProductManagement from './pages/Admin/ProductManagement'
 import UserManagement from './pages/Admin/UserManagement'
+import UserDetailsPage from './pages/Admin/UserDetailsPage'
+import UserCreatePage from './pages/Admin/UserCreatePage'
 import OrderManagement from './pages/Admin/OrderManagement'
+import OrderDetailsPage from './pages/Admin/OrderDetailsPage'
 import Reports from './pages/Admin/Reports'
+import DealsManagement from './pages/Admin/DealsManagement'
+import PayoutManagement from './pages/Admin/PayoutManagement'
+import LabTestManagement from './pages/Admin/LabTestManagement'
+import SupportManagement from './pages/Admin/SupportManagement'
+import JourneyChecklistPage from './pages/Admin/JourneyChecklistPage'
 import LoginPage from './pages/Auth/LoginPage'
 import RegisterPage from './pages/Auth/RegisterPage'
 import OrderTrackingPage from './pages/OrderTracking/OrderTrackingPage'
@@ -51,7 +59,6 @@ import DoctorManagement from './pages/Admin/DoctorManagement'
 import Settings from './pages/Admin/Settings'
 import BrandsPage from './pages/Brands/BrandsPage'
 import ConditionsPage from './pages/Conditions/ConditionsPage'
-import SkinTestPage from './pages/SkinTest/SkinTestPage'
 import HealthServicesPage from './pages/HealthServices/HealthServicesPage'
 
 function App() {
@@ -88,7 +95,6 @@ function App() {
           <Route path="store-locator" element={<StoreLocatorPage />} />
           <Route path="brands" element={<BrandsPage />} />
           <Route path="conditions" element={<ConditionsPage />} />
-          <Route path="skin-test" element={<SkinTestPage />} />
           <Route path="health-services" element={<HealthServicesPage />} />
           <Route path="brands/:brand" element={<BrandsPage />} />
           <Route path="conditions/:condition" element={<ConditionsPage />} />
@@ -106,16 +112,28 @@ function App() {
           <Route path="pharmacist" element={<PharmacistDashboardPage />} />
           <Route path="pharmacist/review/:id" element={<PrescriptionReviewPage />} />
           <Route path="lab-tests" element={<LabServicesPage />} />
+          <Route path="laboratory" element={<LabServicesPage />} />
+          <Route path="labaratory" element={<LabServicesPage />} />
           <Route path="lab/dashboard" element={<LabDashboardPage />} />
+          <Route path="laboratory/dashboard" element={<LabDashboardPage />} />
+          <Route path="labaratory/dashboard" element={<LabDashboardPage />} />
           <Route path="inventory" element={<InventoryOverviewPage />} />
           <Route path="admin" element={<AdminDashboard />} />
           <Route path="admin/products" element={<ProductManagement />} />
           <Route path="admin/users" element={<UserManagement />} />
+          <Route path="admin/users/new" element={<UserCreatePage />} />
+          <Route path="admin/users/:id" element={<UserDetailsPage />} />
           <Route path="admin/orders" element={<OrderManagement />} />
+          <Route path="admin/orders/:id" element={<OrderDetailsPage />} />
           <Route path="admin/inventory" element={<InventoryManagement />} />
           <Route path="admin/prescriptions" element={<PrescriptionManagement />} />
           <Route path="admin/doctors" element={<DoctorManagement />} />
           <Route path="admin/reports" element={<Reports />} />
+          <Route path="admin/deals" element={<DealsManagement />} />
+          <Route path="admin/payouts" element={<PayoutManagement />} />
+          <Route path="admin/lab-tests" element={<LabTestManagement />} />
+          <Route path="admin/support" element={<SupportManagement />} />
+          <Route path="admin/journey-checklist" element={<JourneyChecklistPage />} />
           <Route path="admin/settings" element={<Settings />} />
           <Route path="*" element={<div style={{padding: '4rem 0', textAlign: 'center'}}>
             <h1>Page Coming Soon</h1>

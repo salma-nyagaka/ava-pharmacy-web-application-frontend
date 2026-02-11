@@ -1,47 +1,89 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { adminRoleOptions, formatAdminRole, loadAdminUsers, saveAdminUsers } from './adminUsers'
+import { logAdminAction } from '../../data/adminAudit'
 import './UserManagement.css'
 
-interface User {
-  id: number
-  name: string
-  email: string
-  phone: string
-  role: 'customer' | 'admin'
-  status: 'active' | 'suspended'
-  joinedDate: string
-  totalOrders: number
-}
-
 function UserManagement() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
 
-  const users: User[] = [
-    { id: 1, name: 'John Doe', email: 'john@example.com', phone: '+254 712 345 678', role: 'customer', status: 'active', joinedDate: '2024-01-15', totalOrders: 12 },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '+254 723 456 789', role: 'customer', status: 'active', joinedDate: '2024-02-20', totalOrders: 8 },
-    { id: 3, name: 'Admin User', email: 'admin@avapharmacy.co.ke', phone: '+254 734 567 890', role: 'admin', status: 'active', joinedDate: '2023-12-01', totalOrders: 0 },
-    { id: 4, name: 'Mike Johnson', email: 'mike@example.com', phone: '+254 745 678 901', role: 'customer', status: 'active', joinedDate: '2024-03-10', totalOrders: 15 },
-    { id: 5, name: 'Sarah Williams', email: 'sarah@example.com', phone: '+254 756 789 012', role: 'customer', status: 'suspended', joinedDate: '2024-01-05', totalOrders: 3 },
-    { id: 6, name: 'David Brown', email: 'david@example.com', phone: '+254 767 890 123', role: 'customer', status: 'active', joinedDate: '2024-04-01', totalOrders: 6 },
-    { id: 7, name: 'Emily Davis', email: 'emily@example.com', phone: '+254 778 901 234', role: 'customer', status: 'active', joinedDate: '2024-02-14', totalOrders: 10 },
-    { id: 8, name: 'Support Admin', email: 'support@avapharmacy.co.ke', phone: '+254 789 012 345', role: 'admin', status: 'active', joinedDate: '2024-01-01', totalOrders: 0 },
-  ]
+  const [users, setUsers] = useState(() => loadAdminUsers())
+
+  useEffect(() => {
+    saveAdminUsers(users)
+  }, [users])
+
+  const filteredUsers = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    return users.filter((user) => {
+      const matchesRole = selectedRole === 'all' || user.role === selectedRole
+      const matchesStatus = selectedStatus === 'all' || user.status === selectedStatus
+      if (!query) {
+        return matchesRole && matchesStatus
+      }
+      const matchesQuery = [user.name, user.email, user.phone].some((value) =>
+        value.toLowerCase().includes(query)
+      )
+      return matchesRole && matchesStatus && matchesQuery
+    })
+  }, [users, searchTerm, selectedRole, selectedStatus])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedRole, selectedStatus])
+
+  const PAGE_SIZE = 6
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE))
+  const startIndex = (currentPage - 1) * PAGE_SIZE
+  const pagedUsers = filteredUsers.slice(startIndex, startIndex + PAGE_SIZE)
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+
+    navigate('/admin')
+  }
+
+  const handleToggleStatus = (userId: number, nextStatus: 'active' | 'suspended') => {
+    setUsers((prev) =>
+      prev.map((user) => (user.id === userId ? { ...user, status: nextStatus } : user))
+    )
+    logAdminAction({
+      action: 'Update user status',
+      entity: 'User',
+      entityId: String(userId),
+      detail: `Status set to ${nextStatus}`,
+    })
+  }
 
   return (
     <div className="user-management">
       <div className="user-management__header">
-        <h1>User Management</h1>
+        <div>
+          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
+            Back
+          </button>
+          <h1>User Management</h1>
+        </div>
         <div className="stats-mini">
           <div className="stat-mini">
             <span className="stat-mini__value">{users.filter(u => u.status === 'active').length}</span>
             <span className="stat-mini__label">Active Users</span>
           </div>
           <div className="stat-mini">
-            <span className="stat-mini__value">{users.filter(u => u.role === 'customer').length}</span>
-            <span className="stat-mini__label">Customers</span>
+            <span className="stat-mini__value">{users.filter(u => u.role !== 'customer').length}</span>
+            <span className="stat-mini__label">Staff Users</span>
           </div>
         </div>
+        <Link className="btn btn--primary btn--sm" to="/admin/users/new">
+          Add User
+        </Link>
       </div>
 
       <div className="user-management__filters">
@@ -55,8 +97,11 @@ function UserManagement() {
         </div>
         <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}>
           <option value="all">All Roles</option>
-          <option value="customer">Customer</option>
-          <option value="admin">Admin</option>
+          {adminRoleOptions.map((role) => (
+            <option key={role.value} value={role.value}>
+              {role.label}
+            </option>
+          ))}
         </select>
         <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
           <option value="all">All Status</option>
@@ -79,7 +124,7 @@ function UserManagement() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
+            {pagedUsers.map((user) => (
               <tr key={user.id}>
                 <td>
                   <div className="user-info">
@@ -95,8 +140,11 @@ function UserManagement() {
                 <td>{user.phone}</td>
                 <td>
                   <span className={`role role--${user.role}`}>
-                    {user.role}
+                    {formatAdminRole(user.role)}
                   </span>
+                  {user.role === 'pharmacist' && user.pharmacistPermissions?.includes('inventory_add') && (
+                    <div className="role-note">Can add inventory</div>
+                  )}
                 </td>
                 <td>
                   <span className={`status status--${user.status}`}>
@@ -107,19 +155,74 @@ function UserManagement() {
                 <td>{user.totalOrders}</td>
                 <td>
                   <div className="action-buttons">
-                    <button className="btn-sm btn--outline" title="View Details">View</button>
+                    <Link className="btn-sm btn--outline" to={`/admin/users/${user.id}`} title="View Details">
+                      View
+                    </Link>
                     {user.status === 'active' ? (
-                      <button className="btn-sm btn--danger" title="Suspend">Suspend</button>
+                      <button
+                        className="btn-sm btn--danger"
+                        title="Suspend"
+                        onClick={() => handleToggleStatus(user.id, 'suspended')}
+                      >
+                        Suspend
+                      </button>
                     ) : (
-                      <button className="btn-sm btn--success" title="Activate">Activate</button>
+                      <button
+                        className="btn-sm btn--success"
+                        title="Activate"
+                        onClick={() => handleToggleStatus(user.id, 'active')}
+                      >
+                        Activate
+                      </button>
                     )}
                   </div>
                 </td>
               </tr>
             ))}
+            {filteredUsers.length === 0 && (
+              <tr>
+                <td colSpan={7} className="user-empty">No users match your search.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      {filteredUsers.length > 0 && (
+        <div className="user-pagination">
+          <button
+            className="pagination__button"
+            type="button"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          <div className="pagination__pages">
+            {Array.from({ length: totalPages }, (_, index) => {
+              const page = index + 1
+              return (
+                <button
+                  key={page}
+                  className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              )
+            })}
+          </div>
+          <button
+            className="pagination__button"
+            type="button"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   )
 }

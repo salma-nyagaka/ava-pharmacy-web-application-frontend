@@ -8,6 +8,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
   margin-bottom: 2rem;
 }
 
@@ -96,6 +98,12 @@
   border-top: 1px solid #f0f0f0;
 }
 
+.user-empty {
+  text-align: center;
+  padding: 1.5rem;
+  color: #666;
+}
+
 .user-info {
   display: flex;
   align-items: center;
@@ -142,6 +150,37 @@
 .role--admin {
   background: #f3e5f5;
   color: #6a1b9a;
+}
+
+.role--pharmacist {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.role--doctor {
+  background: #fff8e1;
+  color: #8d6e00;
+}
+
+.role--pediatrician {
+  background: #e0f2f1;
+  color: #00695c;
+}
+
+.role--lab_technician {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+.role--inventory_staff {
+  background: #ede7f6;
+  color: #4527a0;
+}
+
+.role-note {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
 }
 
 .status {
@@ -203,6 +242,50 @@
 
 .btn--success:hover {
   background: #218838;
+}
+
+.user-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination__pages {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination__button,
+.pagination__page {
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination__button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination__page--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.pagination__button:not([disabled]):hover,
+.pagination__page:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 @media (max-width: 768px) {

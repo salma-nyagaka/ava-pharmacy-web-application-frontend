@@ -1,0 +1,250 @@
+.prescription-empty {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--color-text-muted);
+}
+
+.prescription-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination__pages {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination__button,
+.pagination__page {
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination__button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination__page--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.pagination__button:not([disabled]):hover,
+.pagination__page:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.prescription-modal__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.prescription-modal__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.prescription-modal__value {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.prescription-modal__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.prescription-modal__files {
+  margin-bottom: 1.5rem;
+}
+
+.files-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.prescription-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: var(--color-background-light);
+}
+
+.prescription-item__meta {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
+.prescription-modal__notes {
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 1rem;
+}
+
+.prescription-modal__audit {
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.audit-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--color-text-primary);
+}
+
+.modal__footer--override {
+  border-top: 1px solid var(--color-border-light);
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.modal__footer--dispatch {
+  border-top: 1px solid var(--color-border-light);
+  justify-content: flex-end;
+}
+
+.dispatch-done {
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.admin-status--info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.override-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  flex: 1;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.modal__header h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.modal__close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #666;
+  line-height: 1;
+  padding: 0;
+}
+
+.modal__content {
+  padding: 1.5rem;
+}
+
+.modal__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.form-group select,
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+@media (max-width: 700px) {
+  .prescription-modal__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .override-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .prescription-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+}

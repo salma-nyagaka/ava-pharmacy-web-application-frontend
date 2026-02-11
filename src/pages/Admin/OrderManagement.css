@@ -96,6 +96,12 @@
   border-top: 1px solid #f0f0f0;
 }
 
+.order-empty {
+  text-align: center;
+  padding: 1.5rem;
+  color: #666;
+}
+
 .order-id {
   font-weight: 600;
   color: var(--color-primary);
@@ -150,6 +156,11 @@
   color: #721c24;
 }
 
+.status--refunded {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
 .action-buttons {
   display: flex;
   gap: 0.5rem;
@@ -182,6 +193,50 @@
 
 .btn--primary:hover {
   background: var(--color-secondary);
+}
+
+.order-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination__pages {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination__button,
+.pagination__page {
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination__button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination__page--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.pagination__button:not([disabled]):hover,
+.pagination__page:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .modal-overlay {

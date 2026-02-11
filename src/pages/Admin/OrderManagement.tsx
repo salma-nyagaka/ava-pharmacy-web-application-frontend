@@ -1,37 +1,72 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { type AdminOrder, getOrderTotals, loadAdminOrders, saveAdminOrders } from './adminOrders'
+import { logAdminAction } from '../../data/adminAudit'
 import './OrderManagement.css'
 
-interface Order {
-  id: string
-  customer: string
-  email: string
-  date: string
-  total: number
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
-  items: number
-  paymentMethod: string
-}
-
 function OrderManagement() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
-  const [showDetails, setShowDetails] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [orders, setOrders] = useState(loadAdminOrders())
 
-  const orders: Order[] = [
-    { id: 'ORD-001', customer: 'John Doe', email: 'john@example.com', date: '2024-03-15', total: 3500, status: 'pending', items: 3, paymentMethod: 'M-Pesa' },
-    { id: 'ORD-002', customer: 'Jane Smith', email: 'jane@example.com', date: '2024-03-14', total: 5200, status: 'processing', items: 5, paymentMethod: 'Card' },
-    { id: 'ORD-003', customer: 'Mike Johnson', email: 'mike@example.com', date: '2024-03-14', total: 2800, status: 'shipped', items: 2, paymentMethod: 'M-Pesa' },
-    { id: 'ORD-004', customer: 'Sarah Williams', email: 'sarah@example.com', date: '2024-03-13', total: 4100, status: 'delivered', items: 4, paymentMethod: 'Card' },
-    { id: 'ORD-005', customer: 'David Brown', email: 'david@example.com', date: '2024-03-13', total: 1500, status: 'cancelled', items: 1, paymentMethod: 'M-Pesa' },
-    { id: 'ORD-006', customer: 'Emily Davis', email: 'emily@example.com', date: '2024-03-12', total: 6700, status: 'delivered', items: 7, paymentMethod: 'Card' },
-    { id: 'ORD-007', customer: 'Robert Wilson', email: 'robert@example.com', date: '2024-03-12', total: 3300, status: 'processing', items: 3, paymentMethod: 'M-Pesa' },
-    { id: 'ORD-008', customer: 'Lisa Anderson', email: 'lisa@example.com', date: '2024-03-11', total: 4900, status: 'shipped', items: 5, paymentMethod: 'Card' },
-  ]
+  useEffect(() => {
+    saveAdminOrders(orders)
+  }, [orders])
+  const filteredOrders = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    return orders.filter((order) => {
+      const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus
+      if (!query) {
+        return matchesStatus
+      }
+      const matchesQuery = [order.id, order.customer, order.email].some((value) =>
+        value.toLowerCase().includes(query)
+      )
+      return matchesStatus && matchesQuery
+    })
+  }, [orders, searchTerm, selectedStatus])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedStatus])
+
+  const PAGE_SIZE = 6
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
+  const startIndex = (currentPage - 1) * PAGE_SIZE
+  const pagedOrders = filteredOrders.slice(startIndex, startIndex + PAGE_SIZE)
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+
+    navigate('/admin')
+  }
+
+  const updateOrderStatus = (orderId: string, status: AdminOrder['status']) => {
+    setOrders((prev) =>
+      prev.map((order) => (order.id === orderId ? { ...order, status } : order))
+    )
+    logAdminAction({
+      action: 'Update order status',
+      entity: 'Order',
+      entityId: orderId,
+      detail: `Status set to ${status}`,
+    })
+  }
 
   return (
     <div className="order-management">
       <div className="order-management__header">
-        <h1>Order Management</h1>
+        <div>
+          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
+            Back
+          </button>
+          <h1>Order Management</h1>
+        </div>
         <div className="stats-mini">
           <div className="stat-mini">
             <span className="stat-mini__value">{orders.filter(o => o.status === 'pending').length}</span>
@@ -63,6 +98,7 @@ function OrderManagement() {
           <option value="processing">Processing</option>
           <option value="shipped">Shipped</option>
           <option value="delivered">Delivered</option>
+          <option value="refunded">Refunded</option>
           <option value="cancelled">Cancelled</option>
         </select>
       </div>
@@ -82,7 +118,7 @@ function OrderManagement() {
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => (
+            {pagedOrders.map((order) => (
               <tr key={order.id}>
                 <td>
                   <span className="order-id">{order.id}</span>
@@ -93,10 +129,10 @@ function OrderManagement() {
                     <div className="customer-email">{order.email}</div>
                   </div>
                 </td>
-                <td>{new Date(order.date).toLocaleDateString()}</td>
-                <td>{order.items}</td>
+                <td>{order.date}</td>
+                <td>{order.items.reduce((sum, item) => sum + item.quantity, 0)}</td>
                 <td>
-                  <span className="order-total">KSh {order.total.toLocaleString()}</span>
+                  <span className="order-total">KSh {getOrderTotals(order).total.toLocaleString()}</span>
                 </td>
                 <td>{order.paymentMethod}</td>
                 <td>
@@ -106,104 +142,88 @@ function OrderManagement() {
                 </td>
                 <td>
                   <div className="action-buttons">
-                    <button
-                      className="btn-sm btn--outline"
-                      onClick={() => setShowDetails(order.id)}
-                    >
+                    <Link className="btn-sm btn--outline" to={`/admin/orders/${order.id}`}>
                       View
-                    </button>
+                    </Link>
                     {order.status === 'pending' && (
-                      <button className="btn-sm btn--primary">Process</button>
+                      <>
+                        <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'processing')}>
+                          Process
+                        </button>
+                        <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'shipped')}>
+                          Mark Shipped
+                        </button>
+                      </>
                     )}
                     {order.status === 'processing' && (
-                      <button className="btn-sm btn--primary">Ship</button>
+                      <>
+                        <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'shipped')}>
+                          Ship
+                        </button>
+                        <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'delivered')}>
+                          Mark Delivered
+                        </button>
+                      </>
+                    )}
+                    {order.status === 'shipped' && (
+                      <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'delivered')}>
+                        Mark Delivered
+                      </button>
+                    )}
+                    {order.status !== 'cancelled' && (
+                      <button className="btn-sm btn--outline" onClick={() => updateOrderStatus(order.id, 'cancelled')}>
+                        Cancel
+                      </button>
                     )}
                   </div>
                 </td>
               </tr>
             ))}
+            {filteredOrders.length === 0 && (
+              <tr>
+                <td colSpan={8} className="order-empty">No orders match your search.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {showDetails && (
-        <div className="modal-overlay" onClick={() => setShowDetails(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal__header">
-              <h2>Order Details - {showDetails}</h2>
-              <button className="modal__close" onClick={() => setShowDetails(null)}>×</button>
-            </div>
-            <div className="modal__content">
-              <div className="order-details">
-                <div className="detail-section">
-                  <h3>Customer Information</h3>
-                  <div className="detail-row">
-                    <span className="detail-label">Name:</span>
-                    <span className="detail-value">John Doe</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Email:</span>
-                    <span className="detail-value">john@example.com</span>
-                  </div>
-                  <div className="detail-row">
-                    <span className="detail-label">Phone:</span>
-                    <span className="detail-value">+254 712 345 678</span>
-                  </div>
-                </div>
-
-                <div className="detail-section">
-                  <h3>Shipping Address</h3>
-                  <p>123 Main Street, Nairobi, Kenya</p>
-                </div>
-
-                <div className="detail-section">
-                  <h3>Order Items</h3>
-                  <div className="order-items">
-                    <div className="order-item">
-                      <span>Paracetamol 500mg × 2</span>
-                      <span>KSh 500</span>
-                    </div>
-                    <div className="order-item">
-                      <span>Ibuprofen 400mg × 1</span>
-                      <span>KSh 350</span>
-                    </div>
-                    <div className="order-item">
-                      <span>Vitamin C 1000mg × 3</span>
-                      <span>KSh 2,400</span>
-                    </div>
-                  </div>
-                  <div className="order-summary">
-                    <div className="summary-row">
-                      <span>Subtotal:</span>
-                      <span>KSh 3,250</span>
-                    </div>
-                    <div className="summary-row">
-                      <span>Shipping:</span>
-                      <span>KSh 250</span>
-                    </div>
-                    <div className="summary-row summary-row--total">
-                      <span>Total:</span>
-                      <span>KSh 3,500</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="detail-section">
-                  <h3>Update Status</h3>
-                  <select className="status-select">
-                    <option>Pending</option>
-                    <option>Processing</option>
-                    <option>Shipped</option>
-                    <option>Delivered</option>
-                    <option>Cancelled</option>
-                  </select>
-                  <button className="btn btn--primary">Update Status</button>
-                </div>
-              </div>
-            </div>
+      {filteredOrders.length > 0 && (
+        <div className="order-pagination">
+          <button
+            className="pagination__button"
+            type="button"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Prev
+          </button>
+          <div className="pagination__pages">
+            {Array.from({ length: totalPages }, (_, index) => {
+              const page = index + 1
+              return (
+                <button
+                  key={page}
+                  className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              )
+            })}
           </div>
+          <button
+            className="pagination__button"
+            type="button"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
         </div>
       )}
+
     </div>
   )
 }

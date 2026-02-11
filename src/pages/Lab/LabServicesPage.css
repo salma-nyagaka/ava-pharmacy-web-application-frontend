@@ -1,0 +1,170 @@
+.lab-filters {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.lab-filters input,
+.lab-filters select {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  min-width: 220px;
+  background: #fff;
+}
+
+.lab-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.lab-service-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.lab-service-stat {
+  background: #fff;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.lab-service-stat__label {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.lab-service-stat__value {
+  margin-top: 0.35rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.lab-requests-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.lab-requests-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.lab-requests-toolbar input,
+.lab-requests-toolbar select {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  min-width: 220px;
+  background: #fff;
+}
+
+.lab-request-table-wrap {
+  overflow-x: auto;
+}
+
+.lab-request-table th,
+.lab-request-table td {
+  white-space: nowrap;
+}
+
+.lab-request-table__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lab-request-empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: 1.25rem;
+}
+
+.lab-request-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.lab-booking-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.lab-form-error {
+  color: var(--color-error);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.lab-request-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.lab-detail-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border-light);
+}
+
+.lab-detail-label {
+  margin: 0 0 0.3rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lab-result-box {
+  background: var(--color-background-light);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+}
+
+.lab-result-box h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.lab-audit-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+@media (max-width: 1024px) {
+  .lab-service-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .lab-booking-grid,
+  .lab-request-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .lab-service-stats {
+    grid-template-columns: 1fr;
+  }
+}

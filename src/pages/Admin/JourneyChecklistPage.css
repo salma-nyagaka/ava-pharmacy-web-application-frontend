@@ -1,0 +1,128 @@
+.journey-checklist__subtitle {
+  margin-top: 0.35rem;
+  color: var(--color-text-muted);
+}
+
+.journey-progress {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.journey-progress__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.65rem;
+}
+
+.journey-progress__bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-background-light);
+  overflow: hidden;
+}
+
+.journey-progress__fill {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.2s ease;
+}
+
+.journey-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.journey-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.journey-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.journey-card__header h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.journey-card__owner {
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.journey-card__description {
+  margin: 0.75rem 0;
+  color: var(--color-text-muted);
+}
+
+.journey-card__section {
+  margin-top: 0.85rem;
+}
+
+.journey-card__section ul {
+  margin: 0.45rem 0 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.journey-steps {
+  padding-left: 0;
+}
+
+.journey-steps li {
+  list-style: none;
+}
+
+.journey-steps label {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+}
+
+.journey-card__actions {
+  margin-top: 0.9rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.journey-status {
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.journey-status--ready {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-success);
+}
+
+.journey-status--mock-ready {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.journey-status--needs-backend {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning);
+}
+
+@media (max-width: 900px) {
+  .journey-grid {
+    grid-template-columns: 1fr;
+  }
+}

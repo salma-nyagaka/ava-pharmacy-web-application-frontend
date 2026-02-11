@@ -6,22 +6,31 @@ import {
   productOmega3,
   productMultivitamin,
 } from '../../assets/images/remote'
+import { StockSource } from '../../data/cart'
+import { cartService } from '../../services/cartService'
 import './ProductDetailPage.css'
 
 function ProductDetailPage() {
-  const { id: _id } = useParams()
+  const { id: routeId } = useParams()
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
+  const [restockEnabled, setRestockEnabled] = useState(false)
+  const [cartMessage, setCartMessage] = useState('')
+
+  const parsedId = Number.parseInt(routeId ?? '1', 10) || 1
+  const stockSource: StockSource = parsedId === 5 ? 'out' : parsedId % 2 === 0 ? 'warehouse' : 'branch'
+  const inStock = stockSource !== 'out'
 
   const product = {
-    id: 1,
+    id: parsedId,
     name: 'Vitamin C 1000mg Tablets - 60 Count',
     brand: 'HealthPlus',
     price: 1250,
     originalPrice: 1500,
     rating: 4.8,
     reviews: 124,
-    inStock: true,
+    inStock,
+    stockSource,
     sku: 'HP-VIT-C-1000',
     category: 'Vitamins & Supplements',
     images: [
@@ -94,6 +103,29 @@ function ProductDetailPage() {
   ]
 
   const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
+
+  const getStockLabel = () => {
+    if (product.stockSource === 'branch') return 'In stock at branch - ready for same-day pickup'
+    if (product.stockSource === 'warehouse') return 'Available from central warehouse - delivery in 2-3 business days'
+    return 'Out of stock - set a restock alert'
+  }
+
+  const handleAddToCart = () => {
+    if (!product.inStock) return
+    void cartService.add(
+      {
+        id: product.id,
+        name: product.name,
+        brand: product.brand,
+        price: product.price,
+        image: product.images[0],
+        stockSource: product.stockSource === 'out' ? undefined : product.stockSource,
+      },
+      quantity
+    )
+    setCartMessage('Added to cart.')
+    window.setTimeout(() => setCartMessage(''), 1500)
+  }
 
   const renderStars = (rating: number) => {
     const fullStars = Math.floor(rating)
@@ -179,12 +211,13 @@ function ProductDetailPage() {
                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                     <polyline points="22 4 12 14.01 9 11.01"/>
                   </svg>
-                  In Stock
+                  {product.stockSource === 'branch' ? 'In Stock' : 'Warehouse Stock'}
                 </span>
               ) : (
                 <span className="pdp__out-of-stock">Out of Stock</span>
               )}
             </div>
+            <p className="pdp__sku">{getStockLabel()}</p>
 
             <div className="pdp__description">
               <p>{product.description}</p>
@@ -198,14 +231,20 @@ function ProductDetailPage() {
                 <button onClick={() => setQuantity(quantity + 1)}>+</button>
               </div>
 
-              <button className="btn btn--primary btn--lg pdp__add-to-cart">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="9" cy="21" r="1"/>
-                  <circle cx="20" cy="21" r="1"/>
-                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                </svg>
-                Add to Cart
-              </button>
+              {product.inStock ? (
+                <button className="btn btn--primary btn--lg pdp__add-to-cart" type="button" onClick={handleAddToCart}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="9" cy="21" r="1"/>
+                    <circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                  </svg>
+                  Add to Cart
+                </button>
+              ) : (
+                <button className="btn btn--outline btn--lg pdp__add-to-cart" type="button" onClick={() => setRestockEnabled((prev) => !prev)}>
+                  {restockEnabled ? 'Restock Alert Enabled' : 'Notify on Restock'}
+                </button>
+              )}
 
               <button className="pdp__wishlist-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -213,6 +252,7 @@ function ProductDetailPage() {
                 </svg>
               </button>
             </div>
+            {cartMessage && <p className="pdp__sku">{cartMessage}</p>}
 
             {/* Trust Badges */}
             <div className="pdp__trust-badges">

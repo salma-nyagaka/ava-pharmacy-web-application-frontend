@@ -1,0 +1,361 @@
+.portal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.portal-header__label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+.portal-header__meta {
+  color: var(--color-text-muted);
+}
+
+.portal-header select {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  min-width: 220px;
+}
+
+.portal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.portal-tab {
+  border: 1px solid var(--color-border-light);
+  background: #fff;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.portal-tab--active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.portal-panel {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 2rem;
+}
+
+.portal-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.portal-panel__header input {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  min-width: 220px;
+}
+
+.portal-panel__actions {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.portal-panel__sub {
+  color: var(--color-text-muted);
+}
+
+.queue-item__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+
+.queue-item__buttons {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.messages-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.messages-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  background: var(--color-background-light);
+  cursor: pointer;
+}
+
+.messages-card h4 {
+  margin: 0 0 0.3rem;
+}
+
+.messages-card p {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.messages-card__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.message-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+.consent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.consent-card {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  background: var(--color-background-light);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.patients-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+}
+
+.patient-card {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  background: var(--color-background-light);
+}
+
+.alert-panel {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(245, 158, 11, 0.12);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.alert-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.portal-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.portal-table th,
+.portal-table td {
+  padding: 0.8rem 0.6rem;
+  border-bottom: 1px solid var(--color-border-light);
+  text-align: left;
+}
+
+.portal-table__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.detail-value {
+  color: var(--color-text-primary);
+}
+
+.earnings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.earnings-card {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  background: var(--color-background-light);
+  display: grid;
+  gap: 0.4rem;
+}
+
+.earnings-card__value {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.earnings-card__meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.empty-state {
+  padding: 1rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.chat-window {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.chat-message {
+  max-width: 70%;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--color-background-light);
+}
+
+.chat-message span {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.chat-message--doctor {
+  margin-left: auto;
+  background: rgba(229, 57, 53, 0.1);
+}
+
+.chat-message--patient {
+  margin-right: auto;
+}
+
+.chat-message--system {
+  margin-left: auto;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.chat-input {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+}
+
+.rx-items {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.rx-item {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr;
+  gap: 0.6rem;
+}
+
+.rx-item input {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 900px) {
+  .portal-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .portal-panel__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .queue-item__actions {
+    align-items: flex-start;
+  }
+
+  .rx-item {
+    grid-template-columns: 1fr;
+  }
+}

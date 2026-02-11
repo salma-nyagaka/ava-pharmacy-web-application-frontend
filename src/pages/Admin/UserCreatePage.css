@@ -1,0 +1,47 @@
+.user-create-page {
+  max-width: 900px;
+}
+
+.user-create-form {
+  background: #fff;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.permission-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.permission-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.permission-option input {
+  margin: 0;
+}
+
+.permission-hint {
+  margin-top: 0.6rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.form-error {
+  margin: 0.5rem 0 0;
+  color: var(--color-error);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.user-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}

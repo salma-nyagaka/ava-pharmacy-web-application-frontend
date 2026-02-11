@@ -22,6 +22,67 @@
   color: var(--color-primary);
 }
 
+/* Category Header */
+.plp__header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.plp__header-text {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.plp__eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.plp__title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.plp__subtitle {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+}
+
+.plp__subcategories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.plp__subcategory {
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.plp__subcategory:hover {
+  border-color: rgba(232, 23, 80, 0.3);
+  color: var(--color-primary);
+  background: rgba(232, 23, 80, 0.06);
+}
+
+.plp__subcategory.is-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+
 /* Layout */
 .plp__layout {
   display: grid;
@@ -288,6 +349,24 @@
   text-decoration: line-through;
 }
 
+.product-stock-source {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.product-stock-source--branch {
+  color: var(--color-success);
+}
+
+.product-stock-source--warehouse {
+  color: #1d4ed8;
+}
+
+.product-stock-source--out {
+  color: var(--color-error);
+}
+
 .product-card__add-to-cart {
   width: 100%;
   display: flex;
@@ -316,6 +395,12 @@
 .product-card__add-to-cart:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.product-card__add-to-cart--restock {
+  background: #fff;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
 }
 
 /* Pagination */
@@ -374,6 +459,10 @@
 }
 
 @media (max-width: 768px) {
+  .plp__title {
+    font-size: 1.6rem;
+  }
+
   .plp__toolbar {
     flex-direction: column;
     gap: 1rem;

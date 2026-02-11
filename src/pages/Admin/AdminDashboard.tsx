@@ -1,7 +1,14 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { logAdminAction } from '../../data/adminAudit'
 import './AdminDashboard.css'
 
 function AdminDashboard() {
+  const [showReorder, setShowReorder] = useState(false)
+  const [reorderItem, setReorderItem] = useState<{ name: string; stock: number; reorderLevel: number } | null>(null)
+  const [reorderQty, setReorderQty] = useState('')
+  const [reorderNote, setReorderNote] = useState('')
+
   const stats = [
     { title: 'Total Orders', value: '1,234', change: '+12%', icon: '📦' },
     { title: 'Revenue', value: 'KSh 456,789', change: '+8%', icon: '💰' },
@@ -20,6 +27,26 @@ function AdminDashboard() {
     { name: 'Hand Sanitizer', stock: 8, reorderLevel: 50 },
     { name: 'Face Masks', stock: 12, reorderLevel: 100 },
   ]
+
+  const openReorder = (item: { name: string; stock: number; reorderLevel: number }) => {
+    const suggested = Math.max(item.reorderLevel - item.stock, item.reorderLevel)
+    setReorderItem(item)
+    setReorderQty(String(suggested))
+    setReorderNote('')
+    setShowReorder(true)
+  }
+
+  const handleSubmitReorder = () => {
+    if (!reorderItem) return
+    const qty = Math.max(1, Number.parseInt(reorderQty, 10) || 0)
+    logAdminAction({
+      action: 'Create reorder request',
+      entity: 'Inventory',
+      entityId: reorderItem.name,
+      detail: `${reorderItem.name} · Qty ${qty}${reorderNote ? ` · ${reorderNote}` : ''}`,
+    })
+    setShowReorder(false)
+  }
 
   return (
     <div className="admin-dashboard">
@@ -72,9 +99,29 @@ function AdminDashboard() {
             <span>💊</span>
             <span>Verify Prescriptions</span>
           </Link>
+          <Link to="/admin/lab-tests" className="admin-action">
+            <span>🧪</span>
+            <span>Lab Tests</span>
+          </Link>
+          <Link to="/admin/deals" className="admin-action">
+            <span>🏷️</span>
+            <span>Deals & Discounts</span>
+          </Link>
           <Link to="/admin/reports" className="admin-action">
             <span>📊</span>
             <span>View Reports</span>
+          </Link>
+          <Link to="/admin/payouts" className="admin-action">
+            <span>💸</span>
+            <span>Payouts</span>
+          </Link>
+          <Link to="/admin/support" className="admin-action">
+            <span>🎧</span>
+            <span>Support</span>
+          </Link>
+          <Link to="/admin/journey-checklist" className="admin-action">
+            <span>🧭</span>
+            <span>Journey Checklist</span>
           </Link>
           <Link to="/admin/settings" className="admin-action">
             <span>⚙️</span>
@@ -121,13 +168,61 @@ function AdminDashboard() {
                     <h4>{product.name}</h4>
                     <p>Current: {product.stock} | Reorder at: {product.reorderLevel}</p>
                   </div>
-                  <button className="btn btn--primary btn--sm">Reorder</button>
+                  <button
+                    className="btn btn--primary btn--sm"
+                    type="button"
+                    onClick={() => openReorder(product)}
+                  >
+                    Reorder Stock
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         </div>
       </div>
+
+      {showReorder && reorderItem && (
+        <div className="modal-overlay" onClick={() => setShowReorder(false)}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal__header">
+              <h2>Reorder {reorderItem.name}</h2>
+              <button className="modal__close" onClick={() => setShowReorder(false)}>×</button>
+            </div>
+            <div className="modal__content">
+              <p className="reorder-summary">
+                Current stock: {reorderItem.stock} · Reorder level: {reorderItem.reorderLevel}
+              </p>
+              <div className="form-group">
+                <label>Quantity</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={reorderQty}
+                  onChange={(event) => setReorderQty(event.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Notes (optional)</label>
+                <input
+                  type="text"
+                  value={reorderNote}
+                  onChange={(event) => setReorderNote(event.target.value)}
+                  placeholder="Preferred supplier or urgency"
+                />
+              </div>
+            </div>
+            <div className="modal__footer">
+              <button className="btn btn--outline btn--sm" onClick={() => setShowReorder(false)}>
+                Cancel
+              </button>
+              <button className="btn btn--primary btn--sm" onClick={handleSubmitReorder}>
+                Create Reorder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

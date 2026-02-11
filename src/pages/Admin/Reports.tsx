@@ -1,8 +1,19 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './Reports.css'
 
 function Reports() {
+  const navigate = useNavigate()
   const [timeRange, setTimeRange] = useState('7days')
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+
+    navigate('/admin')
+  }
 
   const salesData = [
     { day: 'Mon', sales: 12500 },
@@ -32,10 +43,35 @@ function Reports() {
     { category: 'Digestive', revenue: 41000, percentage: 5 },
   ]
 
+  const inventoryPerformance = [
+    { label: 'Low-stock items', value: 18 },
+    { label: 'Out of stock', value: 6 },
+    { label: 'Fast movers', value: 12 },
+    { label: 'Slow movers', value: 9 },
+  ]
+
+  const doctorPerformance = [
+    { name: 'Dr. Sarah Johnson', consults: 42, rating: 4.8 },
+    { name: 'Dr. Michael Chen', consults: 35, rating: 4.6 },
+    { name: 'Dr. Mercy Otieno', consults: 28, rating: 4.7 },
+  ]
+
+  const prescriptionStats = [
+    { label: 'Approved', value: 128 },
+    { label: 'Pending', value: 22 },
+    { label: 'Clarification', value: 9 },
+    { label: 'Rejected', value: 6 },
+  ]
+
   return (
     <div className="reports">
       <div className="reports__header">
-        <h1>Reports & Analytics</h1>
+        <div className="reports__header-left">
+          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
+            Back
+          </button>
+          <h1>Reports & Analytics</h1>
+        </div>
         <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
           <option value="7days">Last 7 Days</option>
           <option value="30days">Last 30 Days</option>
@@ -156,6 +192,45 @@ function Reports() {
               <span className="insight-label">Customer Lifetime Value</span>
               <span className="insight-value">KSh 2,493</span>
             </div>
+          </div>
+        </div>
+
+        <div className="report-card">
+          <h2>Inventory Performance</h2>
+          <div className="insights">
+            {inventoryPerformance.map((item) => (
+              <div key={item.label} className="insight-row">
+                <span className="insight-label">{item.label}</span>
+                <span className="insight-value">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="report-card">
+          <h2>Doctor & Consultation Performance</h2>
+          <div className="top-products">
+            {doctorPerformance.map((doctor) => (
+              <div key={doctor.name} className="top-product">
+                <div className="top-product__rank">{doctor.rating.toFixed(1)}</div>
+                <div className="top-product__info">
+                  <div className="top-product__name">{doctor.name}</div>
+                  <div className="top-product__stats">{doctor.consults} consultations</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="report-card">
+          <h2>Prescription Processing</h2>
+          <div className="insights">
+            {prescriptionStats.map((item) => (
+              <div key={item.label} className="insight-row">
+                <span className="insight-label">{item.label}</span>
+                <span className="insight-value">{item.value}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

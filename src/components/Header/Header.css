@@ -324,6 +324,12 @@
   border: 1px solid transparent;
 }
 
+.mega-panel__menu-link--all {
+  background: rgba(232, 23, 80, 0.08);
+  border-color: rgba(232, 23, 80, 0.2);
+  color: var(--color-primary);
+}
+
 .mega-panel__menu-link:hover,
 .mega-panel__menu-link--active {
   background: rgba(232, 23, 80, 0.1);

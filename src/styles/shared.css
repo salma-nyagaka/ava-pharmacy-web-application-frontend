@@ -218,6 +218,58 @@
   background: var(--color-border);
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.modal {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  width: min(600px, 95vw);
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal--wide {
+  width: min(820px, 95vw);
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.modal__close {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.modal__content {
+  padding: 1.25rem 1.5rem;
+}
+
+.modal__footer {
+  padding: 1rem 1.5rem 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
 .timeline__item {
   position: relative;
 }

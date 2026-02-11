@@ -1,0 +1,233 @@
+.support-management__subtitle {
+  margin-top: 0.35rem;
+  color: var(--color-text-muted);
+}
+
+.support-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.support-stat {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.support-stat__label {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.support-stat__value {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.support-ticket-id {
+  font-weight: 700;
+}
+
+.support-ticket-subject {
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.support-priority {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.support-priority--high {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-error);
+}
+
+.support-priority--medium {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning);
+}
+
+.support-priority--low {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.admin-status--info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.support-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.support-empty {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--color-text-muted);
+}
+
+.support-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.support-pagination .pagination__pages {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.support-pagination .pagination__button,
+.support-pagination .pagination__page {
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+.support-pagination .pagination__button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.support-pagination .pagination__page--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.support-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.support-modal {
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+  background: #fff;
+  border-radius: 12px;
+  overflow-y: auto;
+}
+
+.support-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.support-modal__close {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.support-modal__content {
+  padding: 1.5rem;
+}
+
+.support-modal__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.2rem;
+}
+
+.support-modal__label {
+  margin: 0 0 0.2rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.support-modal__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.support-modal__group label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-weight: 600;
+}
+
+.support-modal__group select,
+.support-modal__group textarea {
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.support-modal__group {
+  margin-top: 1rem;
+}
+
+.support-note-btn {
+  margin-top: 0.65rem;
+}
+
+.support-modal__audit {
+  margin-top: 1rem;
+}
+
+.support-modal__audit ul {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.support-modal__footer {
+  border-top: 1px solid var(--color-border-light);
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .support-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .support-modal__summary,
+  .support-modal__row {
+    grid-template-columns: 1fr;
+  }
+}

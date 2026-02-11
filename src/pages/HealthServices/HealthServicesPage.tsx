@@ -5,7 +5,7 @@ function HealthServicesPage() {
   const services = [
     { title: 'Doctor Consultation', desc: 'Chat with licensed doctors and get e-prescriptions.', path: '/consultation' },
     { title: 'Pediatric Services', desc: 'Specialized consultations for children and guardians.', path: '/pediatrician/dashboard' },
-    { title: 'Laboratory Services', desc: 'Book diagnostics, track samples, and receive results.', path: '/lab-tests' },
+    { title: 'Laboratory Services', desc: 'Book diagnostics, track samples, and receive results.', path: '/labaratory' },
     { title: 'Prescription Fulfillment', desc: 'Upload, verify, and track prescription approvals.', path: '/prescriptions' },
   ]
 
