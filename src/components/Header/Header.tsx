@@ -13,10 +13,12 @@ import brandSebamed from '../../assets/images/brands/sebamed.png'
 import brandHuggies from '../../assets/images/brands/huggies.jpeg'
 import brandAccuChek from '../../assets/images/brands/accu-check.png'
 import { categoryData } from '../../data/categories'
+import { healthConcerns } from '../../data/healthConcerns'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 
 function Header() {
+  const ALL_CATEGORIES_KEY = 'all'
   const navigate = useNavigate()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -44,25 +46,11 @@ function Header() {
   }, [])
 
   const categories = categoryData
+  const defaultCategorySlug = categories[0]?.slug ?? ALL_CATEGORIES_KEY
 
-  const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? '')
+  const [activeCategory, setActiveCategory] = useState(defaultCategorySlug)
   const banners = loadBanners()
   const activeBanner = banners.find((banner) => banner.status === 'active')
-
-  const conditions = [
-    { name: 'Aches & Pains', path: '/conditions/aches-pains' },
-    { name: 'Acne', path: '/conditions/acne' },
-    { name: 'Allergy & Hayfever', path: '/conditions/allergy-hayfever' },
-    { name: 'Anti Infectives', path: '/conditions/anti-infectives' },
-    { name: 'Bites & Stings', path: '/conditions/bites-stings' },
-    { name: 'Cough, Cold & Flu', path: '/conditions/cold-flu-cough' },
-    { name: 'Dry Skin', path: '/conditions/dry-skin' },
-    { name: 'Eczema', path: '/conditions/eczema' },
-    { name: 'Eye & Ear Care', path: '/conditions/eye-ear-care' },
-    { name: 'First Aid & Bandages', path: '/conditions/first-aid' },
-    { name: 'Oral Care', path: '/conditions/oral-care' },
-    { name: 'Skin Treatments', path: '/conditions/skin-treatments' },
-  ]
 
   const brands = [
     { name: 'Panadol', path: '/brands/panadol', logo: brandPanadol },
@@ -81,22 +69,61 @@ function Header() {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey))
   }
 
+  const openCategoryMenu = () => {
+    setActiveCategory(defaultCategorySlug)
+    setActiveMenu('category')
+  }
+
+  const toggleCategoryMenu = () => {
+    if (activeMenu === 'category') {
+      setActiveMenu(null)
+      return
+    }
+    openCategoryMenu()
+  }
+
+  const buildSubcategoryPath = (categoryPath: string, subSlug: string) =>
+    `${categoryPath}?subcategory=${encodeURIComponent(subSlug)}`
+
   const activeCategoryData =
-    categories.find((category) => category.slug === activeCategory) || categories[0]
-  const activeItems = activeCategoryData?.subcategories ?? []
-  const itemsSplitIndex = Math.ceil(activeItems.length / 2)
-  const itemsColumnOne = activeItems.slice(0, itemsSplitIndex)
-  const itemsColumnTwo = activeItems.slice(itemsSplitIndex)
+    activeCategory === ALL_CATEGORIES_KEY
+      ? categories[0]
+      : categories.find((category) => category.slug === activeCategory) || categories[0]
+  const activeCategoryLabel = activeCategory === ALL_CATEGORIES_KEY ? 'All Products' : activeCategoryData?.name ?? 'Shop by Category'
+  const megaPanelItems =
+    activeCategory === ALL_CATEGORIES_KEY
+      ? categories.flatMap((category) =>
+          category.subcategories.map((item) => ({
+            id: `${category.slug}-${item.slug}`,
+            name: item.name,
+            categoryName: category.name,
+            path: buildSubcategoryPath(category.path, item.slug),
+          }))
+        )
+      : (activeCategoryData?.subcategories ?? []).map((item) => ({
+          id: item.slug,
+          name: item.name,
+          categoryName: null,
+          path: buildSubcategoryPath(activeCategoryData.path, item.slug),
+        }))
+  const itemsSplitIndex = Math.ceil(megaPanelItems.length / 2)
+  const itemsColumnOne = megaPanelItems.slice(0, itemsSplitIndex)
+  const itemsColumnTwo = megaPanelItems.slice(itemsSplitIndex)
 
   const closeActiveMenu = () => setActiveMenu(null)
 
   const closeMenus = () => {
     setActiveMenu(null)
     setIsMenuOpen(false)
+    setActiveCategory(defaultCategorySlug)
   }
 
-  const buildSubcategoryPath = (categoryPath: string, subSlug: string) =>
-    `${categoryPath}?subcategory=${encodeURIComponent(subSlug)}`
+  const popularSubcategories = categories
+    .flatMap((category) => category.subcategories.slice(0, 2).map((item) => ({
+      name: item.name,
+      path: buildSubcategoryPath(category.path, item.slug),
+    })))
+    .slice(0, 8)
 
   const submitSearch = () => {
     const query = searchQuery.trim()
@@ -137,6 +164,7 @@ function Header() {
               <Link to="/about" className="header__topbar-link">About Us</Link>
               <Link to="/blog" className="header__topbar-link">Blog</Link>
               <Link to="/help" className="header__topbar-link">FAQ</Link>
+              <Link to="/track-order" className="header__topbar-link">Track Order</Link>
               <Link to="/store-locator" className="header__topbar-link">Store Locator</Link>
             </div>
           </div>
@@ -234,16 +262,16 @@ function Header() {
           <ul className="header__nav-list">
             <li
               className={`header__nav-item header__nav-item--mega ${activeMenu === 'category' ? 'header__nav-item--open' : ''}`}
-              onMouseEnter={() => setActiveMenu('category')}
+              onMouseEnter={openCategoryMenu}
               onMouseLeave={closeActiveMenu}
             >
               <button
                 className="header__nav-button"
-                onClick={() => handleToggleMenu('category')}
+                onClick={toggleCategoryMenu}
                 aria-expanded={activeMenu === 'category'}
                 type="button"
               >
-                Shop By Category
+                Shop Categories
                 <span className="header__nav-caret">▾</span>
               </button>
               <div className="mega-panel">
@@ -254,8 +282,12 @@ function Header() {
                       <li>
                         <Link
                           to="/products"
+                          onMouseEnter={() => setActiveCategory(ALL_CATEGORIES_KEY)}
+                          onFocus={() => setActiveCategory(ALL_CATEGORIES_KEY)}
                           onClick={closeMenus}
-                          className="mega-panel__menu-link mega-panel__menu-link--all"
+                          className={`mega-panel__menu-link mega-panel__menu-link--all ${
+                            activeCategory === ALL_CATEGORIES_KEY ? 'mega-panel__menu-link--active' : ''
+                          }`}
                         >
                           <span className="mega-panel__menu-text">All Products</span>
                           <span className="mega-panel__menu-arrow" aria-hidden="true">›</span>
@@ -278,22 +310,28 @@ function Header() {
                     </ul>
                   </div>
                   <div className="mega-panel__col mega-panel__values">
-                    <h4>{activeCategoryData?.name}</h4>
+                    <h4>{activeCategoryLabel}</h4>
                     <div className="mega-panel__values-grid">
                       <ul className="mega-panel__values-list">
                         {itemsColumnOne.map((item) => (
-                          <li key={item.slug}>
-                            <Link to={activeCategoryData ? buildSubcategoryPath(activeCategoryData.path, item.slug) : '/'} onClick={closeMenus}>
-                              {item.name}
+                          <li key={item.id}>
+                            <Link to={item.path} onClick={closeMenus}>
+                              <span>{item.name}</span>
+                              {activeCategory === ALL_CATEGORIES_KEY && item.categoryName && (
+                                <small className="mega-panel__item-category">{item.categoryName}</small>
+                              )}
                             </Link>
                           </li>
                         ))}
                       </ul>
                       <ul className="mega-panel__values-list">
                         {itemsColumnTwo.map((item) => (
-                          <li key={item.slug}>
-                            <Link to={activeCategoryData ? buildSubcategoryPath(activeCategoryData.path, item.slug) : '/'} onClick={closeMenus}>
-                              {item.name}
+                          <li key={item.id}>
+                            <Link to={item.path} onClick={closeMenus}>
+                              <span>{item.name}</span>
+                              {activeCategory === ALL_CATEGORIES_KEY && item.categoryName && (
+                                <small className="mega-panel__item-category">{item.categoryName}</small>
+                              )}
                             </Link>
                           </li>
                         ))}
@@ -322,14 +360,14 @@ function Header() {
                 aria-expanded={activeMenu === 'condition'}
                 type="button"
               >
-                Shop By Condition
+                Shop by Health Concern
                 <span className="header__nav-caret">▾</span>
               </button>
               <div className="conditions-panel">
                 <div className="conditions-panel__grid">
-                  {conditions.map((condition) => (
+                  {healthConcerns.map((condition) => (
                     <Link
-                      key={condition.name}
+                      key={condition.slug}
                       to={condition.path}
                       onClick={closeMenus}
                       className="conditions-panel__card"
@@ -352,7 +390,7 @@ function Header() {
                 aria-expanded={activeMenu === 'brands'}
                 type="button"
               >
-                Shop By Brand
+                Top Brands
                 <span className="header__nav-caret">▾</span>
               </button>
               <div className="brands-panel">
@@ -376,16 +414,22 @@ function Header() {
               </div>
             </li>
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/offers" className="header__nav-link" onClick={closeMenus}>Sale &amp; Offers</Link>
+              <Link to="/offers" className="header__nav-link" onClick={closeMenus}>Deals</Link>
             </li>
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/prescriptions" className="header__nav-link header__nav-link--cta" onClick={closeMenus}>
-                Submit Prescription
+                Upload Prescription
               </Link>
             </li>
           
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/health-services" className="header__nav-link" onClick={closeMenus}>Health Services</Link>
+              <Link to="/health-services" className="header__nav-link" onClick={closeMenus}>Consult &amp; Care</Link>
+            </li>
+            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
+              <Link to="/lab-tests" className="header__nav-link" onClick={closeMenus}>Lab Tests</Link>
+            </li>
+            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
+              <Link to="/track-order" className="header__nav-link" onClick={closeMenus}>Track Order</Link>
             </li>
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/store-locator" className="header__nav-link header__nav-link--icon" onClick={closeMenus}>
@@ -396,6 +440,21 @@ function Header() {
           </ul>
         </div>
       </nav>
+
+      <div className="header__subnav" aria-label="Popular subcategories">
+        <div className="container">
+          <div className="header__subnav-content">
+            <span className="header__subnav-label">Popular right now</span>
+            <div className="header__subnav-links">
+              {popularSubcategories.map((item) => (
+                <Link key={item.path} to={item.path} className="header__subnav-link">
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </header>
   )
 }

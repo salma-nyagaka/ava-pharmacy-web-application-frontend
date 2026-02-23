@@ -8,12 +8,14 @@ import {
   productVitaminC,
   productPainRelief,
 } from '../../assets/images/remote'
+import { healthConcerns as healthConcernData } from '../../data/healthConcerns'
 import './ProductManagement.css'
 
 interface Product {
   id: number
   name: string
   categoryId: string
+  concernIds: string[]
   price: number
   stock: number
   status: 'active' | 'inactive'
@@ -28,9 +30,15 @@ interface Category {
   parentId?: string
 }
 
+interface Concern {
+  id: string
+  name: string
+}
+
 const PAGE_SIZE = 6
 const STORAGE_PRODUCTS_KEY = 'ava_admin_products'
 const STORAGE_CATEGORIES_KEY = 'ava_admin_categories'
+const STORAGE_CONCERNS_KEY = 'ava_admin_health_concerns'
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-health', name: 'Health & Wellness' },
@@ -39,15 +47,20 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-self', name: 'Self-Care & Lifestyle' },
 ]
 
+const DEFAULT_CONCERNS: Concern[] = healthConcernData.map((concern) => ({
+  id: `hc-${concern.slug}`,
+  name: concern.name,
+}))
+
 const baseProducts: Product[] = [
-  { id: 1, name: 'Paracetamol 500mg', categoryId: 'cat-health', price: 250, stock: 150, status: 'active', image: adminParacetamol, requiresPrescription: false },
-  { id: 2, name: 'Ibuprofen 400mg', categoryId: 'cat-health', price: 350, stock: 80, status: 'active', image: adminIbuprofen, requiresPrescription: false },
-  { id: 3, name: 'Vitamin C 1000mg', categoryId: 'cat-health', price: 800, stock: 200, status: 'active', image: productVitaminC, requiresPrescription: false },
-  { id: 4, name: 'Amoxicillin 250mg', categoryId: 'cat-health', price: 1200, stock: 5, status: 'active', image: productPainRelief, requiresPrescription: true },
-  { id: 5, name: 'Multivitamin Daily', categoryId: 'cat-self', price: 1500, stock: 0, status: 'inactive', image: productVitaminC, requiresPrescription: false },
-  { id: 6, name: 'Aspirin 75mg', categoryId: 'cat-health', price: 300, stock: 180, status: 'active', image: productPainRelief, requiresPrescription: false },
-  { id: 7, name: 'Skincare Moisturizer', categoryId: 'cat-beauty', price: 1800, stock: 60, status: 'active', image: adminParacetamol, requiresPrescription: false },
-  { id: 8, name: 'Baby Diapers (Large)', categoryId: 'cat-baby', price: 1200, stock: 45, status: 'active', image: adminIbuprofen, requiresPrescription: false },
+  { id: 1, name: 'Paracetamol 500mg', categoryId: 'cat-health', concernIds: ['hc-aches-pains', 'hc-cold-flu-cough'], price: 250, stock: 150, status: 'active', image: adminParacetamol, requiresPrescription: false },
+  { id: 2, name: 'Ibuprofen 400mg', categoryId: 'cat-health', concernIds: ['hc-aches-pains'], price: 350, stock: 80, status: 'active', image: adminIbuprofen, requiresPrescription: false },
+  { id: 3, name: 'Vitamin C 1000mg', categoryId: 'cat-health', concernIds: ['hc-cold-flu-cough', 'hc-anti-infectives'], price: 800, stock: 200, status: 'active', image: productVitaminC, requiresPrescription: false },
+  { id: 4, name: 'Amoxicillin 250mg', categoryId: 'cat-health', concernIds: ['hc-anti-infectives'], price: 1200, stock: 5, status: 'active', image: productPainRelief, requiresPrescription: true },
+  { id: 5, name: 'Multivitamin Daily', categoryId: 'cat-self', concernIds: [], price: 1500, stock: 0, status: 'inactive', image: productVitaminC, requiresPrescription: false },
+  { id: 6, name: 'Aspirin 75mg', categoryId: 'cat-health', concernIds: ['hc-aches-pains'], price: 300, stock: 180, status: 'active', image: productPainRelief, requiresPrescription: false },
+  { id: 7, name: 'Skincare Moisturizer', categoryId: 'cat-beauty', concernIds: ['hc-dry-skin', 'hc-skin-treatments'], price: 1800, stock: 60, status: 'active', image: adminParacetamol, requiresPrescription: false },
+  { id: 8, name: 'Baby Diapers (Large)', categoryId: 'cat-baby', concernIds: [], price: 1200, stock: 45, status: 'active', image: adminIbuprofen, requiresPrescription: false },
 ]
 
 const hydrateProducts = () => {
@@ -58,7 +71,11 @@ const hydrateProducts = () => {
     const raw = window.localStorage.getItem(STORAGE_PRODUCTS_KEY)
     if (!raw) return baseProducts
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : baseProducts
+    if (!Array.isArray(parsed)) return baseProducts
+    return parsed.map((product) => ({
+      ...product,
+      concernIds: Array.isArray(product.concernIds) ? product.concernIds : [],
+    }))
   } catch {
     return baseProducts
   }
@@ -78,6 +95,20 @@ const hydrateCategories = () => {
   }
 }
 
+const hydrateConcerns = () => {
+  if (typeof window === 'undefined') {
+    return DEFAULT_CONCERNS
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_CONCERNS_KEY)
+    if (!raw) return DEFAULT_CONCERNS
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : DEFAULT_CONCERNS
+  } catch {
+    return DEFAULT_CONCERNS
+  }
+}
+
 function ProductManagement() {
   const navigate = useNavigate()
   const [showAddModal, setShowAddModal] = useState(false)
@@ -85,8 +116,10 @@ function ProductManagement() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [categories, setCategories] = useState<Category[]>(hydrateCategories())
+  const [concerns, setConcerns] = useState<Concern[]>(hydrateConcerns())
   const [products, setProducts] = useState<Product[]>(hydrateProducts())
   const [productCategoryId, setProductCategoryId] = useState(categories[0]?.id ?? '')
+  const [productConcernIds, setProductConcernIds] = useState<string[]>([])
   const [productName, setProductName] = useState('')
   const [productPrice, setProductPrice] = useState('')
   const [productStock, setProductStock] = useState('')
@@ -95,9 +128,13 @@ function ProductManagement() {
   const [productDiscount, setProductDiscount] = useState('')
   const [editingProductId, setEditingProductId] = useState<number | null>(null)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [showConcernModal, setShowConcernModal] = useState(false)
   const [categoryName, setCategoryName] = useState('')
   const [categoryParentId, setCategoryParentId] = useState<string | undefined>(undefined)
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
+  const [concernName, setConcernName] = useState('')
+  const [editingConcernId, setEditingConcernId] = useState<string | null>(null)
+  const [selectedConcern, setSelectedConcern] = useState('all')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -109,6 +146,11 @@ function ProductManagement() {
     window.localStorage.setItem(STORAGE_CATEGORIES_KEY, JSON.stringify(categories))
   }, [categories])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(STORAGE_CONCERNS_KEY, JSON.stringify(concerns))
+  }, [concerns])
+
   const getCategoryLabel = (categoryId: string) => {
     const category = categories.find((item) => item.id === categoryId)
     if (!category) return 'Uncategorized'
@@ -116,6 +158,9 @@ function ProductManagement() {
     const parent = categories.find((item) => item.id === category.parentId)
     return parent ? `${parent.name} / ${category.name}` : category.name
   }
+
+  const getConcernLabel = (concernId: string) =>
+    concerns.find((item) => item.id === concernId)?.name ?? 'Unassigned'
 
   const resetProductForm = () => {
     setProductName('')
@@ -125,6 +170,7 @@ function ProductManagement() {
     setProductRequiresRx(false)
     setProductDiscount('')
     setProductCategoryId(categories[0]?.id ?? '')
+    setProductConcernIds([])
     setEditingProductId(null)
   }
 
@@ -141,6 +187,7 @@ function ProductManagement() {
     setProductRequiresRx(product.requiresPrescription)
     setProductDiscount(product.discountPercent ? String(product.discountPercent) : '')
     setProductCategoryId(product.categoryId)
+    setProductConcernIds(product.concernIds)
     setEditingProductId(product.id)
     setShowAddModal(true)
   }
@@ -156,6 +203,7 @@ function ProductManagement() {
       id: editingProductId ?? Date.now(),
       name: productName.trim(),
       categoryId: productCategoryId,
+      concernIds: productConcernIds,
       price: parsedPrice,
       stock: parsedStock,
       status: productStatus,
@@ -175,7 +223,7 @@ function ProductManagement() {
       action: editingProductId ? 'Edit product' : 'Add product',
       entity: 'Product',
       entityId: String(nextProduct.id),
-      detail: `${nextProduct.name} · ${getCategoryLabel(nextProduct.categoryId)}`,
+      detail: `${nextProduct.name} · ${getCategoryLabel(nextProduct.categoryId)} · ${nextProduct.concernIds.length} concern(s)`,
     })
 
     setShowAddModal(false)
@@ -252,6 +300,70 @@ function ProductManagement() {
     })
   }
 
+  const handleSaveConcern = () => {
+    const trimmed = concernName.trim()
+    if (!trimmed) return
+    if (editingConcernId) {
+      setConcerns((prev) =>
+        prev.map((concern) =>
+          concern.id === editingConcernId ? { ...concern, name: trimmed } : concern
+        )
+      )
+      logAdminAction({
+        action: 'Edit health concern',
+        entity: 'Health Concern',
+        entityId: editingConcernId,
+        detail: trimmed,
+      })
+    } else {
+      const newConcern: Concern = {
+        id: `hc-${Date.now()}`,
+        name: trimmed,
+      }
+      setConcerns((prev) => [...prev, newConcern])
+      logAdminAction({
+        action: 'Add health concern',
+        entity: 'Health Concern',
+        entityId: newConcern.id,
+        detail: trimmed,
+      })
+    }
+    setConcernName('')
+    setEditingConcernId(null)
+  }
+
+  const handleEditConcern = (concern: Concern) => {
+    setConcernName(concern.name)
+    setEditingConcernId(concern.id)
+  }
+
+  const handleDeleteConcern = (concernId: string) => {
+    setConcerns((prev) => prev.filter((concern) => concern.id !== concernId))
+    setProducts((prev) =>
+      prev.map((product) => ({
+        ...product,
+        concernIds: product.concernIds.filter((id) => id !== concernId),
+      }))
+    )
+    logAdminAction({
+      action: 'Delete health concern',
+      entity: 'Health Concern',
+      entityId: concernId,
+    })
+  }
+
+  const openConcernModal = () => {
+    setConcernName('')
+    setEditingConcernId(null)
+    setShowConcernModal(true)
+  }
+
+  const toggleProductConcern = (concernId: string) => {
+    setProductConcernIds((prev) =>
+      prev.includes(concernId) ? prev.filter((id) => id !== concernId) : [...prev, concernId]
+    )
+  }
+
   const handleBack = () => {
     if (window.history.length > 1) {
       navigate(-1)
@@ -263,12 +375,13 @@ function ProductManagement() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedCategory])
+  }, [searchTerm, selectedCategory, selectedConcern])
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === 'all' || product.categoryId === selectedCategory
-    return matchesSearch && matchesCategory
+    const matchesConcern = selectedConcern === 'all' || product.concernIds.includes(selectedConcern)
+    return matchesSearch && matchesCategory && matchesConcern
   })
 
   const startIndex = (currentPage - 1) * PAGE_SIZE
@@ -287,6 +400,9 @@ function ProductManagement() {
         <div className="product-management__actions">
           <button className="btn btn--outline btn--sm" type="button" onClick={openCategoryModal}>
             Manage Categories
+          </button>
+          <button className="btn btn--outline btn--sm" type="button" onClick={openConcernModal}>
+            Manage Health Concerns
           </button>
           <button className="btn btn--primary" onClick={openAddModal}>
           + Add New Product
@@ -309,6 +425,12 @@ function ProductManagement() {
             <option key={category.id} value={category.id}>{getCategoryLabel(category.id)}</option>
           ))}
         </select>
+        <select value={selectedConcern} onChange={(e) => setSelectedConcern(e.target.value)}>
+          <option value="all">All Health Concerns</option>
+          {concerns.map((concern) => (
+            <option key={concern.id} value={concern.id}>{concern.name}</option>
+          ))}
+        </select>
       </div>
 
       <div className="product-management__table">
@@ -317,6 +439,7 @@ function ProductManagement() {
             <tr>
               <th>Product</th>
               <th>Category</th>
+              <th>Health Concerns</th>
               <th>Price</th>
               <th>Stock</th>
               <th>Rx</th>
@@ -335,6 +458,16 @@ function ProductManagement() {
                   </div>
                 </td>
                 <td>{getCategoryLabel(product.categoryId)}</td>
+                <td>
+                  <div className="concern-chips">
+                    {product.concernIds.length === 0 && <span className="concern-chip">None</span>}
+                    {product.concernIds.map((concernId) => (
+                      <span key={concernId} className="concern-chip">
+                        {getConcernLabel(concernId)}
+                      </span>
+                    ))}
+                  </div>
+                </td>
                 <td>KSh {product.price.toLocaleString()}</td>
                 <td>
                   <span className={`stock ${product.stock < 20 ? 'stock--low' : ''}`}>
@@ -478,6 +611,21 @@ function ProductManagement() {
                 </div>
               </div>
               <div className="form-group">
+                <label>Health Concerns</label>
+                <div className="multi-select-grid">
+                  {concerns.map((concern) => (
+                    <label key={concern.id} className="multi-select-item">
+                      <input
+                        type="checkbox"
+                        checked={productConcernIds.includes(concern.id)}
+                        onChange={() => toggleProductConcern(concern.id)}
+                      />
+                      <span>{concern.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="form-group">
                 <label>Description</label>
                 <textarea rows={4} placeholder="Enter product description"></textarea>
               </div>
@@ -497,6 +645,53 @@ function ProductManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showConcernModal && (
+        <div className="modal-overlay" onClick={() => setShowConcernModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <h2>Manage Health Concerns</h2>
+              <button className="modal__close" onClick={() => setShowConcernModal(false)}>×</button>
+            </div>
+            <div className="modal__content">
+              <div className="category-list">
+                {concerns.map((concern) => (
+                  <div key={concern.id} className="category-row">
+                    <div>
+                      <strong>{concern.name}</strong>
+                    </div>
+                    <div className="category-actions">
+                      <button className="btn-sm btn--outline" type="button" onClick={() => handleEditConcern(concern)}>
+                        Edit
+                      </button>
+                      <button className="btn-sm btn--danger" type="button" onClick={() => handleDeleteConcern(concern.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="form-group">
+                <label>{editingConcernId ? 'Edit health concern' : 'New health concern'}</label>
+                <input
+                  type="text"
+                  value={concernName}
+                  onChange={(e) => setConcernName(e.target.value)}
+                  placeholder="Health concern name"
+                />
+              </div>
+            </div>
+            <div className="modal__footer">
+              <button className="btn btn--outline btn--sm" onClick={() => setShowConcernModal(false)}>
+                Close
+              </button>
+              <button className="btn btn--primary btn--sm" onClick={handleSaveConcern}>
+                {editingConcernId ? 'Save concern' : 'Add concern'}
+              </button>
+            </div>
           </div>
         </div>
       )}

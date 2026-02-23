@@ -8,6 +8,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 2rem;
 }
 
@@ -19,6 +21,7 @@
 .admin-user {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
@@ -128,6 +131,7 @@
 
 .admin-table table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
 }
 
@@ -176,6 +180,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
   padding: 1rem;
   background-color: rgba(239, 68, 68, 0.05);
   border-left: 3px solid var(--color-error);
@@ -289,15 +294,42 @@
 }
 
 @media (max-width: 768px) {
+  .admin-dashboard {
+    padding-top: 1.25rem;
+  }
+
+  .admin-header h1 {
+    font-size: 1.6rem;
+  }
+
+  .admin-user {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
 
   .quick-actions-admin {
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
 
   .admin-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-section {
+    padding: 1rem;
+  }
+
+  .stock-alert {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stock-alert .btn {
+    width: 100%;
   }
 }

@@ -35,6 +35,7 @@
 .pdp__thumbnails {
   display: flex;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .pdp__thumbnail {
@@ -84,6 +85,7 @@
 .pdp__rating-section {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
@@ -105,6 +107,7 @@
 .pdp__pricing {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
@@ -166,6 +169,8 @@
 /* Actions */
 .pdp__actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
   gap: 1rem;
   margin-top: 1rem;
 }
@@ -205,8 +210,15 @@
   flex: 1;
 }
 
+.pdp__add-to-cart svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
 .pdp__wishlist-btn {
   width: 48px;
+  min-width: 48px;
   height: 48px;
   display: flex;
   align-items: center;
@@ -375,6 +387,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
   margin-bottom: 0.75rem;
 }
 
@@ -481,6 +495,10 @@
 }
 
 @media (max-width: 768px) {
+  .pdp {
+    padding-top: 1.25rem;
+  }
+
   .pdp__title {
     font-size: 1.5rem;
   }
@@ -491,6 +509,21 @@
 
   .pdp__actions {
     flex-direction: column;
+  }
+
+  .quantity-selector {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .quantity-selector input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pdp__add-to-cart,
+  .pdp__wishlist-btn {
+    width: 100%;
   }
 
   .pdp__trust-badges {
@@ -512,5 +545,9 @@
 
   .related-products {
     grid-template-columns: 1fr;
+  }
+
+  .tab-content {
+    padding: 1rem;
   }
 }

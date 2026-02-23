@@ -1,12 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import {
-  productVitaminC,
-  productOmega3,
-  productMultivitamin,
-} from '../../assets/images/remote'
-import { StockSource } from '../../data/cart'
+import { loadCatalogProducts, getCatalogProductById } from '../../data/products'
 import { cartService } from '../../services/cartService'
 import './ProductDetailPage.css'
 
@@ -18,62 +13,55 @@ function ProductDetailPage() {
   const [cartMessage, setCartMessage] = useState('')
 
   const parsedId = Number.parseInt(routeId ?? '1', 10) || 1
-  const stockSource: StockSource = parsedId === 5 ? 'out' : parsedId % 2 === 0 ? 'warehouse' : 'branch'
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [routeId])
+  const catalogProducts = loadCatalogProducts()
+  if (catalogProducts.length === 0) {
+    return (
+      <div className="pdp">
+        <div className="container">
+          <p>No products are available right now.</p>
+        </div>
+      </div>
+    )
+  }
+  const fallbackProduct = catalogProducts[0]
+  const selectedProduct = getCatalogProductById(parsedId) ?? fallbackProduct
+  const stockSource = selectedProduct.stockSource
   const inStock = stockSource !== 'out'
 
   const product = {
-    id: parsedId,
-    name: 'Vitamin C 1000mg Tablets - 60 Count',
-    brand: 'HealthPlus',
-    price: 1250,
-    originalPrice: 1500,
-    rating: 4.8,
-    reviews: 124,
+    id: selectedProduct.id,
+    name: selectedProduct.name,
+    brand: selectedProduct.brand,
+    price: selectedProduct.price,
+    originalPrice: selectedProduct.originalPrice,
+    rating: selectedProduct.rating,
+    reviews: selectedProduct.reviews,
     inStock,
     stockSource,
-    sku: 'HP-VIT-C-1000',
-    category: 'Vitamins & Supplements',
-    images: [
-      productVitaminC,
-      productOmega3,
-      productMultivitamin,
-    ],
-    description: 'High-quality Vitamin C 1000mg tablets to support your immune system and overall health. Each tablet contains pure ascorbic acid in an easy-to-swallow format.',
-    features: [
-      '1000mg of pure Vitamin C per tablet',
-      'Supports immune system function',
-      'Powerful antioxidant',
-      '60 tablets - 2 month supply',
-      'Suitable for vegetarians',
-      'No artificial colors or preservatives',
-    ],
-    directions: 'Take one tablet daily with food, or as directed by your healthcare professional.',
-    warnings: 'Consult your doctor before use if pregnant, nursing, or taking medication. Keep out of reach of children.',
+    sku: selectedProduct.sku,
+    category: selectedProduct.category,
+    categorySlug: selectedProduct.categorySlug,
+    images: selectedProduct.gallery.length > 0 ? selectedProduct.gallery : [selectedProduct.image],
+    description: selectedProduct.description,
+    features: selectedProduct.features,
+    directions: selectedProduct.directions,
+    warnings: selectedProduct.warnings,
   }
 
-  const relatedProducts = [
-    {
-      id: 2,
-      name: 'Multivitamin Complex',
-      price: 1650,
-      image: productMultivitamin,
-      rating: 4.7,
-    },
-    {
-      id: 3,
-      name: 'Omega-3 Fish Oil',
-      price: 2100,
-      image: productOmega3,
-      rating: 4.7,
-    },
-    {
-      id: 4,
-      name: 'Vitamin D3 5000 IU',
-      price: 980,
-      image: productVitaminC,
-      rating: 4.6,
-    },
-  ]
+  const relatedProducts = catalogProducts
+    .filter((item) => item.id !== product.id && item.categorySlug === product.categorySlug)
+    .slice(0, 3)
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      image: item.image,
+      rating: item.rating,
+    }))
 
   const reviews = [
     {
@@ -128,7 +116,7 @@ function ProductDetailPage() {
   }
 
   const renderStars = (rating: number) => {
-    const fullStars = Math.floor(rating)
+    const fullStars = Math.min(5, Math.max(0, Math.round(rating)))
     const stars = []
     for (let i = 0; i < fullStars; i++) {
       stars.push(
@@ -155,7 +143,7 @@ function ProductDetailPage() {
         <nav className="breadcrumbs">
           <Link to="/">Home</Link>
           <span>/</span>
-          <Link to="/products">{product.category}</Link>
+          <Link to={`/category/${product.categorySlug}`}>{product.category}</Link>
           <span>/</span>
           <span>{product.name}</span>
         </nav>

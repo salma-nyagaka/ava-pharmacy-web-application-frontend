@@ -1,16 +1,123 @@
-.offer-card {
-  display: flex;
-  flex-direction: column;
+.offers-page {
+  padding-top: 2rem;
+}
+
+.offer-empty {
+  text-align: center;
+  display: grid;
   gap: 0.75rem;
+  justify-items: center;
 }
 
-.offer-card__banner {
+.offers-products-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.offer-product-card {
+  background: var(--color-white);
+  border: 1px solid var(--color-border-light);
   border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  background: linear-gradient(135deg, rgba(232, 23, 80, 0.12), rgba(153, 27, 31, 0.12));
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.offer-card__banner h3 {
-  font-size: 1.1rem;
-  margin-bottom: 0.25rem;
+.offer-product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.offer-product-card__image {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--color-background-light);
+}
+
+.offer-product-card__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.offer-product-card__badge {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: var(--color-primary);
+  color: var(--color-white);
+  border-radius: var(--radius-sm);
+  padding: 0.32rem 0.62rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.offer-product-card__content {
+  padding: 1rem;
+}
+
+.offer-product-card__brand {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+}
+
+.offer-product-card__content h3 {
+  margin: 0 0 0.7rem;
+  font-size: 1.02rem;
+  line-height: 1.35;
+}
+
+.offer-product-card__content h3 a {
+  color: var(--color-text-primary);
+}
+
+.offer-product-card__content h3 a:hover {
+  color: var(--color-primary);
+}
+
+.offer-product-card__price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.offer-product-card__price strong {
+  font-size: 1.2rem;
+  color: var(--color-text-primary);
+}
+
+.offer-product-card__price span {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+  font-size: 0.9rem;
+}
+
+.offer-product-card__saving {
+  margin: 0.4rem 0 0.9rem;
+  color: var(--color-success);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.offer-product-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 1000px) {
+  .offers-products-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .offers-products-grid {
+    grid-template-columns: 1fr;
+  }
 }
