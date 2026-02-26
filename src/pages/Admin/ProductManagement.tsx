@@ -159,8 +159,6 @@ function ProductManagement() {
     return parent ? `${parent.name} / ${category.name}` : category.name
   }
 
-  const getConcernLabel = (concernId: string) =>
-    concerns.find((item) => item.id === concernId)?.name ?? 'Unassigned'
 
   const resetProductForm = () => {
     setProductName('')

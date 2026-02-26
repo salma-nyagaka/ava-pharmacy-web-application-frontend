@@ -12,7 +12,6 @@ import {
 import defaultHeroBanner from '../../assets/images/banner/banner1.png'
 import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
 import { cartService } from '../../services/cartService'
-import { categoryData } from '../../data/categories'
 import { loadCatalogProducts } from '../../data/products'
 import './HomePage.css'
 
