@@ -3,8 +3,8 @@ import PageHeader from '../../components/PageHeader/PageHeader'
 
 function HealthServicesPage() {
   const services = [
-    { title: 'Doctor Consultation', desc: 'Chat with licensed doctors and get e-prescriptions.', path: '/consultation' },
-    { title: 'Pediatric Services', desc: 'Specialized consultations for children and guardians.', path: '/pediatrician/dashboard' },
+    { title: 'Doctor Consultation', desc: 'Chat with licensed doctors and get e-prescriptions.', path: '/doctor-consultation' },
+    { title: 'Pediatric Services', desc: 'Specialized consultations for children and guardians.', path: '/pediatric-consultation' },
     { title: 'Laboratory Services', desc: 'Book diagnostics, track samples, and receive results.', path: '/labaratory' },
     { title: 'Prescription Fulfillment', desc: 'Upload, verify, and track prescription approvals.', path: '/prescriptions' },
   ]

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import './Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
@@ -16,15 +16,20 @@ import { categoryData } from '../../data/categories'
 import { healthConcerns } from '../../data/healthConcerns'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
+import { useAuth } from '../../context/AuthContext'
 
 function Header() {
   const ALL_CATEGORIES_KEY = 'all'
   const navigate = useNavigate()
+  const { user, isLoggedIn, logout } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [cartCount, setCartCount] = useState(0)
+  const popularLinksRef = useRef<HTMLDivElement | null>(null)
+  const [canScrollPopularLeft, setCanScrollPopularLeft] = useState(false)
+  const [canScrollPopularRight, setCanScrollPopularRight] = useState(true)
 
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev)
@@ -133,6 +138,40 @@ function Header() {
     setIsMenuOpen(false)
   }
 
+  const updatePopularScrollButtons = () => {
+    const container = popularLinksRef.current
+    if (!container) return
+    const { scrollLeft, scrollWidth, clientWidth } = container
+    setCanScrollPopularLeft(scrollLeft > 0)
+    setCanScrollPopularRight(scrollLeft < scrollWidth - clientWidth - 1)
+  }
+
+  useEffect(() => {
+    const container = popularLinksRef.current
+    if (!container) return
+    updatePopularScrollButtons()
+    container.addEventListener('scroll', updatePopularScrollButtons)
+    window.addEventListener('resize', updatePopularScrollButtons)
+    return () => {
+      container.removeEventListener('scroll', updatePopularScrollButtons)
+      window.removeEventListener('resize', updatePopularScrollButtons)
+    }
+  }, [])
+
+  const scrollPopularLinks = (direction: 'prev' | 'next') => {
+    const container = popularLinksRef.current
+    if (!container) return
+    const scrollAmount = 300
+    container.scrollBy({ left: direction === 'next' ? scrollAmount : -scrollAmount, behavior: 'smooth' })
+  }
+
+  const handlePopularKeyDown = (event: React.KeyboardEvent, direction: 'prev' | 'next') => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      scrollPopularLinks(direction)
+    }
+  }
+
   return (
     <header className="header">
       {/* Top Bar */}
@@ -220,13 +259,25 @@ function Header() {
                 <span className="header__action-text">Contact Us</span>
               </Link>
 
-              <Link to="/account" className="header__action-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-                <span className="header__action-text">Account</span>
-              </Link>
+              {isLoggedIn ? (
+                <div className="header__user-menu">
+                  <Link to="/account" className="header__action-btn header__action-btn--user">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <span className="header__action-text header__user-name">{user?.name}</span>
+                  </Link>
+                  <button className="header__action-btn header__action-btn--logout" onClick={logout} type="button">
+                    <span className="header__action-text">Sign out</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="header__auth-links">
+                  <Link to="/login" className="header__auth-link">Sign in</Link>
+                  <Link to="/register" className="header__auth-link header__auth-link--register">Register</Link>
+                </div>
+              )}
 
               <Link to="/cart" className="header__action-btn header__action-btn--cart">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -445,13 +496,33 @@ function Header() {
         <div className="container">
           <div className="header__subnav-content">
             <span className="header__subnav-label">Popular right now</span>
-            <div className="header__subnav-links">
+            <button
+              className="header__subnav-scroll header__subnav-scroll--prev"
+              type="button"
+              aria-label="Scroll left"
+              onClick={() => scrollPopularLinks('prev')}
+              onKeyDown={(e) => handlePopularKeyDown(e, 'prev')}
+              disabled={!canScrollPopularLeft}
+            >
+              ‹
+            </button>
+            <div className="header__subnav-links" ref={popularLinksRef}>
               {popularSubcategories.map((item) => (
                 <Link key={item.path} to={item.path} className="header__subnav-link">
                   {item.name}
                 </Link>
               ))}
             </div>
+            <button
+              className="header__subnav-scroll header__subnav-scroll--next"
+              type="button"
+              aria-label="Scroll right"
+              onClick={() => scrollPopularLinks('next')}
+              onKeyDown={(e) => handlePopularKeyDown(e, 'next')}
+              disabled={!canScrollPopularRight}
+            >
+              ›
+            </button>
           </div>
         </div>
       </div>

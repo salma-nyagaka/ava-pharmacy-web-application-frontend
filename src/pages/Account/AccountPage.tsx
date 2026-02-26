@@ -22,7 +22,7 @@ function AccountPage() {
     { icon: '📍', title: 'Addresses', description: 'Manage delivery addresses', link: '/account/addresses' },
     { icon: '💳', title: 'Payment Methods', description: 'Saved payment options', link: '/account/payment' },
     { icon: '💊', title: 'Prescriptions', description: 'Upload and manage prescriptions', link: '/prescriptions' },
-    { icon: '💬', title: 'Consultations', description: 'Chat with a doctor', link: '/consultation' },
+    { icon: '💬', title: 'Consultations', description: 'Chat with a doctor', link: '/doctor-consultation' },
     { icon: '⚙️', title: 'Settings', description: 'Account preferences', link: '/account/settings' },
   ]
 

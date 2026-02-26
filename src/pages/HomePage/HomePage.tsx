@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import {
@@ -19,6 +19,11 @@ import './HomePage.css'
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)
   const [addedId, setAddedId] = useState<number | null>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(true)
+  const [newsletterEmail, setNewsletterEmail] = useState('')
+  const [newsletterError, setNewsletterError] = useState('')
+  const [newsletterSuccess, setNewsletterSuccess] = useState(false)
 
   const categories = [
     {
@@ -67,14 +72,14 @@ function HomePage() {
       title: 'Pharmacist Support',
       subtitle: 'Professional guidance every day',
       cta: 'Start consultation',
-      link: '/consultation',
+      link: '/doctor-consultation',
     },
     {
-      key: 'returns',
-      title: 'Easy Returns',
-      subtitle: 'Simple returns for eligible items',
-      cta: 'Read return policy',
-      link: '/returns',
+      key: 'quality',
+      title: 'Quality Products',
+      subtitle: 'Genuine, certified healthcare products',
+      cta: 'Learn more',
+      link: '/about',
     },
     {
       key: 'secure',
@@ -139,6 +144,26 @@ function HomePage() {
     return stars
   }
 
+  const updateScrollButtons = () => {
+    const track = categoryTrackRef.current
+    if (!track) return
+    const { scrollLeft, scrollWidth, clientWidth } = track
+    setCanScrollLeft(scrollLeft > 0)
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1)
+  }
+
+  useEffect(() => {
+    const track = categoryTrackRef.current
+    if (!track) return
+    updateScrollButtons()
+    track.addEventListener('scroll', updateScrollButtons)
+    window.addEventListener('resize', updateScrollButtons)
+    return () => {
+      track.removeEventListener('scroll', updateScrollButtons)
+      window.removeEventListener('resize', updateScrollButtons)
+    }
+  }, [])
+
   const scrollCategories = (direction: 'prev' | 'next') => {
     const track = categoryTrackRef.current
     if (!track) return
@@ -147,6 +172,35 @@ function HomePage() {
     const gap = 24
     const amount = (cardWidth + gap) * 2
     track.scrollBy({ left: direction === 'next' ? amount : -amount, behavior: 'smooth' })
+  }
+
+  const handleCategoryKeyDown = (event: React.KeyboardEvent, direction: 'prev' | 'next') => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      scrollCategories(direction)
+    }
+  }
+
+  const handleNewsletterSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    setNewsletterError('')
+    setNewsletterSuccess(false)
+
+    const email = newsletterEmail.trim()
+    if (!email) {
+      setNewsletterError('Email is required')
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setNewsletterError('Please enter a valid email address')
+      return
+    }
+
+    setNewsletterSuccess(true)
+    setNewsletterEmail('')
+    setTimeout(() => setNewsletterSuccess(false), 5000)
   }
 
   const handleAddToCart = (product: {
@@ -190,12 +244,11 @@ function HomePage() {
         </svg>
       )
     }
-    if (key === 'returns') {
+    if (key === 'quality') {
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
         </svg>
       )
     }
@@ -209,24 +262,15 @@ function HomePage() {
 
   return (
     <div className="home">
+      <a href="#main-content" className="skip-to-content">
+        Skip to main content
+      </a>
       {/* Hero Section */}
-      <section className="hero">
+      <section className="hero" id="main-content">
         <div className="hero__single-banner">
           <Link to="/offers" className="hero__single-banner-link" aria-label="View offers">
             <ImageWithFallback src={defaultHeroBanner} alt="AVA Pharmacy featured banner" className="hero__single-banner-image" />
           </Link>
-        </div>
-        <div className="hero__quick-links">
-          <div className="container">
-            <span className="hero__quick-links-label">Quick start</span>
-            <div className="hero__quick-links-list">
-              {quickSubcategories.map((item) => (
-                <Link key={item.link} to={item.link} className="hero__quick-link">
-                  {item.name}
-                </Link>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
@@ -267,6 +311,8 @@ function HomePage() {
               type="button"
               aria-label="Scroll categories left"
               onClick={() => scrollCategories('prev')}
+              onKeyDown={(e) => handleCategoryKeyDown(e, 'prev')}
+              disabled={!canScrollLeft}
             >
               ‹
             </button>
@@ -285,6 +331,8 @@ function HomePage() {
               type="button"
               aria-label="Scroll categories right"
               onClick={() => scrollCategories('next')}
+              onKeyDown={(e) => handleCategoryKeyDown(e, 'next')}
+              disabled={!canScrollRight}
             >
               ›
             </button>
@@ -301,8 +349,13 @@ function HomePage() {
               Discover our most popular health and wellness products
             </p>
           </div>
-          <div className="products__grid">
-            {featuredDeals.map((product) => (
+          {featuredDeals.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-state__message">No featured products available at the moment.</p>
+            </div>
+          ) : (
+            <div className="products__grid">
+              {featuredDeals.map((product) => (
               <article key={product.id} className="product-card">
                 <div className="product-card__image">
                   {product.badge && (
@@ -310,7 +363,7 @@ function HomePage() {
                       {product.badge}
                     </span>
                   )}
-                  <ImageWithFallback src={product.image} alt={product.name} />
+                  <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
                   <div className="product-card__actions">
                     <button className="product-card__action" title="Add to Wishlist">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -352,8 +405,9 @@ function HomePage() {
                   </button>
                 </div>
               </article>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
           <div className="featured-products__cta">
             <Link to="/products" className="btn btn--primary btn--lg">
               View All Products
@@ -380,7 +434,7 @@ function HomePage() {
                       {product.badge}
                     </span>
                   )}
-                  <ImageWithFallback src={product.image} alt={product.name} />
+                  <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
                 </div>
                 <div className="product-card__content">
                   <span className="product-card__brand">{product.brand}</span>
@@ -471,7 +525,7 @@ function HomePage() {
                       {product.badge}
                     </span>
                   )}
-                  <ImageWithFallback src={product.image} alt={product.name} />
+                  <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
                   <div className="product-card__actions">
                     <button className="product-card__action" title="Add to Wishlist">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -517,8 +571,8 @@ function HomePage() {
           </div>
           <div className="services-cta">
             <Link to="/contact" className="btn btn--outline">Contact Us</Link>
-            <Link to="/consultation" className="btn btn--primary">Doctor Consultation</Link>
-            <Link to="/pediatrician/dashboard" className="btn btn--primary">Pediatric Services</Link>
+            <Link to="/doctor-consultation" className="btn btn--primary">Doctor Consultation</Link>
+            <Link to="/pediatric-consultation" className="btn btn--primary">Pediatric Services</Link>
             <Link to="/labaratory" className="btn btn--primary">Laboratory Services</Link>
             <Link to="/prescriptions" className="btn btn--primary">Prescription Fulfillment</Link>
           </div>
@@ -535,12 +589,29 @@ function HomePage() {
                 Get exclusive offers and new product updates delivered straight to your inbox
               </p>
             </div>
-            <form className="newsletter__form">
-              <input
-                type="email"
-                placeholder="Enter your email address"
-                className="newsletter__input"
-              />
+            <form className="newsletter__form" onSubmit={handleNewsletterSubmit}>
+              <div className="newsletter__input-wrapper">
+                <input
+                  type="email"
+                  placeholder="Enter your email address"
+                  className="newsletter__input"
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  aria-label="Email address"
+                  aria-invalid={!!newsletterError}
+                  aria-describedby={newsletterError ? 'newsletter-error' : undefined}
+                />
+                {newsletterError && (
+                  <span className="newsletter__error" id="newsletter-error" role="alert">
+                    {newsletterError}
+                  </span>
+                )}
+                {newsletterSuccess && (
+                  <span className="newsletter__success" role="status">
+                    Thank you for subscribing!
+                  </span>
+                )}
+              </div>
               <button type="submit" className="btn btn--primary">
                 Subscribe
               </button>

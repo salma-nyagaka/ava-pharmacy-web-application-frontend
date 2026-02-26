@@ -74,59 +74,82 @@ function AdminDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="quick-actions-admin">
-          <Link to="/admin/products" className="admin-action">
-            <span>🛍️</span>
-            <span>Manage Products</span>
-          </Link>
-          <Link to="/admin/inventory" className="admin-action">
-            <span>📦</span>
-            <span>Inventory</span>
-          </Link>
-          <Link to="/admin/orders" className="admin-action">
-            <span>📦</span>
-            <span>Manage Orders</span>
-          </Link>
-          <Link to="/admin/users" className="admin-action">
-            <span>👥</span>
-            <span>Manage Users</span>
-          </Link>
-          <Link to="/admin/doctors" className="admin-action">
-            <span>🩺</span>
-            <span>Doctors</span>
-          </Link>
-          <Link to="/admin/prescriptions" className="admin-action">
-            <span>💊</span>
-            <span>Verify Prescriptions</span>
-          </Link>
-          <Link to="/admin/lab-tests" className="admin-action">
-            <span>🧪</span>
-            <span>Lab Tests</span>
-          </Link>
-          <Link to="/admin/deals" className="admin-action">
-            <span>🏷️</span>
-            <span>Deals & Discounts</span>
-          </Link>
-          <Link to="/admin/reports" className="admin-action">
-            <span>📊</span>
-            <span>View Reports</span>
-          </Link>
-          <Link to="/admin/payouts" className="admin-action">
-            <span>💸</span>
-            <span>Payouts</span>
-          </Link>
-          <Link to="/admin/support" className="admin-action">
-            <span>🎧</span>
-            <span>Support</span>
-          </Link>
-          <Link to="/admin/journey-checklist" className="admin-action">
-            <span>🧭</span>
-            <span>Journey Checklist</span>
-          </Link>
-          <Link to="/admin/settings" className="admin-action">
-            <span>⚙️</span>
-            <span>Settings</span>
-          </Link>
+        <div className="quick-actions-groups">
+          <div className="quick-actions-group">
+            <p className="quick-actions-group__label">Store</p>
+            <div className="quick-actions-admin">
+              <Link to="/admin/products" className="admin-action">
+                <span>🛍️</span>
+                <span>Products</span>
+              </Link>
+              <Link to="/admin/inventory" className="admin-action">
+                <span>📦</span>
+                <span>Inventory</span>
+              </Link>
+              <Link to="/admin/orders" className="admin-action">
+                <span>🧾</span>
+                <span>Orders</span>
+              </Link>
+              <Link to="/admin/deals" className="admin-action">
+                <span>🏷️</span>
+                <span>Deals</span>
+              </Link>
+            </div>
+          </div>
+
+          <div className="quick-actions-group">
+            <p className="quick-actions-group__label">Health Services</p>
+            <div className="quick-actions-admin">
+              <Link to="/admin/doctors" className="admin-action">
+                <span>🩺</span>
+                <span>Doctors</span>
+              </Link>
+              <Link to="/admin/prescriptions" className="admin-action">
+                <span>💊</span>
+                <span>Prescriptions</span>
+              </Link>
+              <Link to="/admin/lab-tests" className="admin-action">
+                <span>🧪</span>
+                <span>Lab Tests</span>
+              </Link>
+            </div>
+          </div>
+
+          <div className="quick-actions-group">
+            <p className="quick-actions-group__label">Finance & Users</p>
+            <div className="quick-actions-admin">
+              <Link to="/admin/users" className="admin-action">
+                <span>👥</span>
+                <span>Users</span>
+              </Link>
+              <Link to="/admin/payouts" className="admin-action">
+                <span>💸</span>
+                <span>Payouts</span>
+              </Link>
+              <Link to="/admin/reports" className="admin-action">
+                <span>📊</span>
+                <span>Reports</span>
+              </Link>
+            </div>
+          </div>
+
+          <div className="quick-actions-group">
+            <p className="quick-actions-group__label">System</p>
+            <div className="quick-actions-admin">
+              <Link to="/admin/support" className="admin-action">
+                <span>🎧</span>
+                <span>Support</span>
+              </Link>
+              <Link to="/admin/journey-checklist" className="admin-action">
+                <span>🧭</span>
+                <span>Checklist</span>
+              </Link>
+              <Link to="/admin/settings" className="admin-action">
+                <span>⚙️</span>
+                <span>Settings</span>
+              </Link>
+            </div>
+          </div>
         </div>
 
         {/* Recent Orders & Low Stock */}

@@ -1,8 +1,30 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import './AuthPage.css'
 
 function LoginPage() {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirect = searchParams.get('redirect') ?? '/account'
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter your email and password.')
+      return
+    }
+    const name = email.split('@')[0]
+    login({ name, email })
+    navigate(redirect)
+  }
+
   return (
     <div>
       <PageHeader
@@ -34,23 +56,36 @@ function LoginPage() {
             <div className="form-card">
               <h2 className="card__title">Sign in</h2>
               <p className="card__subtitle">Use your email and password to continue.</p>
-              <form className="auth-form">
+              <form className="auth-form" onSubmit={handleSubmit}>
                 <div className="form-group">
                   <label htmlFor="login-email">Email address</label>
-                  <input id="login-email" type="email" placeholder="you@example.com" required />
+                  <input
+                    id="login-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="form-group">
                   <label htmlFor="login-password">Password</label>
-                  <input id="login-password" type="password" placeholder="Enter your password" required />
+                  <input
+                    id="login-password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
                 </div>
+                {error && <p className="auth-error">{error}</p>}
                 <div className="auth-form__actions">
                   <button type="submit" className="btn btn--primary">Sign in</button>
                   <Link to="/account" className="btn btn--outline">Continue as guest</Link>
                 </div>
-                <div className="auth-divider">or</div>
-                <button type="button" className="btn btn--secondary">Send magic link</button>
                 <p className="auth-secondary">
-                  Don&apos;t have an account? <Link to="/register">Create one</Link> in minutes.
+                  Don&apos;t have an account? <Link to={`/register${redirect !== '/account' ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}>Create one</Link> in minutes.
                 </p>
               </form>
             </div>

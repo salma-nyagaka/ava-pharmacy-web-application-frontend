@@ -1,8 +1,26 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import './AuthPage.css'
 
 function RegisterPage() {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirect = searchParams.get('redirect') ?? '/account'
+
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [email, setEmail] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const name = `${firstName} ${lastName}`.trim() || email.split('@')[0]
+    login({ name, email })
+    navigate(redirect)
+  }
+
   return (
     <div>
       <PageHeader
@@ -27,27 +45,48 @@ function RegisterPage() {
               <div className="card">
                 <h3 className="card__title">Already registered?</h3>
                 <p className="card__subtitle">Sign in to continue where you left off.</p>
-                <Link to="/login" className="btn btn--secondary btn--sm">Go to Sign in</Link>
+                <Link to={`/login${redirect !== '/account' ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="btn btn--secondary btn--sm">Go to Sign in</Link>
               </div>
             </div>
 
             <div className="form-card">
               <h2 className="card__title">Create account</h2>
               <p className="card__subtitle">Tell us a little about you to get started.</p>
-              <form className="auth-form">
+              <form className="auth-form" onSubmit={handleSubmit}>
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="first-name">First name</label>
-                    <input id="first-name" type="text" placeholder="Sarah" required />
+                    <input
+                      id="first-name"
+                      type="text"
+                      placeholder="Sarah"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                    />
                   </div>
                   <div className="form-group">
                     <label htmlFor="last-name">Last name</label>
-                    <input id="last-name" type="text" placeholder="Mwangi" required />
+                    <input
+                      id="last-name"
+                      type="text"
+                      placeholder="Mwangi"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="form-group">
                   <label htmlFor="register-email">Email address</label>
-                  <input id="register-email" type="email" placeholder="you@example.com" required />
+                  <input
+                    id="register-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
                 </div>
                 <div className="form-group">
                   <label htmlFor="register-phone">Phone number</label>

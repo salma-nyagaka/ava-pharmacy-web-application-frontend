@@ -1,4 +1,6 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import Layout from './components/Layout/Layout'
 import HomePage from './pages/HomePage/HomePage'
 import ProductListingPage from './pages/ProductListing/ProductListingPage'
@@ -13,7 +15,8 @@ import AccountEditPage from './pages/Account/AccountEditPage'
 import OrderDetailPage from './pages/Account/OrderDetailPage'
 import OrderHistoryPage from './pages/OrderHistory/OrderHistoryPage'
 import PrescriptionUploadPage from './pages/PrescriptionUpload/PrescriptionUploadPage'
-import ConsultationPage from './pages/Consultation/ConsultationPage'
+import DoctorConsultation from './pages/Consultation/DoctorConsultation'
+import PediatricianConsultation from './pages/Consultation/PediatricianConsultation'
 import AdminDashboard from './pages/Admin/AdminDashboard'
 import ProductManagement from './pages/Admin/ProductManagement'
 import UserManagement from './pages/Admin/UserManagement'
@@ -64,6 +67,7 @@ import HealthServicesPage from './pages/HealthServices/HealthServicesPage'
 function App() {
   return (
     <BrowserRouter>
+      <AuthProvider>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
@@ -71,7 +75,7 @@ function App() {
           <Route path="category/:category" element={<ProductListingPage />} />
           <Route path="product/:id" element={<ProductDetailPage />} />
           <Route path="cart" element={<CartPage />} />
-          <Route path="checkout" element={<CheckoutPage />} />
+          <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
           <Route path="account" element={<AccountPage />} />
           <Route path="account/orders" element={<OrderHistoryPage />} />
           <Route path="account/orders/:id" element={<OrderDetailPage />} />
@@ -81,9 +85,14 @@ function App() {
           <Route path="account/edit" element={<AccountEditPage />} />
           <Route path="account/prescriptions" element={<PrescriptionHistoryPage />} />
           <Route path="orders" element={<OrderHistoryPage />} />
-          <Route path="prescriptions" element={<PrescriptionUploadPage />} />
+          <Route path="prescriptions" element={<ProtectedRoute><PrescriptionUploadPage /></ProtectedRoute>} />
           <Route path="prescriptions/history" element={<PrescriptionHistoryPage />} />
-          <Route path="consultation" element={<ConsultationPage />} />
+          <Route path="consultation" element={<Navigate to="/doctor-consultation" replace />} />
+          <Route path="doctor" element={<Navigate to="/doctor-consultation" replace />} />
+          <Route path="doctor-consultation" element={<ProtectedRoute><DoctorConsultation /></ProtectedRoute>} />
+          <Route path="pediatrician" element={<Navigate to="/pediatric-consultation" replace />} />
+          <Route path="paedetrician" element={<Navigate to="/pediatric-consultation" replace />} />
+          <Route path="pediatric-consultation" element={<ProtectedRoute><PediatricianConsultation /></ProtectedRoute>} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route path="order-confirmation" element={<OrderConfirmationPage />} />
@@ -111,9 +120,9 @@ function App() {
           <Route path="pediatrician/dashboard" element={<PediatricianDashboardPage />} />
           <Route path="pharmacist" element={<PharmacistDashboardPage />} />
           <Route path="pharmacist/review/:id" element={<PrescriptionReviewPage />} />
-          <Route path="lab-tests" element={<LabServicesPage />} />
-          <Route path="laboratory" element={<LabServicesPage />} />
-          <Route path="labaratory" element={<LabServicesPage />} />
+          <Route path="lab-tests" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
+          <Route path="laboratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
+          <Route path="labaratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
           <Route path="lab/dashboard" element={<LabDashboardPage />} />
           <Route path="laboratory/dashboard" element={<LabDashboardPage />} />
           <Route path="labaratory/dashboard" element={<LabDashboardPage />} />
@@ -141,6 +150,7 @@ function App() {
           </div>} />
         </Route>
       </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }
