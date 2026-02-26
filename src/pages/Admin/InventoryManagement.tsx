@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { logAdminAction } from '../../data/adminAudit'
 import {
   AdminUser,
@@ -11,15 +11,23 @@ import {
 import './AdminShared.css'
 import './InventoryManagement.css'
 
-interface InventoryItem {
+interface CatalogProduct {
   id: number
   name: string
+  stock: number
+}
+
+interface InventoryItem {
+  id: number
+  productId: number
   branch: string
   stock: number
   status: 'In Stock' | 'Low' | 'Out'
 }
 
 const ACTOR_STORAGE_KEY = 'ava_inventory_actor_id'
+const STORAGE_INVENTORY_KEY = 'ava_admin_inventory'
+const STORAGE_PRODUCTS_KEY = 'ava_admin_products'
 
 function getStatusFromStock(stock: number, threshold: number): InventoryItem['status'] {
   if (stock === 0) return 'Out'
@@ -27,17 +35,70 @@ function getStatusFromStock(stock: number, threshold: number): InventoryItem['st
   return 'In Stock'
 }
 
+function loadCatalogProducts(): CatalogProduct[] {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_PRODUCTS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((p: { id: number; name: string; stock?: number }) => ({
+      id: p.id,
+      name: p.name,
+      stock: p.stock ?? 0,
+    }))
+  } catch {
+    return []
+  }
+}
+
+const BASE_INVENTORY: InventoryItem[] = [
+  { id: 1, productId: 1, branch: 'Nairobi CBD', stock: 150, status: 'In Stock' },
+  { id: 2, productId: 2, branch: 'Westlands', stock: 6, status: 'Low' },
+  { id: 3, productId: 4, branch: 'Central Warehouse', stock: 0, status: 'Out' },
+  { id: 4, productId: 3, branch: 'Westlands', stock: 12, status: 'In Stock' },
+  { id: 5, productId: 8, branch: 'Nairobi CBD', stock: 4, status: 'Low' },
+]
+
+function hydrateInventory(): InventoryItem[] {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_INVENTORY_KEY)
+    if (!raw) return BASE_INVENTORY
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : BASE_INVENTORY
+  } catch {
+    return BASE_INVENTORY
+  }
+}
+
+function syncProductStock(inventory: InventoryItem[], productId: number) {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_PRODUCTS_KEY)
+    if (!raw) return
+    const products = JSON.parse(raw)
+    if (!Array.isArray(products)) return
+    const total = inventory
+      .filter((item) => item.productId === productId)
+      .reduce((sum, item) => sum + item.stock, 0)
+    const updated = products.map((p: { id: number }) =>
+      p.id === productId ? { ...p, stock: total } : p
+    )
+    window.localStorage.setItem(STORAGE_PRODUCTS_KEY, JSON.stringify(updated))
+  } catch {
+    // ignore
+  }
+}
+
 function InventoryManagement() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const PAGE_SIZE = 5
-  const [inventory, setInventory] = useState<InventoryItem[]>([
-    { id: 1, name: 'Vitamin C 1000mg', branch: 'Nairobi CBD', stock: 18, status: 'In Stock' },
-    { id: 2, name: 'Hand Sanitizer', branch: 'Westlands', stock: 6, status: 'Low' },
-    { id: 3, name: 'Insulin Pen', branch: 'Central Warehouse', stock: 0, status: 'Out' },
-    { id: 4, name: 'Blood Pressure Monitor', branch: 'Westlands', stock: 12, status: 'In Stock' },
-    { id: 5, name: 'Baby Diapers (Large)', branch: 'Nairobi CBD', stock: 4, status: 'Low' },
-  ])
-  const [searchTerm, setSearchTerm] = useState('')
+  const [catalogProducts] = useState<CatalogProduct[]>(() => loadCatalogProducts())
+  const [inventory, setInventory] = useState<InventoryItem[]>(hydrateInventory)
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const productId = Number(searchParams.get('product'))
+    if (!productId) return ''
+    return loadCatalogProducts().find((p) => p.id === productId)?.name ?? ''
+  })
   const [selectedLocation, setSelectedLocation] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -48,7 +109,7 @@ function InventoryManagement() {
   const [reserveStock, setReserveStock] = useState(true)
   const [reserveMinutes, setReserveMinutes] = useState(15)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [newItemName, setNewItemName] = useState('')
+  const [newItemProductId, setNewItemProductId] = useState<number>(catalogProducts[0]?.id ?? 0)
   const [newItemBranch, setNewItemBranch] = useState('')
   const [newItemStock, setNewItemStock] = useState('0')
   const [actorUsers] = useState<AdminUser[]>(() =>
@@ -57,9 +118,7 @@ function InventoryManagement() {
     )
   )
   const [actorId, setActorId] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return 0
-    }
+    if (typeof window === 'undefined') return 0
     const stored = window.localStorage.getItem(ACTOR_STORAGE_KEY)
     const parsed = Number.parseInt(stored ?? '', 10)
     return Number.isFinite(parsed) ? parsed : 0
@@ -76,6 +135,11 @@ function InventoryManagement() {
     window.localStorage.setItem(ACTOR_STORAGE_KEY, String(actorId))
   }, [actorId])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(STORAGE_INVENTORY_KEY, JSON.stringify(inventory))
+  }, [inventory])
+
   const activeActor = useMemo(
     () => actorUsers.find((user) => user.id === actorId) ?? actorUsers[0] ?? null,
     [actorId, actorUsers]
@@ -83,12 +147,14 @@ function InventoryManagement() {
   const canAddRecords = canAddInventoryRecords(activeActor)
   const canEditRecords = canUpdateInventory(activeActor)
 
+  const getProductName = (productId: number) =>
+    catalogProducts.find((p) => p.id === productId)?.name ?? `Product #${productId}`
+
   const handleBack = () => {
     if (window.history.length > 1) {
       navigate(-1)
       return
     }
-
     navigate('/admin')
   }
 
@@ -98,12 +164,13 @@ function InventoryManagement() {
 
   const filteredInventory = useMemo(() => {
     return inventory.filter((item) => {
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      const name = getProductName(item.productId)
+      const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesLocation = selectedLocation === 'all' || item.branch === selectedLocation
       const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus
       return matchesSearch && matchesLocation && matchesStatus
     })
-  }, [inventory, searchTerm, selectedLocation, selectedStatus])
+  }, [inventory, searchTerm, selectedLocation, selectedStatus, catalogProducts])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -123,39 +190,40 @@ function InventoryManagement() {
     if (!adjustItem || !canEditRecords) return
     const nextStock = Math.max(0, Number.parseInt(adjustStock, 10) || 0)
     const nextStatus = getStatusFromStock(nextStock, lowStockThreshold)
-    setInventory((prev) =>
-      prev.map((item) =>
-        item.id === adjustItem.id ? { ...item, stock: nextStock, status: nextStatus } : item
-      )
+    const nextInventory = inventory.map((item) =>
+      item.id === adjustItem.id ? { ...item, stock: nextStock, status: nextStatus } : item
     )
+    setInventory(nextInventory)
+    syncProductStock(nextInventory, adjustItem.productId)
     logAdminAction({
       action: 'Adjust inventory',
       entity: 'Inventory',
-      entityId: adjustItem.name,
+      entityId: getProductName(adjustItem.productId),
       detail: `${adjustItem.branch} stock set to ${nextStock} by ${activeActor?.name ?? 'Unknown user'}`,
     })
     setAdjustItem(null)
   }
 
   const handleAddInventory = () => {
-    if (!canAddRecords || !newItemName.trim() || !newItemBranch.trim()) return
+    if (!canAddRecords || !newItemProductId || !newItemBranch.trim()) return
     const parsedStock = Math.max(0, Number.parseInt(newItemStock, 10) || 0)
     const nextItem: InventoryItem = {
       id: Date.now(),
-      name: newItemName.trim(),
+      productId: newItemProductId,
       branch: newItemBranch.trim(),
       stock: parsedStock,
       status: getStatusFromStock(parsedStock, lowStockThreshold),
     }
-    setInventory((prev) => [nextItem, ...prev])
+    const nextInventory = [nextItem, ...inventory]
+    setInventory(nextInventory)
+    syncProductStock(nextInventory, newItemProductId)
     logAdminAction({
       action: 'Add inventory record',
       entity: 'Inventory',
-      entityId: nextItem.name,
+      entityId: getProductName(newItemProductId),
       detail: `${nextItem.branch} stock ${nextItem.stock} by ${activeActor?.name ?? 'Unknown user'}`,
     })
     setShowAddModal(false)
-    setNewItemName('')
     setNewItemBranch('')
     setNewItemStock('0')
   }
@@ -170,12 +238,21 @@ function InventoryManagement() {
     })
   }
 
+  const handleSaveLowStock = () => {
+    if (!canEditRecords) return
+    logAdminAction({
+      action: 'Update low stock threshold',
+      entity: 'Inventory',
+      detail: `Low stock threshold set to ${lowStockThreshold} by ${activeActor?.name ?? 'Unknown user'}`,
+    })
+  }
+
   const handleSaveControls = () => {
     if (!canEditRecords) return
     logAdminAction({
       action: 'Update inventory controls',
       entity: 'Inventory',
-      detail: `Low stock threshold ${lowStockThreshold}, reserve ${reserveStock ? 'on' : 'off'} (${reserveMinutes} mins) by ${activeActor?.name ?? 'Unknown user'}`,
+      detail: `Reserve ${reserveStock ? 'on' : 'off'} (${reserveMinutes} mins) by ${activeActor?.name ?? 'Unknown user'}`,
     })
   }
 
@@ -260,7 +337,7 @@ function InventoryManagement() {
           <tbody>
             {pagedInventory.map((item) => (
               <tr key={`${item.id}-${item.branch}`}>
-                <td>{item.name}</td>
+                <td>{getProductName(item.productId)}</td>
                 <td>{item.branch}</td>
                 <td>{item.stock}</td>
                 <td>
@@ -337,13 +414,21 @@ function InventoryManagement() {
               onChange={(event) => setLowStockThreshold(Number(event.target.value))}
               disabled={!canEditRecords}
             />
-            <p className="inventory-hint">Items at or below this count will show as Low.</p>
           </div>
+          <button
+            className="btn btn--primary btn--sm"
+            type="button"
+            onClick={handleSaveLowStock}
+            disabled={!canEditRecords}
+          >
+            Save
+          </button>
         </div>
-        <div className="form-card">
+
+        <div className="form-card inventory-reservation">
           <h2 className="card__title">Reservation logic</h2>
-          <div className="form-group inventory-checkbox">
-            <label>
+          <div className="inventory-reservation__row">
+            <label className="inventory-reservation__toggle">
               <input
                 type="checkbox"
                 checked={reserveStock}
@@ -352,25 +437,25 @@ function InventoryManagement() {
               />
               Reserve stock during checkout
             </label>
-          </div>
-          <div className="form-group">
-            <label>Reservation hold time (minutes)</label>
+            <label className="inventory-reservation__label" htmlFor="reserve-minutes">Hold time (min)</label>
             <input
+              id="reserve-minutes"
+              className="inventory-reservation__input"
               type="number"
               min={5}
               value={reserveMinutes}
               onChange={(event) => setReserveMinutes(Number(event.target.value))}
               disabled={!canEditRecords}
             />
+            <button
+              className="btn btn--primary btn--sm"
+              type="button"
+              onClick={handleSaveControls}
+              disabled={!canEditRecords}
+            >
+              Save
+            </button>
           </div>
-          <button
-            className="btn btn--primary btn--sm"
-            type="button"
-            onClick={handleSaveControls}
-            disabled={!canEditRecords}
-          >
-            Save controls
-          </button>
         </div>
       </div>
 
@@ -383,7 +468,7 @@ function InventoryManagement() {
             </div>
             <div className="modal__content">
               <div className="adjust-info">
-                <p className="adjust-title">{adjustItem.name}</p>
+                <p className="adjust-title">{getProductName(adjustItem.productId)}</p>
                 <p className="adjust-subtitle">{adjustItem.branch}</p>
               </div>
               <div className="form-group">
@@ -414,12 +499,16 @@ function InventoryManagement() {
             </div>
             <div className="modal__content">
               <div className="form-group">
-                <label>Item name</label>
-                <input
-                  type="text"
-                  value={newItemName}
-                  onChange={(event) => setNewItemName(event.target.value)}
-                />
+                <label>Product</label>
+                <select
+                  value={newItemProductId}
+                  onChange={(event) => setNewItemProductId(Number(event.target.value))}
+                >
+                  {catalogProducts.length === 0 && <option value={0}>No products found</option>}
+                  {catalogProducts.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
               </div>
               <div className="form-group">
                 <label>Location</label>

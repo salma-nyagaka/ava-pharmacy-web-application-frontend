@@ -52,11 +52,6 @@ function HomePage() {
     },
   ]
 
-  const quickSubcategories = categoryData
-    .flatMap((category) => category.subcategories.slice(0, 1).map((item) => ({
-      name: item.name,
-      link: `${category.path}?subcategory=${encodeURIComponent(item.slug)}`,
-    })))
     .slice(0, 4)
 
   const valueBannerItems = [

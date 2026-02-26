@@ -1,5 +1,5 @@
 .reports {
-  padding: 2rem;
+  padding: 1.5rem 2rem 3rem;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -8,7 +8,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .reports__header-left {
@@ -18,17 +20,17 @@
 }
 
 .reports__header h1 {
-  font-size: 2rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #1a1a1a;
 }
 
 .reports__header select {
-  padding: 0.75rem 1rem;
-  border: 1px solid #e0e0e0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
-  font-size: 0.95rem;
-  min-width: 200px;
+  font-size: 0.875rem;
+  min-width: 160px;
 }
 
 .reports__overview {

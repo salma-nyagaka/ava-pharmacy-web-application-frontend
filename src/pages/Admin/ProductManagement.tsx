@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { logAdminAction } from '../../data/adminAudit'
 import {
@@ -391,27 +391,24 @@ function ProductManagement() {
   return (
     <div className="product-management">
       <div className="product-management__header">
-        <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
+        <div className="product-management__title">
+          <button className="pm-back-btn" type="button" onClick={handleBack}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
             Back
           </button>
-          <h1>Product Management</h1>
+          <h1>Products</h1>
+          <span className="pm-count">{filteredProducts.length} items</span>
         </div>
         <div className="product-management__actions">
-          <button className="btn btn--outline btn--sm" type="button" onClick={openCategoryModal}>
-            Manage Categories
-          </button>
-          <button className="btn btn--outline btn--sm" type="button" onClick={openConcernModal}>
-            Manage Health Concerns
-          </button>
-          <button className="btn btn--primary" onClick={openAddModal}>
-          + Add New Product
-          </button>
+          <button className="btn btn--outline btn--sm" type="button" onClick={openCategoryModal}>Categories</button>
+          <button className="btn btn--outline btn--sm" type="button" onClick={openConcernModal}>Health Concerns</button>
+          <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
         </div>
       </div>
 
       <div className="product-management__filters">
         <div className="search-box">
+          <svg className="search-box__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input
             type="text"
             placeholder="Search products..."
@@ -420,13 +417,13 @@ function ProductManagement() {
           />
         </div>
         <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-          <option value="all">All Products</option>
+          <option value="all">All Categories</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>{getCategoryLabel(category.id)}</option>
           ))}
         </select>
         <select value={selectedConcern} onChange={(e) => setSelectedConcern(e.target.value)}>
-          <option value="all">All Health Concerns</option>
+          <option value="all">All Concerns</option>
           {concerns.map((concern) => (
             <option key={concern.id} value={concern.id}>{concern.name}</option>
           ))}
@@ -439,13 +436,12 @@ function ProductManagement() {
             <tr>
               <th>Product</th>
               <th>Category</th>
-              <th>Health Concerns</th>
               <th>Price</th>
               <th>Stock</th>
               <th>Rx</th>
               <th>Discount</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -453,43 +449,38 @@ function ProductManagement() {
               <tr key={product.id}>
                 <td>
                   <div className="product-info">
-                      <ImageWithFallback src={product.image} alt={product.name} />
-                    <span>{product.name}</span>
+                    <ImageWithFallback src={product.image} alt={product.name} />
+                    <div>
+                      <span className="product-info__name">{product.name}</span>
+                      {product.concernIds.length > 0 && (
+                        <span className="product-info__concerns">{product.concernIds.length} concern{product.concernIds.length > 1 ? 's' : ''}</span>
+                      )}
+                    </div>
                   </div>
                 </td>
-                <td>{getCategoryLabel(product.categoryId)}</td>
-                <td>
-                  <div className="concern-chips">
-                    {product.concernIds.length === 0 && <span className="concern-chip">None</span>}
-                    {product.concernIds.map((concernId) => (
-                      <span key={concernId} className="concern-chip">
-                        {getConcernLabel(concernId)}
-                      </span>
-                    ))}
-                  </div>
-                </td>
+                <td className="td--muted">{getCategoryLabel(product.categoryId)}</td>
                 <td>KSh {product.price.toLocaleString()}</td>
                 <td>
-                  <span className={`stock ${product.stock < 20 ? 'stock--low' : ''}`}>
-                    {product.stock}
-                  </span>
+                  <span className={`stock ${product.stock < 20 ? 'stock--low' : ''}`}>{product.stock}</span>
                 </td>
-                <td>{product.requiresPrescription ? 'Yes' : 'No'}</td>
-                <td>{product.discountPercent ? `${product.discountPercent}%` : '—'}</td>
+                <td className="td--muted">{product.requiresPrescription ? <span className="rx-badge">Rx</span> : '—'}</td>
+                <td className="td--muted">{product.discountPercent ? `${product.discountPercent}%` : '—'}</td>
                 <td>
-                  <span className={`status status--${product.status}`}>
-                    {product.status}
-                  </span>
+                  <span className={`status status--${product.status}`}>{product.status === 'active' ? 'Active' : 'Inactive'}</span>
                 </td>
                 <td>
                   <div className="action-buttons">
-                    <button className="btn-icon" title="Edit" onClick={() => openEditModal(product)}>✏️</button>
-                    <button
-                      className="btn-icon"
-                      title={product.status === 'active' ? 'Deactivate' : 'Activate'}
-                      onClick={() => handleToggleProduct(product)}
-                    >
-                      {product.status === 'active' ? '⏸' : '▶️'}
+                    <button className="btn-icon" title="Edit" onClick={() => openEditModal(product)}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <Link className="btn-icon" title="View inventory" to={`/admin/inventory?product=${product.id}`}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    </Link>
+                    <button className={`btn-icon ${product.status === 'active' ? 'btn-icon--pause' : 'btn-icon--play'}`} title={product.status === 'active' ? 'Deactivate' : 'Activate'} onClick={() => handleToggleProduct(product)}>
+                      {product.status === 'active'
+                        ? <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                        : <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      }
                     </button>
                   </div>
                 </td>

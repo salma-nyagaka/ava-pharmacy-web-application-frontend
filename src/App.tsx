@@ -29,7 +29,6 @@ import DealsManagement from './pages/Admin/DealsManagement'
 import PayoutManagement from './pages/Admin/PayoutManagement'
 import LabTestManagement from './pages/Admin/LabTestManagement'
 import SupportManagement from './pages/Admin/SupportManagement'
-import JourneyChecklistPage from './pages/Admin/JourneyChecklistPage'
 import LoginPage from './pages/Auth/LoginPage'
 import RegisterPage from './pages/Auth/RegisterPage'
 import OrderTrackingPage from './pages/OrderTracking/OrderTrackingPage'
@@ -142,7 +141,6 @@ function App() {
           <Route path="admin/payouts" element={<PayoutManagement />} />
           <Route path="admin/lab-tests" element={<LabTestManagement />} />
           <Route path="admin/support" element={<SupportManagement />} />
-          <Route path="admin/journey-checklist" element={<JourneyChecklistPage />} />
           <Route path="admin/settings" element={<Settings />} />
           <Route path="*" element={<div style={{padding: '4rem 0', textAlign: 'center'}}>
             <h1>Page Coming Soon</h1>

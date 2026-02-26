@@ -26,7 +26,7 @@
 .support-stat__value {
   display: block;
   margin-top: 0.45rem;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--color-text-primary);
 }

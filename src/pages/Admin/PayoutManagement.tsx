@@ -164,11 +164,12 @@ function PayoutManagement() {
   return (
     <div className="admin-page">
       <div className="admin-page__header">
-        <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
+        <div className="admin-page__title">
+          <button className="pm-back-btn" type="button" onClick={handleBack}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
             Back
           </button>
-          <h1>Payout Management</h1>
+          <h1>Payouts</h1>
         </div>
         <button className="btn btn--primary btn--sm" type="button" onClick={openModal}>
           Register payout

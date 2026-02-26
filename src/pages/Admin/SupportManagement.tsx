@@ -114,14 +114,12 @@ function SupportManagement() {
   return (
     <div className="admin-page support-management">
       <div className="admin-page__header">
-        <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
+        <div className="admin-page__title">
+          <button className="pm-back-btn" type="button" onClick={handleBack}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
             Back
           </button>
           <h1>Support & Escalations</h1>
-          <p className="support-management__subtitle">
-            Handle escalated customer issues for orders, prescriptions, and consultations.
-          </p>
         </div>
       </div>
 

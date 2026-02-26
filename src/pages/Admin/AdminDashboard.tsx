@@ -140,10 +140,6 @@ function AdminDashboard() {
                 <span>🎧</span>
                 <span>Support</span>
               </Link>
-              <Link to="/admin/journey-checklist" className="admin-action">
-                <span>🧭</span>
-                <span>Checklist</span>
-              </Link>
               <Link to="/admin/settings" className="admin-action">
                 <span>⚙️</span>
                 <span>Settings</span>
