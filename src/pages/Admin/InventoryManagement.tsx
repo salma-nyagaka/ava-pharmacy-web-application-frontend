@@ -28,6 +28,18 @@ interface InventoryItem {
 const ACTOR_STORAGE_KEY = 'ava_inventory_actor_id'
 const STORAGE_INVENTORY_KEY = 'ava_admin_inventory'
 const STORAGE_PRODUCTS_KEY = 'ava_admin_products'
+const STORAGE_LOCATIONS_KEY = 'ava_admin_locations'
+
+function loadSavedLocations(): string[] {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_LOCATIONS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 
 function getStatusFromStock(stock: number, threshold: number): InventoryItem['status'] {
   if (stock === 0) return 'Out'
@@ -111,7 +123,9 @@ function InventoryManagement() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [newItemProductId, setNewItemProductId] = useState<number>(catalogProducts[0]?.id ?? 0)
   const [newItemBranch, setNewItemBranch] = useState('')
+  const [newItemBranchCustom, setNewItemBranchCustom] = useState('')
   const [newItemStock, setNewItemStock] = useState('0')
+  const [savedLocations, setSavedLocations] = useState<string[]>(() => loadSavedLocations())
   const [actorUsers] = useState<AdminUser[]>(() =>
     loadAdminUsers().filter((user) =>
       user.status === 'active' && (user.role === 'admin' || user.role === 'pharmacist')
@@ -159,8 +173,9 @@ function InventoryManagement() {
   }
 
   const locations = useMemo(() => {
-    return Array.from(new Set(inventory.map((item) => item.branch)))
-  }, [inventory])
+    const fromInventory = inventory.map((item) => item.branch)
+    return Array.from(new Set([...fromInventory, ...savedLocations]))
+  }, [inventory, savedLocations])
 
   const filteredInventory = useMemo(() => {
     return inventory.filter((item) => {
@@ -204,13 +219,15 @@ function InventoryManagement() {
     setAdjustItem(null)
   }
 
+  const resolvedBranch = newItemBranch === '__custom__' ? newItemBranchCustom.trim() : newItemBranch
+
   const handleAddInventory = () => {
-    if (!canAddRecords || !newItemProductId || !newItemBranch.trim()) return
+    if (!canAddRecords || !newItemProductId || !resolvedBranch) return
     const parsedStock = Math.max(0, Number.parseInt(newItemStock, 10) || 0)
     const nextItem: InventoryItem = {
       id: Date.now(),
       productId: newItemProductId,
-      branch: newItemBranch.trim(),
+      branch: resolvedBranch,
       stock: parsedStock,
       status: getStatusFromStock(parsedStock, lowStockThreshold),
     }
@@ -223,8 +240,14 @@ function InventoryManagement() {
       entityId: getProductName(newItemProductId),
       detail: `${nextItem.branch} stock ${nextItem.stock} by ${activeActor?.name ?? 'Unknown user'}`,
     })
+    if (newItemBranch === '__custom__' && resolvedBranch && !savedLocations.includes(resolvedBranch)) {
+      const updated = [...savedLocations, resolvedBranch]
+      setSavedLocations(updated)
+      window.localStorage.setItem(STORAGE_LOCATIONS_KEY, JSON.stringify(updated))
+    }
     setShowAddModal(false)
     setNewItemBranch('')
+    setNewItemBranchCustom('')
     setNewItemStock('0')
   }
 
@@ -403,28 +426,6 @@ function InventoryManagement() {
       )}
 
       <div className="inventory-controls">
-        <div className="form-card">
-          <h2 className="card__title">Low-stock alerts</h2>
-          <div className="form-group">
-            <label>Threshold (units)</label>
-            <input
-              type="number"
-              min={1}
-              value={lowStockThreshold}
-              onChange={(event) => setLowStockThreshold(Number(event.target.value))}
-              disabled={!canEditRecords}
-            />
-          </div>
-          <button
-            className="btn btn--primary btn--sm"
-            type="button"
-            onClick={handleSaveLowStock}
-            disabled={!canEditRecords}
-          >
-            Save
-          </button>
-        </div>
-
         <div className="form-card inventory-reservation">
           <h2 className="card__title">Reservation logic</h2>
           <div className="inventory-reservation__row">
@@ -512,12 +513,25 @@ function InventoryManagement() {
               </div>
               <div className="form-group">
                 <label>Location</label>
-                <input
-                  type="text"
+                <select
                   value={newItemBranch}
                   onChange={(event) => setNewItemBranch(event.target.value)}
-                  placeholder="Nairobi CBD"
-                />
+                >
+                  <option value="">Select a location</option>
+                  {locations.map((loc) => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                  <option value="__custom__">+ Add new location</option>
+                </select>
+                {newItemBranch === '__custom__' && (
+                  <input
+                    type="text"
+                    value={newItemBranchCustom}
+                    onChange={(event) => setNewItemBranchCustom(event.target.value)}
+                    placeholder="Enter new location name"
+                    style={{ marginTop: '0.5rem' }}
+                  />
+                )}
               </div>
               <div className="form-group">
                 <label>Opening stock</label>

@@ -46,7 +46,15 @@ function OrderManagement() {
     navigate('/admin')
   }
 
-  const updateOrderStatus = (orderId: string, status: AdminOrder['status']) => {
+  const [confirmPending, setConfirmPending] = useState<{ orderId: string; status: AdminOrder['status']; label: string } | null>(null)
+
+  const requestStatusChange = (orderId: string, status: AdminOrder['status'], label: string) => {
+    setConfirmPending({ orderId, status, label })
+  }
+
+  const confirmStatusChange = () => {
+    if (!confirmPending) return
+    const { orderId, status } = confirmPending
     setOrders((prev) =>
       prev.map((order) => (order.id === orderId ? { ...order, status } : order))
     )
@@ -56,6 +64,7 @@ function OrderManagement() {
       entityId: orderId,
       detail: `Status set to ${status}`,
     })
+    setConfirmPending(null)
   }
 
   return (
@@ -145,36 +154,21 @@ function OrderManagement() {
                     <Link className="btn-sm btn--outline" to={`/admin/orders/${order.id}`}>
                       View
                     </Link>
-                    {order.status === 'pending' && (
-                      <>
-                        <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'processing')}>
-                          Process
-                        </button>
-                        <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'shipped')}>
-                          Mark Shipped
-                        </button>
-                      </>
-                    )}
-                    {order.status === 'processing' && (
-                      <>
-                        <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'shipped')}>
-                          Ship
-                        </button>
-                        <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'delivered')}>
-                          Mark Delivered
-                        </button>
-                      </>
-                    )}
-                    {order.status === 'shipped' && (
-                      <button className="btn-sm btn--primary" onClick={() => updateOrderStatus(order.id, 'delivered')}>
-                        Mark Delivered
-                      </button>
-                    )}
-                    {order.status !== 'cancelled' && (
-                      <button className="btn-sm btn--outline" onClick={() => updateOrderStatus(order.id, 'cancelled')}>
-                        Cancel
-                      </button>
-                    )}
+                    <button className="btn-sm btn--primary" onClick={() => requestStatusChange(order.id, 'processing', 'Mark as Processing')}>
+                      Process
+                    </button>
+                    <button className="btn-sm btn--primary" onClick={() => requestStatusChange(order.id, 'shipped', 'Mark as Shipped')}>
+                      Ship
+                    </button>
+                    <button className="btn-sm btn--primary" onClick={() => requestStatusChange(order.id, 'delivered', 'Mark as Delivered')}>
+                      Deliver
+                    </button>
+                    <button className="btn-sm btn--outline" onClick={() => requestStatusChange(order.id, 'refunded', 'Mark as Refunded')}>
+                      Refund
+                    </button>
+                    <button className="btn-sm btn--danger" onClick={() => requestStatusChange(order.id, 'cancelled', 'Cancel Order')}>
+                      Cancel
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -224,6 +218,25 @@ function OrderManagement() {
         </div>
       )}
 
+      {confirmPending && (
+        <div className="modal-overlay" onClick={() => setConfirmPending(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <h2>Confirm action</h2>
+              <button className="modal__close" onClick={() => setConfirmPending(null)}>×</button>
+            </div>
+            <div className="modal__content">
+              <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                <strong>{confirmPending.label}</strong> for order <strong>{confirmPending.orderId}</strong>?
+              </p>
+            </div>
+            <div className="modal__footer">
+              <button className="btn btn--outline btn--sm" onClick={() => setConfirmPending(null)}>No, keep</button>
+              <button className="btn btn--primary btn--sm" onClick={confirmStatusChange}>Yes, confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

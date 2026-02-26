@@ -16,6 +16,7 @@ export interface AdminOrder {
   shippingFee: number
   items: AdminOrderItem[]
   notes: string[]
+  refundReason?: string
 }
 
 export const defaultAdminOrders: AdminOrder[] = [

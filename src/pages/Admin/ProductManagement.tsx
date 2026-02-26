@@ -130,6 +130,7 @@ function ProductManagement() {
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showConcernModal, setShowConcernModal] = useState(false)
   const [categoryName, setCategoryName] = useState('')
+  const [categoryType, setCategoryType] = useState<'parent' | 'sub'>('parent')
   const [categoryParentId, setCategoryParentId] = useState<string | undefined>(undefined)
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [concernName, setConcernName] = useState('')
@@ -242,19 +243,32 @@ function ProductManagement() {
 
   const openCategoryModal = () => {
     setCategoryName('')
+    setCategoryType('parent')
     setCategoryParentId(undefined)
     setEditingCategoryId(null)
     setShowCategoryModal(true)
   }
 
+  const resetCategoryForm = () => {
+    setCategoryName('')
+    setCategoryType('parent')
+    setCategoryParentId(undefined)
+    setEditingCategoryId(null)
+  }
+
   const handleSaveCategory = () => {
     const trimmed = categoryName.trim()
     if (!trimmed) return
+    // Subcategory requires a parent to be selected
+    if (categoryType === 'sub' && !categoryParentId) return
+
+    const resolvedParentId = categoryType === 'sub' ? categoryParentId : undefined
+
     if (editingCategoryId) {
       setCategories((prev) =>
         prev.map((category) =>
           category.id === editingCategoryId
-            ? { ...category, name: trimmed, parentId: categoryParentId || undefined }
+            ? { ...category, name: trimmed, parentId: resolvedParentId }
             : category
         )
       )
@@ -268,23 +282,22 @@ function ProductManagement() {
       const newCategory: Category = {
         id: `cat-${Date.now()}`,
         name: trimmed,
-        parentId: categoryParentId || undefined,
+        parentId: resolvedParentId,
       }
       setCategories((prev) => [...prev, newCategory])
       logAdminAction({
         action: 'Add category',
         entity: 'Category',
         entityId: newCategory.id,
-        detail: trimmed,
+        detail: `${trimmed}${resolvedParentId ? ` (subcategory)` : ''}`,
       })
     }
-    setCategoryName('')
-    setCategoryParentId(undefined)
-    setEditingCategoryId(null)
+    resetCategoryForm()
   }
 
   const handleEditCategory = (category: Category) => {
     setCategoryName(category.name)
+    setCategoryType(category.parentId ? 'sub' : 'parent')
     setCategoryParentId(category.parentId)
     setEditingCategoryId(category.id)
   }
@@ -436,7 +449,7 @@ function ProductManagement() {
               <th>Category</th>
               <th>Price</th>
               <th>Stock</th>
-              <th>Rx</th>
+              <th>Prescription</th>
               <th>Discount</th>
               <th>Status</th>
               <th></th>
@@ -461,7 +474,7 @@ function ProductManagement() {
                 <td>
                   <span className={`stock ${product.stock < 20 ? 'stock--low' : ''}`}>{product.stock}</span>
                 </td>
-                <td className="td--muted">{product.requiresPrescription ? <span className="rx-badge">Rx</span> : '—'}</td>
+                <td className="td--muted">{product.requiresPrescription ? <span className="rx-badge">Required</span> : '—'}</td>
                 <td className="td--muted">{product.discountPercent ? `${product.discountPercent}%` : '—'}</td>
                 <td>
                   <span className={`status status--${product.status}`}>{product.status === 'active' ? 'Active' : 'Inactive'}</span>
@@ -539,6 +552,7 @@ function ProductManagement() {
                   onChange={(e) => setProductName(e.target.value)}
                 />
               </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label>Category</label>
@@ -560,6 +574,7 @@ function ProductManagement() {
                   />
                 </div>
               </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label>Stock Quantity</label>
@@ -578,7 +593,8 @@ function ProductManagement() {
                   </select>
                 </div>
               </div>
-              <div className="form-row">
+
+              <div className="form-row form-row--3">
                 <div className="form-group">
                   <label>Discount (%)</label>
                   <input
@@ -588,40 +604,43 @@ function ProductManagement() {
                     onChange={(e) => setProductDiscount(e.target.value)}
                   />
                 </div>
-                <div className="form-group checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={productRequiresRx}
-                      onChange={(e) => setProductRequiresRx(e.target.checked)}
-                    />
-                    Requires prescription
-                  </label>
-                </div>
+                <label className="rx-toggle">
+                  <input
+                    type="checkbox"
+                    checked={productRequiresRx}
+                    onChange={(e) => setProductRequiresRx(e.target.checked)}
+                  />
+                  <span className="rx-toggle__box" />
+                  <span className="rx-toggle__label">Requires prescription</span>
+                </label>
               </div>
+
               <div className="form-group">
-                <label>Health Concerns</label>
-                <div className="multi-select-grid">
+                <label>Health Concerns <span className="field-hint">Select all that apply</span></label>
+                <div className="concern-pills">
                   {concerns.map((concern) => (
-                    <label key={concern.id} className="multi-select-item">
-                      <input
-                        type="checkbox"
-                        checked={productConcernIds.includes(concern.id)}
-                        onChange={() => toggleProductConcern(concern.id)}
-                      />
-                      <span>{concern.name}</span>
-                    </label>
+                    <button
+                      key={concern.id}
+                      type="button"
+                      className={`concern-pill ${productConcernIds.includes(concern.id) ? 'concern-pill--active' : ''}`}
+                      onClick={() => toggleProductConcern(concern.id)}
+                    >
+                      {concern.name}
+                    </button>
                   ))}
                 </div>
               </div>
+
               <div className="form-group">
-                <label>Description</label>
-                <textarea rows={4} placeholder="Enter product description"></textarea>
+                <label>Description <span className="field-hint">Optional</span></label>
+                <textarea rows={2} placeholder="Brief product description"></textarea>
               </div>
+
               <div className="form-group">
-                <label>Product Image</label>
+                <label>Product Image <span className="field-hint">Optional</span></label>
                 <div className="file-upload">
                   <input type="file" accept="image/*" />
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20" style={{color: '#9ca3af'}}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   <p>Click to upload or drag and drop</p>
                 </div>
               </div>
@@ -694,55 +713,81 @@ function ProductManagement() {
             </div>
             <div className="modal__content">
               <div className="category-list">
-                {categories.map((category) => (
-                  <div key={category.id} className="category-row">
-                    <div>
-                      <strong>{getCategoryLabel(category.id)}</strong>
+                {categories.filter((c) => !c.parentId).map((parent) => (
+                  <div key={parent.id}>
+                    <div className="category-row">
+                      <strong>{parent.name}</strong>
+                      <div className="category-actions">
+                        <button className="btn-sm btn--outline" type="button" onClick={() => handleEditCategory(parent)}>Edit</button>
+                        <button className="btn-sm btn--danger" type="button" onClick={() => handleDeleteCategory(parent.id)}>Delete</button>
+                      </div>
                     </div>
-                    <div className="category-actions">
-                      <button className="btn-sm btn--outline" type="button" onClick={() => handleEditCategory(category)}>
-                        Edit
-                      </button>
-                      <button className="btn-sm btn--danger" type="button" onClick={() => handleDeleteCategory(category.id)}>
-                        Delete
-                      </button>
-                    </div>
+                    {categories.filter((c) => c.parentId === parent.id).map((child) => (
+                      <div key={child.id} className="category-row category-row--child">
+                        <span className="category-row__indent">↳ {child.name}</span>
+                        <div className="category-actions">
+                          <button className="btn-sm btn--outline" type="button" onClick={() => handleEditCategory(child)}>Edit</button>
+                          <button className="btn-sm btn--danger" type="button" onClick={() => handleDeleteCategory(child.id)}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
 
+              <div className="cat-type-toggle">
+                <button
+                  type="button"
+                  className={`cat-type-btn ${categoryType === 'parent' ? 'cat-type-btn--active' : ''}`}
+                  onClick={() => { setCategoryType('parent'); setCategoryParentId(undefined) }}
+                >
+                  Category
+                </button>
+                <button
+                  type="button"
+                  className={`cat-type-btn ${categoryType === 'sub' ? 'cat-type-btn--active' : ''}`}
+                  onClick={() => setCategoryType('sub')}
+                  disabled={categories.filter((c) => !c.parentId).length === 0}
+                >
+                  Subcategory
+                </button>
+              </div>
+
+              {categoryType === 'sub' && (
+                <div className="form-group">
+                  <label>Parent category <span className="cat-required">*</span></label>
+                  <select
+                    value={categoryParentId ?? ''}
+                    onChange={(e) => setCategoryParentId(e.target.value || undefined)}
+                  >
+                    <option value="">— Select a parent category —</option>
+                    {categories
+                      .filter((c) => !c.parentId && c.id !== editingCategoryId)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
               <div className="form-group">
-                <label>{editingCategoryId ? 'Edit category name' : 'New category name'}</label>
+                <label>{categoryType === 'sub' ? 'Subcategory name' : 'Category name'}</label>
                 <input
                   type="text"
                   value={categoryName}
                   onChange={(e) => setCategoryName(e.target.value)}
-                  placeholder="Category name"
+                  placeholder={categoryType === 'sub' ? 'e.g. Immune boosters & vitamins' : 'e.g. Health & Wellness'}
                 />
-              </div>
-              <div className="form-group">
-                <label>Parent category (optional)</label>
-                <select
-                  value={categoryParentId ?? ''}
-                  onChange={(e) => setCategoryParentId(e.target.value || undefined)}
-                >
-                  <option value="">No parent</option>
-                  {categories
-                    .filter((category) => category.id !== editingCategoryId)
-                    .map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {getCategoryLabel(category.id)}
-                      </option>
-                    ))}
-                </select>
               </div>
             </div>
             <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" onClick={() => setShowCategoryModal(false)}>
-                Close
-              </button>
-              <button className="btn btn--primary btn--sm" onClick={handleSaveCategory}>
-                {editingCategoryId ? 'Save category' : 'Add category'}
+              <button className="btn btn--outline btn--sm" onClick={() => { setShowCategoryModal(false); resetCategoryForm() }}>Close</button>
+              <button
+                className="btn btn--primary btn--sm"
+                onClick={handleSaveCategory}
+                disabled={!categoryName.trim() || (categoryType === 'sub' && !categoryParentId)}
+              >
+                {editingCategoryId ? 'Save changes' : categoryType === 'sub' ? 'Add subcategory' : 'Add category'}
               </button>
             </div>
           </div>

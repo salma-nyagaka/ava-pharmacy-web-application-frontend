@@ -14,6 +14,13 @@ import {
 import './AdminShared.css'
 import './UserCreatePage.css'
 
+function getInitials(fullName: string) {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '?'
+  if (parts.length === 1) return parts[0][0].toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
 function UserCreatePage() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
@@ -92,126 +99,156 @@ function UserCreatePage() {
     navigate('/admin/users')
   }
 
+  const initials = getInitials(name)
+
   return (
-    <div className="admin-page user-create-page">
+    <div className="admin-page uc-page">
       <div className="admin-page__header">
-        <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
-            Back
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button className="pm-back-btn" type="button" onClick={handleBack}>
+            ← Back
           </button>
           <h1>Add User</h1>
         </div>
       </div>
 
-      <form className="user-create-form" onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="user-name">Full name</label>
-          <input
-            id="user-name"
-            type="text"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Jane Doe"
-          />
+      <form className="uc-form" onSubmit={handleSubmit}>
+        <div className="uc-preview">
+          <div className="uc-avatar">{initials}</div>
+          <div>
+            <p className="uc-preview__name">{name.trim() || 'New User'}</p>
+            <p className="uc-preview__role">{formatAdminRole(role)}</p>
+          </div>
         </div>
 
-        <div className="form-row">
+        <div className="uc-section">
+          <p className="uc-section__title">Identity</p>
           <div className="form-group">
-            <label htmlFor="user-email">Email</label>
+            <label htmlFor="user-name">Full name</label>
             <input
-              id="user-email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="name@avapharmacy.co.ke"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="user-phone">Phone</label>
-            <input
-              id="user-phone"
+              id="user-name"
               type="text"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              placeholder="+254 700 000 000"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Jane Doe"
             />
+          </div>
+          <div className="uc-row">
+            <div className="form-group">
+              <label htmlFor="user-email">Email</label>
+              <input
+                id="user-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="name@avapharmacy.co.ke"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="user-phone">Phone</label>
+              <input
+                id="user-phone"
+                type="text"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="+254 700 000 000"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="user-role">User role</label>
-            <select
-              id="user-role"
-              value={role}
-              onChange={(event) => setRole(event.target.value as AdminUserRole)}
-            >
-              {adminRoleOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group">
-            <label htmlFor="user-status">Status</label>
-            <select
-              id="user-status"
-              value={status}
-              onChange={(event) => setStatus(event.target.value as 'active' | 'suspended')}
-            >
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
-            </select>
+        <div className="uc-divider" />
+
+        <div className="uc-section">
+          <p className="uc-section__title">Account</p>
+          <div className="uc-row">
+            <div className="form-group">
+              <label htmlFor="user-role">Role</label>
+              <select
+                id="user-role"
+                value={role}
+                onChange={(event) => setRole(event.target.value as AdminUserRole)}
+              >
+                {adminRoleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="user-status">Status</label>
+              <div className="uc-status-toggle">
+                <button
+                  type="button"
+                  className={`uc-status-btn ${status === 'active' ? 'uc-status-btn--active' : ''}`}
+                  onClick={() => setStatus('active')}
+                >
+                  Active
+                </button>
+                <button
+                  type="button"
+                  className={`uc-status-btn ${status === 'suspended' ? 'uc-status-btn--suspended' : ''}`}
+                  onClick={() => setStatus('suspended')}
+                >
+                  Suspended
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         {role === 'pharmacist' && (
-          <div className="form-group">
-            <label>Pharmacist permissions</label>
-            <div className="permission-list">
-              {pharmacistPermissionOptions.map((permission) => (
-                <label key={permission.value} className="permission-option">
-                  <input
-                    type="checkbox"
-                    checked={pharmacistPermissions.includes(permission.value)}
-                    onChange={() => togglePharmacistPermission(permission.value)}
-                  />
-                  <span>{permission.label}</span>
-                </label>
-              ))}
+          <>
+            <div className="uc-divider" />
+            <div className="uc-section">
+              <p className="uc-section__title">Permissions</p>
+              <div className="uc-perm-pills">
+                {pharmacistPermissionOptions.map((permission) => (
+                  <button
+                    key={permission.value}
+                    type="button"
+                    className={`uc-perm-pill ${pharmacistPermissions.includes(permission.value) ? 'uc-perm-pill--active' : ''}`}
+                    onClick={() => togglePharmacistPermission(permission.value)}
+                  >
+                    {pharmacistPermissions.includes(permission.value) ? '✓ ' : ''}{permission.label}
+                  </button>
+                ))}
+              </div>
+              <p className="uc-hint">Grant "Add inventory records" to allow pharmacists to create inventory entries.</p>
             </div>
-            <p className="permission-hint">
-              Assign `Add inventory records` to allow pharmacists to add new inventory entries.
-            </p>
-          </div>
+          </>
         )}
 
-        <div className="form-group">
-          <label htmlFor="user-address">Address</label>
-          <input
-            id="user-address"
-            type="text"
-            value={address}
-            onChange={(event) => setAddress(event.target.value)}
-            placeholder="Branch or work location"
-          />
-        </div>
+        <div className="uc-divider" />
 
-        <div className="form-group">
-          <label htmlFor="user-notes">Notes (one per line)</label>
-          <textarea
-            id="user-notes"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            rows={4}
-            placeholder="Optional setup notes"
-          />
+        <div className="uc-section">
+          <p className="uc-section__title">Additional info</p>
+          <div className="form-group">
+            <label htmlFor="user-address">Address <span className="uc-optional">Optional</span></label>
+            <input
+              id="user-address"
+              type="text"
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
+              placeholder="Branch or work location"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="user-notes">Notes <span className="uc-optional">Optional · one per line</span></label>
+            <textarea
+              id="user-notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              rows={3}
+              placeholder="Any setup or account notes"
+            />
+          </div>
         </div>
 
         {formError && <p className="form-error">{formError}</p>}
 
-        <div className="user-create-actions">
+        <div className="uc-actions">
           <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
             Cancel
           </button>

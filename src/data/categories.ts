@@ -58,3 +58,38 @@ export const getCategoryBySlug = (slug?: string | null) =>
 
 export const getSubcategoryBySlug = (categorySlug?: string | null, subSlug?: string | null) =>
   getCategoryBySlug(categorySlug)?.subcategories.find((subcategory) => subcategory.slug === subSlug)
+
+interface AdminCategory {
+  id: string
+  name: string
+  parentId?: string
+}
+
+const STORAGE_CATEGORIES_KEY = 'ava_admin_categories'
+
+export function loadCategories(): Category[] {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_CATEGORIES_KEY) : null
+    if (!raw) return categoryData
+    const parsed: AdminCategory[] = JSON.parse(raw)
+    if (!Array.isArray(parsed) || parsed.length === 0) return categoryData
+
+    const topLevel = parsed.filter((c) => !c.parentId)
+    const children = parsed.filter((c) => c.parentId)
+
+    return topLevel.map((cat) => {
+      const slug = slugify(cat.name)
+      const subcategories = children
+        .filter((child) => child.parentId === cat.id)
+        .map((child) => ({ name: child.name, slug: slugify(child.name) }))
+      return {
+        name: cat.name,
+        slug,
+        path: `/category/${slug}`,
+        subcategories,
+      }
+    })
+  } catch {
+    return categoryData
+  }
+}

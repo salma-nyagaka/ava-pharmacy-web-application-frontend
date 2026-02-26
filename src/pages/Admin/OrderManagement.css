@@ -199,6 +199,25 @@
   background: var(--color-secondary);
 }
 
+.btn--danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.btn--danger:hover {
+  background: #fca5a5;
+}
+
+.modal__footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
 .order-pagination {
   display: flex;
   align-items: center;

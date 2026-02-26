@@ -2,7 +2,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { formatAdminRole, formatPharmacistPermission, loadAdminUsers } from './adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
+import './AdminShared.css'
 import './UserDetailsPage.css'
+
+function getInitials(name: string) {
+  return name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+}
 
 function UserDetailsPage() {
   const navigate = useNavigate()
@@ -19,19 +24,16 @@ function UserDetailsPage() {
       navigate(-1)
       return
     }
-
     navigate('/admin/users')
   }
 
   if (!user) {
     return (
-      <div className="user-details">
-        <div className="user-details__empty">
+      <div className="admin-page">
+        <div className="ud-empty">
           <h1>User not found</h1>
           <p>We could not find a user with ID {id}.</p>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
-            Back
-          </button>
+          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>Back</button>
         </div>
       </div>
     )
@@ -48,18 +50,18 @@ function UserDetailsPage() {
   ]
 
   return (
-    <div className="user-details">
-      <div className="user-details__header">
-        <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
+    <div className="admin-page">
+      <div className="admin-page__header">
+        <div className="admin-page__title">
+          <button className="pm-back-btn" type="button" onClick={handleBack}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
+            </svg>
             Back
           </button>
-          <h1>{user.name}</h1>
-          <p className="user-details__subtitle">{user.email}</p>
+          <h1>User Profile</h1>
         </div>
-        <div className="user-details__actions">
-          <span className={`role role--${user.role}`}>{formatAdminRole(user.role)}</span>
-          <span className={`status status--${user.status}`}>{user.status}</span>
+        <div className="ud-header-actions">
           <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowReset(true)}>
             Reset password
           </button>
@@ -69,95 +71,113 @@ function UserDetailsPage() {
         </div>
       </div>
 
-      <div className="user-details__grid">
-        <section className="user-card">
-          <h2>Contact</h2>
-          <div className="detail-row">
-            <span className="detail-label">Email</span>
-            <span className="detail-value">{user.email}</span>
+      <div className="ud-hero">
+        <div className="ud-avatar">{getInitials(user.name)}</div>
+        <div className="ud-hero__info">
+          <h2 className="ud-hero__name">{user.name}</h2>
+          <p className="ud-hero__email">{user.email}</p>
+          <div className="ud-hero__badges">
+            <span className={`ud-badge ud-badge--role ud-badge--${user.role}`}>{formatAdminRole(user.role)}</span>
+            <span className={`ud-badge ud-badge--${user.status}`}>{user.status === 'active' ? 'Active' : 'Suspended'}</span>
           </div>
-          <div className="detail-row">
-            <span className="detail-label">Phone</span>
-            <span className="detail-value">{user.phone}</span>
+        </div>
+      </div>
+
+      <div className="ud-grid">
+        <section className="form-card">
+          <h2 className="card__title">Contact</h2>
+          <div className="ud-row">
+            <span className="ud-row__label">Email</span>
+            <span className="ud-row__value">{user.email}</span>
           </div>
-          <div className="detail-row">
-            <span className="detail-label">Address</span>
-            <span className="detail-value">{user.address}</span>
+          <div className="ud-row">
+            <span className="ud-row__label">Phone</span>
+            <span className="ud-row__value">{user.phone ?? '—'}</span>
+          </div>
+          <div className="ud-row">
+            <span className="ud-row__label">Address</span>
+            <span className="ud-row__value">{user.address ?? '—'}</span>
           </div>
         </section>
 
-        <section className="user-card">
-          <h2>Account</h2>
-          <div className="detail-row">
-            <span className="detail-label">Joined</span>
-            <span className="detail-value">{new Date(user.joinedDate).toLocaleDateString()}</span>
+        <section className="form-card">
+          <h2 className="card__title">Account</h2>
+          <div className="ud-row">
+            <span className="ud-row__label">Joined</span>
+            <span className="ud-row__value">{new Date(user.joinedDate).toLocaleDateString()}</span>
           </div>
-          <div className="detail-row">
-            <span className="detail-label">Total Orders</span>
-            <span className="detail-value">{user.totalOrders}</span>
+          <div className="ud-row">
+            <span className="ud-row__label">Total Orders</span>
+            <span className="ud-row__value">{user.totalOrders}</span>
           </div>
-          <div className="detail-row">
-            <span className="detail-label">Last Order</span>
-            <span className="detail-value">
+          <div className="ud-row">
+            <span className="ud-row__label">Last Order</span>
+            <span className="ud-row__value">
               {user.lastOrderDate ? new Date(user.lastOrderDate).toLocaleDateString() : '—'}
             </span>
           </div>
         </section>
 
-        <section className="user-card user-card--wide">
-          <h2>Notes</h2>
-          {user.notes.length > 0 ? (
-            <ul className="user-notes">
+        {user.notes.length > 0 && (
+          <section className="form-card ud-wide">
+            <h2 className="card__title">Notes</h2>
+            <ul className="ud-notes">
               {user.notes.map((note) => (
                 <li key={note}>{note}</li>
               ))}
             </ul>
-          ) : (
-            <p className="user-details__subtitle">No notes available.</p>
-          )}
-        </section>
+          </section>
+        )}
 
         {user.role === 'pharmacist' && (
-          <section className="user-card user-card--wide">
-            <h2>Pharmacist permissions</h2>
+          <section className="form-card ud-wide">
+            <h2 className="card__title">Pharmacist permissions</h2>
             {user.pharmacistPermissions && user.pharmacistPermissions.length > 0 ? (
-              <ul className="user-notes">
+              <ul className="ud-notes">
                 {user.pharmacistPermissions.map((permission) => (
                   <li key={permission}>{formatPharmacistPermission(permission)}</li>
                 ))}
               </ul>
             ) : (
-              <p className="user-details__subtitle">No pharmacist permissions assigned.</p>
+              <p className="ud-muted">No pharmacist permissions assigned.</p>
             )}
           </section>
         )}
 
-        <section className="user-card">
-          <h2>Order history</h2>
-          <ul className="user-history">
-            {orders.map((order) => (
-              <li key={order.id}>
-                <span>{order.id}</span>
-                <span>{order.date}</span>
-                <span>{order.total}</span>
-                <span>{order.status}</span>
-              </li>
-            ))}
-          </ul>
+        <section className="form-card">
+          <h2 className="card__title">Order history</h2>
+          {orders.length > 0 ? (
+            <ul className="ud-history">
+              {orders.map((order) => (
+                <li key={order.id} className="ud-history__item">
+                  <span className="ud-history__id">{order.id}</span>
+                  <span className="ud-history__date">{order.date}</span>
+                  <span className="ud-history__amount">{order.total}</span>
+                  <span className="ud-badge ud-badge--delivered">{order.status}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="ud-muted">No orders yet.</p>
+          )}
         </section>
 
-        <section className="user-card">
-          <h2>Consultations</h2>
-          <ul className="user-history">
-            {consultations.map((consult) => (
-              <li key={consult.id}>
-                <span>{consult.id}</span>
-                <span>{consult.date}</span>
-                <span>{consult.doctor}</span>
-                <span>{consult.status}</span>
-              </li>
-            ))}
-          </ul>
+        <section className="form-card">
+          <h2 className="card__title">Consultations</h2>
+          {consultations.length > 0 ? (
+            <ul className="ud-history">
+              {consultations.map((consult) => (
+                <li key={consult.id} className="ud-history__item">
+                  <span className="ud-history__id">{consult.id}</span>
+                  <span className="ud-history__date">{consult.date}</span>
+                  <span className="ud-history__doctor">{consult.doctor}</span>
+                  <span className="ud-badge ud-badge--delivered">{consult.status}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="ud-muted">No consultations yet.</p>
+          )}
         </section>
       </div>
 
@@ -169,12 +189,10 @@ function UserDetailsPage() {
               <button className="modal__close" onClick={() => setShowReset(false)}>×</button>
             </div>
             <div className="modal__content">
-              <p>A reset link will be sent to {user.email}.</p>
+              <p>A reset link will be sent to <strong>{user.email}</strong>.</p>
             </div>
             <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" onClick={() => setShowReset(false)}>
-                Cancel
-              </button>
+              <button className="btn btn--outline btn--sm" onClick={() => setShowReset(false)}>Cancel</button>
               <button
                 className="btn btn--primary btn--sm"
                 onClick={() => {
@@ -222,9 +240,7 @@ function UserDetailsPage() {
               </div>
             </div>
             <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" onClick={() => setShowEscalate(false)}>
-                Cancel
-              </button>
+              <button className="btn btn--outline btn--sm" onClick={() => setShowEscalate(false)}>Cancel</button>
               <button
                 className="btn btn--primary btn--sm"
                 onClick={() => {

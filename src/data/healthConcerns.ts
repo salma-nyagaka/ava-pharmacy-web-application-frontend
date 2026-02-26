@@ -37,6 +37,34 @@ export const healthConcerns: HealthConcern[] = [
 export const getHealthConcernBySlug = (slug?: string | null) =>
   healthConcerns.find((concern) => concern.slug === slug)
 
+const STORAGE_CONCERNS_KEY = 'ava_admin_health_concerns'
+
+interface AdminConcern {
+  id: string
+  name: string
+}
+
+const slugifyName = (name: string) =>
+  name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+
+export function loadHealthConcerns(): HealthConcern[] {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_CONCERNS_KEY) : null
+    if (!raw) return healthConcerns
+    const parsed: AdminConcern[] = JSON.parse(raw)
+    if (!Array.isArray(parsed) || parsed.length === 0) return healthConcerns
+
+    return parsed.map((concern) => {
+      const slug = slugifyName(concern.name)
+      const existing = healthConcerns.find((h) => h.slug === slug || h.name.toLowerCase() === concern.name.toLowerCase())
+      if (existing) return existing
+      return buildConcern(slug, concern.name, [], [])
+    })
+  } catch {
+    return healthConcerns
+  }
+}
+
 type ConcernProduct = {
   name: string
   brand: string

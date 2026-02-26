@@ -12,8 +12,8 @@ import brandCentrum from '../../assets/images/brands/centrum.jpeg'
 import brandSebamed from '../../assets/images/brands/sebamed.png'
 import brandHuggies from '../../assets/images/brands/huggies.jpeg'
 import brandAccuChek from '../../assets/images/brands/accu-check.png'
-import { categoryData } from '../../data/categories'
-import { healthConcerns } from '../../data/healthConcerns'
+import { loadCategories } from '../../data/categories'
+import { loadHealthConcerns } from '../../data/healthConcerns'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { useAuth } from '../../context/AuthContext'
@@ -50,7 +50,8 @@ function Header() {
     return unsubscribe
   }, [])
 
-  const categories = categoryData
+  const [categories] = useState(() => loadCategories())
+  const [healthConcerns] = useState(() => loadHealthConcerns())
   const defaultCategorySlug = categories[0]?.slug ?? ALL_CATEGORIES_KEY
 
   const [activeCategory, setActiveCategory] = useState(defaultCategorySlug)
