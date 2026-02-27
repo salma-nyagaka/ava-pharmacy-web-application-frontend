@@ -35,7 +35,7 @@ const defaultRecords: PrescriptionRecord[] = [
     patient: 'Sarah M.',
     pharmacist: 'Grace N.',
     status: 'Approved',
-    dispatchStatus: 'Packed',
+    dispatchStatus: 'Delivered',
     submitted: '2026-01-21',
     doctor: 'Dr. Sarah Johnson',
     files: ['RX-2041-scan.pdf'],
@@ -48,6 +48,7 @@ const defaultRecords: PrescriptionRecord[] = [
       { time: '2026-01-21 09:12', action: 'Approved by Grace N.' },
       { time: '2026-01-21 09:20', action: 'Queued for dispatch' },
       { time: '2026-01-21 10:00', action: 'Packed for courier handoff' },
+      { time: '2026-01-21 12:45', action: 'Delivered to customer' },
     ],
   },
   {

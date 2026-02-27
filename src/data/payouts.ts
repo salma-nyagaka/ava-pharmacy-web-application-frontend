@@ -1,12 +1,13 @@
 import { loadConsultations, loadDoctorProfiles } from './telemedicine'
 import { loadLabRequests } from './labs'
 import { loadLabPartners } from './labPartners'
+import { loadPrescriptionRecords } from './prescriptions'
 import { loadPayoutRules } from './payoutRules'
 
 export type PayoutRole = 'Doctor' | 'Pediatrician' | 'Lab Technician' | 'Lab Partner' | 'Pharmacist'
 export type PayoutMethod = 'Bank Transfer' | 'M-Pesa' | 'Card' | 'Cheque' | 'Cash'
 export type PayoutStatus = 'Pending' | 'Paid' | 'Failed'
-export type PayoutTaskType = 'Consultation' | 'Lab Result' | 'Lab Delivery'
+export type PayoutTaskType = 'Consultation' | 'Lab Result' | 'Lab Delivery' | 'Prescription'
 
 export interface AdminPayout {
   id: string
@@ -159,7 +160,35 @@ const buildAutoPayoutsFromTasks = (): AdminPayout[] => {
     })
     .filter(Boolean) as AdminPayout[]
 
-  return [...consultationPayouts, ...labTechPayouts, ...labPartnerPayouts]
+  const prescriptionRecords = loadPrescriptionRecords()
+  const pharmacistPayouts: AdminPayout[] = prescriptionRecords
+    .filter((record) => record.status === 'Approved' && record.dispatchStatus === 'Delivered')
+    .map((record) => {
+      const role: PayoutRole = 'Pharmacist'
+      const rule = ruleMap.get(role)
+      if (!rule || !rule.active) return null
+      const amount = rule.amount
+      const completedAt = record.audit?.[0]?.time ?? record.submitted
+      return {
+        id: `PAY-PHARM-${record.id}`,
+        recipientName: record.pharmacist || 'Pharmacist',
+        role,
+        period: record.submitted,
+        amount,
+        method: 'M-Pesa',
+        reference: `AUTO-${record.id}`,
+        status: 'Pending',
+        requestedAt: record.submitted,
+        notes: 'Auto-generated from dispensed prescription.',
+        source: 'Automatic',
+        taskType: 'Prescription',
+        taskId: record.id,
+        completedAt,
+      }
+    })
+    .filter(Boolean) as AdminPayout[]
+
+  return [...consultationPayouts, ...labTechPayouts, ...labPartnerPayouts, ...pharmacistPayouts]
 }
 
 const mergeAutoPayouts = (existing: AdminPayout[], autoPayouts: AdminPayout[]) => {
