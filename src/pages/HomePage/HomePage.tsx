@@ -261,10 +261,45 @@ function HomePage() {
       </a>
       {/* Hero Section */}
       <section className="hero" id="main-content">
-        <div className="hero__single-banner">
-          <Link to="/offers" className="hero__single-banner-link" aria-label="View offers">
-            <ImageWithFallback src={defaultHeroBanner} alt="AVA Pharmacy featured banner" className="hero__single-banner-image" />
-          </Link>
+        <div className="container hero__canvas">
+          <div className="hero__content">
+            <span className="hero__eyebrow">AVA Pharmacy</span>
+            <h1 className="hero__headline">Care that travels with you.</h1>
+            <p className="hero__lead">
+              From prescriptions and lab tests to everyday essentials — get trusted healthcare delivered fast, with licensed professionals on standby.
+            </p>
+            <div className="hero__actions">
+              <Link to="/products" className="btn btn--primary btn--lg">Shop products</Link>
+              <Link to="/prescriptions" className="btn btn--outline btn--lg">Upload prescription</Link>
+            </div>
+            <div className="hero__trust-row">
+              <div className="hero__trust-card">
+                <strong>90 mins</strong>
+                <span>Express delivery in Nairobi</span>
+              </div>
+              <div className="hero__trust-card">
+                <strong>24/7</strong>
+                <span>Pharmacist support</span>
+              </div>
+              <div className="hero__trust-card">
+                <strong>200+</strong>
+                <span>Lab tests available</span>
+              </div>
+            </div>
+          </div>
+          <div className="hero__media">
+            <Link to="/offers" className="hero__media-link" aria-label="View offers">
+              <ImageWithFallback src={defaultHeroBanner} alt="AVA Pharmacy featured banner" className="hero__media-image" />
+            </Link>
+            <div className="hero__media-card hero__media-card--top">
+              <span className="hero__media-tag">Trusted care</span>
+              <p>Licensed pharmacists review every prescription.</p>
+            </div>
+            <div className="hero__media-card hero__media-card--bottom">
+              <span className="hero__media-tag">Fast dispatch</span>
+              <p>Same-day delivery for most orders.</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -507,7 +542,7 @@ function HomePage() {
           <div className="hs-services__head">
             <p className="hs-services__eyebrow">Complete Healthcare</p>
             <h2 className="hs-services__title">Everything you need, in one place</h2>
-            <p className="hs-services__sub">From same-day prescriptions to specialist consultations — AVA Health covers every step of your healthcare journey.</p>
+            <p className="hs-services__sub">Prescriptions, consults, and lab tests — delivered fast with licensed experts.</p>
           </div>
           <div className="hs-services__grid">
 
@@ -522,13 +557,12 @@ function HomePage() {
               <div className="hs-svc-card__body">
                 <span className="hs-svc-card__tag">Available now</span>
                 <h3 className="hs-svc-card__title">Doctor Consultation</h3>
-                <p className="hs-svc-card__desc">Consult with licensed doctors from the comfort of your home. Get diagnoses, referrals, and e-prescriptions instantly.</p>
+                <p className="hs-svc-card__desc">Chat, call, or video with licensed doctors for fast diagnoses and e-prescriptions.</p>
                 <ul className="hs-svc-card__features">
-                  <li>20+ specialties available</li>
-                  <li>Video, chat & phone consultations</li>
-                  <li>Same-day appointments</li>
+                  <li>20+ specialties</li>
+                  <li>Same-day slots</li>
                 </ul>
-                <span className="hs-svc-card__cta">Book consultation →</span>
+                <span className="hs-svc-card__cta">Book a doctor →</span>
               </div>
             </Link>
 
@@ -543,11 +577,10 @@ function HomePage() {
               <div className="hs-svc-card__body">
                 <span className="hs-svc-card__tag">Specialist care</span>
                 <h3 className="hs-svc-card__title">Pediatric Care</h3>
-                <p className="hs-svc-card__desc">Certified pediatricians dedicated to infants, children, and adolescents. Expert care when your child needs it most.</p>
+                <p className="hs-svc-card__desc">Specialist pediatricians for infants, children, and teens — on demand.</p>
                 <ul className="hs-svc-card__features">
-                  <li>Neonatal & child specialists</li>
-                  <li>Growth & developmental checks</li>
-                  <li>Vaccinations & nutrition advice</li>
+                  <li>Growth checks</li>
+                  <li>Vaccination advice</li>
                 </ul>
                 <span className="hs-svc-card__cta">See pediatricians →</span>
               </div>
@@ -565,11 +598,10 @@ function HomePage() {
               <div className="hs-svc-card__body">
                 <span className="hs-svc-card__tag">Fast fulfillment</span>
                 <h3 className="hs-svc-card__title">Prescription Upload</h3>
-                <p className="hs-svc-card__desc">Upload your prescription and our licensed pharmacists will verify and dispense your medication with same-day delivery.</p>
+                <p className="hs-svc-card__desc">Upload a prescription and get pharmacist verification with fast delivery.</p>
                 <ul className="hs-svc-card__features">
-                  <li>Reviewed by licensed pharmacists</li>
-                  <li>Refill reminders & history</li>
-                  <li>Same-day or scheduled delivery</li>
+                  <li>Licensed review</li>
+                  <li>Same-day delivery</li>
                 </ul>
                 <span className="hs-svc-card__cta">Upload prescription →</span>
               </div>
@@ -585,11 +617,10 @@ function HomePage() {
               <div className="hs-svc-card__body">
                 <span className="hs-svc-card__tag">Home collection</span>
                 <h3 className="hs-svc-card__title">Lab Tests</h3>
-                <p className="hs-svc-card__desc">Book from 200+ lab tests online. A certified phlebotomist collects samples at your door — results delivered digitally.</p>
+                <p className="hs-svc-card__desc">Book 200+ tests with home sample collection and digital results.</p>
                 <ul className="hs-svc-card__features">
-                  <li>200+ diagnostic tests</li>
-                  <li>Home sample collection</li>
-                  <li>Digital results in 24–48 hours</li>
+                  <li>Home collection</li>
+                  <li>Results in 24–48h</li>
                 </ul>
                 <span className="hs-svc-card__cta">Book a test →</span>
               </div>
