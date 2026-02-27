@@ -28,6 +28,8 @@ import Reports from './pages/Admin/Reports'
 import DealsManagement from './pages/Admin/DealsManagement'
 import PayoutManagement from './pages/Admin/PayoutManagement'
 import LabTestManagement from './pages/Admin/LabTestManagement'
+import LabRequestManagement from './pages/Admin/LabRequestManagement'
+import LabTechPortal from './pages/LabTech/LabTechPortal'
 import SupportManagement from './pages/Admin/SupportManagement'
 import LoginPage from './pages/Auth/LoginPage'
 import RegisterPage from './pages/Auth/RegisterPage'
@@ -46,9 +48,7 @@ import PrivacyPage from './pages/Legal/PrivacyPage'
 import TermsPage from './pages/Legal/TermsPage'
 import CookiesPage from './pages/Legal/CookiesPage'
 import PrescriptionHistoryPage from './pages/PrescriptionHistory/PrescriptionHistoryPage'
-import DoctorOnboardingPage from './pages/Doctor/DoctorOnboardingPage'
 import DoctorDashboardPage from './pages/Doctor/DoctorDashboardPage'
-import PediatricianOnboardingPage from './pages/Pediatrician/PediatricianOnboardingPage'
 import PediatricianDashboardPage from './pages/Pediatrician/PediatricianDashboardPage'
 import PharmacistDashboardPage from './pages/Pharmacist/PharmacistDashboardPage'
 import PrescriptionReviewPage from './pages/Pharmacist/PrescriptionReviewPage'
@@ -59,6 +59,7 @@ import InventoryManagement from './pages/Admin/InventoryManagement'
 import PrescriptionManagement from './pages/Admin/PrescriptionManagement'
 import DoctorManagement from './pages/Admin/DoctorManagement'
 import Settings from './pages/Admin/Settings'
+import ProfessionalRegisterPage from './pages/Professional/ProfessionalRegisterPage'
 import BrandsPage from './pages/Brands/BrandsPage'
 import ConditionsPage from './pages/Conditions/ConditionsPage'
 import HealthServicesPage from './pages/HealthServices/HealthServicesPage'
@@ -113,9 +114,10 @@ function App() {
           <Route path="privacy" element={<PrivacyPage />} />
           <Route path="terms" element={<TermsPage />} />
           <Route path="cookies" element={<CookiesPage />} />
-          <Route path="doctor/register" element={<DoctorOnboardingPage />} />
+          <Route path="professional/register" element={<ProfessionalRegisterPage />} />
+          <Route path="doctor/register" element={<ProfessionalRegisterPage />} />
           <Route path="doctor/dashboard" element={<DoctorDashboardPage />} />
-          <Route path="pediatrician/register" element={<PediatricianOnboardingPage />} />
+          <Route path="pediatrician/register" element={<ProfessionalRegisterPage />} />
           <Route path="pediatrician/dashboard" element={<PediatricianDashboardPage />} />
           <Route path="pharmacist" element={<PharmacistDashboardPage />} />
           <Route path="pharmacist/review/:id" element={<PrescriptionReviewPage />} />
@@ -140,6 +142,8 @@ function App() {
           <Route path="admin/deals" element={<DealsManagement />} />
           <Route path="admin/payouts" element={<PayoutManagement />} />
           <Route path="admin/lab-tests" element={<LabTestManagement />} />
+          <Route path="admin/lab-requests" element={<LabRequestManagement />} />
+          <Route path="lab/tech" element={<LabTechPortal />} />
           <Route path="admin/support" element={<SupportManagement />} />
           <Route path="admin/settings" element={<Settings />} />
           <Route path="*" element={<div style={{padding: '4rem 0', textAlign: 'center'}}>

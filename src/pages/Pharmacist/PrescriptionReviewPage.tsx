@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useAuth } from '../../context/AuthContext'
 import {
   PrescriptionRecord,
   PrescriptionStatus,
@@ -11,6 +12,7 @@ import './PrescriptionReviewPage.css'
 function PrescriptionReviewPage() {
   const navigate = useNavigate()
   const { id = '' } = useParams()
+  const { user } = useAuth()
   const [records, setRecords] = useState<PrescriptionRecord[]>([])
   const [reviewNotes, setReviewNotes] = useState('')
   const [message, setMessage] = useState('')
@@ -26,13 +28,15 @@ function PrescriptionReviewPage() {
 
   const setStatus = async (status: PrescriptionStatus) => {
     if (!prescription) return
+    const pharmacistName = user?.name ?? 'Pharmacist'
     const updates = {
       status,
+      pharmacist: pharmacistName,
       dispatchStatus: status === 'Approved' ? prescription.dispatchStatus : 'Not started' as const,
     }
     const action = reviewNotes.trim()
-      ? `Pharmacist set status to ${status}: ${reviewNotes.trim()}`
-      : `Pharmacist set status to ${status}`
+      ? `${pharmacistName} set status to ${status}: ${reviewNotes.trim()}`
+      : `${pharmacistName} set status to ${status}`
     const response = await prescriptionService.update(prescription.id, updates, action)
     setRecords(response.data)
     setMessage(`Updated to ${status}.`)
@@ -98,7 +102,7 @@ function PrescriptionReviewPage() {
                     <p>{prescription.patient}</p>
                   </div>
                   <div>
-                    <p className="review-label">Assigned pharmacist</p>
+                    <p className="review-label">Handled by</p>
                     <p>{prescription.pharmacist}</p>
                   </div>
                   <div>

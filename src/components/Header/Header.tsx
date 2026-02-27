@@ -206,6 +206,7 @@ function Header() {
               <Link to="/help" className="header__topbar-link">FAQ</Link>
               <Link to="/track-order" className="header__topbar-link">Track Order</Link>
               <Link to="/store-locator" className="header__topbar-link">Store Locator</Link>
+              <Link to="/professional/register" className="header__topbar-link header__topbar-link--pro">For Professionals</Link>
             </div>
           </div>
         </div>
@@ -487,6 +488,11 @@ function Header() {
               <Link to="/store-locator" className="header__nav-link header__nav-link--icon" onClick={closeMenus}>
                 <span className="header__nav-icon">📍</span>
                 Store Locator
+              </Link>
+            </li>
+            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
+              <Link to="/professional/register" className="header__nav-link header__nav-link--pro" onClick={closeMenus}>
+                Professional Registration
               </Link>
             </li>
           </ul>

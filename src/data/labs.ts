@@ -1,4 +1,19 @@
-export type LabCategory = 'Blood' | 'Cardiac' | 'Infectious' | 'Wellness' | 'Metabolic'
+export type LabCategory = 'Blood' | 'Cardiac' | 'Infectious' | 'Wellness' | 'Metabolic' | (string & {})
+
+export type LabCategoryDef = {
+  name: string
+  color: string
+}
+
+const defaultCategoryDefs: LabCategoryDef[] = [
+  { name: 'Blood', color: '#ef4444' },
+  { name: 'Cardiac', color: '#ec4899' },
+  { name: 'Infectious', color: '#f59e0b' },
+  { name: 'Wellness', color: '#10b981' },
+  { name: 'Metabolic', color: '#8b5cf6' },
+]
+
+const defaultSampleTypes = ['Blood', 'Urine', 'Stool', 'Saliva', 'Swab', 'Sputum', 'Biopsy']
 export type LabRequestStatus =
   | 'Awaiting sample'
   | 'Sample collected'
@@ -198,6 +213,18 @@ const safeLoad = <T,>(key: string, fallback: T): T => {
 }
 
 const nowLabel = () => new Date().toLocaleString()
+
+export const loadLabCategoryDefs = () => safeLoad<LabCategoryDef[]>('ava_lab_category_defs', defaultCategoryDefs)
+export const saveLabCategoryDefs = (defs: LabCategoryDef[]) => {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem('ava_lab_category_defs', JSON.stringify(defs))
+}
+
+export const loadSampleTypes = () => safeLoad<string[]>('ava_lab_sample_types', defaultSampleTypes)
+export const saveSampleTypes = (types: string[]) => {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem('ava_lab_sample_types', JSON.stringify(types))
+}
 
 export const loadLabTests = () => safeLoad(STORAGE.tests, defaultLabTests)
 

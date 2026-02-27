@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { loadDoctorProfiles } from '../../data/telemedicine'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import './AuthPage.css'
 
@@ -8,7 +9,7 @@ function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const redirect = searchParams.get('redirect') ?? '/account'
+  const redirect = searchParams.get('redirect') ?? ''
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,9 +21,53 @@ function LoginPage() {
       setError('Please enter your email and password.')
       return
     }
-    const name = email.split('@')[0]
-    login({ name, email })
-    navigate(redirect)
+
+    const profiles = loadDoctorProfiles()
+    const match = profiles.find((p) => p.email.toLowerCase() === email.trim().toLowerCase())
+
+    if (match && match.status === 'Pending') {
+      setError('Your application is still under review. You will be notified once approved.')
+      return
+    }
+
+    if (match && match.status === 'Suspended') {
+      setError('Your account has been suspended. Please contact support.')
+      return
+    }
+
+    const emailLower = email.trim().toLowerCase()
+    if (emailLower === 'lab@ava.com') {
+      login({ name: 'Lab Technician', email: email.trim(), role: 'lab_technician' })
+      navigate('/lab/tech')
+      return
+    }
+    if (emailLower === 'admin@ava.com') {
+      login({ name: 'Admin User', email: email.trim(), role: 'admin' })
+      navigate('/admin')
+      return
+    }
+    if (emailLower === 'pharmacist@ava.com') {
+      login({ name: 'Pharmacist User', email: email.trim(), role: 'pharmacist' })
+      navigate('/pharmacist')
+      return
+    }
+
+    const role = match
+      ? match.type === 'Doctor' ? 'doctor' : 'pediatrician'
+      : 'patient'
+
+    const name = match ? match.name : email.split('@')[0]
+    login({ name, email: email.trim(), role })
+
+    if (redirect) {
+      navigate(redirect)
+    } else if (role === 'doctor') {
+      navigate('/doctor/dashboard')
+    } else if (role === 'pediatrician') {
+      navigate('/pediatrician/dashboard')
+    } else {
+      navigate('/account')
+    }
   }
 
   return (

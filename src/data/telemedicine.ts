@@ -25,6 +25,7 @@ export interface DoctorProfile {
   languages: string[]
   verifiedAt?: string
   statusNote?: string
+  rejectionNote?: string
   documents: DoctorDocument[]
 }
 

@@ -17,7 +17,7 @@ function RegisterPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const name = `${firstName} ${lastName}`.trim() || email.split('@')[0]
-    login({ name, email })
+    login({ name, email, role: 'patient' })
     navigate(redirect)
   }
 

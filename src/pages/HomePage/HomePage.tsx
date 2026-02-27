@@ -273,7 +273,7 @@ function HomePage() {
         <div className="container">
           <div className="promo-banner__head">
             <h2>Why customers choose AVA Pharmacy</h2>
-            <p>Fast fulfillment, licensed professionals, and transparent service from order to delivery.</p>
+            <p>Fast fulfillment, licensed professionals, and transparent service from order to delivery</p>
           </div>
           <div className="promo-banner__content">
             {valueBannerItems.map((item) => (
@@ -290,7 +290,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Categories Section */}
+      {/* Categories — browse the store */}
       <section className="section categories">
         <div className="container">
           <div className="section__header">
@@ -334,7 +334,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Featured Products Section */}
+      {/* Featured Products — social proof via best sellers */}
       <section className="section section--alt featured-products">
         <div className="container">
           <div className="section__header">
@@ -410,7 +410,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Promotional Section */}
+      {/* Hot Offers — urgency / savings */}
       <section className="section offers-preview">
         <div className="container">
           <div className="section__header">
@@ -463,7 +463,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Promotional Section */}
+      {/* Promo Cards — lifestyle / category pushes */}
       <section className="section promo-section">
         <div className="container">
           <div className="promo-cards">
@@ -497,6 +497,104 @@ function HomePage() {
                 <ImageWithFallback src={articleSkincare} alt="Skincare products" />
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section className="hs-services">
+        <div className="container">
+          <div className="hs-services__head">
+            <p className="hs-services__eyebrow">Complete Healthcare</p>
+            <h2 className="hs-services__title">Everything you need, in one place</h2>
+            <p className="hs-services__sub">From same-day prescriptions to specialist consultations — AVA Health covers every step of your healthcare journey.</p>
+          </div>
+          <div className="hs-services__grid">
+
+            <Link to="/doctor-consultation" className="hs-svc-card hs-svc-card--doctor">
+              <div className="hs-svc-card__icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/>
+                  <path d="M20 21a8 8 0 1 0-16 0"/>
+                  <path d="M16 11v4M14 13h4"/>
+                </svg>
+              </div>
+              <div className="hs-svc-card__body">
+                <span className="hs-svc-card__tag">Available now</span>
+                <h3 className="hs-svc-card__title">Doctor Consultation</h3>
+                <p className="hs-svc-card__desc">Consult with licensed doctors from the comfort of your home. Get diagnoses, referrals, and e-prescriptions instantly.</p>
+                <ul className="hs-svc-card__features">
+                  <li>20+ specialties available</li>
+                  <li>Video, chat & phone consultations</li>
+                  <li>Same-day appointments</li>
+                </ul>
+                <span className="hs-svc-card__cta">Book consultation →</span>
+              </div>
+            </Link>
+
+            <Link to="/pediatric-consultation" className="hs-svc-card hs-svc-card--paed">
+              <div className="hs-svc-card__icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="12" cy="6" r="3"/>
+                  <path d="M9 14c-3 0-5 1.5-5 3v1h16v-1c0-1.5-2-3-5-3"/>
+                  <path d="M8 10c0 0-1 3 4 3s4-3 4-3"/>
+                </svg>
+              </div>
+              <div className="hs-svc-card__body">
+                <span className="hs-svc-card__tag">Specialist care</span>
+                <h3 className="hs-svc-card__title">Pediatric Care</h3>
+                <p className="hs-svc-card__desc">Certified pediatricians dedicated to infants, children, and adolescents. Expert care when your child needs it most.</p>
+                <ul className="hs-svc-card__features">
+                  <li>Neonatal & child specialists</li>
+                  <li>Growth & developmental checks</li>
+                  <li>Vaccinations & nutrition advice</li>
+                </ul>
+                <span className="hs-svc-card__cta">See pediatricians →</span>
+              </div>
+            </Link>
+
+            <Link to="/prescriptions" className="hs-svc-card hs-svc-card--rx">
+              <div className="hs-svc-card__icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="9" y1="13" x2="15" y2="13"/>
+                  <line x1="9" y1="17" x2="13" y2="17"/>
+                </svg>
+              </div>
+              <div className="hs-svc-card__body">
+                <span className="hs-svc-card__tag">Fast fulfillment</span>
+                <h3 className="hs-svc-card__title">Prescription Upload</h3>
+                <p className="hs-svc-card__desc">Upload your prescription and our licensed pharmacists will verify and dispense your medication with same-day delivery.</p>
+                <ul className="hs-svc-card__features">
+                  <li>Reviewed by licensed pharmacists</li>
+                  <li>Refill reminders & history</li>
+                  <li>Same-day or scheduled delivery</li>
+                </ul>
+                <span className="hs-svc-card__cta">Upload prescription →</span>
+              </div>
+            </Link>
+
+            <Link to="/laboratory" className="hs-svc-card hs-svc-card--lab">
+              <div className="hs-svc-card__icon-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11M3 9h18M3 9l3 9h12l3-9"/>
+                  <circle cx="12" cy="16" r="1"/>
+                </svg>
+              </div>
+              <div className="hs-svc-card__body">
+                <span className="hs-svc-card__tag">Home collection</span>
+                <h3 className="hs-svc-card__title">Lab Tests</h3>
+                <p className="hs-svc-card__desc">Book from 200+ lab tests online. A certified phlebotomist collects samples at your door — results delivered digitally.</p>
+                <ul className="hs-svc-card__features">
+                  <li>200+ diagnostic tests</li>
+                  <li>Home sample collection</li>
+                  <li>Digital results in 24–48 hours</li>
+                </ul>
+                <span className="hs-svc-card__cta">Book a test →</span>
+              </div>
+            </Link>
+
           </div>
         </div>
       </section>
@@ -562,13 +660,6 @@ function HomePage() {
                 </div>
               </article>
             ))}
-          </div>
-          <div className="services-cta">
-            <Link to="/contact" className="btn btn--outline">Contact Us</Link>
-            <Link to="/doctor-consultation" className="btn btn--primary">Doctor Consultation</Link>
-            <Link to="/pediatric-consultation" className="btn btn--primary">Pediatric Services</Link>
-            <Link to="/labaratory" className="btn btn--primary">Laboratory Services</Link>
-            <Link to="/prescriptions" className="btn btn--primary">Prescription Fulfillment</Link>
           </div>
         </div>
       </section>

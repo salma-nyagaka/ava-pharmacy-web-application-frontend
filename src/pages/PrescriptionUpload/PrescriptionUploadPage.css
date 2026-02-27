@@ -1,238 +1,784 @@
-.prescription-upload {
-  padding: 2rem 0 4rem;
+/* ── Page ───────────────────────────────── */
+.rup-page {
+  padding: 2.5rem 0 5rem;
 }
 
-.prescription-upload h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 2rem;
-}
-
-.upload-section {
-  background-color: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  margin-bottom: 2rem;
-}
-
-.upload-section h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-}
-
-.upload-area {
-  border: 2px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 3rem;
-  text-align: center;
-  position: relative;
-  margin-bottom: 2rem;
-}
-
-.upload-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.upload-meta-field {
+.rup-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
 }
 
-.upload-meta-field label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+.rup-header h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #111;
+  margin-bottom: 0.35rem;
 }
 
-.upload-meta-field input {
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+.rup-header__sub {
   font-size: 0.9375rem;
-}
-
-.upload-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-}
-
-.upload-area h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.upload-area p {
-  font-size: 0.875rem;
   color: var(--color-text-muted);
+}
+
+/* ── Two-column layout ──────────────────── */
+.rup-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1.5rem;
+  align-items: start;
+  margin-bottom: 3rem;
+}
+
+/* ── Form card ──────────────────────────── */
+.rup-form-card {
+  background: #fff;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 14px;
+  padding: 2rem;
+}
+
+.rup-form-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111;
   margin-bottom: 1.5rem;
 }
 
-.file-input {
+/* ── Drop zone ──────────────────────────── */
+.rup-dropzone {
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+
+.rup-dropzone:hover,
+.rup-dropzone--active {
+  border-color: var(--color-primary, #4338ca);
+  background: rgba(67, 56, 202, 0.03);
+}
+
+.rup-dropzone--has-files {
+  padding: 1.25rem 2rem;
+}
+
+.rup-file-input {
   position: absolute;
   inset: 0;
   opacity: 0;
   cursor: pointer;
+  width: 100%;
+  height: 100%;
 }
 
-.uploaded-files {
-  background-color: var(--color-background-light);
-  padding: 1.5rem;
-  border-radius: var(--radius-md);
-  margin-bottom: 2rem;
+.rup-dropzone__icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  color: var(--color-primary, #4338ca);
+  opacity: 0.7;
 }
 
-.uploaded-files h4 {
-  font-size: 1rem;
+.rup-dropzone__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.rup-dropzone__title {
   font-weight: 600;
-  margin-bottom: 1rem;
+  color: #374151;
+  margin-bottom: 0.35rem;
 }
 
-.file-item {
+.rup-dropzone__hint {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Selected files ─────────────────────── */
+.rup-files {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background-color: var(--color-white);
-  border-radius: var(--radius-md);
-  margin-bottom: 0.5rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
 }
 
-.file-item button {
-  color: var(--color-error);
+.rup-file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.85rem;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.rup-file-item__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-primary, #4338ca);
+}
+
+.rup-file-item__name {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rup-file-item__size {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.rup-file-item__remove {
   background: none;
   border: none;
+  color: #9ca3af;
+  font-size: 1.25rem;
   cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.rup-file-item__remove:hover { color: #ef4444; }
+
+/* ── Meta fields ────────────────────────── */
+.rup-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.rup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.rup-field label {
   font-size: 0.875rem;
-}
-
-.upload-error {
-  color: var(--color-error);
-  font-size: 0.875rem;
-  margin: 0.5rem 0 1rem;
-}
-
-.upload-info {
-  padding: 1.5rem;
-  background-color: var(--color-background-alt);
-  border-radius: var(--radius-md);
-}
-
-.upload-info h4 {
-  font-size: 1rem;
   font-weight: 600;
+  color: #374151;
+}
+
+.rup-field__optional {
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.rup-field input,
+.rup-field textarea {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.rup-field input:focus,
+.rup-field textarea:focus {
+  outline: none;
+  border-color: var(--color-primary, #4338ca);
+  box-shadow: 0 0 0 3px rgba(67,56,202,0.1);
+}
+
+/* ── Error ──────────────────────────────── */
+.rup-error {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #dc2626;
+  font-size: 0.875rem;
   margin-bottom: 1rem;
 }
 
-.upload-info ul {
-  list-style: disc;
-  padding-left: 1.5rem;
-}
-
-.upload-info li {
-  margin-bottom: 0.5rem;
-  color: var(--color-text-secondary);
-}
-
-.prescriptions-list {
-  background-color: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-}
-
-.prescriptions-list h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
+/* ── Submit button ──────────────────────── */
+.rup-submit-btn {
+  width: 100%;
+  padding: 0.85rem;
+  font-size: 1rem;
   margin-bottom: 1.5rem;
 }
 
-.prescription-cards {
+.rup-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Tips ───────────────────────────────── */
+.rup-tips {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.rup-tips__title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #166534;
+  margin-bottom: 0.5rem;
+}
+
+.rup-tips ul {
+  padding-left: 1.25rem;
+  margin: 0;
+}
+
+.rup-tips li {
+  font-size: 0.8125rem;
+  color: #166534;
+  margin-bottom: 0.3rem;
+}
+
+/* ── Success screen ─────────────────────── */
+.rup-success {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.rup-success__icon {
+  width: 60px;
+  height: 60px;
+  background: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+  color: #fff;
+}
+
+.rup-success__icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.rup-success h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.rup-success p {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  margin-bottom: 0.5rem;
+}
+
+.rup-success__note {
+  max-width: 380px;
+  margin: 0 auto 1.5rem !important;
+}
+
+.rup-success__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin: 0 0 1.5rem;
+}
+
+.rup-success__step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.rup-success__step--done {
+  color: #059669;
+  font-weight: 600;
+}
+
+.rup-success__step-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #10b981;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rup-success__step-dot--pending {
+  background: #e5e7eb;
+  color: #9ca3af;
+}
+
+/* ── Sidebar info cards ─────────────────── */
+.rup-sidebar {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.prescription-card {
+.rup-info-card {
+  background: #fff;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.rup-info-card__icon {
+  width: 36px;
+  height: 36px;
+  background: rgba(67,56,202,0.1);
+  border-radius: 8px;
   display: flex;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  background-color: var(--color-background-light);
-  border-radius: var(--radius-lg);
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary, #4338ca);
+  margin-bottom: 0.75rem;
 }
 
-.prescription-card__icon {
-  font-size: 3rem;
+.rup-info-card__icon svg {
+  width: 18px;
+  height: 18px;
 }
 
-.prescription-card__content {
+.rup-info-card__icon--green {
+  background: rgba(16,185,129,0.1);
+  color: #10b981;
+}
+
+.rup-info-card__icon--amber {
+  background: rgba(245,158,11,0.1);
+  color: #f59e0b;
+}
+
+.rup-info-card h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 0.35rem;
+}
+
+.rup-info-card p {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.rup-consult-link {
+  text-align: center;
+  font-size: 0.8125rem;
+}
+
+/* ── History section ────────────────────── */
+.rup-history {
+  background: #fff;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 14px;
+  padding: 1.75rem 2rem;
+}
+
+.rup-history__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.rup-history__header h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.rup-history__count {
+  font-size: 0.75rem;
+  background: #f1f5f9;
+  color: var(--color-text-muted);
+  border-radius: 20px;
+  padding: 0.2rem 0.65rem;
+}
+
+.rup-cart-msg {
+  color: #059669;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding: 0.65rem 1rem;
+  background: #f0fdf4;
+  border-radius: 8px;
+}
+
+/* ── Empty state ────────────────────────── */
+.rup-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--color-text-muted);
+}
+
+.rup-empty svg {
+  width: 48px;
+  height: 48px;
+  opacity: 0.3;
+  margin: 0 auto 1rem;
+  display: block;
+}
+
+/* ── Prescription cards ─────────────────── */
+.rup-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.rup-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  transition: box-shadow 0.15s;
+}
+
+.rup-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.rup-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.rup-card__id {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-primary, #4338ca);
+  margin-bottom: 0.2rem;
+}
+
+.rup-card__doctor {
+  font-size: 0.875rem;
+  color: #374151;
+  margin-bottom: 0.15rem;
+}
+
+.rup-card__date {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Status badges ──────────────────────── */
+.rup-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rup-badge--approved      { background: rgba(16,185,129,0.12);  color: #059669; }
+.rup-badge--pending       { background: rgba(245,158,11,0.12);  color: #d97706; }
+.rup-badge--clarification { background: rgba(249,115,22,0.12);  color: #ea580c; }
+.rup-badge--rejected      { background: rgba(239,68,68,0.12);   color: #dc2626; }
+
+/* ── Card stepper ───────────────────────── */
+.rup-card__stepper {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid #f5f5f5;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.rup-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   flex: 1;
 }
 
-.prescription-card__content h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+.rup-step__track {
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
-.prescription-card__doctor,
-.prescription-card__date {
-  font-size: 0.875rem;
+.rup-step__dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #d1d5db;
+  background: #fff;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  color: #fff;
+  font-weight: 700;
+  z-index: 1;
+}
+
+.rup-step--done .rup-step__dot {
+  background: #10b981;
+  border-color: #10b981;
+}
+
+.rup-step--active .rup-step__dot {
+  background: var(--color-primary, #4338ca);
+  border-color: var(--color-primary, #4338ca);
+}
+
+.rup-step__line {
+  flex: 1;
+  height: 2px;
+  background: #e5e7eb;
+}
+
+.rup-step__line--done { background: #10b981; }
+
+.rup-step__label {
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: 0.35rem;
+  line-height: 1.2;
+}
+
+.rup-step--done .rup-step__label,
+.rup-step--active .rup-step__label {
+  color: #111;
+  font-weight: 600;
+}
+
+.rup-card__clarify-note {
+  font-size: 0.8125rem;
+  color: #ea580c;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.rup-card__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.rup-delivered-badge {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+/* ── Modal ──────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.rup-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+}
+
+.rup-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.rup-modal__header h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.rup-modal__sub {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: 0.2rem;
+}
+
+.rup-modal__close {
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  color: #9ca3af;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.rup-modal__close:hover { color: #111; }
+
+.rup-modal__body {
+  padding: 1.5rem;
+}
+
+.rup-modal__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.rup-modal__label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--color-text-muted);
   margin-bottom: 0.25rem;
 }
 
-.prescription-status {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-full);
+.rup-modal__section {
+  margin-bottom: 1.25rem;
+}
+
+.rup-modal__section-title {
   font-size: 0.75rem;
-  font-weight: 600;
-  margin-top: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  margin-bottom: 0.65rem;
 }
 
-.prescription-status--verified {
-  background-color: rgba(16, 185, 129, 0.1);
-  color: var(--color-success);
+.rup-modal__file {
+  font-size: 0.875rem;
+  padding: 0.4rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  margin-bottom: 0.35rem;
 }
 
-.prescription-status--pending-review {
-  background-color: rgba(245, 158, 11, 0.1);
-  color: var(--color-warning);
-}
-
-.prescription-status--clarification {
-  background-color: rgba(239, 68, 68, 0.12);
-  color: var(--color-error);
-}
-
-.prescription-card__actions {
+.rup-modal__item {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 0.4rem;
 }
 
-@media (max-width: 768px) {
-  .upload-meta-grid {
+.rup-modal__item-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.rup-modal__item-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.1rem;
+}
+
+.rup-modal__item-qty {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--color-primary, #4338ca);
+}
+
+.rup-modal__notes {
+  font-size: 0.875rem;
+  color: #374151;
+  background: #f8fafc;
+  border-left: 3px solid var(--color-primary, #4338ca);
+  padding: 0.65rem 0.85rem;
+  border-radius: 0 8px 8px 0;
+}
+
+.rup-modal__footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* ── Responsive ─────────────────────────── */
+@media (max-width: 900px) {
+  .rup-layout {
     grid-template-columns: 1fr;
   }
 
-  .prescription-card {
+  .rup-sidebar {
+    order: -1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .rup-consult-link {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .rup-page {
+    padding: 1.5rem 0 3rem;
+  }
+
+  .rup-form-card,
+  .rup-history {
+    padding: 1.25rem;
+  }
+
+  .rup-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .rup-modal__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rup-card__top {
     flex-direction: column;
   }
 
-  .prescription-card__actions {
-    flex-direction: row;
-  }
-
-  .prescription-card__actions .btn {
-    flex: 1;
+  .rup-step__label {
+    font-size: 0.5rem;
   }
 }
