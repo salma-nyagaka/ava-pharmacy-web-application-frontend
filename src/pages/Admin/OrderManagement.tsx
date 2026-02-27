@@ -4,6 +4,8 @@ import { type AdminOrder, getOrderTotals, loadAdminOrders, saveAdminOrders } fro
 import { logAdminAction } from '../../data/adminAudit'
 import './OrderManagement.css'
 
+const formatCurrency = (value: number) => `KSh ${value.toLocaleString()}`
+
 function OrderManagement() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
@@ -47,6 +49,9 @@ function OrderManagement() {
   }
 
   const [confirmPending, setConfirmPending] = useState<{ orderId: string; status: AdminOrder['status']; label: string } | null>(null)
+  const [refundTarget, setRefundTarget] = useState<AdminOrder | null>(null)
+  const [refundNote, setRefundNote] = useState('')
+  const [refundReasonError, setRefundReasonError] = useState(false)
 
   const requestStatusChange = (orderId: string, status: AdminOrder['status'], label: string) => {
     setConfirmPending({ orderId, status, label })
@@ -65,6 +70,36 @@ function OrderManagement() {
       detail: `Status set to ${status}`,
     })
     setConfirmPending(null)
+  }
+
+  const openRefundModal = (order: AdminOrder) => {
+    setRefundTarget(order)
+    setRefundNote('')
+    setRefundReasonError(false)
+  }
+
+  const confirmRefund = () => {
+    if (!refundTarget) return
+    if (!refundNote.trim()) {
+      setRefundReasonError(true)
+      return
+    }
+    setOrders((prev) =>
+      prev.map((order) =>
+        order.id === refundTarget.id
+          ? { ...order, status: 'refunded', refundReason: refundNote.trim() }
+          : order
+      )
+    )
+    logAdminAction({
+      action: 'Update order status',
+      entity: 'Order',
+      entityId: refundTarget.id,
+      detail: `Status set to refunded · ${refundNote.trim()}`,
+    })
+    setRefundTarget(null)
+    setRefundNote('')
+    setRefundReasonError(false)
   }
 
   return (
@@ -163,8 +198,12 @@ function OrderManagement() {
                     <button className="btn-sm btn--primary" onClick={() => requestStatusChange(order.id, 'delivered', 'Mark as Delivered')}>
                       Deliver
                     </button>
-                    <button className="btn-sm btn--outline" onClick={() => requestStatusChange(order.id, 'refunded', 'Mark as Refunded')}>
-                      Refund
+                    <button
+                      className="btn-sm btn--outline"
+                      onClick={() => openRefundModal(order)}
+                      disabled={order.status === 'cancelled' || order.status === 'refunded'}
+                    >
+                      Issue refund
                     </button>
                     <button className="btn-sm btn--danger" onClick={() => requestStatusChange(order.id, 'cancelled', 'Cancel Order')}>
                       Cancel
@@ -233,6 +272,69 @@ function OrderManagement() {
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" onClick={() => setConfirmPending(null)}>No, keep</button>
               <button className="btn btn--primary btn--sm" onClick={confirmStatusChange}>Yes, confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {refundTarget && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setRefundTarget(null)
+            setRefundReasonError(false)
+          }}
+        >
+          <div className="modal od-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal__header">
+              <h2>Issue refund</h2>
+              <button
+                className="modal__close"
+                type="button"
+                onClick={() => {
+                  setRefundTarget(null)
+                  setRefundReasonError(false)
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal__content">
+              <p className="od-modal-warning">
+                Refund <strong>{formatCurrency(getOrderTotals(refundTarget).total)}</strong> to <strong>{refundTarget.customer}</strong>?
+              </p>
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label htmlFor="refund-note">
+                  Reason <span className="od-required">Required</span>
+                </label>
+                <input
+                  id="refund-note"
+                  type="text"
+                  value={refundNote}
+                  onChange={(e) => {
+                    setRefundNote(e.target.value)
+                    setRefundReasonError(false)
+                  }}
+                  placeholder="e.g. Damaged items returned by customer"
+                  style={{ borderColor: refundReasonError ? '#dc2626' : undefined }}
+                />
+                {refundReasonError && <p className="od-field-error">A reason is required to issue a refund.</p>}
+              </div>
+            </div>
+            <div className="modal__footer">
+              <button
+                className="btn btn--outline btn--sm"
+                type="button"
+                onClick={() => {
+                  setRefundTarget(null)
+                  setRefundReasonError(false)
+                }}
+              >
+                Cancel
+              </button>
+              <button className="btn btn--primary btn--sm" type="button" onClick={confirmRefund}>
+                Confirm refund
+              </button>
             </div>
           </div>
         </div>

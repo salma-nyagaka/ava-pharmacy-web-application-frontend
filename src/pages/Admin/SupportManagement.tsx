@@ -21,6 +21,7 @@ function SupportManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | SupportStatus>('all')
   const [selectedPriority, setSelectedPriority] = useState<'all' | SupportPriority>('all')
+  const [quickFilter, setQuickFilter] = useState<'all' | 'unassigned' | 'high'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [activeTicket, setActiveTicket] = useState<SupportTicket | null>(null)
   const [internalNote, setInternalNote] = useState('')
@@ -37,7 +38,7 @@ function SupportManagement() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedStatus, selectedPriority])
+  }, [searchTerm, selectedStatus, selectedPriority, quickFilter])
 
   useEffect(() => {
     if (!activeTicket) return
@@ -48,12 +49,16 @@ function SupportManagement() {
   const filteredTickets = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
     const filtered = tickets.filter((ticket) => {
+      const matchesQuickFilter =
+        quickFilter === 'all' ||
+        (quickFilter === 'unassigned' && ticket.assignedTo === 'Unassigned') ||
+        (quickFilter === 'high' && ticket.priority === 'High')
       const matchesStatus = selectedStatus === 'all' || ticket.status === selectedStatus
       const matchesPriority = selectedPriority === 'all' || ticket.priority === selectedPriority
-      if (!query) return matchesStatus && matchesPriority
+      if (!query) return matchesQuickFilter && matchesStatus && matchesPriority
       const matchesQuery = [ticket.id, ticket.customer, ticket.email, ticket.subject, ticket.referenceId]
         .some((value) => value.toLowerCase().includes(query))
-      return matchesStatus && matchesPriority && matchesQuery
+      return matchesQuickFilter && matchesStatus && matchesPriority && matchesQuery
     })
     return filtered.sort((a, b) => {
       if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
@@ -71,9 +76,35 @@ function SupportManagement() {
     return {
       open: tickets.filter((ticket) => ticket.status === 'Open').length,
       inProgress: tickets.filter((ticket) => ticket.status === 'In Progress').length,
+      unassigned: tickets.filter((ticket) => ticket.assignedTo === 'Unassigned').length,
       highPriority: tickets.filter((ticket) => ticket.priority === 'High').length,
     }
   }, [tickets])
+
+  const quickCounts = useMemo(() => {
+    return {
+      all: tickets.length,
+      unassigned: tickets.filter((ticket) => ticket.assignedTo === 'Unassigned').length,
+      high: tickets.filter((ticket) => ticket.priority === 'High').length,
+    }
+  }, [tickets])
+
+  const hasFilters =
+    searchTerm.trim().length > 0 || selectedStatus !== 'all' || selectedPriority !== 'all' || quickFilter !== 'all'
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setSelectedStatus('all')
+    setSelectedPriority('all')
+    setQuickFilter('all')
+  }
+
+  const applyQuickFilter = (filter: 'all' | 'unassigned' | 'high') => {
+    setQuickFilter(filter)
+    setSearchTerm('')
+    setSelectedStatus('all')
+    setSelectedPriority('all')
+  }
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -119,26 +150,64 @@ function SupportManagement() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
             Back
           </button>
-          <h1>Support & Escalations</h1>
+          <div>
+            <h1>Support & Escalations</h1>
+            <p className="support-management__subtitle">Prioritize tickets, assign owners, and keep resolution on track.</p>
+          </div>
+        </div>
+        <div className="support-header__actions">
+          <button className="btn btn--outline btn--sm" type="button">Export</button>
+          <Link className="btn btn--outline btn--sm" to="/admin/settings">Support settings</Link>
         </div>
       </div>
 
       <div className="support-stats">
-        <div className="support-stat">
+        <div className="support-stat support-stat--open">
           <span className="support-stat__label">Open tickets</span>
           <span className="support-stat__value">{stats.open}</span>
         </div>
-        <div className="support-stat">
+        <div className="support-stat support-stat--progress">
           <span className="support-stat__label">In progress</span>
           <span className="support-stat__value">{stats.inProgress}</span>
         </div>
-        <div className="support-stat">
+        <div className="support-stat support-stat--unassigned">
+          <span className="support-stat__label">Unassigned</span>
+          <span className="support-stat__value">{stats.unassigned}</span>
+        </div>
+        <div className="support-stat support-stat--priority">
           <span className="support-stat__label">High priority</span>
           <span className="support-stat__value">{stats.highPriority}</span>
         </div>
       </div>
 
-      <div className="admin-page__filters">
+      <div className="support-filters">
+        <div className="support-filters__quick">
+          <button
+            className={`support-pill ${quickFilter === 'all' ? 'support-pill--active' : ''}`}
+            type="button"
+            onClick={() => applyQuickFilter('all')}
+          >
+            All tickets
+            <span className="support-pill__count">{quickCounts.all}</span>
+          </button>
+          <button
+            className={`support-pill ${quickFilter === 'unassigned' ? 'support-pill--active' : ''}`}
+            type="button"
+            onClick={() => applyQuickFilter('unassigned')}
+          >
+            Unassigned
+            <span className="support-pill__count">{quickCounts.unassigned}</span>
+          </button>
+          <button
+            className={`support-pill ${quickFilter === 'high' ? 'support-pill--active' : ''}`}
+            type="button"
+            onClick={() => applyQuickFilter('high')}
+          >
+            High priority
+            <span className="support-pill__count">{quickCounts.high}</span>
+          </button>
+        </div>
+        <div className="admin-page__filters">
         <input
           type="text"
           placeholder="Search by ticket ID, customer, issue, reference..."
@@ -157,6 +226,10 @@ function SupportManagement() {
           <option value="Medium">Medium</option>
           <option value="Low">Low</option>
         </select>
+        {hasFilters && (
+          <button className="pm-clear-filter" type="button" onClick={clearFilters}>✕ Clear filters</button>
+        )}
+        </div>
       </div>
 
       <div className="admin-page__table">
@@ -165,17 +238,17 @@ function SupportManagement() {
             <tr>
               <th>Ticket</th>
               <th>Customer</th>
-              <th>Channel</th>
               <th>Reference</th>
               <th>Priority</th>
               <th>Status</th>
               <th>Assigned</th>
+              <th>Last activity</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {pagedTickets.map((ticket) => (
-              <tr key={ticket.id}>
+              <tr key={ticket.id} className={ticket.priority === 'High' ? 'support-row support-row--high' : 'support-row'}>
                 <td>
                   <div className="support-ticket-id">{ticket.id}</div>
                   <div className="support-ticket-subject">{ticket.subject}</div>
@@ -184,12 +257,14 @@ function SupportManagement() {
                   <div>{ticket.customer}</div>
                   <div className="support-ticket-subject">{ticket.email}</div>
                 </td>
-                <td>{ticket.channel}</td>
                 <td>
-                  {ticket.channel === 'Order' && (
-                    <Link to={`/admin/orders/${ticket.referenceId}`}>{ticket.referenceId}</Link>
-                  )}
-                  {ticket.channel !== 'Order' && <span>{ticket.referenceId}</span>}
+                  <div className="support-reference">
+                    <span className="support-reference__channel">{ticket.channel}</span>
+                    {ticket.channel === 'Order' && (
+                      <Link to={`/admin/orders/${ticket.referenceId}`}>{ticket.referenceId}</Link>
+                    )}
+                    {ticket.channel !== 'Order' && <span>{ticket.referenceId}</span>}
+                  </div>
                 </td>
                 <td>
                   <span className={`support-priority support-priority--${ticket.priority.toLowerCase()}`}>
@@ -202,6 +277,9 @@ function SupportManagement() {
                   </span>
                 </td>
                 <td>{ticket.assignedTo}</td>
+                <td className="support-activity">
+                  {ticket.notes?.[0]?.time ?? ticket.createdAt}
+                </td>
                 <td>
                   <div className="support-actions">
                     <button className="btn-sm btn--outline" type="button" onClick={() => setActiveTicket(ticket)}>
@@ -232,6 +310,9 @@ function SupportManagement() {
 
       {filteredTickets.length > 0 && (
         <div className="support-pagination">
+          <span className="support-pagination__info">
+            Showing {startIndex + 1}-{Math.min(startIndex + PAGE_SIZE, filteredTickets.length)} of {filteredTickets.length}
+          </span>
           <button
             className="pagination__button"
             type="button"
@@ -343,16 +424,6 @@ function SupportManagement() {
                 </button>
               </div>
 
-              <div className="support-modal__audit">
-                <p className="support-modal__label">Timeline</p>
-                <ul>
-                  {activeTicket.notes.map((entry, index) => (
-                    <li key={`${entry.time}-${index}`}>
-                      <strong>{entry.time}</strong> · {entry.author}: {entry.message}
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
             <div className="support-modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveTicket(null)}>

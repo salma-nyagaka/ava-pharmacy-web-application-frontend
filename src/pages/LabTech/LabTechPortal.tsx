@@ -16,6 +16,7 @@ import {
   updateLabRequestStatus,
   upsertLabResult,
 } from '../../data/labs'
+import { loadLabPartners } from '../../data/labPartners'
 import './LabTechPortal.css'
 
 type Tab = 'overview' | 'queue' | 'mine'
@@ -57,6 +58,13 @@ function LabTechPortal() {
   const [results, setResults] = useState<LabResult[]>(() => loadLabResults())
   const tests = useMemo(() => loadLabTests(), [])
   const categoryDefs = useMemo(() => loadLabCategoryDefs(), [])
+  const labPartners = useMemo(() => loadLabPartners(), [])
+  const labTechLookup = useMemo(() => {
+    const entries = labPartners.flatMap((partner) =>
+      partner.techs.map((tech) => ({ ...tech, partnerId: partner.id }))
+    )
+    return new Map(entries.map((tech) => [tech.name.toLowerCase(), tech]))
+  }, [labPartners])
 
   const [panelId, setPanelId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -166,7 +174,8 @@ function LabTechPortal() {
   }
 
   const handleAssignSelf = (requestId: string) => {
-    setRequests((prev) => assignLabTechnician(prev, requestId, actorName))
+    const tech = labTechLookup.get(actorName.toLowerCase())
+    setRequests((prev) => assignLabTechnician(prev, requestId, actorName, tech?.id, tech?.partnerId))
   }
 
   const handleCancel = (requestId: string) => {
@@ -836,18 +845,6 @@ function LabTechPortal() {
                 </div>
               )}
 
-              {/* Audit trail */}
-              <div className="ltp-sp-section">
-                <p className="ltp-sp-section-title">Audit trail</p>
-                <ul className="ltp-audit-list">
-                  {(panelRequest.audit ?? []).map((entry, i) => (
-                    <li key={`${entry.time}-${i}`}>
-                      <span className="ltp-audit-time">{entry.time}</span>
-                      <span>{entry.action}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
 
             <div className="ltp-sp-footer">

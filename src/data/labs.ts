@@ -55,6 +55,8 @@ export interface LabRequest {
   orderingDoctor?: string
   notes?: string
   assignedTechnician?: string
+  labPartnerId?: string
+  labTechId?: string
   resultId?: string
   audit: LabAuditEntry[]
 }
@@ -133,6 +135,8 @@ const defaultLabRequests: LabRequest[] = [
     channel: 'Walk-in',
     orderingDoctor: 'Dr. Sarah Johnson',
     assignedTechnician: 'Samuel Kiptoo',
+    labPartnerId: 'LAB-P-001',
+    labTechId: 'LAB-T-001',
     audit: [
       { time: '2026-02-06 02:10 PM', action: 'Lab request created' },
       { time: '2026-02-07 09:58 AM', action: 'Sample collected at lab desk' },
@@ -152,6 +156,7 @@ const defaultLabRequests: LabRequest[] = [
     channel: 'Collection',
     orderingDoctor: 'Dr. Michael Chen',
     notes: 'Patient prefers home collection.',
+    labPartnerId: 'LAB-P-001',
     audit: [{ time: '2026-02-06 01:20 PM', action: 'Lab request created' }],
   },
   {
@@ -166,6 +171,8 @@ const defaultLabRequests: LabRequest[] = [
     priority: 'Routine',
     channel: 'Walk-in',
     assignedTechnician: 'Samuel Kiptoo',
+    labPartnerId: 'LAB-P-001',
+    labTechId: 'LAB-T-001',
     resultId: 'RES-2001',
     audit: [
       { time: '2026-02-05 11:10 AM', action: 'Lab request created' },
@@ -344,14 +351,40 @@ export const updateLabRequestStatus = (
 export const assignLabTechnician = (
   requests: LabRequest[],
   requestId: string,
-  technician: string
+  technician: string,
+  techId?: string,
+  partnerId?: string
 ) => {
   return requests.map((request) => {
     if (request.id !== requestId) return request
     return addAudit(
-      { ...request, assignedTechnician: technician },
+      {
+        ...request,
+        assignedTechnician: technician,
+        labTechId: techId ?? request.labTechId,
+        labPartnerId: partnerId ?? request.labPartnerId,
+      },
       `Assigned technician ${technician}`
     )
+  })
+}
+
+export const assignLabPartner = (
+  requests: LabRequest[],
+  requestId: string,
+  partnerId: string | undefined,
+  partnerName?: string,
+  clearTechnician = false
+) => {
+  return requests.map((request) => {
+    if (request.id !== requestId) return request
+    const next: LabRequest = {
+      ...request,
+      labPartnerId: partnerId || undefined,
+      ...(clearTechnician ? { assignedTechnician: undefined, labTechId: undefined } : {}),
+    }
+    const label = partnerName ? `Assigned lab partner ${partnerName}` : partnerId ? `Assigned lab partner ${partnerId}` : 'Lab partner cleared'
+    return addAudit(next, label)
   })
 }
 

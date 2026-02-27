@@ -1,0 +1,276 @@
+.lp-page .admin-page__header h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.lp-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0.2rem 0 0;
+}
+
+.lp-stats {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.lp-stat {
+  flex: 1;
+  min-width: 120px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0.875rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.lp-stat__value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.lp-stat__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.lp-stat--pending .lp-stat__value { color: #d97706; }
+.lp-stat--verified .lp-stat__value { color: #16a34a; }
+.lp-stat--suspended .lp-stat__value { color: #dc2626; }
+
+.lp-name {
+  font-weight: 700;
+  margin: 0;
+  color: #111;
+}
+
+.lp-meta {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  margin: 0.15rem 0 0;
+}
+
+.lp-tech-count {
+  font-weight: 600;
+  color: #111;
+}
+
+.lp-status {
+  display: inline-flex;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lp-status--pending {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.lp-status--verified {
+  background: #ecfdf3;
+  color: #15803d;
+}
+
+.lp-status--suspended {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.lp-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lp-empty {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--color-text-muted);
+}
+
+.lp-modal {
+  max-width: 560px;
+}
+
+.lp-modal--wide {
+  max-width: 900px;
+}
+
+.lp-modal__subtitle {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  margin: 0.2rem 0 0;
+}
+
+.lp-manage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 1.5rem;
+}
+
+.lp-section-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin: 0 0 0.6rem;
+}
+
+.lp-detail-card {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  display: grid;
+  gap: 0.6rem;
+  background: #fff;
+}
+
+.lp-detail-card span {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.lp-detail-card strong {
+  font-size: 0.9rem;
+  color: #111;
+}
+
+.lp-tech-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.lp-tech-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  background: #fff;
+}
+
+.lp-tech-card p {
+  margin: 0;
+  font-weight: 600;
+  color: #111;
+}
+
+.lp-tech-card span {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.lp-tech-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lp-tech-status--active {
+  color: #15803d;
+}
+
+.lp-tech-status--inactive {
+  color: #9ca3af;
+}
+
+.lp-empty-state {
+  padding: 0.75rem;
+  border: 1px dashed #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.lp-add-tech {
+  margin-top: 1rem;
+}
+
+.lp-add-tech__action {
+  display: flex;
+  align-items: flex-end;
+}
+
+/* ── Modal base ───────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.125rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal__header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.modal__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #9ca3af;
+  line-height: 1;
+  padding: 0;
+}
+
+.modal__content {
+  padding: 1.25rem 1.5rem;
+}
+
+.modal__footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+@media (max-width: 900px) {
+  .lp-manage-grid {
+    grid-template-columns: 1fr;
+  }
+}

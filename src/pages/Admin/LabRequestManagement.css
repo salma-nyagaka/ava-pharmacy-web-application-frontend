@@ -250,6 +250,13 @@
   color: #374151;
 }
 
+.lrm-tech__partner {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
 .lrm-unassigned {
   font-size: 0.78rem;
   color: #d1d5db;

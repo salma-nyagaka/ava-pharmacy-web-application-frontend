@@ -16,6 +16,7 @@ import {
   updateLabRequestStatus,
   upsertLabResult,
 } from '../../data/labs'
+import { loadLabPartners } from '../../data/labPartners'
 import { loadAdminUsers } from '../Admin/adminUsers'
 import './LabDashboardPage.css'
 
@@ -55,6 +56,14 @@ function LabDashboardPage() {
     saveLabResults(results)
   }, [results])
 
+  const labPartners = useMemo(() => loadLabPartners(), [])
+  const labTechLookup = useMemo(() => {
+    const entries = labPartners.flatMap((partner) =>
+      partner.techs.map((tech) => ({ ...tech, partnerId: partner.id }))
+    )
+    return new Map(entries.map((tech) => [tech.name.toLowerCase(), tech]))
+  }, [labPartners])
+
   const technicianOptions = useMemo(() => {
     const fromUsers = loadAdminUsers()
       .filter((user) => user.status === 'active' && user.role === 'lab_technician')
@@ -64,9 +73,10 @@ function LabDashboardPage() {
       .map((request) => request.assignedTechnician)
       .filter((value): value is string => Boolean(value))
 
-    const merged = Array.from(new Set([...fromUsers, ...fromRequests, 'Lab Shift A', 'Lab Shift B']))
+    const fromPartners = labPartners.flatMap((partner) => partner.techs.map((tech) => tech.name))
+    const merged = Array.from(new Set([...fromUsers, ...fromPartners, ...fromRequests, 'Lab Shift A', 'Lab Shift B']))
     return merged
-  }, [requests])
+  }, [requests, labPartners])
 
   const resultByRequestId = useMemo(() => {
     return results.reduce<Record<string, LabResult>>((acc, result) => {
@@ -144,7 +154,8 @@ function LabDashboardPage() {
 
   const handleAssignTechnician = () => {
     if (!activeRequest || !assignedTechnician) return
-    setRequests((prev) => assignLabTechnician(prev, activeRequest.id, assignedTechnician))
+    const tech = labTechLookup.get(assignedTechnician.toLowerCase())
+    setRequests((prev) => assignLabTechnician(prev, activeRequest.id, assignedTechnician, tech?.id, tech?.partnerId))
   }
 
   const handleProgressStatus = (request: LabRequest) => {

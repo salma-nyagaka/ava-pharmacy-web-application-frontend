@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './AdminShared.css'
 import './Reports.css'
@@ -16,40 +16,17 @@ function Reports() {
     navigate('/admin')
   }
 
-  const salesData = [
-    { day: 'Mon', sales: 12500 },
-    { day: 'Tue', sales: 15200 },
-    { day: 'Wed', sales: 18600 },
-    { day: 'Thu', sales: 14300 },
-    { day: 'Fri', sales: 21400 },
-    { day: 'Sat', sales: 25800 },
-    { day: 'Sun', sales: 19200 },
+  const revenueData = [
+    { day: 'Mon', value: 12500 },
+    { day: 'Tue', value: 15200 },
+    { day: 'Wed', value: 18600 },
+    { day: 'Thu', value: 14300 },
+    { day: 'Fri', value: 21400 },
+    { day: 'Sat', value: 25800 },
+    { day: 'Sun', value: 19200 },
   ]
 
-  const maxSales = Math.max(...salesData.map(d => d.sales))
-
-  const topProducts = [
-    { name: 'Paracetamol 500mg', sales: 245, revenue: 61250 },
-    { name: 'Vitamin C 1000mg', sales: 198, revenue: 158400 },
-    { name: 'Ibuprofen 400mg', sales: 176, revenue: 61600 },
-    { name: 'Amoxicillin 250mg', sales: 143, revenue: 171600 },
-    { name: 'Cetrizine 10mg', sales: 132, revenue: 59400 },
-  ]
-
-  const categoryRevenue = [
-    { category: 'Pain Relief', revenue: 285000, percentage: 35 },
-    { category: 'Supplements', revenue: 230000, percentage: 28 },
-    { category: 'Antibiotics', revenue: 180000, percentage: 22 },
-    { category: 'Allergy', revenue: 82000, percentage: 10 },
-    { category: 'Digestive', revenue: 41000, percentage: 5 },
-  ]
-
-  const inventoryPerformance = [
-    { label: 'Low-stock items', value: 18 },
-    { label: 'Out of stock', value: 6 },
-    { label: 'Fast movers', value: 12 },
-    { label: 'Slow movers', value: 9 },
-  ]
+  const maxRevenue = Math.max(...revenueData.map((d) => d.value))
 
   const doctorPerformance = [
     { name: 'Dr. Sarah Johnson', consults: 42, rating: 4.8 },
@@ -57,12 +34,42 @@ function Reports() {
     { name: 'Dr. Mercy Otieno', consults: 28, rating: 4.7 },
   ]
 
-  const prescriptionStats = [
-    { label: 'Approved', value: 128 },
-    { label: 'Pending', value: 22 },
-    { label: 'Clarification', value: 9 },
-    { label: 'Rejected', value: 6 },
+  const orderPipeline = [
+    { label: 'Pending', value: 18, tone: 'warning' },
+    { label: 'Processing', value: 24, tone: 'info' },
+    { label: 'Shipped', value: 12, tone: 'neutral' },
+    { label: 'Delivered', value: 46, tone: 'success' },
   ]
+
+  const prescriptionPipeline = [
+    { label: 'Pending review', value: 22, tone: 'warning' },
+    { label: 'Approved', value: 128, tone: 'success' },
+    { label: 'Clarification', value: 9, tone: 'info' },
+    { label: 'Rejected', value: 6, tone: 'danger' },
+  ]
+
+  const labPipeline = [
+    { label: 'Awaiting pickup', value: 14, tone: 'warning' },
+    { label: 'In progress', value: 19, tone: 'info' },
+    { label: 'Results published', value: 33, tone: 'success' },
+  ]
+
+  const payoutHealth = [
+    { label: 'Pending payouts', value: 'KSh 224,500', detail: '24 requests', tone: 'warning' },
+    { label: 'Paid this period', value: 'KSh 612,800', detail: '178 payouts', tone: 'success' },
+    { label: 'Failed payouts', value: '4', detail: 'Needs retry', tone: 'danger' },
+  ]
+
+  const kpis = useMemo(
+    () => [
+      { label: 'Revenue', value: 'KSh 818,000', change: '+12.5%', tone: 'positive' },
+      { label: 'Orders processed', value: '1,247', change: '+8.3%', tone: 'positive' },
+      { label: 'Prescriptions dispensed', value: '612', change: '+5.4%', tone: 'positive' },
+      { label: 'Lab results published', value: '284', change: '+9.1%', tone: 'positive' },
+      { label: 'Payouts pending', value: '24', change: '-3.2%', tone: 'negative' },
+    ],
+    []
+  )
 
   return (
     <div className="reports">
@@ -72,52 +79,52 @@ function Reports() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
             Back
           </button>
-          <h1>Reports & Analytics</h1>
+          <div className="reports__title">
+            <h1>Reports</h1>
+            <p>Operational insights for orders, prescriptions, lab tasks, and payouts.</p>
+          </div>
         </div>
-        <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
-          <option value="7days">Last 7 Days</option>
-          <option value="30days">Last 30 Days</option>
-          <option value="90days">Last 90 Days</option>
-          <option value="year">This Year</option>
-        </select>
+        <div className="reports__header-actions">
+          <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
+            <option value="7days">Last 7 Days</option>
+            <option value="30days">Last 30 Days</option>
+            <option value="90days">Last 90 Days</option>
+            <option value="year">This Year</option>
+          </select>
+          <button className="btn btn--outline">Export to Excel</button>
+          <button className="btn btn--outline">Export to PDF</button>
+          <button className="btn btn--primary">Generate report</button>
+        </div>
       </div>
 
       <div className="reports__overview">
-        <div className="stat-card">
-          <div className="stat-card__label">Total Revenue</div>
-          <div className="stat-card__value">KSh 818,000</div>
-          <div className="stat-card__change stat-card__change--positive">+12.5%</div>
+      {kpis.map((kpi) => (
+        <div key={kpi.label} className="stat-card">
+          <div className="stat-card__label">{kpi.label}</div>
+          <div className="stat-card__value">{kpi.value}</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-card__label">Total Orders</div>
-          <div className="stat-card__value">1,247</div>
-          <div className="stat-card__change stat-card__change--positive">+8.3%</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card__label">Average Order Value</div>
-          <div className="stat-card__value">KSh 656</div>
-          <div className="stat-card__change stat-card__change--negative">-2.1%</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card__label">New Customers</div>
-          <div className="stat-card__value">342</div>
-          <div className="stat-card__change stat-card__change--positive">+15.7%</div>
-        </div>
-      </div>
+      ))}
+    </div>
 
       <div className="reports__grid">
         <div className="report-card">
-          <h2>Sales Overview</h2>
+          <div className="report-card__header">
+            <div>
+              <h2>Revenue trend</h2>
+              <p>Daily revenue performance for the selected period.</p>
+            </div>
+            <span className="report-card__badge">KSh 818,000 total</span>
+          </div>
           <div className="chart">
             <div className="chart__bars">
-              {salesData.map((data) => (
+              {revenueData.map((data) => (
                 <div key={data.day} className="chart__bar-wrapper">
                   <div
                     className="chart__bar"
-                    style={{ height: `${(data.sales / maxSales) * 100}%` }}
+                    style={{ height: `${(data.value / maxRevenue) * 100}%` }}
                   >
                     <span className="chart__value">
-                      {(data.sales / 1000).toFixed(1)}k
+                      {(data.value / 1000).toFixed(1)}k
                     </span>
                   </div>
                   <span className="chart__label">{data.day}</span>
@@ -128,89 +135,86 @@ function Reports() {
         </div>
 
         <div className="report-card">
-          <h2>Top Products</h2>
-          <div className="top-products">
-            {topProducts.map((product, index) => (
-              <div key={product.name} className="top-product">
-                <div className="top-product__rank">#{index + 1}</div>
-                <div className="top-product__info">
-                  <div className="top-product__name">{product.name}</div>
-                  <div className="top-product__stats">
-                    {product.sales} sales · KSh {product.revenue.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="report-card__header">
+            <div>
+              <h2>Order pipeline</h2>
+              <p>Track the current order queue by status.</p>
+            </div>
+            <button className="report-card__link" type="button">View orders</button>
           </div>
-        </div>
-
-        <div className="report-card">
-          <h2>Revenue by Category</h2>
-          <div className="category-revenue">
-            {categoryRevenue.map((item) => (
-              <div key={item.category} className="category-item">
-                <div className="category-item__header">
-                  <span className="category-item__name">{item.category}</span>
-                  <span className="category-item__revenue">
-                    KSh {item.revenue.toLocaleString()}
-                  </span>
-                </div>
-                <div className="category-item__bar">
-                  <div
-                    className="category-item__fill"
-                    style={{ width: `${item.percentage}%` }}
-                  ></div>
-                </div>
-                <div className="category-item__percentage">{item.percentage}%</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="report-card">
-          <h2>Customer Insights</h2>
           <div className="insights">
-            <div className="insight-row">
-              <span className="insight-label">Total Customers</span>
-              <span className="insight-value">2,847</span>
-            </div>
-            <div className="insight-row">
-              <span className="insight-label">Active Customers</span>
-              <span className="insight-value">1,923</span>
-            </div>
-            <div className="insight-row">
-              <span className="insight-label">Repeat Customers</span>
-              <span className="insight-value">1,245</span>
-            </div>
-            <div className="insight-row">
-              <span className="insight-label">Customer Retention</span>
-              <span className="insight-value">67.5%</span>
-            </div>
-            <div className="insight-row">
-              <span className="insight-label">Average Orders per Customer</span>
-              <span className="insight-value">3.8</span>
-            </div>
-            <div className="insight-row">
-              <span className="insight-label">Customer Lifetime Value</span>
-              <span className="insight-value">KSh 2,493</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="report-card">
-          <h2>Inventory Performance</h2>
-          <div className="insights">
-            {inventoryPerformance.map((item) => (
+            {orderPipeline.map((item) => (
               <div key={item.label} className="insight-row">
                 <span className="insight-label">{item.label}</span>
-                <span className="insight-value">{item.value}</span>
+                <span className={`insight-value insight-value--${item.tone}`}>{item.value}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="report-card">
-          <h2>Doctor & Consultation Performance</h2>
+          <div className="report-card__header">
+            <div>
+              <h2>Prescription queue</h2>
+              <p>Keep prescription approvals and clarifications on track.</p>
+            </div>
+            <button className="report-card__link" type="button">View prescriptions</button>
+          </div>
+          <div className="insights">
+            {prescriptionPipeline.map((item) => (
+              <div key={item.label} className="insight-row">
+                <span className="insight-label">{item.label}</span>
+                <span className={`insight-value insight-value--${item.tone}`}>{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="report-card">
+          <div className="report-card__header">
+            <div>
+              <h2>Lab operations</h2>
+              <p>Work in progress and results published.</p>
+            </div>
+            <button className="report-card__link" type="button">View lab requests</button>
+          </div>
+          <div className="insights">
+            {labPipeline.map((item) => (
+              <div key={item.label} className="insight-row">
+                <span className="insight-label">{item.label}</span>
+                <span className={`insight-value insight-value--${item.tone}`}>{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="report-card">
+          <div className="report-card__header">
+            <div>
+              <h2>Payout health</h2>
+              <p>Settlement snapshot for the finance team.</p>
+            </div>
+            <button className="report-card__link" type="button">View payouts</button>
+          </div>
+          <div className="payout-health">
+            {payoutHealth.map((item) => (
+              <div key={item.label} className={`payout-health__item payout-health__item--${item.tone}`}>
+                <span className="payout-health__label">{item.label}</span>
+                <strong className="payout-health__value">{item.value}</strong>
+                <span className="payout-health__detail">{item.detail}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="report-card">
+          <div className="report-card__header">
+            <div>
+              <h2>Clinical performance</h2>
+              <p>Doctor activity and consultation quality.</p>
+            </div>
+            <button className="report-card__link" type="button">View doctors</button>
+          </div>
           <div className="top-products">
             {doctorPerformance.map((doctor) => (
               <div key={doctor.name} className="top-product">
@@ -223,24 +227,6 @@ function Reports() {
             ))}
           </div>
         </div>
-
-        <div className="report-card">
-          <h2>Prescription Processing</h2>
-          <div className="insights">
-            {prescriptionStats.map((item) => (
-              <div key={item.label} className="insight-row">
-                <span className="insight-label">{item.label}</span>
-                <span className="insight-value">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="reports__actions">
-        <button className="btn btn--outline">Export to Excel</button>
-        <button className="btn btn--outline">Export to PDF</button>
-        <button className="btn btn--primary">Generate Report</button>
       </div>
     </div>
   )

@@ -190,6 +190,12 @@
   background: #f8f9fa;
 }
 
+.btn-sm[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .btn--primary {
   background: var(--color-primary);
   color: white;
@@ -216,6 +222,83 @@
   padding: 1rem 1.5rem;
   border-top: 1px solid #e5e7eb;
   background: #fafafa;
+}
+
+/* ── Refund modal (match order details) ── */
+.od-modal {
+  max-width: 480px;
+  border-radius: 12px;
+}
+
+.od-modal .modal__header {
+  padding: 1.125rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.od-modal .modal__header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.od-modal .modal__close {
+  font-size: 1.5rem;
+  color: #9ca3af;
+}
+
+.od-modal .modal__content {
+  padding: 1.25rem 1.5rem;
+}
+
+.od-modal .modal__footer {
+  padding: 1rem 1.5rem;
+  border-radius: 0 0 12px 12px;
+}
+
+.od-modal .form-group {
+  margin-bottom: 0;
+}
+
+.od-modal .form-group label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.4rem;
+}
+
+.od-modal .form-group input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.od-modal-warning {
+  font-size: 0.875rem;
+  color: #374151;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.od-required {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #dc2626;
+  margin-left: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.od-field-error {
+  font-size: 0.8rem;
+  color: #dc2626;
+  margin: 0.35rem 0 0;
+  font-weight: 500;
 }
 
 .order-pagination {

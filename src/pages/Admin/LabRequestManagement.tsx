@@ -6,6 +6,7 @@ import {
   LabRequest,
   LabRequestStatus,
   LabResult,
+  assignLabPartner,
   cancelLabRequest,
   getNextLabStatus,
   loadLabCategoryDefs,
@@ -14,9 +15,11 @@ import {
   loadLabTests,
   saveLabRequests,
   saveLabResults,
+  assignLabTechnician,
   updateLabRequestStatus,
   upsertLabResult,
 } from '../../data/labs'
+import { LabPartner, loadLabPartners } from '../../data/labPartners'
 import './AdminShared.css'
 import './LabRequestManagement.css'
 
@@ -46,6 +49,11 @@ function LabRequestManagement() {
 
   const tests = useMemo(() => loadLabTests(), [])
   const categoryDefs = useMemo(() => loadLabCategoryDefs(), [])
+  const labPartners = useMemo(() => loadLabPartners(), [])
+  const partnerMap = useMemo(
+    () => new Map(labPartners.map((partner) => [partner.id, partner])),
+    [labPartners]
+  )
 
   const [requests, setRequests] = useState<LabRequest[]>(() => loadLabRequests())
   const [results, setResults] = useState<LabResult[]>(() => loadLabResults())
@@ -57,6 +65,8 @@ function LabRequestManagement() {
   const [page, setPage] = useState(1)
 
   const [panelId, setPanelId] = useState<string | null>(null)
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string>('')
+  const [selectedTechId, setSelectedTechId] = useState<string>('')
   const [resultSummary, setResultSummary] = useState('')
   const [resultFile, setResultFile] = useState('')
   const [resultFlags, setResultFlags] = useState('')
@@ -97,7 +107,30 @@ function LabRequestManagement() {
     setResultRecommendation(existing?.recommendation ?? '')
     setResultAbnormal(existing?.abnormal ?? false)
     setFormError('')
+    setSelectedPartnerId(panelRequest.labPartnerId ?? '')
+    setSelectedTechId(panelRequest.labTechId ?? '')
   }, [panelRequest, resultMap])
+
+  const partnerTechs = useMemo(() => {
+    if (!selectedPartnerId) return [] as LabPartner['techs']
+    return partnerMap.get(selectedPartnerId)?.techs ?? []
+  }, [partnerMap, selectedPartnerId])
+
+  const handlePartnerChange = (partnerId: string) => {
+    if (!panelRequest) return
+    const partner = partnerMap.get(partnerId)
+    setSelectedPartnerId(partnerId)
+    setSelectedTechId('')
+    setRequests((prev) => assignLabPartner(prev, panelRequest.id, partnerId || undefined, partner?.name, true))
+  }
+
+  const handleTechChange = (techId: string) => {
+    if (!panelRequest) return
+    const tech = partnerTechs.find((entry) => entry.id === techId)
+    setSelectedTechId(techId)
+    if (!tech) return
+    setRequests((prev) => assignLabTechnician(prev, panelRequest.id, tech.name, tech.id, selectedPartnerId || panelRequest.labPartnerId))
+  }
 
   const stats = useMemo(() => ({
     total: requests.length,
@@ -336,6 +369,11 @@ function LabRequestManagement() {
                       <td className="lrm-scheduled">{r.scheduledAt}</td>
                       <td className="lrm-tech">
                         {r.assignedTechnician ?? <span className="lrm-unassigned">Unassigned</span>}
+                        {r.labPartnerId && (
+                          <span className="lrm-tech__partner">
+                            {partnerMap.get(r.labPartnerId)?.name ?? r.labPartnerId}
+                          </span>
+                        )}
                       </td>
                       <td>
                         <div className="lrm-status-cell">
@@ -535,7 +573,48 @@ function LabRequestManagement() {
                     <p className="lrm-info-label">Technician</p>
                     <p className="lrm-info-value">{panelRequest.assignedTechnician ?? '—'}</p>
                   </div>
+                  <div>
+                    <p className="lrm-info-label">Lab partner</p>
+                    <p className="lrm-info-value">{panelRequest.labPartnerId ? partnerMap.get(panelRequest.labPartnerId)?.name ?? panelRequest.labPartnerId : '—'}</p>
+                  </div>
                 </div>
+              </div>
+
+              {/* Assignment */}
+              <div className="lrm-section">
+                <p className="lrm-section__title">Assignment</p>
+                <div className="lrm-form-row">
+                  <div className="lrm-form-group">
+                    <label>Lab partner</label>
+                    <select
+                      value={selectedPartnerId}
+                      onChange={(e) => handlePartnerChange(e.target.value)}
+                    >
+                      <option value="">Unassigned</option>
+                      {labPartners.map((partner) => (
+                        <option key={partner.id} value={partner.id}>{partner.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="lrm-form-group">
+                    <label>Lab technician</label>
+                    <select
+                      value={selectedTechId}
+                      onChange={(e) => handleTechChange(e.target.value)}
+                      disabled={!selectedPartnerId}
+                    >
+                      <option value="">Select technician</option>
+                      {partnerTechs.map((tech) => (
+                        <option key={tech.id} value={tech.id}>{tech.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {!selectedPartnerId && (
+                  <p className="lrm-info-label" style={{ marginTop: '0.35rem' }}>
+                    Select a lab partner to assign technicians.
+                  </p>
+                )}
               </div>
 
               {panelRequest.notes && (
@@ -613,18 +692,6 @@ function LabRequestManagement() {
                 </div>
               )}
 
-              {/* Audit trail */}
-              <div className="lrm-section">
-                <p className="lrm-section__title">Audit trail</p>
-                <ul className="lrm-audit">
-                  {(panelRequest.audit ?? []).map((entry, i) => (
-                    <li key={`${entry.time}-${i}`}>
-                      <span className="lrm-audit__time">{entry.time}</span>
-                      <span className="lrm-audit__action">{entry.action}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
 
             {/* Panel footer */}

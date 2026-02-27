@@ -112,6 +112,10 @@ function AdminDashboard() {
                 <span>🧪</span>
                 <span>Lab Tests</span>
               </Link>
+              <Link to="/admin/lab-partners" className="admin-action">
+                <span>🔬</span>
+                <span>Lab Partners</span>
+              </Link>
             </div>
           </div>
 
