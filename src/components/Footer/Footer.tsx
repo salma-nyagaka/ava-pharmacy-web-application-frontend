@@ -90,9 +90,36 @@ function Footer() {
 
             {/* Map */}
             <div className="footer__column">
-              <h4 className="footer__title">Map</h4>
-              <div className="footer__map" aria-label="Ava Pharmacy location map">
-                <img src={mapImage} alt="Ava Pharmacy location map" />
+              <h4 className="footer__title">Find Us</h4>
+              <div className="footer__map-card">
+                <div className="footer__map-info">
+                  <span className="footer__map-pin">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
+                  </span>
+                  <span>The Hub Karen, Nairobi, Kenya</span>
+                </div>
+                <div className="footer__map">
+                  <iframe
+                    title="Ava Pharmacy location"
+                    src="https://maps.google.com/maps?q=The+Hub+Karen,Nairobi,Kenya&output=embed&z=15"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                </div>
+                <a
+                  href="https://maps.google.com/?q=The+Hub+Karen,Nairobi,Kenya"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="footer__map-cta"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 12h18M13 6l6 6-6 6"/>
+                  </svg>
+                  Get Directions
+                </a>
               </div>
             </div>
           </div>
