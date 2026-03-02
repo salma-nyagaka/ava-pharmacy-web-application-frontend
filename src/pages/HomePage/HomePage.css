@@ -9,7 +9,7 @@
 
 .home .section__title,
 .hero__headline,
-.promo-card__title,
+.hs-reviews__title,
 .hs-services__title,
 .newsletter__title {
   font-family: 'Fraunces', 'Times New Roman', serif;
@@ -543,11 +543,16 @@
 }
 
 /* Categories Section */
+.categories {
+  background: #f1f5f9;
+  position: relative;
+}
+
 .categories__carousel {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.875rem;
   margin-top: 2rem;
 }
 
@@ -557,28 +562,28 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 80px;
+  width: 72px;
   pointer-events: none;
   z-index: 2;
 }
 
 .categories__carousel::before {
   left: 0;
-  background: linear-gradient(90deg, rgba(247, 248, 252, 1) 0%, rgba(247, 248, 252, 0.8) 40%, rgba(247, 248, 252, 0) 100%);
+  background: linear-gradient(90deg, rgba(241, 245, 249, 1) 0%, rgba(241, 245, 249, 0.8) 50%, transparent 100%);
 }
 
 .categories__carousel::after {
   right: 0;
-  background: linear-gradient(-90deg, rgba(247, 248, 252, 1) 0%, rgba(247, 248, 252, 0.8) 40%, rgba(247, 248, 252, 0) 100%);
+  background: linear-gradient(-90deg, rgba(241, 245, 249, 1) 0%, rgba(241, 245, 249, 0.8) 50%, transparent 100%);
 }
 
 .categories__track {
   display: flex;
-  gap: 1.5rem;
+  gap: 1.25rem;
   overflow-x: auto;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
-  padding: 0.5rem 2rem 1rem 2rem;
+  padding: 0.75rem 2rem 1.25rem 2rem;
   scrollbar-width: none;
   flex: 1;
   cursor: grab;
@@ -594,42 +599,45 @@
 }
 
 .carousel__btn {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: var(--color-white);
-  color: var(--color-text-primary);
-  font-size: 1.5rem;
-  display: inline-flex;
+  border: none;
+  background: #1e293b;
+  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all var(--transition-fast);
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.22);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   z-index: 3;
   flex-shrink: 0;
+  cursor: pointer;
+}
+
+.carousel__btn svg {
+  width: 20px;
+  height: 20px;
+  color: #fff;
 }
 
 .carousel__btn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: var(--color-white);
-  box-shadow: 0 4px 12px rgba(232, 23, 80, 0.15);
-  transform: scale(1.05);
+  background: var(--color-primary);
+  box-shadow: 0 6px 24px rgba(232, 23, 80, 0.35);
+  transform: scale(1.1);
 }
 
 .carousel__btn:disabled {
-  opacity: 0.4;
+  opacity: 0.25;
   cursor: not-allowed;
   pointer-events: none;
 }
 
 .carousel__btn--prev {
-  margin-left: -0.25rem;
+  margin-left: -0.125rem;
 }
 
 .carousel__btn--next {
-  margin-right: -0.25rem;
+  margin-right: -0.125rem;
 }
 
 .category-card {
@@ -637,27 +645,34 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 1.5rem;
-  background-color: var(--color-white);
-  border-radius: 18px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  transition: all var(--transition-base);
-  min-width: 220px;
+  padding: 2rem 1.5rem 1.75rem;
+  background: #fff;
+  border-radius: 20px;
+  border: 1.5px solid rgba(15, 23, 42, 0.07);
+  transition: all 0.25s ease;
+  min-width: 210px;
   scroll-snap-align: start;
 }
 
 .category-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-4px);
+  border-color: rgba(232, 23, 80, 0.28);
+  box-shadow: 0 12px 40px rgba(232, 23, 80, 0.1);
+  transform: translateY(-6px);
 }
 
 .category-card__image {
-  width: 80px;
-  height: 80px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
   overflow: hidden;
-  margin-bottom: 1rem;
+  margin-bottom: 1.125rem;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.category-card:hover .category-card__image {
+  box-shadow: 0 8px 28px rgba(232, 23, 80, 0.18);
+  transform: scale(1.06);
 }
 
 .category-card__image img {
@@ -670,6 +685,7 @@
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--color-text-primary);
+  transition: color 0.2s;
 }
 
 .category-card:hover .category-card__name {
@@ -919,92 +935,105 @@
   margin-top: 3rem;
 }
 
-/* Promo Section */
-.promo-cards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
+/* Testimonials Section */
+.hs-reviews {
+  background: #f8fafc;
 }
 
-.promo-card {
+.hs-reviews__head {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.hs-reviews__eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary, #e81750);
+  margin-bottom: 0.5rem;
+}
+
+.hs-reviews__title {
+  font-family: 'Fraunces', 'Times New Roman', serif;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.hs-reviews__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.hs-review-card {
+  background: #fff;
+  border: 1.5px solid rgba(15, 23, 42, 0.08);
+  border-radius: 20px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.hs-review-card:hover {
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.09);
+  transform: translateY(-3px);
+}
+
+.hs-review-card__stars {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.hs-review-card__stars svg {
+  width: 18px;
+  height: 18px;
+  color: #f59e0b;
+}
+
+.hs-review-card__body {
+  font-size: 0.9375rem;
+  color: #475569;
+  line-height: 1.7;
+  flex: 1;
+}
+
+.hs-review-card__author {
   display: flex;
   align-items: center;
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-  min-height: 280px;
-  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.12);
+  gap: 0.875rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
 }
 
-.promo-card--primary {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-}
-
-.promo-card--secondary {
-  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-light) 100%);
-}
-
-.promo-card__content {
-  flex: 1;
-  padding: 2.5rem;
-  color: var(--color-white);
-}
-
-.promo-card__tag {
-  display: inline-block;
-  padding: 0.375rem 0.75rem;
-  background-color: rgba(255, 255, 255, 0.2);
-  font-size: 0.75rem;
-  font-weight: 600;
-  border-radius: var(--radius-full);
-  margin-bottom: 1rem;
-}
-
-.promo-card__title {
-  font-size: 1.5rem;
+.hs-review-card__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary, #e81750);
+  color: #fff;
+  font-size: 0.8125rem;
   font-weight: 700;
-  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.promo-card__description {
-  font-size: 0.9375rem;
-  opacity: 0.9;
-  margin-bottom: 1.5rem;
-  line-height: 1.6;
+.hs-review-card__author strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.promo-card .btn--secondary {
-  background-color: var(--color-white);
-  color: var(--color-primary);
-  border-color: var(--color-white);
-}
-
-.promo-card .btn--secondary:hover {
-  background-color: transparent;
-  color: var(--color-white);
-}
-
-.promo-card .btn--outline {
-  border-color: var(--color-white);
-  color: var(--color-white);
-}
-
-.promo-card .btn--outline:hover {
-  background-color: var(--color-white);
-  color: var(--color-secondary);
-}
-
-.promo-card__image {
-  width: 45%;
-  height: 100%;
-  position: relative;
-}
-
-.promo-card__image img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.hs-review-card__author span {
+  font-size: 0.8125rem;
+  color: #94a3b8;
 }
 
 /* Health Tips Section */
@@ -1475,12 +1504,8 @@
     flex: 1 1 calc(50% - 1px);
   }
 
-  .promo-cards {
+  .hs-reviews__grid {
     grid-template-columns: 1fr;
-  }
-
-  .promo-card {
-    min-height: 250px;
   }
 
   .health-tips__grid {
@@ -1624,37 +1649,18 @@
   }
 
   .category-card {
-    padding: 1rem;
-    min-width: 180px;
+    padding: 1.5rem 1.25rem 1.25rem;
+    min-width: 175px;
   }
 
   .category-card__image {
-    width: 60px;
-    height: 60px;
+    width: 76px;
+    height: 76px;
   }
 
   .products__grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
-  }
-
-  .promo-card {
-    flex-direction: column;
-    min-height: auto;
-  }
-
-  .promo-card__content {
-    padding: 2rem;
-  }
-
-  .promo-card__image {
-    width: 100%;
-    height: 200px;
-    position: relative;
-  }
-
-  .promo-card__image img {
-    position: relative;
   }
 
   .health-tips__grid {
@@ -1725,10 +1731,6 @@
 
   .product-card__price {
     font-size: 1rem;
-  }
-
-  .promo-card__title {
-    font-size: 1.25rem;
   }
 
   .newsletter__title {

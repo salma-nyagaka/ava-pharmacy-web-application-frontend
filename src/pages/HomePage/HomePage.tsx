@@ -6,8 +6,8 @@ import {
   categoryBeauty,
   categoryBaby,
   categoryPersonal,
-  productMultivitamin,
-  articleSkincare,
+  categoryMedicines,
+  categoryDevices,
 } from '../../assets/images/remote'
 import huggiesBanner from '../../assets/images/banner/huggies.png'
 // import niveaBanner from '../../assets/images/banner/nivea.png'
@@ -15,7 +15,18 @@ import huggiesBanner from '../../assets/images/banner/huggies.png'
 import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
 import { cartService } from '../../services/cartService'
 import { loadCatalogProducts } from '../../data/products'
+import { loadCategories } from '../../data/categories'
 import './HomePage.css'
+
+const CATEGORY_IMAGE_MAP: Record<string, string> = {
+  'health-wellness': categoryHealth,
+  'beauty-skincare': categoryBeauty,
+  'mother-baby-care': categoryBaby,
+  'self-care-lifestyle': categoryPersonal,
+  'medicines': categoryMedicines,
+  'medical-devices': categoryDevices,
+  'devices': categoryDevices,
+}
 
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)
@@ -27,34 +38,12 @@ function HomePage() {
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
 
-  const categories = [
-    {
-      id: 1,
-      name: 'Health & Wellness',
-      image: categoryHealth,
-      link: '/category/health-wellness',
-    },
-    {
-      id: 2,
-      name: 'Beauty & Skincare',
-      image: categoryBeauty,
-      link: '/category/beauty-skincare',
-    },
-    {
-      id: 3,
-      name: 'Mother & Baby Care',
-      image: categoryBaby,
-      link: '/category/mother-baby-care',
-    },
-    {
-      id: 4,
-      name: 'Self-Care & Lifestyle',
-      image: categoryPersonal,
-      link: '/category/self-care-lifestyle',
-    },
-  ]
-
-    .slice(0, 4)
+  const categories = loadCategories().map((cat) => ({
+    id: cat.slug,
+    name: cat.name,
+    image: CATEGORY_IMAGE_MAP[cat.slug] ?? categoryMedicines,
+    link: cat.path,
+  }))
 
   const valueBannerItems = [
     { key: 'delivery', title: 'Free Delivery',       subtitle: 'On orders over KSh 3,000',      link: '/help',                color: 'green'  },
@@ -333,7 +322,9 @@ function HomePage() {
               onKeyDown={(e) => handleCategoryKeyDown(e, 'prev')}
               disabled={!canScrollLeft}
             >
-              ‹
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
             </button>
             <div className="categories__track" ref={categoryTrackRef}>
               {categories.map((category) => (
@@ -353,7 +344,9 @@ function HomePage() {
               onKeyDown={(e) => handleCategoryKeyDown(e, 'next')}
               disabled={!canScrollRight}
             >
-              ›
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
             </button>
           </div>
         </div>
@@ -488,38 +481,59 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Promo Cards — lifestyle / category pushes */}
-      <section className="section promo-section">
+      {/* Testimonials */}
+      <section className="section hs-reviews">
         <div className="container">
-          <div className="promo-cards">
-            <div className="promo-card promo-card--primary">
-              <div className="promo-card__content">
-                <span className="promo-card__tag">Limited Offer</span>
-                <h3 className="promo-card__title">Up to 30% Off on Vitamins</h3>
-                <p className="promo-card__description">
-                  Boost your immunity with our premium vitamin supplements at special prices
-                </p>
-                <Link to="/offers" className="btn btn--secondary">
-                  Shop Vitamins
-                </Link>
+          <div className="hs-reviews__head">
+            <p className="hs-reviews__eyebrow">Customer Reviews</p>
+            <h2 className="hs-reviews__title">Trusted by thousands across Kenya</h2>
+          </div>
+          <div className="hs-reviews__grid">
+            <div className="hs-review-card">
+              <div className="hs-review-card__stars">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                ))}
               </div>
-              <div className="promo-card__image">
-                <ImageWithFallback src={productMultivitamin} alt="Vitamins offer" />
+              <p className="hs-review-card__body">"Ordering was so easy and my prescription was verified within the hour. The delivery came the same day — I was genuinely impressed."</p>
+              <div className="hs-review-card__author">
+                <div className="hs-review-card__avatar">AW</div>
+                <div>
+                  <strong>Amina Wanjiru</strong>
+                  <span>Nairobi, Kenya</span>
+                </div>
               </div>
             </div>
-            <div className="promo-card promo-card--secondary">
-              <div className="promo-card__content">
-                <span className="promo-card__tag">New Arrivals</span>
-                <h3 className="promo-card__title">Premium Skincare Range</h3>
-                <p className="promo-card__description">
-                  Discover our new collection of dermatologist-recommended skincare products
-                </p>
-                <Link to="/category/beauty-skincare" className="btn btn--outline">
-                  Explore Now
-                </Link>
+
+            <div className="hs-review-card">
+              <div className="hs-review-card__stars">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                ))}
               </div>
-              <div className="promo-card__image">
-                <ImageWithFallback src={articleSkincare} alt="Skincare products" />
+              <p className="hs-review-card__body">"I booked a lab test through the app and the technician came home to collect the sample. Results were in my inbox the next morning. Outstanding service."</p>
+              <div className="hs-review-card__author">
+                <div className="hs-review-card__avatar">DK</div>
+                <div>
+                  <strong>David Kamau</strong>
+                  <span>Karen, Nairobi</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="hs-review-card">
+              <div className="hs-review-card__stars">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                ))}
+              </div>
+              <p className="hs-review-card__body">"The pediatrician consultation saved us a long trip to the hospital. The doctor was thorough and kind, and we had a prescription ready in 20 minutes."</p>
+              <div className="hs-review-card__author">
+                <div className="hs-review-card__avatar">FM</div>
+                <div>
+                  <strong>Faith Muthoni</strong>
+                  <span>Westlands, Nairobi</span>
+                </div>
               </div>
             </div>
           </div>
@@ -536,7 +550,7 @@ function HomePage() {
           </div>
           <div className="hs-services__grid">
 
-            <Link to="/doctor-consultation" className="hs-svc-card hs-svc-card--doctor">
+            <Link to="/doctor-consultation" className="hs-svc-card hs-svc-card--doctor" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
               <div className="hs-svc-card__icon-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/>
@@ -545,18 +559,13 @@ function HomePage() {
                 </svg>
               </div>
               <div className="hs-svc-card__body">
-                <span className="hs-svc-card__tag">Available now</span>
                 <h3 className="hs-svc-card__title">Doctor Consultation</h3>
-                <p className="hs-svc-card__desc">Chat, call, or video with licensed doctors for fast diagnoses and e-prescriptions.</p>
-                <ul className="hs-svc-card__features">
-                  <li>20+ specialties</li>
-                  <li>Same-day slots</li>
-                </ul>
+                <p className="hs-svc-card__desc">Chat with licensed doctors and get e-prescriptions, 7 days a week.</p>
                 <span className="hs-svc-card__cta">Book a doctor →</span>
               </div>
             </Link>
 
-            <Link to="/pediatric-consultation" className="hs-svc-card hs-svc-card--paed">
+            <Link to="/pediatric-consultation" className="hs-svc-card hs-svc-card--paed" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
               <div className="hs-svc-card__icon-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <circle cx="12" cy="6" r="3"/>
@@ -565,18 +574,13 @@ function HomePage() {
                 </svg>
               </div>
               <div className="hs-svc-card__body">
-                <span className="hs-svc-card__tag">Specialist care</span>
                 <h3 className="hs-svc-card__title">Pediatric Care</h3>
-                <p className="hs-svc-card__desc">Specialist pediatricians for infants, children, and teens — on demand.</p>
-                <ul className="hs-svc-card__features">
-                  <li>Growth checks</li>
-                  <li>Vaccination advice</li>
-                </ul>
+                <p className="hs-svc-card__desc">Specialist pediatricians for infants, children, and teens on demand.</p>
                 <span className="hs-svc-card__cta">See pediatricians →</span>
               </div>
             </Link>
 
-            <Link to="/prescriptions" className="hs-svc-card hs-svc-card--rx">
+            <Link to="/prescriptions" className="hs-svc-card hs-svc-card--rx" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
               <div className="hs-svc-card__icon-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -586,18 +590,13 @@ function HomePage() {
                 </svg>
               </div>
               <div className="hs-svc-card__body">
-                <span className="hs-svc-card__tag">Fast fulfillment</span>
                 <h3 className="hs-svc-card__title">Prescription Upload</h3>
-                <p className="hs-svc-card__desc">Upload a prescription and get pharmacist verification with fast delivery.</p>
-                <ul className="hs-svc-card__features">
-                  <li>Licensed review</li>
-                  <li>Same-day delivery</li>
-                </ul>
+                <p className="hs-svc-card__desc">Upload your prescription for pharmacist verification and same-day delivery.</p>
                 <span className="hs-svc-card__cta">Upload prescription →</span>
               </div>
             </Link>
 
-            <Link to="/laboratory" className="hs-svc-card hs-svc-card--lab">
+            <Link to="/laboratory" className="hs-svc-card hs-svc-card--lab" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
               <div className="hs-svc-card__icon-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11M3 9h18M3 9l3 9h12l3-9"/>
@@ -605,13 +604,8 @@ function HomePage() {
                 </svg>
               </div>
               <div className="hs-svc-card__body">
-                <span className="hs-svc-card__tag">Home collection</span>
                 <h3 className="hs-svc-card__title">Lab Tests</h3>
-                <p className="hs-svc-card__desc">Book 200+ tests with home sample collection and digital results.</p>
-                <ul className="hs-svc-card__features">
-                  <li>Home collection</li>
-                  <li>Results in 24–48h</li>
-                </ul>
+                <p className="hs-svc-card__desc">Book 200+ diagnostics with home sample collection and results in 24–48h.</p>
                 <span className="hs-svc-card__cta">Book a test →</span>
               </div>
             </Link>

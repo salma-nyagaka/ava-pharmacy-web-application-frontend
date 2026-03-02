@@ -165,11 +165,10 @@ function Header() {
             </div>
             <div className="header__topbar-right">
               <Link to="/about" className="header__topbar-link">About Us</Link>
-              <Link to="/blog" className="header__topbar-link">Blog</Link>
               <Link to="/help" className="header__topbar-link">FAQ</Link>
               <Link to="/track-order" className="header__topbar-link">Track Order</Link>
-              <Link to="/store-locator" className="header__topbar-link">Store Locator</Link>
-              <Link to="/professional/register" className="header__topbar-link header__topbar-link--pro">For Professionals</Link>
+              <Link to="/contact" className="header__topbar-link">Contact Us</Link>
+              <Link to="/professional/register" className="header__topbar-link header__topbar-link--pro">Professional Registration</Link>
             </div>
           </div>
         </div>
