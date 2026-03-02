@@ -117,7 +117,7 @@ function InventoryManagement() {
   const [adjustItem, setAdjustItem] = useState<InventoryItem | null>(null)
   const [adjustStock, setAdjustStock] = useState('')
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
-  const [lowStockThreshold, setLowStockThreshold] = useState(10)
+  const [lowStockThreshold] = useState(10)
   const [reserveStock, setReserveStock] = useState(true)
   const [reserveMinutes, setReserveMinutes] = useState(15)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -258,15 +258,6 @@ function InventoryManagement() {
       action: 'Sync POS',
       entity: 'Inventory',
       detail: `Manual POS sync triggered by ${activeActor?.name ?? 'Unknown user'}`,
-    })
-  }
-
-  const handleSaveLowStock = () => {
-    if (!canEditRecords) return
-    logAdminAction({
-      action: 'Update low stock threshold',
-      entity: 'Inventory',
-      detail: `Low stock threshold set to ${lowStockThreshold} by ${activeActor?.name ?? 'Unknown user'}`,
     })
   }
 

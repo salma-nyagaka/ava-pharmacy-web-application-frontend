@@ -453,8 +453,8 @@ function DoctorDashboardPage() {
                         <td className="dd-td-issue">{item.issue}</td>
                         <td className="dd-td-meta">{item.scheduledAt}</td>
                         <td>
-                          <span className={`dd-priority ${item.priority === 'High' || item.priority === 'Urgent' ? 'dd-priority--high' : ''}`}>
-                            {item.priority === 'High' || item.priority === 'Urgent'
+                          <span className={`dd-priority ${item.priority === 'Priority' ? 'dd-priority--high' : ''}`}>
+                            {item.priority === 'Priority'
                               ? <><span className="dd-priority-dot" /> {item.priority}</>
                               : item.priority}
                           </span>

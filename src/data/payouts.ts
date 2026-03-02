@@ -44,8 +44,12 @@ export const loadAdminPayouts = (): AdminPayout[] => {
       return merged
     }
     const parsed = JSON.parse(raw)
-    const resolved = Array.isArray(parsed) ? parsed : defaultPayouts
-    return mergeAutoPayouts(resolved, autoPayouts)
+    const resolved = Array.isArray(parsed) ? (parsed as AdminPayout[]) : defaultPayouts
+    const normalized = resolved.map((payout) => ({
+      ...payout,
+      source: payout.source === 'Automatic' || payout.source === 'Manual' ? payout.source : undefined,
+    }))
+    return mergeAutoPayouts(normalized, autoPayouts)
   } catch {
     return mergeAutoPayouts(defaultPayouts, autoPayouts)
   }
@@ -191,13 +195,13 @@ const buildAutoPayoutsFromTasks = (): AdminPayout[] => {
   return [...consultationPayouts, ...labTechPayouts, ...labPartnerPayouts, ...pharmacistPayouts]
 }
 
-const mergeAutoPayouts = (existing: AdminPayout[], autoPayouts: AdminPayout[]) => {
+const mergeAutoPayouts = (existing: AdminPayout[], autoPayouts: AdminPayout[]): AdminPayout[] => {
   const autoMap = new Map(autoPayouts.map((payout) => [payout.id, payout]))
-  const updatedExisting = existing.map((payout) => {
+  const updatedExisting: AdminPayout[] = existing.map((payout) => {
     const auto = autoMap.get(payout.id)
     if (!auto) return payout
     if (payout.source === 'Manual') return payout
-    return {
+    const merged: AdminPayout = {
       ...auto,
       status: payout.status ?? auto.status,
       paidAt: payout.paidAt ?? auto.paidAt,
@@ -206,6 +210,7 @@ const mergeAutoPayouts = (existing: AdminPayout[], autoPayouts: AdminPayout[]) =
       reference: payout.reference ?? auto.reference,
       source: 'Automatic',
     }
+    return merged
   })
   const existingIds = new Set(existing.map((payout) => payout.id))
   const missing = autoPayouts.filter((payout) => !existingIds.has(payout.id))
