@@ -352,6 +352,59 @@ function HomePage() {
         </div>
       </section>
 
+      {/* Hot Offers — urgency / savings */}
+      <section className="section offers-preview">
+        <div className="container">
+          <div className="section__header">
+            <h2 className="section__title">Hot Offers</h2>
+            <p className="section__subtitle">
+              Discounted products handpicked for today&apos;s savings.
+            </p>
+          </div>
+          <div className="products__grid">
+            {offerDeals.map((product) => (
+              <article key={product.id} className="product-card">
+                <div className="product-card__image">
+                  {product.badge && (
+                    <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
+                      {product.badge}
+                    </span>
+                  )}
+                  <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
+                </div>
+                <div className="product-card__content">
+                  <span className="product-card__brand">{product.brand}</span>
+                  <h3 className="product-card__name">
+                    <Link to={`/product/${product.id}`}>{product.name}</Link>
+                  </h3>
+                  <div className="product-card__rating">
+                    <div className="product-card__stars">{renderStars(product.rating)}</div>
+                    <span className="product-card__reviews">({product.reviews})</span>
+                  </div>
+                  <div className="product-card__pricing">
+                    <span className="product-card__price">{formatPrice(product.price)}</span>
+                    {product.originalPrice && (
+                      <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
+                    )}
+                  </div>
+                  <button className="product-card__add-to-cart" type="button" onClick={() => handleAddToCart(product)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="9" cy="21" r="1"/>
+                      <circle cx="20" cy="21" r="1"/>
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                    </svg>
+                    {addedId === product.id ? 'Added' : 'Add to Cart'}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="featured-products__cta">
+            <Link to="/offers" className="btn btn--outline btn--lg">View All Offers</Link>
+          </div>
+        </div>
+      </section>
+
       {/* Featured Products — social proof via best sellers */}
       <section className="section section--alt featured-products">
         <div className="container">
@@ -424,59 +477,6 @@ function HomePage() {
             <Link to="/products" className="btn btn--primary btn--lg">
               View All Products
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Hot Offers — urgency / savings */}
-      <section className="section offers-preview">
-        <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">Hot Offers</h2>
-            <p className="section__subtitle">
-              Discounted products handpicked for today&apos;s savings.
-            </p>
-          </div>
-          <div className="products__grid">
-            {offerDeals.map((product) => (
-              <article key={product.id} className="product-card">
-                <div className="product-card__image">
-                  {product.badge && (
-                    <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
-                      {product.badge}
-                    </span>
-                  )}
-                  <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
-                </div>
-                <div className="product-card__content">
-                  <span className="product-card__brand">{product.brand}</span>
-                  <h3 className="product-card__name">
-                    <Link to={`/product/${product.id}`}>{product.name}</Link>
-                  </h3>
-                  <div className="product-card__rating">
-                    <div className="product-card__stars">{renderStars(product.rating)}</div>
-                    <span className="product-card__reviews">({product.reviews})</span>
-                  </div>
-                  <div className="product-card__pricing">
-                    <span className="product-card__price">{formatPrice(product.price)}</span>
-                    {product.originalPrice && (
-                      <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
-                    )}
-                  </div>
-                  <button className="product-card__add-to-cart" type="button" onClick={() => handleAddToCart(product)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="9" cy="21" r="1"/>
-                      <circle cx="20" cy="21" r="1"/>
-                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                    </svg>
-                    {addedId === product.id ? 'Added' : 'Add to Cart'}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-          <div className="featured-products__cta">
-            <Link to="/offers" className="btn btn--outline btn--lg">View All Offers</Link>
           </div>
         </div>
       </section>
@@ -678,6 +678,7 @@ function HomePage() {
           </div>
         </div>
       </section>
+
 
       {/* Newsletter Section */}
       <section className="newsletter">
