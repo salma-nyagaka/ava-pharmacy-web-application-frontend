@@ -29,13 +29,6 @@ function HealthServicesPage() {
               </div>
             ))}
           </div>
-          <div className="page-section">
-            <div className="card card--soft">
-              <h2 className="card__title">Need help choosing a service?</h2>
-              <p className="card__meta">Our advisors can guide you to the right care path.</p>
-              <button className="btn btn--secondary btn--sm" style={{ marginTop: '0.75rem' }}>Talk to an advisor</button>
-            </div>
-          </div>
         </div>
       </section>
     </div>

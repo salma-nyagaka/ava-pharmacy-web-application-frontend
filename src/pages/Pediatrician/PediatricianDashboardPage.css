@@ -1,361 +1,315 @@
-.portal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+/* ======================================================
+   Pediatrician Portal — teal (#0d9488) accent overrides
+   Extends dd-* design system from DoctorDashboardPage
+   ====================================================== */
+
+/* Override indigo with teal within the pediatric portal */
+.dd-module {
+  --dd-indigo: #0d9488;
+  --dd-indigo-light: #ccfbf1;
+  --dd-indigo-bg: #f0fdfa;
 }
 
-.portal-header__label {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
-  margin-bottom: 0.4rem;
-  display: block;
+/* ── Pediatric-specific queue table ─────────────────── */
+.pd-age-tag {
+  font-size: 0.72rem;
+  color: #6b7280;
+  font-weight: 400;
 }
 
-.portal-header__meta {
-  color: var(--color-text-muted);
+.pd-alert-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  animation: pd-alert-pulse 2s ease-in-out infinite;
 }
 
-.portal-header select {
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  min-width: 220px;
+@keyframes pd-alert-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+  50%       { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.05); }
 }
 
-.portal-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin: 1.5rem 0;
-}
-
-.portal-tab {
-  border: 1px solid var(--color-border-light);
-  background: #fff;
-  padding: 0.6rem 1rem;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.portal-tab--active {
-  background: var(--color-primary);
-  color: #fff;
-  border-color: var(--color-primary);
-}
-
-.portal-panel {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 2rem;
-}
-
-.portal-panel__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-.portal-panel__header input {
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  min-width: 220px;
-}
-
-.portal-panel__actions {
-  display: flex;
-  gap: 0.8rem;
-  align-items: center;
-}
-
-.portal-panel__sub {
-  color: var(--color-text-muted);
-}
-
-.queue-item__actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.6rem;
-}
-
-.queue-item__buttons {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.messages-list {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.messages-card {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  width: 100%;
-  text-align: left;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: 1rem;
-  background: var(--color-background-light);
-  cursor: pointer;
-}
-
-.messages-card h4 {
-  margin: 0 0 0.3rem;
-}
-
-.messages-card p {
-  margin: 0;
-  color: var(--color-text-muted);
-}
-
-.messages-card__meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-}
-
-.message-badge {
+/* ── Consent pill ────────────────────────────────────── */
+.pd-consent {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 0.75rem;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-}
-
-.consent-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-}
-
-.consent-card {
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: 1rem;
-  background: var(--color-background-light);
-  display: grid;
-  gap: 0.5rem;
-}
-
-.patients-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-}
-
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.4rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  font-family: inherit;
-}
-
-.patient-card {
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: 1rem;
-  background: var(--color-background-light);
-}
-
-.alert-panel {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  border-radius: var(--radius-lg);
-  background: rgba(245, 158, 11, 0.12);
-  display: grid;
-  gap: 0.75rem;
-}
-
-.alert-card {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
-}
-
-.portal-table table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.portal-table th,
-.portal-table td {
-  padding: 0.8rem 0.6rem;
-  border-bottom: 1px solid var(--color-border-light);
-  text-align: left;
-}
-
-.portal-table__actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.detail-label {
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.detail-value {
-  color: var(--color-text-primary);
-}
-
-.earnings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1rem;
-}
-
-.earnings-card {
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: 1rem;
-  background: var(--color-background-light);
-  display: grid;
-  gap: 0.4rem;
-}
-
-.earnings-card__value {
+  gap: 0.25rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  font-size: 1.1rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  letter-spacing: 0.01em;
 }
 
-.earnings-card__meta {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
+.pd-consent--ok {
+  background: #dcfce7;
+  color: #16a34a;
 }
 
-.empty-state {
-  padding: 1rem;
-  text-align: center;
-  color: var(--color-text-muted);
+.pd-consent--pending {
+  background: #fef3c7;
+  color: #b45309;
 }
 
-.chat-window {
+/* ── Consent tab cards ───────────────────────────────── */
+.pd-consent-grid {
   display: grid;
-  gap: 0.75rem;
-  max-height: 320px;
-  overflow-y: auto;
-  padding-right: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
 }
 
-.chat-message {
-  max-width: 70%;
-  padding: 0.75rem;
+.pd-consent-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
-  background: var(--color-background-light);
-}
-
-.chat-message span {
-  display: block;
-  margin-top: 0.35rem;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-}
-
-.chat-message--doctor {
-  margin-left: auto;
-  background: rgba(229, 57, 53, 0.1);
-}
-
-.chat-message--patient {
-  margin-right: auto;
-}
-
-.chat-message--system {
-  margin-left: auto;
-  background: rgba(59, 130, 246, 0.1);
-}
-
-.chat-input {
+  padding: 1.25rem;
   display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-  margin-top: 1rem;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
+  transition: box-shadow 0.15s;
 }
 
-.chat-input input {
+.pd-consent-card:hover { box-shadow: 0 4px 12px rgb(0 0 0 / 0.08); }
+
+.pd-consent-card__top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pd-consent-card__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #ccfbf1;
+  color: #0d9488;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pd-consent-card__child {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.pd-consent-card__guardian {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.pd-consent-card__issue {
+  font-size: 0.875rem;
+  color: #374151;
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.pd-consent-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pd-consent-card__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+/* ── Dosage alert banner ─────────────────────────────── */
+.pd-alerts-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  color: #dc2626;
+}
+
+.pd-alerts-banner > svg { flex-shrink: 0; }
+
+.pd-alerts-banner > strong {
+  font-size: 0.9rem;
+}
+
+.pd-alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pd-alert-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.8125rem;
+  color: #374151;
+}
+
+/* ── Child profile cards ─────────────────────────────── */
+.pd-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.pd-profile-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
+  transition: box-shadow 0.15s;
+}
+
+.pd-profile-card:hover { box-shadow: 0 4px 12px rgb(0 0 0 / 0.08); }
+
+.pd-profile-card__avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pd-profile-card__body {
   flex: 1;
-  padding: 0.65rem 0.8rem;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
 }
 
-.rx-items {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 1rem;
+.pd-profile-card__name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.15rem;
 }
 
-.rx-item {
-  display: grid;
-  grid-template-columns: 2fr 2fr 1fr;
-  gap: 0.6rem;
+.pd-profile-card__age {
+  font-size: 0.78rem;
+  color: #0d9488;
+  font-weight: 600;
+  margin: 0;
 }
 
-.rx-item input {
-  padding: 0.6rem 0.7rem;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
+.pd-profile-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.85rem;
 }
 
-@media (max-width: 900px) {
-  .portal-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.pd-profile-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+}
 
-  .portal-panel__header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.pd-profile-card__row span { color: #9ca3af; }
+.pd-profile-card__row strong { color: #0f172a; }
 
-  .queue-item__actions {
-    align-items: flex-start;
-  }
+/* ── Teal waiting room (patient-facing) ──────────────── */
+.dc-waiting--pediatric .dc-waiting__card {
+  border-top: 3px solid #0d9488;
+}
 
-  .rx-item {
-    grid-template-columns: 1fr;
-  }
+.dc-waiting__pulse-ring--teal::after {
+  border-color: #0d9488 !important;
+}
+
+.dc-waiting__avatar--teal {
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%) !important;
+}
+
+.dc-waiting__status-badge--teal {
+  background: #ccfbf1 !important;
+  color: #0d9488 !important;
+}
+
+.dc-waiting__queue-step--teal.dc-waiting__queue-step--active {
+  background: #0d9488 !important;
+  border-color: #0d9488 !important;
+  color: #fff !important;
+}
+
+.dc-waiting__queue-step--teal.dc-waiting__queue-step--done {
+  background: #0d9488 !important;
+  border-color: #0d9488 !important;
+  color: #fff !important;
+}
+
+.dc-waiting__queue-fill--teal {
+  background: #0d9488 !important;
+}
+
+.dc-waiting__connecting--teal span {
+  background: #0d9488 !important;
+}
+
+/* ── Teal chat (patient-facing) ──────────────────────── */
+.dc-chat--pediatric {
+  border-top: 3px solid #0d9488;
+}
+
+.dc-chat__doc-avatar--teal {
+  background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%) !important;
+  color: #fff !important;
+}
+
+.dc-chat__online-dot--teal {
+  background: #0d9488 !important;
+}
+
+.dc-msg__avatar--teal {
+  background: #ccfbf1 !important;
+  color: #0d9488 !important;
+}
+
+/* ── Teal completed screen ───────────────────────────── */
+.dc-complete--teal .dc-complete__icon--teal {
+  background: #ccfbf1 !important;
+  color: #0d9488 !important;
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  .pd-consent-grid { grid-template-columns: 1fr; }
+  .pd-profile-grid { grid-template-columns: 1fr; }
 }

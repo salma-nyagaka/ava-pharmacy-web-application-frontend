@@ -6,6 +6,11 @@ export interface LabTechnician {
   email: string
   phone: string
   status: 'Active' | 'Inactive'
+  specialty?: string
+  licenseNumber?: string
+  licenseExpiry?: string
+  idNumber?: string
+  documents?: string[]
 }
 
 export interface LabPartner {
@@ -14,12 +19,20 @@ export interface LabPartner {
   email: string
   phone: string
   location: string
+  contactName?: string
+  accreditation?: string
+  licenseNumber?: string
+  licenseExpiry?: string
+  idNumber?: string
+  county?: string
+  address?: string
   payoutMethod: 'M-Pesa' | 'Bank Transfer'
   payoutAccount: string
   status: LabPartnerStatus
   submittedAt: string
   verifiedAt?: string
   notes?: string
+  documents?: string[]
   techs: LabTechnician[]
 }
 

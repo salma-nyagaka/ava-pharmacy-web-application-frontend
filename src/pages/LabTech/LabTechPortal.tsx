@@ -66,6 +66,18 @@ function LabTechPortal() {
     return new Map(entries.map((tech) => [tech.name.toLowerCase(), tech]))
   }, [labPartners])
 
+  const activePartner = useMemo(() => {
+    if (user?.labPartnerId) {
+      return labPartners.find((partner) => partner.id === user.labPartnerId)
+    }
+    if (user?.labTechId) {
+      return labPartners.find((partner) => partner.techs.some((tech) => tech.id === user.labTechId))
+    }
+    return undefined
+  }, [labPartners, user?.labPartnerId, user?.labTechId])
+
+  const partnerName = user?.labPartnerName ?? activePartner?.name
+
   const [panelId, setPanelId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | LabRequestStatus>('all')
@@ -323,6 +335,20 @@ function LabTechPortal() {
             </svg>
             Lab Technician
           </span>
+          {(partnerName || user?.labTechId) && (
+            <div className="ltp-header__meta">
+              {partnerName && (
+                <span className="ltp-header__meta-item">
+                  Partner: <strong>{partnerName}</strong>
+                </span>
+              )}
+              {user?.labTechId && (
+                <span className="ltp-header__meta-item">
+                  Tech ID: <strong>{user.labTechId}</strong>
+                </span>
+              )}
+            </div>
+          )}
           <div className="ltp-header__spacer" />
           <div className="ltp-header__user">
             <div className="ltp-header__avatar">{initials(actorName)}</div>

@@ -1,38 +1,62 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import PageHeader from '../../components/PageHeader/PageHeader'
 import './LabServicesPage.css'
 import {
   LabPaymentStatus,
   LabPriority,
   LabRequest,
-  LabRequestStatus,
-  LabResult,
   LabTest,
-  cancelLabRequest,
   createLabRequest,
   loadLabRequests,
-  loadLabResults,
   loadLabTests,
-  markLabResultReceived,
   saveLabRequests,
 } from '../../data/labs'
 
-function getStatusClass(status: LabRequestStatus) {
-  if (status === 'Completed') return 'status-pill--success'
-  if (status === 'Result ready') return 'status-pill--info'
-  if (status === 'Cancelled') return 'status-pill--danger'
-  return 'status-pill--warning'
+const CATEGORY_COLORS: Record<string, string> = {
+  Blood: '#ef4444',
+  Cardiac: '#ec4899',
+  Infectious: '#f59e0b',
+  Wellness: '#10b981',
+  Metabolic: '#8b5cf6',
 }
 
+function getCategoryColor(cat: string): string {
+  return CATEGORY_COLORS[cat] ?? '#6366f1'
+}
+
+const FLOW_STEPS = [
+  {
+    icon: <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>,
+    title: 'Request & schedule',
+    desc: 'Choose your test and select a convenient collection time.',
+  },
+  {
+    icon: <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" /></svg>,
+    title: 'Sample collection',
+    desc: 'Our lab team collects your sample or prepares you for walk-in.',
+  },
+  {
+    icon: <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>,
+    title: 'Processing',
+    desc: 'Samples are processed and verified by licensed technicians.',
+  },
+  {
+    icon: <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>,
+    title: 'Results ready',
+    desc: 'Access digital results and mark them received.',
+  },
+]
+
 function LabServicesPage() {
+  const testsRef = useRef<HTMLDivElement | null>(null)
+
   const [tests] = useState<LabTest[]>(() => loadLabTests())
   const [requests, setRequests] = useState<LabRequest[]>(() => loadLabRequests())
-  const [results] = useState<LabResult[]>(() => loadLabResults())
   const [searchTerm, setSearchTerm] = useState('')
   const [category, setCategory] = useState('all')
 
   const [selectedTest, setSelectedTest] = useState<LabTest | null>(null)
+  const [bookingMode, setBookingMode] = useState<'view' | 'book'>('view')
   const [patientName, setPatientName] = useState('')
   const [patientPhone, setPatientPhone] = useState('')
   const [patientEmail, setPatientEmail] = useState('')
@@ -44,22 +68,20 @@ function LabServicesPage() {
   const [notes, setNotes] = useState('')
   const [bookingError, setBookingError] = useState('')
 
-  const [requestSearch, setRequestSearch] = useState('')
-  const [requestStatusFilter, setRequestStatusFilter] = useState<'all' | LabRequestStatus>('all')
-  const [requestPage, setRequestPage] = useState(1)
-  const [activeRequest, setActiveRequest] = useState<LabRequest | null>(null)
-
   useEffect(() => {
     saveLabRequests(requests)
   }, [requests])
 
-  useEffect(() => {
-    setRequestPage(1)
-  }, [requestSearch, requestStatusFilter])
-
   const categories = useMemo(() => {
     return Array.from(new Set(tests.map((test) => test.category)))
   }, [tests])
+
+  const testFiltersActive = searchTerm.trim().length > 0 || category !== 'all'
+
+  const clearTestFilters = () => {
+    setSearchTerm('')
+    setCategory('all')
+  }
 
   const filteredTests = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -72,34 +94,6 @@ function LabServicesPage() {
       return matchesCategory && queryMatch
     })
   }, [tests, searchTerm, category])
-
-  const resultByRequestId = useMemo(() => {
-    return results.reduce<Record<string, LabResult>>((acc, result) => {
-      acc[result.requestId] = result
-      return acc
-    }, {})
-  }, [results])
-
-  const sortedRequests = useMemo(() => {
-    return [...requests].sort((a, b) => b.id.localeCompare(a.id))
-  }, [requests])
-
-  const filteredRequests = useMemo(() => {
-    const query = requestSearch.trim().toLowerCase()
-    return sortedRequests.filter((request) => {
-      const matchesStatus = requestStatusFilter === 'all' || request.status === requestStatusFilter
-      if (!query) return matchesStatus
-      const testName = tests.find((test) => test.id === request.testId)?.name ?? ''
-      const matchesQuery = [request.id, request.patientName, request.patientPhone, testName]
-        .some((value) => value.toLowerCase().includes(query))
-      return matchesStatus && matchesQuery
-    })
-  }, [sortedRequests, requestSearch, requestStatusFilter, tests])
-
-  const PAGE_SIZE = 5
-  const totalRequestPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE))
-  const startIndex = (requestPage - 1) * PAGE_SIZE
-  const pagedRequests = filteredRequests.slice(startIndex, startIndex + PAGE_SIZE)
 
   const stats = useMemo(() => {
     return {
@@ -125,6 +119,12 @@ function LabServicesPage() {
     setBookingError('')
   }
 
+  const closeModal = () => {
+    setSelectedTest(null)
+    setBookingMode('view')
+    resetBookingForm()
+  }
+
   const handleRequest = () => {
     if (!selectedTest) return
     if (!patientName.trim() || !patientPhone.trim() || !schedule.trim()) {
@@ -147,446 +147,320 @@ function LabServicesPage() {
 
     setRequests(updated)
     setSelectedTest(null)
+    setBookingMode('view')
     resetBookingForm()
   }
 
-  const handleCancelRequest = (requestId: string) => {
-    setRequests((prev) => cancelLabRequest(prev, requestId, 'Customer'))
-    if (activeRequest?.id === requestId) {
-      const next = cancelLabRequest([activeRequest], requestId, 'Customer')[0]
-      setActiveRequest(next)
-    }
-  }
-
-  const handleMarkReceived = (requestId: string) => {
-    setRequests((prev) => markLabResultReceived(prev, requestId))
-    if (activeRequest?.id === requestId) {
-      const next = markLabResultReceived([activeRequest], requestId)[0]
-      setActiveRequest(next)
-    }
-  }
-
-  const requestCanBeCancelled = (request: LabRequest) => {
-    return request.status === 'Awaiting sample' || request.status === 'Sample collected'
+  const scrollToTests = () => {
+    testsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
-    <div>
-      <PageHeader
-        title="Laboratory services"
-        subtitle="Book diagnostics, track progress, and access validated lab results."
-        badge="Lab Services"
-        actions={(
-          <Link to="/lab/dashboard" className="btn btn--outline btn--sm">
-            Lab dashboard
-          </Link>
-        )}
-      />
+    <div className="lab-services">
       <section className="page">
         <div className="container">
-          <div className="lab-filters">
-            <input
-              type="text"
-              placeholder="Search lab tests"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-            <select value={category} onChange={(event) => setCategory(event.target.value)}>
-              <option value="all">All categories</option>
-              {categories.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
+          <div className="lab-hero">
+            <div className="lab-hero__left">
+              <span className="lab-hero__eyebrow">Lab Services</span>
+              <h1 className="lab-hero__title">Laboratory services</h1>
+              <p className="lab-hero__sub">Book diagnostics, track progress, and access validated lab results.</p>
+            </div>
+            <div className="lab-hero__stats">
+              <div className="lab-hero__stat">
+                <strong>{tests.length}</strong>
+                <span>Tests</span>
+              </div>
+              <div className="lab-hero__stat">
+                <strong>{categories.length}</strong>
+                <span>Categories</span>
+              </div>
+              <div className="lab-hero__stat">
+                <strong>{stats.active}</strong>
+                <span>Active</span>
+              </div>
+              <div className="lab-hero__stat">
+                <strong>{stats.ready}</strong>
+                <span>Results ready</span>
+              </div>
+            </div>
+            <button className="btn btn--primary btn--sm lab-hero__cta" type="button" onClick={scrollToTests}>
+              Browse tests
+            </button>
           </div>
 
-          <div className="page-grid page-grid--3">
-            {filteredTests.map((test) => (
-              <div key={test.id} className="card lab-card">
-                <h3 className="card__title">{test.name}</h3>
-                <p className="card__meta">{test.description}</p>
-                <p className="card__meta">Turnaround: {test.turnaround}</p>
-                <p className="card__meta">Sample: {test.sampleType}</p>
-                <p className="card__title" style={{ marginTop: '0.5rem' }}>KSh {test.price.toLocaleString()}</p>
-                <button className="btn btn--primary btn--sm" style={{ marginTop: '1rem' }} onClick={() => setSelectedTest(test)}>
-                  Request test
+          <div className="lab-tests" ref={testsRef}>
+            <div className="lab-tests__header">
+              <div>
+                <h2>Lab tests</h2>
+                <p>Search for diagnostic tests and book instantly.</p>
+              </div>
+              {testFiltersActive && (
+                <button className="lab-clear" type="button" onClick={clearTestFilters}>
+                  Clear filters
                 </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="page-section">
-            <div className="lab-service-stats">
-              <div className="lab-service-stat">
-                <p className="lab-service-stat__label">Total requests</p>
-                <p className="lab-service-stat__value">{stats.total}</p>
-              </div>
-              <div className="lab-service-stat">
-                <p className="lab-service-stat__label">Active</p>
-                <p className="lab-service-stat__value">{stats.active}</p>
-              </div>
-              <div className="lab-service-stat">
-                <p className="lab-service-stat__label">Result ready</p>
-                <p className="lab-service-stat__value">{stats.ready}</p>
-              </div>
-              <div className="lab-service-stat">
-                <p className="lab-service-stat__label">Completed</p>
-                <p className="lab-service-stat__value">{stats.completed}</p>
-              </div>
+              )}
             </div>
-          </div>
-
-          <div className="page-section">
-            <div className="card card--soft">
-              <h2 className="card__title">How laboratory flow works</h2>
-              <div className="timeline">
-                <div className="timeline__item">
-                  <div className="timeline__title">Request and schedule</div>
-                  <div className="timeline__body">Choose your test, submit details, and select collection time.</div>
-                </div>
-                <div className="timeline__item">
-                  <div className="timeline__title">Sample processing</div>
-                  <div className="timeline__body">Lab team collects sample and runs processing checks.</div>
-                </div>
-                <div className="timeline__item">
-                  <div className="timeline__title">Result release</div>
-                  <div className="timeline__body">Validated results are attached to your request and marked ready.</div>
-                </div>
-                <div className="timeline__item">
-                  <div className="timeline__title">Completion</div>
-                  <div className="timeline__body">You review the result and confirm receipt.</div>
-                </div>
+            {testFiltersActive && (
+              <div className="lab-filter-bar">
+                {searchTerm.trim() && (
+                  <span className="lab-chip">Search: {searchTerm}</span>
+                )}
+                {category !== 'all' && (
+                  <span className="lab-chip">Category: {category}</span>
+                )}
               </div>
+            )}
+            <div className="lab-filters">
+              <input
+                type="text"
+                placeholder="Search lab tests"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+              <select value={category} onChange={(event) => setCategory(event.target.value)}>
+                <option value="all">All categories</option>
+                {categories.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
             </div>
-          </div>
 
-          <div className="page-section">
-            <div className="card">
-              <div className="lab-requests-header">
-                <h2 className="card__title">My lab requests</h2>
-                <div className="lab-requests-toolbar">
-                  <input
-                    type="text"
-                    placeholder="Search by request ID or patient"
-                    value={requestSearch}
-                    onChange={(event) => setRequestSearch(event.target.value)}
-                  />
-                  <select
-                    value={requestStatusFilter}
-                    onChange={(event) => setRequestStatusFilter(event.target.value as 'all' | LabRequestStatus)}
-                  >
-                    <option value="all">All statuses</option>
-                    <option value="Awaiting sample">Awaiting sample</option>
-                    <option value="Sample collected">Sample collected</option>
-                    <option value="Processing">Processing</option>
-                    <option value="Result ready">Result ready</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="lab-request-table-wrap">
-                <table className="table lab-request-table">
-                  <thead>
-                    <tr>
-                      <th>Request ID</th>
-                      <th>Test</th>
-                      <th>Scheduled</th>
-                      <th>Status</th>
-                      <th>Payment</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagedRequests.map((request) => {
-                      const testName = tests.find((item) => item.id === request.testId)?.name ?? request.testId
-                      const result = resultByRequestId[request.id]
-                      return (
-                        <tr key={request.id}>
-                          <td>{request.id}</td>
-                          <td>{testName}</td>
-                          <td>{request.scheduledAt}</td>
-                          <td>
-                            <span className={`status-pill ${getStatusClass(request.status)}`}>
-                              {request.status}
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`status-pill ${request.paymentStatus === 'Paid' ? 'status-pill--success' : 'status-pill--warning'}`}>
-                              {request.paymentStatus}
-                            </span>
-                          </td>
-                          <td className="lab-request-table__actions">
-                            <button className="btn btn--outline btn--sm" onClick={() => setActiveRequest(request)}>
-                              View
-                            </button>
-                            {requestCanBeCancelled(request) && (
-                              <button className="btn btn--outline btn--sm" onClick={() => handleCancelRequest(request.id)}>
-                                Cancel
-                              </button>
-                            )}
-                            {request.status === 'Result ready' && result && (
-                              <button className="btn btn--primary btn--sm" onClick={() => handleMarkReceived(request.id)}>
-                                Mark received
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                    {filteredRequests.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="lab-request-empty">No lab requests found.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {filteredRequests.length > 0 && (
-                <div className="lab-request-pagination">
-                  <button
-                    className="pagination__button"
-                    type="button"
-                    onClick={() => setRequestPage((prev) => Math.max(1, prev - 1))}
-                    disabled={requestPage === 1}
-                  >
-                    Prev
-                  </button>
-                  <div className="pagination__pages">
-                    {Array.from({ length: totalRequestPages }, (_, index) => {
-                      const page = index + 1
-                      return (
-                        <button
-                          key={page}
-                          className={`pagination__page ${page === requestPage ? 'pagination__page--active' : ''}`}
-                          type="button"
-                          onClick={() => setRequestPage(page)}
-                        >
-                          {page}
-                        </button>
-                      )
-                    })}
+            <div className="page-grid page-grid--3">
+              {filteredTests.map((test) => (
+                <div
+                  key={test.id}
+                  className="card lab-card"
+                  style={{ '--lab-card-accent': getCategoryColor(test.category) } as React.CSSProperties}
+                >
+                  <div className="lab-card__header">
+                    <h3 className="card__title">{test.name}</h3>
+                    <span className="lab-card__price">KSh {test.price.toLocaleString()}</span>
                   </div>
-                  <button
-                    className="pagination__button"
-                    type="button"
-                    onClick={() => setRequestPage((prev) => Math.min(totalRequestPages, prev + 1))}
-                    disabled={requestPage === totalRequestPages}
-                  >
-                    Next
-                  </button>
+                  <p className="card__meta">{test.description}</p>
+                  <div className="lab-card__meta">
+                    <span
+                      className="lab-card__category"
+                      style={{
+                        color: getCategoryColor(test.category),
+                        background: `${getCategoryColor(test.category)}12`,
+                        borderColor: `${getCategoryColor(test.category)}30`,
+                      }}
+                    >
+                      {test.category}
+                    </span>
+                    <span>{test.turnaround}</span>
+                    <span>{test.sampleType}</span>
+                  </div>
+                  <div className="lab-card__actions">
+                    <button
+                      className="btn btn--outline btn--sm"
+                      onClick={() => { setSelectedTest(test); setBookingMode('view') }}
+                    >
+                      View details
+                    </button>
+                    <button
+                      className="btn btn--primary btn--sm"
+                      onClick={() => { setSelectedTest(test); setBookingMode('book') }}
+                    >
+                      Request test
+                    </button>
+                  </div>
                 </div>
+              ))}
+              {filteredTests.length === 0 && (
+                <div className="lab-empty">No lab tests match your filters.</div>
               )}
             </div>
           </div>
+
+          <div className="page-section lab-flow">
+            <div className="card card--soft">
+              <h2 className="card__title">How it works</h2>
+              <div className="lab-flow__grid">
+                {FLOW_STEPS.map((step) => (
+                  <div key={step.title} className="lab-flow__step">
+                    <div className="lab-flow__step-icon">{step.icon}</div>
+                    <h4>{step.title}</h4>
+                    <p>{step.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
       {selectedTest && (
-        <div className="modal-overlay" onClick={() => setSelectedTest(null)}>
-          <div className="modal modal--wide" onClick={(event) => event.stopPropagation()}>
-            <div className="modal__header">
-              <h2>Request {selectedTest.name}</h2>
-              <button
-                className="modal__close"
-                onClick={() => {
-                  setSelectedTest(null)
-                  resetBookingForm()
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal__content">
-              <div className="lab-booking-grid">
-                <div className="form-group">
-                  <label>Patient name</label>
-                  <input
-                    type="text"
-                    value={patientName}
-                    onChange={(event) => setPatientName(event.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Patient phone</label>
-                  <input
-                    type="text"
-                    value={patientPhone}
-                    onChange={(event) => setPatientPhone(event.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Patient email (optional)</label>
-                  <input
-                    type="text"
-                    value={patientEmail}
-                    onChange={(event) => setPatientEmail(event.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Collection method</label>
-                  <select value={collection} onChange={(event) => setCollection(event.target.value as 'Walk-in' | 'Collection')}>
-                    <option value="Walk-in">Walk-in</option>
-                    <option value="Collection">Home collection</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Preferred date/time</label>
-                  <input
-                    type="text"
-                    placeholder="2026-02-14 10:00 AM"
-                    value={schedule}
-                    onChange={(event) => setSchedule(event.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Ordering doctor (optional)</label>
-                  <input
-                    type="text"
-                    value={orderingDoctor}
-                    onChange={(event) => setOrderingDoctor(event.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Payment status</label>
-                  <select value={paymentStatus} onChange={(event) => setPaymentStatus(event.target.value as LabPaymentStatus)}>
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Priority</label>
-                  <select value={priority} onChange={(event) => setPriority(event.target.value as LabPriority)}>
-                    <option value="Routine">Routine</option>
-                    <option value="Priority">Priority</option>
-                  </select>
-                </div>
-              </div>
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className={`modal ${bookingMode === 'book' ? 'modal--wide' : ''}`} onClick={(event) => event.stopPropagation()}>
 
-              <div className="form-group">
-                <label>Notes</label>
-                <textarea
-                  rows={3}
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                />
-              </div>
+            {bookingMode === 'view' ? (
+              <>
+                <div className="modal__header">
+                  <div>
+                    <span
+                      className="lab-category-badge"
+                      style={{
+                        color: getCategoryColor(selectedTest.category),
+                        background: `${getCategoryColor(selectedTest.category)}12`,
+                        borderColor: `${getCategoryColor(selectedTest.category)}30`,
+                      }}
+                    >
+                      {selectedTest.category}
+                    </span>
+                    <h2>{selectedTest.name}</h2>
+                  </div>
+                  <button className="modal__close" onClick={closeModal}>×</button>
+                </div>
+                <div className="modal__content">
+                  <div className="lab-test-summary">
+                    <div>
+                      <span>Price</span>
+                      <strong>KSh {selectedTest.price.toLocaleString()}</strong>
+                    </div>
+                    <div>
+                      <span>Turnaround</span>
+                      <strong>{selectedTest.turnaround}</strong>
+                    </div>
+                    <div>
+                      <span>Sample type</span>
+                      <strong>{selectedTest.sampleType}</strong>
+                    </div>
+                  </div>
+                  <p className="lab-test-description">{selectedTest.description}</p>
+                  <div className="lab-test-checklist">
+                    <h4>What to expect</h4>
+                    <ul>
+                      <li>Bring a valid ID and insurance card if applicable</li>
+                      <li>Sample required: {selectedTest.sampleType}</li>
+                      <li>Results ready in: {selectedTest.turnaround}</li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="modal__footer">
+                  <button className="btn btn--outline btn--sm" onClick={closeModal}>Close</button>
+                  <button className="btn btn--primary btn--sm" onClick={() => setBookingMode('book')}>
+                    Book this test →
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="modal__header">
+                  <div>
+                    <h2>Book — {selectedTest.name}</h2>
+                    <p className="card__meta">
+                      KSh {selectedTest.price.toLocaleString()} · {selectedTest.turnaround} · {selectedTest.sampleType}
+                    </p>
+                  </div>
+                  <button className="modal__close" onClick={closeModal}>×</button>
+                </div>
+                <div className="modal__content">
+                  <div className="lab-form-section">
+                    <p className="lab-form-section__label">Patient information</p>
+                    <div className="lab-booking-grid">
+                      <div className="form-group">
+                        <label>Full name</label>
+                        <input
+                          type="text"
+                          value={patientName}
+                          onChange={(event) => setPatientName(event.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Phone number</label>
+                        <input
+                          type="text"
+                          value={patientPhone}
+                          onChange={(event) => setPatientPhone(event.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Email (optional)</label>
+                        <input
+                          type="email"
+                          value={patientEmail}
+                          onChange={(event) => setPatientEmail(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-              {bookingError && <p className="lab-form-error">{bookingError}</p>}
-            </div>
-            <div className="modal__footer">
-              <button
-                className="btn btn--outline btn--sm"
-                onClick={() => {
-                  setSelectedTest(null)
-                  resetBookingForm()
-                }}
-              >
-                Cancel
-              </button>
-              <button className="btn btn--primary btn--sm" onClick={handleRequest}>
-                Confirm request
-              </button>
-            </div>
+                  <div className="lab-form-section">
+                    <p className="lab-form-section__label">Appointment</p>
+                    <div className="lab-booking-grid">
+                      <div className="form-group">
+                        <label>Collection method</label>
+                        <select value={collection} onChange={(event) => setCollection(event.target.value as 'Walk-in' | 'Collection')}>
+                          <option value="Walk-in">Walk-in</option>
+                          <option value="Collection">Home collection</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Preferred date/time</label>
+                        <input
+                          type="text"
+                          placeholder="2026-02-14 10:00 AM"
+                          value={schedule}
+                          onChange={(event) => setSchedule(event.target.value)}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Priority</label>
+                        <select value={priority} onChange={(event) => setPriority(event.target.value as LabPriority)}>
+                          <option value="Routine">Routine</option>
+                          <option value="Priority">Priority</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Payment status</label>
+                        <select value={paymentStatus} onChange={(event) => setPaymentStatus(event.target.value as LabPaymentStatus)}>
+                          <option value="Pending">Pending</option>
+                          <option value="Paid">Paid</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="lab-form-section">
+                    <p className="lab-form-section__label">Clinical (optional)</p>
+                    <div className="lab-booking-grid">
+                      <div className="form-group">
+                        <label>Ordering doctor</label>
+                        <input
+                          type="text"
+                          value={orderingDoctor}
+                          onChange={(event) => setOrderingDoctor(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Notes</label>
+                      <textarea
+                        rows={3}
+                        value={notes}
+                        onChange={(event) => setNotes(event.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {bookingError && <p className="lab-form-error">{bookingError}</p>}
+                </div>
+                <div className="modal__footer">
+                  <button className="btn btn--outline btn--sm" onClick={() => setBookingMode('view')}>
+                    ← Back to details
+                  </button>
+                  <button className="btn btn--primary btn--sm" onClick={handleRequest}>
+                    Confirm booking
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {activeRequest && (
-        <div className="modal-overlay" onClick={() => setActiveRequest(null)}>
-          <div className="modal modal--wide" onClick={(event) => event.stopPropagation()}>
-            <div className="modal__header">
-              <h2>Lab request {activeRequest.id}</h2>
-              <button className="modal__close" onClick={() => setActiveRequest(null)}>×</button>
-            </div>
-            <div className="modal__content">
-              <div className="lab-request-detail-grid">
-                <div>
-                  <p className="lab-detail-label">Patient</p>
-                  <p>{activeRequest.patientName}</p>
-                </div>
-                <div>
-                  <p className="lab-detail-label">Phone</p>
-                  <p>{activeRequest.patientPhone}</p>
-                </div>
-                <div>
-                  <p className="lab-detail-label">Status</p>
-                  <span className={`status-pill ${getStatusClass(activeRequest.status)}`}>
-                    {activeRequest.status}
-                  </span>
-                </div>
-                <div>
-                  <p className="lab-detail-label">Payment</p>
-                  <span className={`status-pill ${activeRequest.paymentStatus === 'Paid' ? 'status-pill--success' : 'status-pill--warning'}`}>
-                    {activeRequest.paymentStatus}
-                  </span>
-                </div>
-                <div>
-                  <p className="lab-detail-label">Scheduled</p>
-                  <p>{activeRequest.scheduledAt}</p>
-                </div>
-                <div>
-                  <p className="lab-detail-label">Channel</p>
-                  <p>{activeRequest.channel}</p>
-                </div>
-                <div>
-                  <p className="lab-detail-label">Doctor</p>
-                  <p>{activeRequest.orderingDoctor ?? 'Not specified'}</p>
-                </div>
-                <div>
-                  <p className="lab-detail-label">Assigned technician</p>
-                  <p>{activeRequest.assignedTechnician ?? 'Pending assignment'}</p>
-                </div>
-              </div>
-
-              <div className="lab-detail-section">
-                <p className="lab-detail-label">Notes</p>
-                <p>{activeRequest.notes ?? 'No notes'}</p>
-              </div>
-
-              {resultByRequestId[activeRequest.id] && (
-                <div className="lab-detail-section lab-result-box">
-                  <h3>Result summary</h3>
-                  <p>{resultByRequestId[activeRequest.id].summary}</p>
-                  <p className="card__meta">File: {resultByRequestId[activeRequest.id].fileName}</p>
-                  <p className="card__meta">Reviewed by: {resultByRequestId[activeRequest.id].reviewedBy}</p>
-                  <p className="card__meta">Flags: {resultByRequestId[activeRequest.id].flags.join(', ') || 'None'}</p>
-                  <p className="card__meta">
-                    Recommendation: {resultByRequestId[activeRequest.id].recommendation ?? 'No recommendation'}
-                  </p>
-                </div>
-              )}
-
-              <div className="lab-detail-section">
-                <p className="lab-detail-label">Audit</p>
-                <ul className="lab-audit-list">
-                  {(activeRequest.audit ?? []).map((entry, index) => (
-                    <li key={`${entry.time}-${index}`}>
-                      <strong>{entry.time}</strong> - {entry.action}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            <div className="modal__footer">
-              {requestCanBeCancelled(activeRequest) && (
-                <button className="btn btn--outline btn--sm" onClick={() => handleCancelRequest(activeRequest.id)}>
-                  Cancel request
-                </button>
-              )}
-              {activeRequest.status === 'Result ready' && resultByRequestId[activeRequest.id] && (
-                <button className="btn btn--primary btn--sm" onClick={() => handleMarkReceived(activeRequest.id)}>
-                  Mark received
-                </button>
-              )}
-              <button className="btn btn--outline btn--sm" onClick={() => setActiveRequest(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

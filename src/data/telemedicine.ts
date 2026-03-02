@@ -23,6 +23,19 @@ export interface DoctorProfile {
   rating: number
   availability: string
   languages: string[]
+  licenseBoard?: string
+  licenseCountry?: string
+  licenseExpiry?: string
+  idNumber?: string
+  county?: string
+  address?: string
+  consultModes?: string[]
+  payoutMethod?: 'M-Pesa' | 'Bank Transfer'
+  payoutAccount?: string
+  backgroundConsent?: boolean
+  complianceDeclaration?: boolean
+  referees?: Array<{ name: string; email: string; phone: string }>
+  cvFiles?: string[]
   verifiedAt?: string
   statusNote?: string
   rejectionNote?: string

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { getCategoryBySlug, getSubcategoryBySlug } from '../../data/categories'
@@ -9,6 +9,8 @@ import { cartService } from '../../services/cartService'
 import './ProductListingPage.css'
 
 type ListingProduct = CatalogProduct
+
+const ITEMS_PER_PAGE = 12
 
 const getStockLabel = (stockSource: StockSource) => {
   if (stockSource === 'branch') return 'In stock at selected branch'
@@ -43,6 +45,9 @@ function ProductListingPage() {
   const [sortBy, setSortBy] = useState('recommended')
   const [restockAlerts, setRestockAlerts] = useState<Record<number, boolean>>({})
   const [addedProductId, setAddedProductId] = useState<number | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
 
   const products: ListingProduct[] = loadCatalogProducts()
 
@@ -83,6 +88,10 @@ function ProductListingPage() {
     setSelectedBrands((prev) =>
       prev.includes(brand) ? prev.filter((item) => item !== brand) : [...prev, brand]
     )
+  }
+
+  const toggleWishlist = (id: number) => {
+    setWishlist((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
   const filteredProducts = useMemo(() => {
@@ -140,6 +149,38 @@ function ProductListingPage() {
     if (sortBy === 'newest') list.sort((a, b) => b.id - a.id)
     return list
   }, [filteredProducts, sortBy])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, minPrice, maxPrice, selectedBrands, minRating, availability, sortBy])
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE))
+  const paginatedProducts = useMemo(
+    () => sortedProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [sortedProducts, currentPage]
+  )
+
+  const startItem = sortedProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, sortedProducts.length)
+
+  const getPageNumbers = (): (number | '...')[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const pages: (number | '...')[] = [1]
+    if (currentPage > 3) pages.push('...')
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i)
+    }
+    if (currentPage < totalPages - 2) pages.push('...')
+    pages.push(totalPages)
+    return pages
+  }
+
+  const activeFilterCount =
+    (searchTerm ? 1 : 0) +
+    selectedBrands.length +
+    (minRating > 0 ? 1 : 0) +
+    (availability !== 'all' ? 1 : 0) +
+    (minPrice > 0 || maxPrice < 10000 ? 1 : 0)
 
   const clearAllFilters = () => {
     setSearchTerm(queryFromUrl)
@@ -220,6 +261,45 @@ function ProductListingPage() {
           )}
         </div>
 
+        {activeFilterCount > 0 && (
+          <div className="plp__filter-chips">
+            <span className="plp__filter-chips__label">Active filters:</span>
+            {searchTerm && (
+              <span className="plp__chip">
+                Search: &ldquo;{searchTerm}&rdquo;
+                <button className="plp__chip__remove" type="button" onClick={() => setSearchTerm('')}>×</button>
+              </span>
+            )}
+            {selectedBrands.map((b) => (
+              <span key={b} className="plp__chip">
+                {b}
+                <button className="plp__chip__remove" type="button" onClick={() => toggleBrand(b)}>×</button>
+              </span>
+            ))}
+            {minRating > 0 && (
+              <span className="plp__chip">
+                {minRating}★ &amp; Up
+                <button className="plp__chip__remove" type="button" onClick={() => setMinRating(0)}>×</button>
+              </span>
+            )}
+            {availability !== 'all' && (
+              <span className="plp__chip">
+                {availability === 'in_stock' ? 'In Stock' : 'Out of Stock'}
+                <button className="plp__chip__remove" type="button" onClick={() => setAvailability('all')}>×</button>
+              </span>
+            )}
+            {(minPrice > 0 || maxPrice < 10000) && (
+              <span className="plp__chip">
+                KSh {minPrice.toLocaleString()}–{maxPrice.toLocaleString()}
+                <button className="plp__chip__remove" type="button" onClick={() => { setMinPrice(0); setMaxPrice(10000) }}>×</button>
+              </span>
+            )}
+            <button className="plp__chip plp__chip--clear" type="button" onClick={clearAllFilters}>
+              Clear all
+            </button>
+          </div>
+        )}
+
         <div className="plp__layout">
           <aside className="plp__sidebar">
             <div className="filter-section">
@@ -239,7 +319,7 @@ function ProductListingPage() {
                   value={minPrice}
                   onChange={(event) => setMinPrice(Number(event.target.value) || 0)}
                 />
-                <span>-</span>
+                <span>–</span>
                 <input
                   type="number"
                   placeholder="Max"
@@ -335,21 +415,33 @@ function ProductListingPage() {
 
           <main className="plp__main">
             <div className="plp__toolbar">
-              <p className="plp__results-count">{sortedProducts.length} Products</p>
-              <div className="plp__sort">
-                <input
-                  type="text"
-                  className="sort-select plp__search-input"
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                />
-                <label htmlFor="sort-select">Sort by:</label>
+              <p className="plp__results-count">
+                {sortedProducts.length === 0
+                  ? 'No products found'
+                  : `Showing ${startItem}–${endItem} of ${sortedProducts.length} product${sortedProducts.length !== 1 ? 's' : ''}`}
+              </p>
+              <div className="plp__toolbar-right">
+                <div className="plp__search-wrap">
+                  <svg className="plp__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <input
+                    type="text"
+                    className="plp__search-input"
+                    placeholder={`Search${activeCategory ? ` in ${categoryTitle}` : ''}…`}
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
+                  {searchTerm && (
+                    <button className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>
+                  )}
+                </div>
                 <select
                   id="sort-select"
                   value={sortBy}
                   onChange={(event) => setSortBy(event.target.value)}
-                  className="sort-select plp__sort-select"
+                  className="plp__sort-select"
                 >
                   <option value="recommended">Recommended</option>
                   <option value="price-low">Price: Low to High</option>
@@ -357,12 +449,39 @@ function ProductListingPage() {
                   <option value="rating">Customer Rating</option>
                   <option value="newest">Newest First</option>
                 </select>
+                <div className="plp__view-toggle">
+                  <button
+                    className={`plp__view-btn ${viewMode === 'grid' ? 'is-active' : ''}`}
+                    type="button"
+                    title="Grid view"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <svg viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="1" y="1" width="6" height="6" rx="1"/>
+                      <rect x="9" y="1" width="6" height="6" rx="1"/>
+                      <rect x="1" y="9" width="6" height="6" rx="1"/>
+                      <rect x="9" y="9" width="6" height="6" rx="1"/>
+                    </svg>
+                  </button>
+                  <button
+                    className={`plp__view-btn ${viewMode === 'list' ? 'is-active' : ''}`}
+                    type="button"
+                    title="List view"
+                    onClick={() => setViewMode('list')}
+                  >
+                    <svg viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="1" y="2" width="14" height="2" rx="1"/>
+                      <rect x="1" y="7" width="14" height="2" rx="1"/>
+                      <rect x="1" y="12" width="14" height="2" rx="1"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="products-grid">
-              {sortedProducts.map((product) => (
-                <article key={product.id} className="product-card">
+            <div className={`products-grid ${viewMode === 'list' ? 'products-grid--list' : ''}`}>
+              {paginatedProducts.map((product) => (
+                <article key={product.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
                   <Link to={`/product/${product.id}`} className="product-card__image">
                     {product.badge && (
                       <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
@@ -372,6 +491,16 @@ function ProductListingPage() {
                     {product.stockSource === 'out' && (
                       <div className="product-card__overlay">Out of Stock</div>
                     )}
+                    <button
+                      className={`product-card__wishlist ${wishlist[product.id] ? 'is-active' : ''}`}
+                      type="button"
+                      title={wishlist[product.id] ? 'Remove from wishlist' : 'Save to wishlist'}
+                      onClick={(e) => { e.preventDefault(); toggleWishlist(product.id) }}
+                    >
+                      <svg viewBox="0 0 24 24" fill={wishlist[product.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
                     <ImageWithFallback src={product.image} alt={product.name} />
                   </Link>
 
@@ -400,13 +529,24 @@ function ProductListingPage() {
                     </p>
 
                     {product.stockSource !== 'out' ? (
-                      <button className="product-card__add-to-cart" type="button" onClick={() => handleAddToCart(product)}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="9" cy="21" r="1"/>
-                          <circle cx="20" cy="21" r="1"/>
-                          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                        </svg>
-                        {addedProductId === product.id ? 'Added' : 'Add to Cart'}
+                      <button className={`product-card__add-to-cart ${addedProductId === product.id ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
+                        {addedProductId === product.id ? (
+                          <>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Added
+                          </>
+                        ) : (
+                          <>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="9" cy="21" r="1"/>
+                              <circle cx="20" cy="21" r="1"/>
+                              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                            </svg>
+                            Add to Cart
+                          </>
+                        )}
                       </button>
                     ) : (
                       <button
@@ -414,22 +554,78 @@ function ProductListingPage() {
                         type="button"
                         onClick={() => toggleRestockAlert(product.id)}
                       >
-                        {restockAlerts[product.id] ? 'Restock Alert Set' : 'Notify on Restock'}
+                        {restockAlerts[product.id] ? 'Restock Alert Set ✓' : 'Notify on Restock'}
                       </button>
                     )}
                   </div>
                 </article>
               ))}
               {sortedProducts.length === 0 && (
-                <div className="empty-state">No products match your current filters.</div>
+                <div className="empty-state">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <p className="empty-state__title">No products found</p>
+                  <p className="empty-state__sub">Try adjusting your filters or search term.</p>
+                  {activeFilterCount > 0 && (
+                    <button className="btn btn--sm btn--primary" type="button" onClick={clearAllFilters}>
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
-            <div className="pagination">
-              <button className="pagination__btn" disabled>Previous</button>
-              <button className="pagination__btn pagination__btn--active">1</button>
-              <button className="pagination__btn" disabled>Next</button>
-            </div>
+            {totalPages > 1 && (
+              <div className="pagination-wrap">
+                <p className="pagination-info">
+                  Showing <strong>{startItem}–{endItem}</strong> of <strong>{sortedProducts.length}</strong> results
+                </p>
+                <div className="pagination">
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    aria-label="Previous page"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                    Prev
+                  </button>
+
+                  <div className="pagination__pages">
+                    {getPageNumbers().map((page, idx) =>
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="pagination__ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={page}
+                          className={`pagination__btn pagination__btn--page ${currentPage === page ? 'pagination__btn--active' : ''}`}
+                          onClick={() => setCurrentPage(page as number)}
+                          aria-current={currentPage === page ? 'page' : undefined}
+                        >
+                          {page}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    aria-label="Next page"
+                  >
+                    Next
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>

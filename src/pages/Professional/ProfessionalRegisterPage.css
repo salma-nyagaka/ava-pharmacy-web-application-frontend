@@ -104,7 +104,7 @@
 /* ── Type cards ─────────────────────────── */
 .pr-type-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
 }
 
@@ -267,6 +267,56 @@
   background: var(--color-primary, #4338ca);
   border-color: var(--color-primary, #4338ca);
   color: #fff;
+}
+
+/* ── Mode pills ────────────────────────── */
+.pr-mode-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.pr-mode-pill {
+  padding: 0.3rem 0.7rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.13s;
+}
+
+.pr-mode-pill--active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
+
+/* ── Referees ──────────────────────────── */
+.pr-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.pr-ref-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.pr-ref-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
 }
 
 /* ── Fee & commission ───────────────────── */

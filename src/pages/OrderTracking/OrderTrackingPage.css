@@ -1,3 +1,38 @@
+.tracking-page .page {
+  background: #f8fafc;
+}
+
+.track-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.track-card--hero {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.track-form .form-row {
+  margin-bottom: 0.75rem;
+}
+
+.track-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.track-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  margin: 0.4rem 0;
+}
+
 .tracking-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -6,24 +41,264 @@
 }
 
 .tracking-summary__item {
-  padding: 1rem 1.25rem;
-  border-radius: var(--radius-lg);
-  background: var(--color-background-light);
-  border: 1px solid var(--color-border-light);
+  padding: 1.1rem 1.25rem;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .tracking-summary__label {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  color: #64748b;
 }
 
 .tracking-summary__value {
   font-weight: 700;
   margin-top: 0.35rem;
+  font-size: 1rem;
+}
+
+.tracking-summary__meta {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.track-status {
+  display: inline-flex;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(14, 116, 144, 0.12);
+  color: #0e7490;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.track-progress {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 1.2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.track-progress__bar {
+  position: absolute;
+  left: 1.5rem;
+  right: 1.5rem;
+  bottom: 0.85rem;
+  height: 3px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.track-progress__bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #0f766e, #38bdf8);
+}
+
+.track-progress__step {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.track-progress__step p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.track-progress__step span {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.track-progress__dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+}
+
+.track-progress__step--done .track-progress__dot {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+}
+
+.track-progress__step--current .track-progress__dot {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+}
+
+.track-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 1.5rem;
+}
+
+.track-left,
+.track-right {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.track-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.track-toast {
+  font-size: 0.75rem;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.timeline {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.timeline__item {
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.timeline__item:hover {
+  border-color: #0f766e;
+  box-shadow: 0 8px 16px rgba(15, 118, 110, 0.15);
+}
+
+.timeline__item--current {
+  border-color: #0f766e;
+  background: #ecfeff;
+}
+
+.timeline__item--done {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.timeline__title {
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.timeline__body {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.timeline__detail {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.track-note {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.track-detail {
+  display: grid;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.track-detail span {
+  display: block;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.track-items {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.track-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.track-toggle {
+  display: grid;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.track-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn.btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #64748b;
+}
+
+@media (max-width: 1024px) {
+  .track-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
   .tracking-summary {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .track-card {
+    padding: 1.25rem;
+  }
+
+  .track-progress {
+    grid-template-columns: 1fr;
+  }
+
+  .track-progress__bar {
+    display: none;
   }
 }

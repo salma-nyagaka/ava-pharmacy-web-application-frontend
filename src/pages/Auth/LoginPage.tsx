@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { loadDoctorProfiles } from '../../data/telemedicine'
+import { loadLabPartners } from '../../data/labPartners'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import './AuthPage.css'
 
@@ -36,11 +37,6 @@ function LoginPage() {
     }
 
     const emailLower = email.trim().toLowerCase()
-    if (emailLower === 'lab@ava.com') {
-      login({ name: 'Lab Technician', email: email.trim(), role: 'lab_technician' })
-      navigate('/lab/tech')
-      return
-    }
     if (emailLower === 'admin@ava.com') {
       login({ name: 'Admin User', email: email.trim(), role: 'admin' })
       navigate('/admin')
@@ -49,6 +45,39 @@ function LoginPage() {
     if (emailLower === 'pharmacist@ava.com') {
       login({ name: 'Pharmacist User', email: email.trim(), role: 'pharmacist' })
       navigate('/pharmacist')
+      return
+    }
+
+    const partners = loadLabPartners()
+    const labMatch = partners
+      .flatMap((partner) => partner.techs.map((tech) => ({ partner, tech })))
+      .find(({ tech }) => tech.email.toLowerCase() === emailLower)
+
+    if (labMatch) {
+      const { partner, tech } = labMatch
+      if (partner.status !== 'Verified') {
+        setError('Your lab partner is not verified yet. Please contact the lab admin.')
+        return
+      }
+      if (tech.status !== 'Active') {
+        setError('Your lab technician profile is inactive. Please contact support.')
+        return
+      }
+      login({
+        name: tech.name,
+        email: email.trim(),
+        role: 'lab_technician',
+        labPartnerId: partner.id,
+        labPartnerName: partner.name,
+        labTechId: tech.id,
+      })
+      navigate('/lab/tech')
+      return
+    }
+
+    if (emailLower === 'lab@ava.com') {
+      login({ name: 'Lab Technician', email: email.trim(), role: 'lab_technician' })
+      navigate('/lab/tech')
       return
     }
 

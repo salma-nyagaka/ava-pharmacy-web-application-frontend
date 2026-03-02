@@ -9,7 +9,9 @@ import {
   productMultivitamin,
   articleSkincare,
 } from '../../assets/images/remote'
-import defaultHeroBanner from '../../assets/images/banner/banner1.png'
+import huggiesBanner from '../../assets/images/banner/huggies.png'
+// import niveaBanner from '../../assets/images/banner/nivea.png'
+// import larocheBanner from '../../assets/images/banner/laroche-pink.png'
 import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
 import { cartService } from '../../services/cartService'
 import { loadCatalogProducts } from '../../data/products'
@@ -23,6 +25,7 @@ function HomePage() {
   const [newsletterEmail, setNewsletterEmail] = useState('')
   const [newsletterError, setNewsletterError] = useState('')
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
+  const [currentSlide, setCurrentSlide] = useState(0)
 
   const categories = [
     {
@@ -54,35 +57,11 @@ function HomePage() {
     .slice(0, 4)
 
   const valueBannerItems = [
-    {
-      key: 'delivery',
-      title: 'Free Delivery',
-      subtitle: 'On orders over KSh 3,000',
-      cta: 'View delivery options',
-      link: '/help',
-    },
-    {
-      key: 'support',
-      title: 'Pharmacist Support',
-      subtitle: 'Professional guidance every day',
-      cta: 'Start consultation',
-      link: '/doctor-consultation',
-    },
-    {
-      key: 'quality',
-      title: 'Quality Products',
-      subtitle: 'Genuine, certified healthcare products',
-      cta: 'Learn more',
-      link: '/about',
-    },
-    {
-      key: 'secure',
-      title: 'Secure Checkout',
-      subtitle: 'M-Pesa, card, and cash on delivery',
-      cta: 'How payment works',
-      link: '/help',
-    },
-  ] as const
+    { key: 'delivery', title: 'Free Delivery',       subtitle: 'On orders over KSh 3,000',      link: '/help',                color: 'green'  },
+    { key: 'support',  title: 'Expert Pharmacists',  subtitle: 'Professional guidance, 24/7',   link: '/doctor-consultation', color: 'blue'   },
+    { key: 'quality',  title: 'Genuine Products',    subtitle: 'Certified & lab-verified stock', link: '/about',               color: 'purple' },
+    { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
+  ]
 
   const catalogProducts = loadCatalogProducts()
   const featuredProducts = catalogProducts.filter((product) => product.stockSource !== 'out').slice(0, 4)
@@ -157,6 +136,19 @@ function HomePage() {
       window.removeEventListener('resize', updateScrollButtons)
     }
   }, [])
+
+  const bannerSlides = [
+    { id: 1, image: huggiesBanner,  alt: 'CeraVe Skincare Collection',             link: '/category/beauty-skincare?q=cerave' },
+    // { id: 2, image: niveaBanner,   alt: 'Nivea Body & Skin Care',                 link: '/category/beauty-skincare?q=nivea' },
+    // { id: 3, image: larocheBanner, alt: 'La Roche-Posay Dermatologist Solutions', link: '/category/beauty-skincare?q=laroche' },
+  ]
+
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      setCurrentSlide(s => (s + 1) % bannerSlides.length)
+    }, 5000)
+    return () => window.clearInterval(t)
+  }, [bannerSlides.length])
 
   const scrollCategories = (direction: 'prev' | 'next') => {
     const track = categoryTrackRef.current
@@ -259,67 +251,65 @@ function HomePage() {
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
-      {/* Hero Section */}
-      <section className="hero" id="main-content">
-        <div className="container hero__canvas">
-          <div className="hero__content">
-            <span className="hero__eyebrow">AVA Pharmacy</span>
-            <h1 className="hero__headline">Care that travels with you.</h1>
-            <p className="hero__lead">
-              From prescriptions and lab tests to everyday essentials — get trusted healthcare delivered fast, with licensed professionals on standby.
-            </p>
-            <div className="hero__actions">
-              <Link to="/products" className="btn btn--primary btn--lg">Shop products</Link>
-              <Link to="/prescriptions" className="btn btn--outline btn--lg">Upload prescription</Link>
-            </div>
-            <div className="hero__trust-row">
-              <div className="hero__trust-card">
-                <strong>90 mins</strong>
-                <span>Express delivery in Nairobi</span>
-              </div>
-              <div className="hero__trust-card">
-                <strong>24/7</strong>
-                <span>Pharmacist support</span>
-              </div>
-              <div className="hero__trust-card">
-                <strong>200+</strong>
-                <span>Lab tests available</span>
-              </div>
-            </div>
-          </div>
-          <div className="hero__media">
-            <Link to="/offers" className="hero__media-link" aria-label="View offers">
-              <ImageWithFallback src={defaultHeroBanner} alt="AVA Pharmacy featured banner" className="hero__media-image" />
+      {/* Hero Carousel — full-width promotional banner */}
+      <section className="hero-carousel" id="main-content">
+        <div
+          className="hero-carousel__track"
+          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+        >
+          {bannerSlides.map(slide => (
+            <Link key={slide.id} to={slide.link} className="hero-carousel__slide">
+              <img src={slide.image} alt={slide.alt} className="hero-carousel__img" />
             </Link>
-            <div className="hero__media-card hero__media-card--top">
-              <span className="hero__media-tag">Trusted care</span>
-              <p>Licensed pharmacists review every prescription.</p>
-            </div>
-            <div className="hero__media-card hero__media-card--bottom">
-              <span className="hero__media-tag">Fast dispatch</span>
-              <p>Same-day delivery for most orders.</p>
-            </div>
-          </div>
+          ))}
+        </div>
+
+        <button
+          className="hero-carousel__arrow hero-carousel__arrow--prev"
+          onClick={() => setCurrentSlide(s => (s - 1 + bannerSlides.length) % bannerSlides.length)}
+          aria-label="Previous slide"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+        <button
+          className="hero-carousel__arrow hero-carousel__arrow--next"
+          onClick={() => setCurrentSlide(s => (s + 1) % bannerSlides.length)}
+          aria-label="Next slide"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+
+        <div className="hero-carousel__dots">
+          {bannerSlides.map((_, i) => (
+            <button
+              key={i}
+              className={`hero-carousel__dot${i === currentSlide ? ' hero-carousel__dot--active' : ''}`}
+              onClick={() => setCurrentSlide(i)}
+              aria-label={`Go to slide ${i + 1}`}
+            />
+          ))}
         </div>
       </section>
 
       {/* Promotional Banner */}
       <section className="promo-banner">
         <div className="container">
-          <div className="promo-banner__head">
-            <h2>Why customers choose AVA Pharmacy</h2>
-            <p>Fast fulfillment, licensed professionals, and transparent service from order to delivery</p>
-          </div>
-          <div className="promo-banner__content">
-            {valueBannerItems.map((item) => (
-              <Link key={item.title} to={item.link} className="promo-banner__item">
-                {renderBannerIcon(item.key)}
-                <div>
+          <div className="promo-banner__strip">
+            {valueBannerItems.map((item, i) => (
+              <div key={item.title} className="promo-banner__item">
+                <span className={`promo-banner__icon promo-banner__icon--${item.color}`}>
+                  {renderBannerIcon(item.key)}
+                </span>
+                <div className="promo-banner__text">
                   <strong>{item.title}</strong>
                   <span>{item.subtitle}</span>
-                  <em>{item.cta} →</em>
                 </div>
-              </Link>
+                {i < valueBannerItems.length - 1 && <div className="promo-banner__divider" />}
+              </div>
             ))}
           </div>
         </div>
@@ -735,6 +725,20 @@ function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* WhatsApp FAB */}
+      <a
+        href="https://wa.me/254700000000"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="whatsapp-fab"
+        aria-label="Chat with us on WhatsApp"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+        </svg>
+        <span className="whatsapp-fab__tooltip">Chat with us</span>
+      </a>
     </div>
   )
 }

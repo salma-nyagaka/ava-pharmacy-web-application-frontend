@@ -177,6 +177,13 @@
   color: var(--color-text-muted);
 }
 
+.lp-tech-meta {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
 .lp-tech-status {
   font-size: 0.7rem;
   font-weight: 700;
@@ -199,6 +206,21 @@
   font-size: 0.8rem;
   color: var(--color-text-muted);
   text-align: center;
+}
+
+.lp-docs__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.lp-doc-chip {
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .lp-add-tech {

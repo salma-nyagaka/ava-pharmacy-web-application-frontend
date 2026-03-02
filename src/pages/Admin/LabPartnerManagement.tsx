@@ -202,11 +202,13 @@ function LabPartnerManagement() {
               <tr key={partner.id}>
                 <td>
                   <p className="lp-name">{partner.name}</p>
+                  {partner.contactName && <p className="lp-meta">Contact: {partner.contactName}</p>}
                   <p className="lp-meta">{partner.location}</p>
                 </td>
                 <td>
                   <p className="lp-meta">{partner.email}</p>
                   <p className="lp-meta">{partner.phone}</p>
+                  {partner.accreditation && <p className="lp-meta">Accreditation: {partner.accreditation}</p>}
                 </td>
                 <td>
                   <span className="lp-tech-count">{partner.techs.length} tech{partner.techs.length === 1 ? '' : 's'}</span>
@@ -302,7 +304,10 @@ function LabPartnerManagement() {
             <div className="modal__header">
               <div>
                 <h2>{managePartner.name}</h2>
-                <p className="lp-modal__subtitle">{managePartner.email} · {managePartner.phone}</p>
+                <p className="lp-modal__subtitle">
+                  {managePartner.contactName ? `${managePartner.contactName} · ` : ''}
+                  {managePartner.email} · {managePartner.phone}
+                </p>
               </div>
               <button className="modal__close" onClick={() => setShowManage(false)}>×</button>
             </div>
@@ -315,14 +320,50 @@ function LabPartnerManagement() {
                       <span>Location</span>
                       <strong>{managePartner.location}</strong>
                     </div>
+                    {managePartner.county && (
+                      <div>
+                        <span>County</span>
+                        <strong>{managePartner.county}</strong>
+                      </div>
+                    )}
+                    {managePartner.address && (
+                      <div>
+                        <span>Address</span>
+                        <strong>{managePartner.address}</strong>
+                      </div>
+                    )}
                     <div>
                       <span>Payout</span>
                       <strong>{managePartner.payoutMethod} · {managePartner.payoutAccount}</strong>
                     </div>
+                    {managePartner.licenseNumber && (
+                      <div>
+                        <span>License</span>
+                        <strong>{managePartner.licenseNumber}</strong>
+                      </div>
+                    )}
+                    {managePartner.accreditation && (
+                      <div>
+                        <span>Accreditation</span>
+                        <strong>{managePartner.accreditation}</strong>
+                      </div>
+                    )}
                     <div>
                       <span>Status</span>
                       <strong>{managePartner.status}</strong>
                     </div>
+                  </div>
+                  <div className="lp-docs" style={{ marginTop: '1rem' }}>
+                    <p className="lp-section-title">Documents</p>
+                    {managePartner.documents && managePartner.documents.length > 0 ? (
+                      <div className="lp-docs__list">
+                        {managePartner.documents.map((doc) => (
+                          <span key={doc} className="lp-doc-chip">{doc}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="lp-empty-state">No documents uploaded.</div>
+                    )}
                   </div>
                   <div className="form-group" style={{ marginTop: '1rem' }}>
                     <label>Update status</label>
@@ -340,7 +381,11 @@ function LabPartnerManagement() {
                       <div key={tech.id} className="lp-tech-card">
                         <div>
                           <p>{tech.name}</p>
-                          <span>{tech.email}</span>
+                          <span>{tech.email} · {tech.phone}</span>
+                          {tech.specialty && <span className="lp-tech-meta">Specialty: {tech.specialty}</span>}
+                          {tech.licenseNumber && <span className="lp-tech-meta">License: {tech.licenseNumber}</span>}
+                          {tech.licenseExpiry && <span className="lp-tech-meta">Expiry: {tech.licenseExpiry}</span>}
+                          {tech.idNumber && <span className="lp-tech-meta">ID: {tech.idNumber}</span>}
                         </div>
                         <span className={`lp-tech-status ${tech.status === 'Active' ? 'lp-tech-status--active' : 'lp-tech-status--inactive'}`}>
                           {tech.status}

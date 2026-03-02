@@ -1,15 +1,17 @@
-import PageHeader from '../../components/PageHeader/PageHeader'
+import { Link } from 'react-router-dom'
 
 function AccountEditPage() {
   return (
     <div>
-      <PageHeader
-        title="Edit profile"
-        subtitle="Update your personal information and contact details."
-        badge="My Account"
-      />
       <section className="page">
         <div className="container">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8', margin: '0 0 0.25rem' }}>My Account</p>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Edit Profile</h1>
+            </div>
+            <Link to="/account" className="btn btn--outline btn--sm">← Back to Account</Link>
+          </div>
           <div className="form-card" style={{ maxWidth: '640px' }}>
             <form>
               <div className="form-row">

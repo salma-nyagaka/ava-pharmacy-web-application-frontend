@@ -6,6 +6,9 @@ export interface User {
   name: string
   email: string
   role: UserRole
+  labPartnerId?: string
+  labPartnerName?: string
+  labTechId?: string
 }
 
 interface AuthContextType {
@@ -22,7 +25,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem('ava_user')
     if (!stored) return null
     const parsed = JSON.parse(stored) as Partial<User>
-    return { name: parsed.name ?? '', email: parsed.email ?? '', role: parsed.role ?? 'patient' }
+    return {
+      name: parsed.name ?? '',
+      email: parsed.email ?? '',
+      role: parsed.role ?? 'patient',
+      labPartnerId: parsed.labPartnerId,
+      labPartnerName: parsed.labPartnerName,
+      labTechId: parsed.labTechId,
+    }
   })
 
   const login = useCallback((userData: User) => {

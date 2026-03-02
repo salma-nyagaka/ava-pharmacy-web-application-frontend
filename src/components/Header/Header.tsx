@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import './Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import brandPanadol from '../../assets/images/brands/panadol.jpeg'
@@ -21,15 +21,17 @@ import { useAuth } from '../../context/AuthContext'
 function Header() {
   const ALL_CATEGORIES_KEY = 'all'
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, isLoggedIn, logout } = useAuth()
+
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + '/')
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isAccountsOpen, setIsAccountsOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [cartCount, setCartCount] = useState(0)
-  const popularLinksRef = useRef<HTMLDivElement | null>(null)
-  const [canScrollPopularLeft, setCanScrollPopularLeft] = useState(false)
-  const [canScrollPopularRight, setCanScrollPopularRight] = useState(true)
 
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev)
@@ -124,53 +126,12 @@ function Header() {
     setActiveCategory(defaultCategorySlug)
   }
 
-  const popularSubcategories = categories
-    .flatMap((category) => category.subcategories.slice(0, 2).map((item) => ({
-      name: item.name,
-      path: buildSubcategoryPath(category.path, item.slug),
-    })))
-    .slice(0, 8)
-
   const submitSearch = () => {
     const query = searchQuery.trim()
     navigate(query ? `/products?query=${encodeURIComponent(query)}` : '/products')
     setIsSearchOpen(false)
     setActiveMenu(null)
     setIsMenuOpen(false)
-  }
-
-  const updatePopularScrollButtons = () => {
-    const container = popularLinksRef.current
-    if (!container) return
-    const { scrollLeft, scrollWidth, clientWidth } = container
-    setCanScrollPopularLeft(scrollLeft > 0)
-    setCanScrollPopularRight(scrollLeft < scrollWidth - clientWidth - 1)
-  }
-
-  useEffect(() => {
-    const container = popularLinksRef.current
-    if (!container) return
-    updatePopularScrollButtons()
-    container.addEventListener('scroll', updatePopularScrollButtons)
-    window.addEventListener('resize', updatePopularScrollButtons)
-    return () => {
-      container.removeEventListener('scroll', updatePopularScrollButtons)
-      window.removeEventListener('resize', updatePopularScrollButtons)
-    }
-  }, [])
-
-  const scrollPopularLinks = (direction: 'prev' | 'next') => {
-    const container = popularLinksRef.current
-    if (!container) return
-    const scrollAmount = 300
-    container.scrollBy({ left: direction === 'next' ? scrollAmount : -scrollAmount, behavior: 'smooth' })
-  }
-
-  const handlePopularKeyDown = (event: React.KeyboardEvent, direction: 'prev' | 'next') => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      scrollPopularLinks(direction)
-    }
   }
 
   return (
@@ -183,18 +144,20 @@ function Header() {
               {activeBanner?.link ? (
                 <Link to={activeBanner.link} className="header__topbar-item">
                   <svg className="header__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 12h18"/>
-                    <path d="M9 6h6"/>
-                    <path d="M9 18h6"/>
+                    <rect x="1" y="3" width="15" height="13" rx="1"/>
+                    <path d="M16 8h4l3 5v3h-7V8z"/>
+                    <circle cx="5.5" cy="18.5" r="1.5"/>
+                    <circle cx="18.5" cy="18.5" r="1.5"/>
                   </svg>
                   {activeBanner.message}
                 </Link>
               ) : (
                 <span className="header__topbar-item">
                   <svg className="header__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 12h18"/>
-                    <path d="M9 6h6"/>
-                    <path d="M9 18h6"/>
+                    <rect x="1" y="3" width="15" height="13" rx="1"/>
+                    <path d="M16 8h4l3 5v3h-7V8z"/>
+                    <circle cx="5.5" cy="18.5" r="1.5"/>
+                    <circle cx="18.5" cy="18.5" r="1.5"/>
                   </svg>
                   {activeBanner?.message ?? 'Free delivery for orders above KSh 2,500'}
                 </span>
@@ -252,34 +215,51 @@ function Header() {
                 </svg>
               </button>
 
-              <Link to="/contact" className="header__action-btn" aria-label="Contact us">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 8V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v1"/>
-                  <path d="M21 8l-9 6L3 8"/>
-                  <path d="M3 8v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8"/>
-                </svg>
-                <span className="header__action-text">Contact Us</span>
-              </Link>
+              <div
+                className={`header__accounts ${isAccountsOpen ? 'header__accounts--open' : ''}`}
+                onMouseEnter={() => setIsAccountsOpen(true)}
+                onMouseLeave={() => setIsAccountsOpen(false)}
+              >
+                <button className="header__action-btn" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <span className="header__action-text">
+                    {isLoggedIn ? user?.name?.split(' ')[0] : 'Account'}
+                  </span>
+                </button>
+                <div className="header__accounts-dropdown">
+                  {isLoggedIn ? (
+                    <>
+                      <p className="header__accounts-greeting">Hello, {user?.name?.split(' ')[0]}</p>
+                      <Link to="/account" className="header__accounts-link">My Account</Link>
+                      <Link to="/account/profile" className="header__accounts-link">Profile</Link>
+                      <div className="header__accounts-divider" />
+                      <button className="header__accounts-signout" onClick={logout} type="button">Sign Out</button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="header__accounts-greeting">Hello, sign in</p>
+                      <Link to="/login" className="header__accounts-signin-btn">Sign In</Link>
+                      <p className="header__accounts-register">
+                        New customer? <Link to="/register">Register here</Link>
+                      </p>
+                      <div className="header__accounts-divider" />
+                      <Link to="/account/orders" className="header__accounts-link">Your Orders</Link>
+                    </>
+                  )}
+                </div>
+              </div>
 
-              {isLoggedIn ? (
-                <div className="header__user-menu">
-                  <Link to="/account" className="header__action-btn header__action-btn--user">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    <span className="header__action-text header__user-name">{user?.name}</span>
-                  </Link>
-                  <button className="header__action-btn header__action-btn--logout" onClick={logout} type="button">
-                    <span className="header__action-text">Sign out</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="header__auth-links">
-                  <Link to="/login" className="header__auth-link">Sign in</Link>
-                  <Link to="/register" className="header__auth-link header__auth-link--register">Register</Link>
-                </div>
-              )}
+              <Link to="/account/orders" className="header__action-btn header__action-btn--orders">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                  <rect x="9" y="3" width="6" height="4" rx="1"/>
+                  <path d="M9 12h6M9 16h4"/>
+                </svg>
+                <span className="header__action-text">Orders</span>
+              </Link>
 
               <Link to="/cart" className="header__action-btn header__action-btn--cart">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -467,72 +447,23 @@ function Header() {
               </div>
             </li>
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/offers" className="header__nav-link" onClick={closeMenus}>Deals</Link>
+              <Link to="/offers" className={`header__nav-link${isActive('/offers') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>Deals</Link>
             </li>
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/prescriptions" className="header__nav-link header__nav-link--cta" onClick={closeMenus}>
                 Upload Prescription
               </Link>
             </li>
-          
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/health-services" className="header__nav-link" onClick={closeMenus}>Consult &amp; Care</Link>
+              <Link to="/health-services" className={`header__nav-link${isActive('/health-services') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>Consult &amp; Care</Link>
             </li>
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/lab-tests" className="header__nav-link" onClick={closeMenus}>Lab Tests</Link>
-            </li>
-            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/track-order" className="header__nav-link" onClick={closeMenus}>Track Order</Link>
-            </li>
-            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/store-locator" className="header__nav-link header__nav-link--icon" onClick={closeMenus}>
-                <span className="header__nav-icon">📍</span>
-                Store Locator
-              </Link>
-            </li>
-            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/professional/register" className="header__nav-link header__nav-link--pro" onClick={closeMenus}>
-                Professional Registration
-              </Link>
+              <Link to="/lab-tests" className={`header__nav-link${isActive('/lab-tests') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>Lab Tests</Link>
             </li>
           </ul>
         </div>
       </nav>
 
-      <div className="header__subnav" aria-label="Popular subcategories">
-        <div className="container">
-          <div className="header__subnav-content">
-            <span className="header__subnav-label">Popular right now</span>
-            <button
-              className="header__subnav-scroll header__subnav-scroll--prev"
-              type="button"
-              aria-label="Scroll left"
-              onClick={() => scrollPopularLinks('prev')}
-              onKeyDown={(e) => handlePopularKeyDown(e, 'prev')}
-              disabled={!canScrollPopularLeft}
-            >
-              ‹
-            </button>
-            <div className="header__subnav-links" ref={popularLinksRef}>
-              {popularSubcategories.map((item) => (
-                <Link key={item.path} to={item.path} className="header__subnav-link">
-                  {item.name}
-                </Link>
-              ))}
-            </div>
-            <button
-              className="header__subnav-scroll header__subnav-scroll--next"
-              type="button"
-              aria-label="Scroll right"
-              onClick={() => scrollPopularLinks('next')}
-              onKeyDown={(e) => handlePopularKeyDown(e, 'next')}
-              disabled={!canScrollPopularRight}
-            >
-              ›
-            </button>
-          </div>
-        </div>
-      </div>
     </header>
   )
 }
