@@ -215,7 +215,7 @@ function PrescriptionManagement() {
                 <td><span className="px-rx-id">{rx.id}</span></td>
                 <td>
                   <p className="px-patient">{rx.patient}</p>
-                  <p className="px-doctor-name">{rx.doctor || '—'}</p>
+                  <p className="px-doctor-name">{rx.doctor || '-'}</p>
                 </td>
                 <td>
                   <span className={rx.pharmacist === 'Unassigned' ? 'px-unassigned' : 'px-pharmacist'}>{rx.pharmacist}</span>
@@ -284,7 +284,7 @@ function PrescriptionManagement() {
                   </div>
                   <div className="px-detail-cell">
                     <span className="px-info-label">Prescribing doctor</span>
-                    <span className="px-info-value">{activeRx.doctor || '—'}</span>
+                    <span className="px-info-value">{activeRx.doctor || '-'}</span>
                   </div>
                 </div>
 

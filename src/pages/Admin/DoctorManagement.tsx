@@ -461,7 +461,7 @@ function DoctorManagement() {
                     <div className="form-group">
                       <label>Application</label>
                       <select value={selectedPendingDoctor?.id} onChange={(e) => { setSelectedPendingId(e.target.value); setVerifyAction(null); setVerifyNote(''); setVerifyNoteError(false) }}>
-                        {pendingDoctors.map((d) => <option key={d.id} value={d.id}>{d.name} — {d.specialty}</option>)}
+                        {pendingDoctors.map((d) => <option key={d.id} value={d.id}>{d.name} - {d.specialty}</option>)}
                       </select>
                     </div>
                   )}
@@ -483,7 +483,7 @@ function DoctorManagement() {
                         <div className="dm-detail-row"><span>Email</span><span>{selectedPendingDoctor.email}</span></div>
                         <div className="dm-detail-row"><span>Phone</span><span>{selectedPendingDoctor.phone}</span></div>
                         <div className="dm-detail-row"><span>Languages</span><span>{selectedPendingDoctor.languages.join(', ')}</span></div>
-                        <div className="dm-detail-row"><span>Availability</span><span>{selectedPendingDoctor.availability || '—'}</span></div>
+                        <div className="dm-detail-row"><span>Availability</span><span>{selectedPendingDoctor.availability || '-'}</span></div>
                       </div>
 
                       {/* Documents */}

@@ -259,9 +259,9 @@ function PediatricianDashboardPage() {
       map.set(c.childName, {
         child: c.childName,
         age: c.childAge ?? 0,
-        guardian: c.guardianName ?? '—',
+        guardian: c.guardianName ?? '-',
         lastVisit: c.scheduledAt,
-        weight: c.weightKg ? `${c.weightKg} kg` : '—',
+        weight: c.weightKg ? `${c.weightKg} kg` : '-',
       })
     })
     return Array.from(map.values())
@@ -579,16 +579,16 @@ function PediatricianDashboardPage() {
                             <div className="dd-td-patient__avatar">{initials(item.childName ?? item.patientName)}</div>
                             <div>
                               <p className="dd-td-patient__name">
-                                {item.childName ?? '—'}
+                                {item.childName ?? '-'}
                                 {item.childAge ? <span className="pd-age-tag">, {item.childAge}y</span> : null}
                                 {item.dosageAlert && <span className="pd-alert-dot" title="Dosage alert" />}
                               </p>
-                              <p className="dd-td-patient__id">Guardian: {item.guardianName ?? '—'}</p>
+                              <p className="dd-td-patient__id">Guardian: {item.guardianName ?? '-'}</p>
                             </div>
                           </div>
                         </td>
                         <td className="dd-td-issue">{item.issue}</td>
-                        <td className="dd-td-meta">{item.weightKg ? `${item.weightKg} kg` : '—'}</td>
+                        <td className="dd-td-meta">{item.weightKg ? `${item.weightKg} kg` : '-'}</td>
                         <td>
                           <span className={`pd-consent ${item.consentStatus === 'Granted' ? 'pd-consent--ok' : 'pd-consent--pending'}`}>
                             {item.consentStatus === 'Granted' ? (
@@ -891,7 +891,7 @@ function PediatricianDashboardPage() {
                 <div className="pd-alerts-list">
                   {dosageAlerts.map((a) => (
                     <div key={a.id} className="pd-alert-item">
-                      <span><strong>{a.childName}</strong> — {a.issue}</span>
+                      <span><strong>{a.childName}</strong> - {a.issue}</span>
                       <button
                         className="dd-action-btn"
                         type="button"
@@ -958,7 +958,7 @@ function PediatricianDashboardPage() {
                 <p className="dd-earnings-summary__num">
                   KSh {earnings.reduce((s, e) => s + e.consults, 0) > 0
                     ? Math.round(stats.totalRevenue / earnings.reduce((s, e) => s + e.consults, 0)).toLocaleString()
-                    : '—'}
+                    : '-'}
                 </p>
               </div>
               <div className="dd-earnings-summary__item">
@@ -1135,7 +1135,7 @@ function PediatricianDashboardPage() {
                     <div className="dd-sp-patient">
                       <div className="dd-sp-patient__avatar">{initials(selectedConsult.childName ?? selectedConsult.patientName)}</div>
                       <div>
-                        <p className="dd-sp-patient__name">{selectedConsult.childName ?? '—'}</p>
+                        <p className="dd-sp-patient__name">{selectedConsult.childName ?? '-'}</p>
                         <p className="dd-sp-patient__meta">Age {selectedConsult.childAge} · {selectedConsult.weightKg} kg</p>
                       </div>
                     </div>
@@ -1143,7 +1143,7 @@ function PediatricianDashboardPage() {
 
                   <div className="dd-sp-section">
                     <p className="dd-sp-section-title">Guardian</p>
-                    <p className="dd-sp-value">{selectedConsult.guardianName ?? '—'}</p>
+                    <p className="dd-sp-value">{selectedConsult.guardianName ?? '-'}</p>
                   </div>
 
                   <div className="dd-sp-section">

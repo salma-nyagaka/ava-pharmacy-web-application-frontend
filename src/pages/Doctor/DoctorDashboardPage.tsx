@@ -756,7 +756,7 @@ function DoctorDashboardPage() {
                 <p className="dd-earnings-summary__num">
                   KSh {earnings.reduce((s, e) => s + e.consults, 0) > 0
                     ? Math.round(stats.totalRevenue / earnings.reduce((s, e) => s + e.consults, 0)).toLocaleString()
-                    : '—'}
+                    : '-'}
                 </p>
               </div>
               <div className="dd-earnings-summary__item">

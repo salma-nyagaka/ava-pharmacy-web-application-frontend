@@ -240,7 +240,7 @@ function HomePage() {
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
-      {/* Hero Carousel — full-width promotional banner */}
+      {/* Hero Carousel - full-width promotional banner */}
       <section className="hero-carousel" id="main-content">
         <div
           className="hero-carousel__track"
@@ -304,7 +304,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Categories — browse the store */}
+      {/* Categories - browse the store */}
       <section className="section categories">
         <div className="container">
           <div className="section__header">
@@ -352,7 +352,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Hot Offers — urgency / savings */}
+      {/* Hot Offers - urgency / savings */}
       <section className="section offers-preview">
         <div className="container">
           <div className="section__header">
@@ -405,7 +405,7 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Featured Products — social proof via best sellers */}
+      {/* Featured Products - social proof via best sellers */}
       <section className="section section--alt featured-products">
         <div className="container">
           <div className="section__header">
@@ -495,7 +495,7 @@ function HomePage() {
                   <svg key={i} viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                 ))}
               </div>
-              <p className="hs-review-card__body">"Ordering was so easy and my prescription was verified within the hour. The delivery came the same day — I was genuinely impressed."</p>
+              <p className="hs-review-card__body">"Ordering was so easy and my prescription was verified within the hour. The delivery came the same day - I was genuinely impressed."</p>
               <div className="hs-review-card__author">
                 <div className="hs-review-card__avatar">AW</div>
                 <div>
@@ -546,7 +546,7 @@ function HomePage() {
           <div className="hs-services__head">
             <p className="hs-services__eyebrow">Complete Healthcare</p>
             <h2 className="hs-services__title">Everything you need, in one place</h2>
-            <p className="hs-services__sub">Prescriptions, consults, and lab tests — delivered fast with licensed experts.</p>
+            <p className="hs-services__sub">Prescriptions, consults, and lab tests - delivered fast with licensed experts.</p>
           </div>
           <div className="hs-services__grid">
 

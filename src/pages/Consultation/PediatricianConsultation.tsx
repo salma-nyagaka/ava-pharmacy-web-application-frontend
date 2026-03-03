@@ -261,6 +261,13 @@ function PediatricianConsultation() {
     <div className="consultation-page pediatric-page">
       <a href="#main-content" className="skip-to-content">Skip to main content</a>
 
+      <div className="container" style={{ paddingTop: '1.25rem' }}>
+        <Link to="/health-services" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', textDecoration: 'none', padding: '0.45rem 0.875rem', border: '1px solid rgba(15,23,42,0.12)', borderRadius: '8px' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M15 18l-6-6 6-6"/></svg>
+          Health Services
+        </Link>
+      </div>
+
       <section className="consultation-hero consultation-hero--pediatric" id="main-content">
         <div className="container">
           <div className="consultation-hero__content">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import './LabServicesPage.css'
 import {
   LabPaymentStatus,
@@ -25,22 +26,39 @@ function getCategoryColor(cat: string): string {
 
 const FLOW_STEPS = [
   {
-    icon: <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>,
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+      </svg>
+    ),
     title: 'Request & schedule',
     desc: 'Choose your test and select a convenient collection time.',
   },
   {
-    icon: <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" /></svg>,
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+        <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+      </svg>
+    ),
     title: 'Sample collection',
     desc: 'Our lab team collects your sample or prepares you for walk-in.',
   },
   {
-    icon: <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>,
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+        <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+      </svg>
+    ),
     title: 'Processing',
     desc: 'Samples are processed and verified by licensed technicians.',
   },
   {
-    icon: <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>,
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      </svg>
+    ),
     title: 'Results ready',
     desc: 'Access digital results and mark them received.',
   },
@@ -158,40 +176,58 @@ function LabServicesPage() {
     <div className="lab-services">
       <section className="page">
         <div className="container">
+
+          <nav className="breadcrumbs">
+            <Link to="/">Home</Link>
+            <span>/</span>
+            <span>Lab tests</span>
+          </nav>
+
+          {/* Hero */}
           <div className="lab-hero">
             <div className="lab-hero__left">
               <span className="lab-hero__eyebrow">Lab Services</span>
-              <h1 className="lab-hero__title">Laboratory services</h1>
-              <p className="lab-hero__sub">Book diagnostics, track progress, and access validated lab results.</p>
+              <h1 className="lab-hero__title">Professional laboratory diagnostics</h1>
+              <p className="lab-hero__sub">
+                Book tests, track sample progress, and access validated results - all in one place.
+              </p>
+              <button className="btn btn--primary lab-hero__cta" type="button" onClick={scrollToTests}>
+                Browse {tests.length} tests
+                <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
             </div>
-            <div className="lab-hero__stats">
+            <div className="lab-hero__stat-grid">
               <div className="lab-hero__stat">
                 <strong>{tests.length}</strong>
-                <span>Tests</span>
+                <span>Available tests</span>
               </div>
               <div className="lab-hero__stat">
                 <strong>{categories.length}</strong>
                 <span>Categories</span>
               </div>
-              <div className="lab-hero__stat">
+              <div className="lab-hero__stat lab-hero__stat--accent">
                 <strong>{stats.active}</strong>
-                <span>Active</span>
+                <span>Active requests</span>
               </div>
-              <div className="lab-hero__stat">
+              <div className="lab-hero__stat lab-hero__stat--green">
                 <strong>{stats.ready}</strong>
                 <span>Results ready</span>
               </div>
             </div>
-            <button className="btn btn--primary btn--sm lab-hero__cta" type="button" onClick={scrollToTests}>
-              Browse tests
-            </button>
           </div>
 
+          {/* Test catalogue */}
           <div className="lab-tests" ref={testsRef}>
             <div className="lab-tests__header">
               <div>
                 <h2>Lab tests</h2>
-                <p>Search for diagnostic tests and book instantly.</p>
+                <p className="lab-tests__count">
+                  {testFiltersActive
+                    ? `${filteredTests.length} of ${tests.length} tests`
+                    : `${tests.length} tests across ${categories.length} categories`}
+                </p>
               </div>
               {testFiltersActive && (
                 <button className="lab-clear" type="button" onClick={clearTestFilters}>
@@ -199,44 +235,51 @@ function LabServicesPage() {
                 </button>
               )}
             </div>
-            {testFiltersActive && (
-              <div className="lab-filter-bar">
-                {searchTerm.trim() && (
-                  <span className="lab-chip">Search: {searchTerm}</span>
-                )}
-                {category !== 'all' && (
-                  <span className="lab-chip">Category: {category}</span>
-                )}
-              </div>
-            )}
+
             <div className="lab-filters">
-              <input
-                type="text"
-                placeholder="Search lab tests"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
-              <select value={category} onChange={(event) => setCategory(event.target.value)}>
-                <option value="all">All categories</option>
-                {categories.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+              <div className="lab-search-wrap">
+                <svg className="lab-search-icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search by name, type, or sample..."
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+              </div>
+              <div className="lab-category-pills">
+                <button
+                  className={`lab-cat-pill${category === 'all' ? ' lab-cat-pill--active' : ''}`}
+                  onClick={() => setCategory('all')}
+                >
+                  All
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    className={`lab-cat-pill${category === cat ? ' lab-cat-pill--active' : ''}`}
+                    style={
+                      category === cat
+                        ? { borderColor: getCategoryColor(cat), color: getCategoryColor(cat), background: `${getCategoryColor(cat)}14` }
+                        : {}
+                    }
+                    onClick={() => setCategory(cat)}
+                  >
+                    {cat}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             <div className="page-grid page-grid--3">
               {filteredTests.map((test) => (
                 <div
                   key={test.id}
-                  className="card lab-card"
+                  className="lab-card"
                   style={{ '--lab-card-accent': getCategoryColor(test.category) } as React.CSSProperties}
                 >
-                  <div className="lab-card__header">
-                    <h3 className="card__title">{test.name}</h3>
-                    <span className="lab-card__price">KSh {test.price.toLocaleString()}</span>
-                  </div>
-                  <p className="card__meta">{test.description}</p>
-                  <div className="lab-card__meta">
+                  <div className="lab-card__top">
                     <span
                       className="lab-card__category"
                       style={{
@@ -247,53 +290,81 @@ function LabServicesPage() {
                     >
                       {test.category}
                     </span>
-                    <span>{test.turnaround}</span>
-                    <span>{test.sampleType}</span>
+                    <span className="lab-card__price">KSh {test.price.toLocaleString()}</span>
+                  </div>
+                  <h3 className="lab-card__name">{test.name}</h3>
+                  <div className="lab-card__badges">
+                    <span className="lab-card__badge">
+                      <svg viewBox="0 0 16 16" fill="currentColor" width="11" height="11">
+                        <path fillRule="evenodd" d="M8 0a8 8 0 100 16A8 8 0 008 0zM7 3.5a.5.5 0 011 0V8h2.5a.5.5 0 010 1H8a.5.5 0 01-.5-.5V3.5z" clipRule="evenodd"/>
+                      </svg>
+                      {test.turnaround}
+                    </span>
+                    <span className="lab-card__badge">
+                      <svg viewBox="0 0 16 16" fill="currentColor" width="11" height="11">
+                        <path d="M9.5 2.672a.5.5 0 10 1 0V.843a.5.5 0 00-.5-.5h-5a.5.5 0 00-.5.5V2.5h-.5A1.5 1.5 0 002 4v10.5A1.5 1.5 0 003.5 16h9a1.5 1.5 0 001.5-1.5V4a1.5 1.5 0 00-1.5-1.5h-.5V.843a.5.5 0 00-.5-.5h-1a.5.5 0 000 1v1.829H5V.843z"/>
+                      </svg>
+                      {test.sampleType}
+                    </span>
                   </div>
                   <div className="lab-card__actions">
                     <button
                       className="btn btn--outline btn--sm"
                       onClick={() => { setSelectedTest(test); setBookingMode('view') }}
                     >
-                      View details
+                      Details
                     </button>
                     <button
-                      className="btn btn--primary btn--sm"
+                      className="btn btn--primary btn--sm lab-card__book-btn"
                       onClick={() => { setSelectedTest(test); setBookingMode('book') }}
                     >
-                      Request test
+                      Book test
                     </button>
                   </div>
                 </div>
               ))}
               {filteredTests.length === 0 && (
-                <div className="lab-empty">No lab tests match your filters.</div>
+                <div className="lab-empty">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="36" height="36">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0015.803 15.803z" />
+                  </svg>
+                  <p>No tests match your filters.</p>
+                  <button className="btn btn--outline btn--sm" onClick={clearTestFilters}>Clear filters</button>
+                </div>
               )}
             </div>
           </div>
 
-          <div className="page-section lab-flow">
-            <div className="card card--soft">
-              <h2 className="card__title">How it works</h2>
-              <div className="lab-flow__grid">
-                {FLOW_STEPS.map((step) => (
-                  <div key={step.title} className="lab-flow__step">
+          {/* How it works */}
+          <div className="lab-flow">
+            <div className="lab-flow__header">
+              <h2>How it works</h2>
+              <p>Four simple steps from booking to results.</p>
+            </div>
+            <div className="lab-flow__grid">
+              {FLOW_STEPS.map((step, index) => (
+                <div key={step.title} className="lab-flow__step">
+                  <div className="lab-flow__step-head">
+                    <span className="lab-flow__step-num">{index + 1}</span>
                     <div className="lab-flow__step-icon">{step.icon}</div>
-                    <h4>{step.title}</h4>
-                    <p>{step.desc}</p>
                   </div>
-                ))}
-              </div>
+                  <h4>{step.title}</h4>
+                  <p>{step.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
 
         </div>
       </section>
 
+      {/* Modal */}
       {selectedTest && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className={`modal ${bookingMode === 'book' ? 'modal--wide' : ''}`} onClick={(event) => event.stopPropagation()}>
-
+          <div
+            className={`modal ${bookingMode === 'book' ? 'modal--wide' : ''}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             {bookingMode === 'view' ? (
               <>
                 <div className="modal__header">
@@ -348,7 +419,7 @@ function LabServicesPage() {
               <>
                 <div className="modal__header">
                   <div>
-                    <h2>Book — {selectedTest.name}</h2>
+                    <h2>Book - {selectedTest.name}</h2>
                     <p className="card__meta">
                       KSh {selectedTest.price.toLocaleString()} · {selectedTest.turnaround} · {selectedTest.sampleType}
                     </p>
@@ -360,25 +431,28 @@ function LabServicesPage() {
                     <p className="lab-form-section__label">Patient information</p>
                     <div className="lab-booking-grid">
                       <div className="form-group">
-                        <label>Full name</label>
+                        <label>Full name <span className="lab-required">*</span></label>
                         <input
                           type="text"
+                          placeholder="e.g. Jane Doe"
                           value={patientName}
                           onChange={(event) => setPatientName(event.target.value)}
                         />
                       </div>
                       <div className="form-group">
-                        <label>Phone number</label>
+                        <label>Phone number <span className="lab-required">*</span></label>
                         <input
-                          type="text"
+                          type="tel"
+                          placeholder="e.g. 0712 345 678"
                           value={patientPhone}
                           onChange={(event) => setPatientPhone(event.target.value)}
                         />
                       </div>
                       <div className="form-group">
-                        <label>Email (optional)</label>
+                        <label>Email <span className="lab-optional">(optional)</span></label>
                         <input
                           type="email"
+                          placeholder="e.g. jane@example.com"
                           value={patientEmail}
                           onChange={(event) => setPatientEmail(event.target.value)}
                         />
@@ -387,7 +461,7 @@ function LabServicesPage() {
                   </div>
 
                   <div className="lab-form-section">
-                    <p className="lab-form-section__label">Appointment</p>
+                    <p className="lab-form-section__label">Appointment details</p>
                     <div className="lab-booking-grid">
                       <div className="form-group">
                         <label>Collection method</label>
@@ -397,10 +471,9 @@ function LabServicesPage() {
                         </select>
                       </div>
                       <div className="form-group">
-                        <label>Preferred date/time</label>
+                        <label>Preferred date & time <span className="lab-required">*</span></label>
                         <input
-                          type="text"
-                          placeholder="2026-02-14 10:00 AM"
+                          type="datetime-local"
                           value={schedule}
                           onChange={(event) => setSchedule(event.target.value)}
                         />
@@ -423,32 +496,41 @@ function LabServicesPage() {
                   </div>
 
                   <div className="lab-form-section">
-                    <p className="lab-form-section__label">Clinical (optional)</p>
+                    <p className="lab-form-section__label">Clinical notes (optional)</p>
                     <div className="lab-booking-grid">
                       <div className="form-group">
                         <label>Ordering doctor</label>
                         <input
                           type="text"
+                          placeholder="e.g. Dr. Kamau"
                           value={orderingDoctor}
                           onChange={(event) => setOrderingDoctor(event.target.value)}
                         />
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Notes</label>
+                      <label>Additional notes</label>
                       <textarea
                         rows={3}
+                        placeholder="Any special instructions or clinical context..."
                         value={notes}
                         onChange={(event) => setNotes(event.target.value)}
                       />
                     </div>
                   </div>
 
-                  {bookingError && <p className="lab-form-error">{bookingError}</p>}
+                  {bookingError && (
+                    <div className="lab-form-error">
+                      <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {bookingError}
+                    </div>
+                  )}
                 </div>
                 <div className="modal__footer">
                   <button className="btn btn--outline btn--sm" onClick={() => setBookingMode('view')}>
-                    ← Back to details
+                    ← Back
                   </button>
                   <button className="btn btn--primary btn--sm" onClick={handleRequest}>
                     Confirm booking
@@ -459,7 +541,6 @@ function LabServicesPage() {
           </div>
         </div>
       )}
-
     </div>
   )
 }

@@ -536,7 +536,7 @@ function PayoutManagement() {
                 <td>
                   <span className="pm-period">{payout.taskType ?? 'Manual payout'}</span>
                   <span className="pm-meta">
-                    {payout.taskId ? `Task ${payout.taskId}` : payout.period || '—'}
+                    {payout.taskId ? `Task ${payout.taskId}` : payout.period || '-'}
                   </span>
                   <span className="pm-meta">{payout.paidAt ? `Paid ${payout.paidAt}` : 'Awaiting payment'}</span>
                 </td>
@@ -869,8 +869,8 @@ function PayoutManagement() {
                     <span>Recipient</span>
                     <strong>
                       {recipientId
-                        ? recipientOptions.find((profile) => profile.id === recipientId)?.name ?? '—'
-                        : recipientName.trim() || '—'}
+                        ? recipientOptions.find((profile) => profile.id === recipientId)?.name ?? '-'
+                        : recipientName.trim() || '-'}
                     </strong>
                   </div>
                   <div className="pm-summary-row">
@@ -879,14 +879,14 @@ function PayoutManagement() {
                   </div>
                   <div className="pm-summary-row">
                     <span>Period</span>
-                    <strong>{period.trim() || '—'}</strong>
+                    <strong>{period.trim() || '-'}</strong>
                   </div>
                   <div className="pm-summary-row pm-summary-row--amount">
                     <span>Amount</span>
                     <strong>
                       {Number.isFinite(Number.parseFloat(amount)) && Number.parseFloat(amount) > 0
                         ? formatCurrency(Number.parseFloat(amount))
-                        : '—'}
+                        : '-'}
                     </strong>
                   </div>
                   <div className="pm-summary-row">
@@ -936,7 +936,7 @@ function PayoutManagement() {
             </div>
             <div className="modal__content">
               <p className="pm-paid-modal__summary">
-                Confirm payment for <strong>{paidTarget.recipientName}</strong> — <strong>{formatCurrency(paidTarget.amount)}</strong>.
+                Confirm payment for <strong>{paidTarget.recipientName}</strong> - <strong>{formatCurrency(paidTarget.amount)}</strong>.
               </p>
               <div className="form-group">
                 <label>Payment method</label>

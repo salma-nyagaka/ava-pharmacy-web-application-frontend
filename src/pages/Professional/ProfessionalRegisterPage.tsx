@@ -371,9 +371,9 @@ function ProfessionalRegisterPage() {
       <div className="pr-body">
         <form className="pr-form" onSubmit={handleSubmit} noValidate>
 
-          {/* Step 1 — Type */}
+          {/* Step 1 - Type */}
           <div className="pr-section">
-            <p className="pr-section__label">Step 1 — Select your role</p>
+            <p className="pr-section__label">Step 1 - Select your role</p>
             <div className="pr-type-cards">
               <button
                 type="button"
@@ -417,10 +417,10 @@ function ProfessionalRegisterPage() {
 
           {type && (
             <>
-              {/* Step 2 — Personal */}
+              {/* Step 2 - Personal */}
               <div className="pr-section">
                 <p className="pr-section__label">
-                  Step 2 — {type === 'Lab Partner' ? 'Primary contact' : 'Personal information'}
+                  Step 2 - {type === 'Lab Partner' ? 'Primary contact' : 'Personal information'}
                 </p>
                 <div className="pr-form-row">
                   <div className="pr-form-group">
@@ -498,9 +498,9 @@ function ProfessionalRegisterPage() {
                 )}
               </div>
 
-              {/* Step 3 — Professional */}
+              {/* Step 3 - Professional */}
               <div className="pr-section">
-                <p className="pr-section__label">Step 3 — {type === 'Lab Partner' ? 'Lab credentials' : 'Professional credentials'}</p>
+                <p className="pr-section__label">Step 3 - {type === 'Lab Partner' ? 'Lab credentials' : 'Professional credentials'}</p>
 
                 {type === 'Lab Partner' ? (
                   <>
@@ -682,7 +682,7 @@ function ProfessionalRegisterPage() {
                     rows={3}
                     placeholder={type === 'Lab Partner'
                       ? 'Brief description of your lab, quality standards, and turnaround time.'
-                      : `Brief professional bio — your experience, approach to ${type === 'Doctor' ? 'patient care' : 'paediatric care'}, and what patients can expect.`
+                      : `Brief professional bio - your experience, approach to ${type === 'Doctor' ? 'patient care' : 'paediatric care'}, and what patients can expect.`
                     }
                     value={form.bio}
                     onChange={(e) => set('bio', e.target.value)}
@@ -690,9 +690,9 @@ function ProfessionalRegisterPage() {
                 </div>
               </div>
 
-              {/* Step 4 — Practice & payout */}
+              {/* Step 4 - Practice & payout */}
               <div className="pr-section">
-                <p className="pr-section__label">Step 4 — Practice & payout</p>
+                <p className="pr-section__label">Step 4 - Practice & payout</p>
                 <div className="pr-form-row">
                   <div className="pr-form-group">
                     <label>County</label>
@@ -780,9 +780,9 @@ function ProfessionalRegisterPage() {
                 )}
               </div>
 
-              {/* Step 5 — References & compliance */}
+              {/* Step 5 - References & compliance */}
               <div className="pr-section">
-                <p className="pr-section__label">Step 5 — References & compliance</p>
+                <p className="pr-section__label">Step 5 - References & compliance</p>
                 <div className="pr-ref-grid">
                   <div className="pr-ref-card">
                     <p className="pr-ref-title">Referee 1</p>
@@ -865,9 +865,9 @@ function ProfessionalRegisterPage() {
                 {errors.complianceDeclaration && <p className="pr-field-error">{errors.complianceDeclaration}</p>}
               </div>
 
-              {/* Step 6 — Documents */}
+              {/* Step 6 - Documents */}
               <div className="pr-section">
-                <p className="pr-section__label">Step 6 — Supporting documents</p>
+                <p className="pr-section__label">Step 6 - Supporting documents</p>
                 <p className="pr-section__sub">Check off the documents you are including with this application:</p>
                 <div className="pr-doc-checklist">
                   {requiredDocs.map((doc) => (
@@ -930,9 +930,9 @@ function ProfessionalRegisterPage() {
                 </div>
               </div>
 
-              {/* Step 7 — Agreement */}
+              {/* Step 7 - Agreement */}
               <div className="pr-section">
-                <p className="pr-section__label">Step 7 — Agreement</p>
+                <p className="pr-section__label">Step 7 - Agreement</p>
                 <label className="pr-agree-check">
                   <input
                     type="checkbox"

@@ -233,12 +233,13 @@ function ProductListingPage() {
         </nav>
 
         <div className="plp__header">
-          <div className="plp__header-text">
-            <p className="plp__eyebrow">Shop by Category</p>
-            <h1 className="plp__title">{categoryTitle}</h1>
-            <p className="plp__subtitle">
-              {activeSubcategory ? activeSubcategory.name : 'Explore curated picks, essentials, and best sellers.'}
-            </p>
+          <div className="plp__header-top">
+            <div>
+              <h1 className="plp__title">{categoryTitle}</h1>
+              <p className="plp__subtitle">
+                {activeSubcategory ? activeSubcategory.name : 'Explore curated picks, essentials, and best sellers.'}
+              </p>
+            </div>
           </div>
           {subcategories.length > 0 && (
             <div className="plp__subcategories">
@@ -302,113 +303,108 @@ function ProductListingPage() {
 
         <div className="plp__layout">
           <aside className="plp__sidebar">
-            <div className="filter-section">
-              <h3 className="filter-section__title">Filters</h3>
-              <button className="btn btn--sm btn--outline" type="button" onClick={clearAllFilters}>
-                Clear All
-              </button>
-            </div>
-
-            <div className="filter-section">
-              <h4 className="filter-section__heading">Price Range</h4>
-              <div className="price-inputs">
-                <input
-                  type="number"
-                  placeholder="Min"
-                  className="price-input"
-                  value={minPrice}
-                  onChange={(event) => setMinPrice(Number(event.target.value) || 0)}
-                />
-                <span>–</span>
-                <input
-                  type="number"
-                  placeholder="Max"
-                  className="price-input"
-                  value={maxPrice}
-                  onChange={(event) => setMaxPrice(Number(event.target.value) || 0)}
-                />
+            <div className="filter-panel">
+              <div className="filter-panel__header">
+                <span className="filter-panel__title">
+                  Filters
+                  {activeFilterCount > 0 && <span className="filter-panel__count">{activeFilterCount}</span>}
+                </span>
+                {activeFilterCount > 0 && (
+                  <button className="filter-panel__clear" type="button" onClick={clearAllFilters}>
+                    Clear all
+                  </button>
+                )}
               </div>
-            </div>
 
-            <div className="filter-section">
-              <h4 className="filter-section__heading">Brands</h4>
-              <div className="filter-options">
-                {brands.map((brand) => (
-                  <label key={brand} className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={selectedBrands.includes(brand)}
-                      onChange={() => toggleBrand(brand)}
-                    />
-                    <span>{brand}</span>
-                  </label>
-                ))}
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Price Range</h4>
+                <div className="price-inputs">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    className="price-input"
+                    value={minPrice}
+                    onChange={(event) => setMinPrice(Number(event.target.value) || 0)}
+                  />
+                  <span className="price-sep">–</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    className="price-input"
+                    value={maxPrice}
+                    onChange={(event) => setMaxPrice(Number(event.target.value) || 0)}
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="filter-section">
-              <h4 className="filter-section__heading">Customer Rating</h4>
-              <div className="filter-options">
-                {[4, 3, 2, 1].map((rating) => (
-                  <label key={rating} className="checkbox-label">
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Brands</h4>
+                <div className="filter-options">
+                  {brands.map((brand) => (
+                    <label key={brand} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={selectedBrands.includes(brand)}
+                        onChange={() => toggleBrand(brand)}
+                      />
+                      <span>{brand}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Customer Rating</h4>
+                <div className="filter-options">
+                  {[4, 3, 2, 1].map((rating) => (
+                    <label key={rating} className="checkbox-label">
+                      <input
+                        type="radio"
+                        name="rating-filter"
+                        checked={minRating === rating}
+                        onChange={() => setMinRating(rating)}
+                      />
+                      <div className="rating-filter">
+                        {Array(rating).fill(0).map((_, index) => (
+                          <svg key={`${rating}-${index}`} className="star star--filled" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                        ))}
+                        <span>& Up</span>
+                      </div>
+                    </label>
+                  ))}
+                  <label className="checkbox-label">
                     <input
                       type="radio"
                       name="rating-filter"
-                      checked={minRating === rating}
-                      onChange={() => setMinRating(rating)}
+                      checked={minRating === 0}
+                      onChange={() => setMinRating(0)}
                     />
-                    <div className="rating-filter">
-                      {Array(rating).fill(0).map((_, index) => (
-                        <svg key={`${rating}-${index}`} className="star star--filled" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                      ))}
-                      <span>&amp; Up</span>
-                    </div>
+                    <span>All ratings</span>
                   </label>
-                ))}
-                <label className="checkbox-label">
-                  <input
-                    type="radio"
-                    name="rating-filter"
-                    checked={minRating === 0}
-                    onChange={() => setMinRating(0)}
-                  />
-                  <span>All ratings</span>
-                </label>
+                </div>
               </div>
-            </div>
 
-            <div className="filter-section">
-              <h4 className="filter-section__heading">Availability</h4>
-              <div className="filter-options">
-                <label className="checkbox-label">
-                  <input
-                    type="radio"
-                    name="availability-filter"
-                    checked={availability === 'in_stock'}
-                    onChange={() => setAvailability('in_stock')}
-                  />
-                  <span>In Stock</span>
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    type="radio"
-                    name="availability-filter"
-                    checked={availability === 'out_of_stock'}
-                    onChange={() => setAvailability('out_of_stock')}
-                  />
-                  <span>Out of Stock</span>
-                </label>
-                <label className="checkbox-label">
-                  <input
-                    type="radio"
-                    name="availability-filter"
-                    checked={availability === 'all'}
-                    onChange={() => setAvailability('all')}
-                  />
-                  <span>All</span>
-                </label>
+              <div className="filter-panel__section filter-panel__section--last">
+                <h4 className="filter-panel__heading">Availability</h4>
+                <div className="filter-options">
+                  {([
+                    { value: 'all', label: 'All' },
+                    { value: 'in_stock', label: 'In Stock' },
+                    { value: 'out_of_stock', label: 'Out of Stock' },
+                  ] as const).map(({ value, label }) => (
+                    <label key={value} className="checkbox-label">
+                      <input
+                        type="radio"
+                        name="availability-filter"
+                        checked={availability === value}
+                        onChange={() => setAvailability(value)}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </aside>

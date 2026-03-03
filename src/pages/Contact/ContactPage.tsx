@@ -7,7 +7,7 @@ function ContactPage() {
         <div className="container">
           <div className="contact__layout">
 
-            {/* Left — info */}
+            {/* Left - info */}
             <div className="contact__info">
               <h1 className="contact__info-title">We Ensure You Will Always Get The Best Result</h1>
               <p className="contact__info-sub">Have a question? We're here to help.</p>
@@ -53,7 +53,7 @@ function ContactPage() {
               </div>
             </div>
 
-            {/* Right — form */}
+            {/* Right - form */}
             <div className="contact__form-card">
               <h2 className="contact__form-title">Contact Us</h2>
               <form className="contact__form">

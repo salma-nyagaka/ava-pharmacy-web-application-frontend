@@ -474,8 +474,8 @@ function ProductManagement() {
                 <td>
                   <span className={`stock ${product.stock < 20 ? 'stock--low' : ''}`}>{product.stock}</span>
                 </td>
-                <td className="td--muted">{product.requiresPrescription ? <span className="rx-badge">Required</span> : '—'}</td>
-                <td className="td--muted">{product.discountPercent ? `${product.discountPercent}%` : '—'}</td>
+                <td className="td--muted">{product.requiresPrescription ? <span className="rx-badge">Required</span> : '-'}</td>
+                <td className="td--muted">{product.discountPercent ? `${product.discountPercent}%` : '-'}</td>
                 <td>
                   <span className={`status status--${product.status}`}>{product.status === 'active' ? 'Active' : 'Inactive'}</span>
                 </td>
@@ -760,7 +760,7 @@ function ProductManagement() {
                     value={categoryParentId ?? ''}
                     onChange={(e) => setCategoryParentId(e.target.value || undefined)}
                   >
-                    <option value="">— Select a parent category —</option>
+                    <option value="">- Select a parent category -</option>
                     {categories
                       .filter((c) => !c.parentId && c.id !== editingCategoryId)
                       .map((c) => (

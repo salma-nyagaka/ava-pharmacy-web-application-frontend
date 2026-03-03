@@ -5,7 +5,7 @@ import './AboutPage.css'
 const services = [
   {
     title: 'Doctor Consultation',
-    description: 'Chat, call, or video with licensed doctors for fast diagnoses and e-prescriptions — available 7 days a week.',
+    description: 'Chat, call, or video with licensed doctors for fast diagnoses and e-prescriptions - available 7 days a week.',
     link: '/doctor-consultation',
     color: 'indigo',
     icon: (
@@ -18,7 +18,7 @@ const services = [
   },
   {
     title: 'Pediatric Care',
-    description: 'Specialist pediatricians for infants, children, and teens — on demand, with growth checks and vaccination advice.',
+    description: 'Specialist pediatricians for infants, children, and teens - on demand, with growth checks and vaccination advice.',
     link: '/pediatric-consultation',
     color: 'emerald',
     icon: (
@@ -67,7 +67,7 @@ const stats = [
 const pillars = [
   {
     title: 'Thoughtfully Curated',
-    body: 'Every product on our shelves is hand-picked for quality, safety, and effectiveness — from skincare and supplements to baby care and lifestyle wellness.',
+    body: 'Every product on our shelves is hand-picked for quality, safety, and effectiveness - from skincare and supplements to baby care and lifestyle wellness.',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -77,7 +77,7 @@ const pillars = [
   },
   {
     title: 'Safe & Authentic',
-    body: 'We only stock verified, genuine products from trusted brands — so you can invest in your personal care with complete confidence.',
+    body: 'We only stock verified, genuine products from trusted brands - so you can invest in your personal care with complete confidence.',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -86,7 +86,7 @@ const pillars = [
   },
   {
     title: 'Customer-First',
-    body: 'Our knowledgeable team delivers a customer-first experience in every interaction — from browsing to delivery and beyond.',
+    body: 'Our knowledgeable team delivers a customer-first experience in every interaction - from browsing to delivery and beyond.',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -101,7 +101,7 @@ function AboutPage() {
     <div className="about">
       <PageHeader
         title="About Ava Pharmacy"
-        subtitle="At AVA Pharmacy, we believe that true wellness is a balance of health, beauty, and peace of mind — empowering you to feel your best, naturally, affordably, and stylishly."
+        subtitle="At AVA Pharmacy, we believe that true wellness is a balance of health, beauty, and peace of mind - empowering you to feel your best, naturally, affordably, and stylishly."
         badge="Company"
       />
 
@@ -143,7 +143,7 @@ function AboutPage() {
         <div className="container">
           <div className="about__section-head">
             <h2 className="about__section-title">Our Services</h2>
-            <p className="about__section-sub">Everything you need for your health — prescriptions, consultations, and diagnostics in one place.</p>
+            <p className="about__section-sub">Everything you need for your health - prescriptions, consultations, and diagnostics in one place.</p>
           </div>
           <div className="about__services-grid">
             {services.map((svc) => (
@@ -164,7 +164,7 @@ function AboutPage() {
           <div className="about__contact-cta-inner">
             <div className="about__contact-cta-text">
               <h2 className="about__contact-cta-title">Have a question or need support?</h2>
-              <p className="about__contact-cta-sub">Our pharmacists and support team are ready to help — reach out anytime.</p>
+              <p className="about__contact-cta-sub">Our pharmacists and support team are ready to help - reach out anytime.</p>
             </div>
             <div className="about__contact-cta-actions">
               <Link to="/contact" className="btn btn--primary btn--lg">Contact Us</Link>

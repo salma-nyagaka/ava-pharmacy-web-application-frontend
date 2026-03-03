@@ -164,7 +164,7 @@ function AccountPaymentPage() {
                 <div className="pay-preview__bottom">
                   <div>
                     <div className="pay-preview__label">Cardholder</div>
-                    <div className="pay-preview__value">{form.cardName || '—'}</div>
+                    <div className="pay-preview__value">{form.cardName || '-'}</div>
                   </div>
                   <div>
                     <div className="pay-preview__label">Expires</div>

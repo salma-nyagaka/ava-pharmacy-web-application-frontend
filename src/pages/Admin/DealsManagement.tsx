@@ -379,7 +379,7 @@ function DealsManagement() {
               {/* Targets */}
               {draft.scope !== 'all' && (
                 <div className="form-group">
-                  <label>{SCOPE_LABELS[draft.scope]}s <span className="dm-hint">— select one or more</span></label>
+                  <label>{SCOPE_LABELS[draft.scope]}s <span className="dm-hint">- select one or more</span></label>
                   <div className="dm-target-pills">
                     {targetOptions.map((target) => (
                       <button
@@ -422,7 +422,7 @@ function DealsManagement() {
 
               {/* Badge */}
               <div className="form-group">
-                <label>Badge text <span className="dm-hint">Optional — shown on product cards</span></label>
+                <label>Badge text <span className="dm-hint">Optional - shown on product cards</span></label>
                 <div className="dm-badge-row">
                   <input
                     type="text"
@@ -436,7 +436,7 @@ function DealsManagement() {
                 </div>
               </div>
 
-              {/* Status toggle — only when creating; editing uses table toggle */}
+              {/* Status toggle - only when creating; editing uses table toggle */}
               {!editingId && (
                 <div className="form-group">
                   <label>Publish as</label>

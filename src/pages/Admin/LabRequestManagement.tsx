@@ -571,11 +571,11 @@ function LabRequestManagement() {
                   </div>
                   <div>
                     <p className="lrm-info-label">Technician</p>
-                    <p className="lrm-info-value">{panelRequest.assignedTechnician ?? '—'}</p>
+                    <p className="lrm-info-value">{panelRequest.assignedTechnician ?? '-'}</p>
                   </div>
                   <div>
                     <p className="lrm-info-label">Lab partner</p>
-                    <p className="lrm-info-value">{panelRequest.labPartnerId ? partnerMap.get(panelRequest.labPartnerId)?.name ?? panelRequest.labPartnerId : '—'}</p>
+                    <p className="lrm-info-value">{panelRequest.labPartnerId ? partnerMap.get(panelRequest.labPartnerId)?.name ?? panelRequest.labPartnerId : '-'}</p>
                   </div>
                 </div>
               </div>

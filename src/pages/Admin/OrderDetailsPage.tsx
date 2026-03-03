@@ -226,7 +226,7 @@ function OrderDetailsPage() {
         <div className="modal-overlay" onClick={() => setShowInvoice(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
-              <h2>Invoice — {order.id}</h2>
+              <h2>Invoice - {order.id}</h2>
               <button className="modal__close" type="button" onClick={() => setShowInvoice(false)}>×</button>
             </div>
             <div className="modal__content">

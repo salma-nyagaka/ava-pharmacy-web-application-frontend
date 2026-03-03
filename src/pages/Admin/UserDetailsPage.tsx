@@ -92,11 +92,11 @@ function UserDetailsPage() {
           </div>
           <div className="ud-row">
             <span className="ud-row__label">Phone</span>
-            <span className="ud-row__value">{user.phone ?? '—'}</span>
+            <span className="ud-row__value">{user.phone ?? '-'}</span>
           </div>
           <div className="ud-row">
             <span className="ud-row__label">Address</span>
-            <span className="ud-row__value">{user.address ?? '—'}</span>
+            <span className="ud-row__value">{user.address ?? '-'}</span>
           </div>
         </section>
 
@@ -113,7 +113,7 @@ function UserDetailsPage() {
           <div className="ud-row">
             <span className="ud-row__label">Last Order</span>
             <span className="ud-row__value">
-              {user.lastOrderDate ? new Date(user.lastOrderDate).toLocaleDateString() : '—'}
+              {user.lastOrderDate ? new Date(user.lastOrderDate).toLocaleDateString() : '-'}
             </span>
           </div>
         </section>

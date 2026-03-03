@@ -514,7 +514,7 @@ function LabTestManagement() {
                 <div className="lt-fg">
                   <label htmlFor="lt-cat">Category</label>
                   <select id="lt-cat" value={draft.category} onChange={d('category')}>
-                    {categories.length === 0 && <option value="">No categories — add via Manage catalogue</option>}
+                    {categories.length === 0 && <option value="">No categories - add via Manage catalogue</option>}
                     {categories.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
@@ -532,7 +532,7 @@ function LabTestManagement() {
                 <div className="lt-fg">
                   <label htmlFor="lt-sample">Sample type</label>
                   <select id="lt-sample" value={draft.sampleType} onChange={d('sampleType')}>
-                    {sampleTypes.length === 0 && <option value="">No sample types — add via Manage catalogue</option>}
+                    {sampleTypes.length === 0 && <option value="">No sample types - add via Manage catalogue</option>}
                     {sampleTypes.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>

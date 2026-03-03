@@ -290,6 +290,13 @@ function DoctorConsultation() {
     <div className="dc-page">
       <a href="#dc-form" className="skip-to-content">Skip to form</a>
 
+      <div className="container" style={{ paddingTop: '1.25rem' }}>
+        <Link to="/health-services" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', textDecoration: 'none', padding: '0.45rem 0.875rem', border: '1px solid rgba(15,23,42,0.12)', borderRadius: '8px' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M15 18l-6-6 6-6"/></svg>
+          Health Services
+        </Link>
+      </div>
+
       {/* Hero */}
       <div className="dc-hero">
         <div className="container">
@@ -299,7 +306,7 @@ function DoctorConsultation() {
               {AVAILABLE_DOCTORS.length} doctors online now
             </div>
             <h1 className="dc-hero__title">Doctor Consultation</h1>
-            <p className="dc-hero__sub">Connect with a licensed doctor via secure chat. Get advice, diagnosis, and a digital prescription — all in minutes.</p>
+            <p className="dc-hero__sub">Connect with a licensed doctor via secure chat. Get advice, diagnosis, and a digital prescription - all in minutes.</p>
             <div className="dc-hero__pills">
               <span className="dc-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Licensed &amp; verified</span>
               <span className="dc-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>24/7 available</span>

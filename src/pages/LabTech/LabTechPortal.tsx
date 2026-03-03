@@ -485,7 +485,7 @@ function LabTechPortal() {
                 <div className="ltp-panel__header">
                   <div>
                     <p className="ltp-panel__title">Needs action</p>
-                    <p className="ltp-panel__sub">Requests awaiting processing — sorted by priority and schedule</p>
+                    <p className="ltp-panel__sub">Requests awaiting processing - sorted by priority and schedule</p>
                   </div>
                   <button
                     className="btn btn--outline btn--sm"
@@ -502,7 +502,7 @@ function LabTechPortal() {
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                         <polyline points="22,4 12,14.01 9,11.01"/>
                       </svg>
-                      <p>No pending actions — all clear!</p>
+                      <p>No pending actions - all clear!</p>
                     </div>
                   )}
                   {actionQueue.map((r) => {
