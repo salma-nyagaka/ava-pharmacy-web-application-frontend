@@ -1,202 +1,207 @@
-.account-page {
-  padding: 2rem 0 4rem;
-}
-
-.account-page__title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 2rem;
-}
-
-.account-page__layout {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 2rem;
-}
-
-.profile-card {
-  background-color: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  text-align: center;
-  height: fit-content;
-}
-
-.profile-card__avatar {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  margin: 0 auto 1rem;
-}
-
-.profile-card__name {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.profile-card__email,
-.profile-card__phone {
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  margin-bottom: 0.25rem;
-}
-
-.profile-card .btn {
-  width: 100%;
-  margin-top: 1.5rem;
-}
-
-.quick-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.quick-action {
+/* ── Dashboard wrapper ── */
+.account-dashboard {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Orders section ── */
+.account-orders-section {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 20px;
   padding: 1.5rem;
-  background-color: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  transition: all var(--transition-base);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
 }
 
-.quick-action:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
-}
-
-.quick-action__icon {
-  font-size: 2rem;
-}
-
-.quick-action__title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.quick-action__description {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-}
-
-.quick-action__arrow {
-  width: 20px;
-  height: 20px;
-  color: var(--color-text-muted);
-  margin-left: auto;
-}
-
-.recent-orders-section {
-  background-color: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-}
-
-.section-header {
+.account-orders-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
 }
 
-.section-header h2 {
-  font-size: 1.25rem;
+.account-orders-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.15rem;
+}
+
+.account-orders-sub {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.account-orders-viewall {
+  font-size: 0.8rem;
   font-weight: 700;
-}
-
-.view-all-link {
-  font-size: 0.9375rem;
   color: var(--color-primary);
-  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.recent-orders {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-.order-card {
-  padding: 1.5rem;
-  background-color: var(--color-background-light);
-  border-radius: var(--radius-lg);
-}
-
-.order-card__header {
+/* ── Orders list ── */
+.account-orders-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+}
+
+.account-order-row {
+  display: flex;
   align-items: center;
-  margin-bottom: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
 }
 
-.order-card__id {
-  font-weight: 600;
+.account-order-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
-.order-card__status {
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-full);
+.account-order-row__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.account-order-row__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.account-order-row__icon svg {
+  width: 16px;
+  height: 16px;
+  color: #64748b;
+}
+
+.account-order-row__id {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.1rem;
+}
+
+.account-order-row__meta {
   font-size: 0.75rem;
-  font-weight: 600;
+  color: #94a3b8;
+  margin: 0;
 }
 
-.order-card__status--delivered {
-  background-color: rgba(16, 185, 129, 0.1);
-  color: var(--color-success);
-}
-
-.order-card__status--in-transit {
-  background-color: rgba(59, 130, 246, 0.1);
-  color: var(--color-info);
-}
-
-.order-card__status--processing {
-  background-color: rgba(245, 158, 11, 0.1);
-  color: var(--color-warning);
-}
-
-.order-card__date {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  margin-bottom: 1rem;
-}
-
-.order-card__footer {
+.account-order-row__right {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.order-card__total {
-  font-size: 1.125rem;
+.account-order-row__status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+.account-order-row__total {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.account-order-row__link {
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--color-primary);
 }
 
-.order-card__link {
-  font-size: 0.875rem;
+.account-orders-footer {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.account-orders-hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.account-orders-hint a {
   color: var(--color-primary);
   font-weight: 600;
 }
 
-@media (max-width: 1024px) {
-  .account-page__layout {
-    grid-template-columns: 1fr;
+/* ── Quick links ── */
+.account-quick-links {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 20px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+}
+
+.account-quick-links__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #94a3b8;
+  margin: 0 0 0.85rem;
+}
+
+.account-quick-links__row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.account-quick-link {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.9rem;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 999px;
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #475569;
+  transition: all 0.15s ease;
+}
+
+.account-quick-link:hover {
+  background: rgba(232, 23, 80, 0.06);
+  border-color: rgba(232, 23, 80, 0.25);
+  color: var(--color-primary);
+}
+
+.account-quick-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 480px) {
+  .account-order-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .quick-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .recent-orders {
-    grid-template-columns: 1fr;
+  .account-order-row__right {
+    width: 100%;
+    justify-content: space-between;
   }
 }

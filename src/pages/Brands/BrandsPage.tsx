@@ -7,6 +7,9 @@ import { categoryData } from '../../data/categories'
 import './BrandsPage.css'
 import '../ProductListing/ProductListingPage.css'
 
+const getStockLabel = (s: string) =>
+  s === 'branch' ? 'In stock at selected branch' : s === 'warehouse' ? 'Available in central warehouse (2-3 days)' : 'Out of stock'
+
 const formatPrice = (value: number) => `KSh ${value.toLocaleString()}`
 
 const renderStars = (rating: number) => {
@@ -43,6 +46,13 @@ function BrandsPage() {
   const [brandSearch, setBrandSearch]       = useState('')
   const [selectedCategorySlug, setSelectedCategorySlug] = useState('all')
   const [addedId, setAddedId]               = useState<number | null>(null)
+  const [searchTerm, setSearchTerm]         = useState('')
+  const [minPrice, setMinPrice]             = useState(0)
+  const [maxPrice, setMaxPrice]             = useState(10000)
+  const [minRating, setMinRating]           = useState(0)
+  const [availability, setAvailability]     = useState<'all' | 'in_stock' | 'out_of_stock'>('all')
+  const [sortBy, setSortBy]                 = useState('recommended')
+  const [viewMode, setViewMode]             = useState<'grid' | 'list'>('grid')
 
   const selectedBrandEntry   = brandDirectory.find((e) => e.slug === brand)
   const selectedBrandLabel   = selectedBrandEntry?.name ?? (brand ? formatLabel(brand) : '')
@@ -61,12 +71,31 @@ function BrandsPage() {
     [selectedBrandProducts]
   )
 
-  const filteredBrandProducts =
-    selectedCategorySlug === 'all'
-      ? selectedBrandProducts
-      : selectedBrandProducts.filter((p) => p.categorySlug === selectedCategorySlug)
+  const filteredBrandProducts = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    let list = selectedBrandProducts.filter((p) => {
+      const catMatch = selectedCategorySlug === 'all' || p.categorySlug === selectedCategorySlug
+      const queryMatch = !query || [p.name, p.category].some((v) => v.toLowerCase().includes(query))
+      const priceMatch = p.price >= minPrice && p.price <= maxPrice
+      const ratingMatch = minRating === 0 || p.rating >= minRating
+      const availMatch = availability === 'all' || (availability === 'in_stock' && p.stockSource !== 'out') || (availability === 'out_of_stock' && p.stockSource === 'out')
+      return catMatch && queryMatch && priceMatch && ratingMatch && availMatch
+    })
+    if (sortBy === 'price-low')  list = [...list].sort((a, b) => a.price - b.price)
+    if (sortBy === 'price-high') list = [...list].sort((a, b) => b.price - a.price)
+    if (sortBy === 'rating')     list = [...list].sort((a, b) => b.rating - a.rating)
+    if (sortBy === 'newest')     list = [...list].sort((a, b) => b.id - a.id)
+    return list
+  }, [selectedBrandProducts, selectedCategorySlug, searchTerm, minPrice, maxPrice, minRating, availability, sortBy])
 
-  useEffect(() => { setSelectedCategorySlug('all') }, [brand])
+  const activeFilterCount = (searchTerm ? 1 : 0) + (minRating > 0 ? 1 : 0) + (availability !== 'all' ? 1 : 0) + (minPrice > 0 || maxPrice < 10000 ? 1 : 0)
+
+  const clearBrandFilters = () => { setSearchTerm(''); setMinPrice(0); setMaxPrice(10000); setMinRating(0); setAvailability('all') }
+
+  useEffect(() => {
+    setSelectedCategorySlug('all')
+    setSearchTerm(''); setMinPrice(0); setMaxPrice(10000); setMinRating(0); setAvailability('all')
+  }, [brand])
 
   const handleAddToCart = (product: typeof products[0]) => {
     if (product.stockSource === 'out') return
@@ -164,34 +193,106 @@ function BrandsPage() {
           </Link>
         </div>
 
-        {selectedBrandProducts.length > 0 ? (
-          <>
-            {/* Category pill tabs */}
-            {brandCategories.length > 1 && (
-              <div className="brand-cat-tabs">
-                <button
-                  type="button"
-                  className={`brand-cat-tab${selectedCategorySlug === 'all' ? ' is-active' : ''}`}
-                  onClick={() => setSelectedCategorySlug('all')}
-                >
-                  All <span>{selectedBrandProducts.length}</span>
-                </button>
-                {brandCategories.map((cat) => (
-                  <button
-                    key={cat.slug}
-                    type="button"
-                    className={`brand-cat-tab${selectedCategorySlug === cat.slug ? ' is-active' : ''}`}
-                    onClick={() => setSelectedCategorySlug(cat.slug)}
-                  >
-                    {cat.name} <span>{cat.count}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+        {/* Category pill tabs */}
+        {brandCategories.length > 1 && (
+          <div className="plp__subcategories" style={{ marginBottom: '1rem' }}>
+            <button type="button" className={`plp__subcategory${selectedCategorySlug === 'all' ? ' is-active' : ''}`} onClick={() => setSelectedCategorySlug('all')}>
+              All {selectedBrandLabel} ({selectedBrandProducts.length})
+            </button>
+            {brandCategories.map((cat) => (
+              <button key={cat.slug} type="button" className={`plp__subcategory${selectedCategorySlug === cat.slug ? ' is-active' : ''}`} onClick={() => setSelectedCategorySlug(cat.slug)}>
+                {cat.name} ({cat.count})
+              </button>
+            ))}
+          </div>
+        )}
 
-            <div className="products-grid">
+        <div className="plp__layout">
+          {/* Sidebar */}
+          <aside className="plp__sidebar">
+            <div className="filter-panel">
+              <div className="filter-panel__header">
+                <span className="filter-panel__title">
+                  Filters
+                  {activeFilterCount > 0 && <span className="filter-panel__count">{activeFilterCount}</span>}
+                </span>
+                {activeFilterCount > 0 && (
+                  <button className="filter-panel__clear" type="button" onClick={clearBrandFilters}>Clear all</button>
+                )}
+              </div>
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Price Range</h4>
+                <div className="price-inputs">
+                  <input type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
+                  <span className="price-sep">–</span>
+                  <input type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
+                </div>
+              </div>
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Customer Rating</h4>
+                <div className="filter-options">
+                  {[4, 3, 2, 1].map((r) => (
+                    <label key={r} className="checkbox-label">
+                      <input type="radio" name="brand-rating" checked={minRating === r} onChange={() => setMinRating(r)} />
+                      <div className="rating-filter">
+                        {Array(r).fill(0).map((_, i) => <svg key={i} className="star star--filled" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>)}
+                        <span>& Up</span>
+                      </div>
+                    </label>
+                  ))}
+                  <label className="checkbox-label">
+                    <input type="radio" name="brand-rating" checked={minRating === 0} onChange={() => setMinRating(0)} />
+                    <span>All ratings</span>
+                  </label>
+                </div>
+              </div>
+              <div className="filter-panel__section filter-panel__section--last">
+                <h4 className="filter-panel__heading">Availability</h4>
+                <div className="filter-options">
+                  {(['all', 'in_stock', 'out_of_stock'] as const).map((v) => (
+                    <label key={v} className="checkbox-label">
+                      <input type="radio" name="brand-avail" checked={availability === v} onChange={() => setAvailability(v)} />
+                      <span>{v === 'all' ? 'All' : v === 'in_stock' ? 'In Stock' : 'Out of Stock'}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main */}
+          <main className="plp__main">
+            <div className="plp__toolbar">
+              <p className="plp__results-count">
+                {filteredBrandProducts.length === 0 ? 'No products found' : `Showing ${filteredBrandProducts.length} product${filteredBrandProducts.length !== 1 ? 's' : ''}`}
+              </p>
+              <div className="plp__toolbar-right">
+                <div className="plp__search-wrap">
+                  <svg className="plp__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  <input type="text" className="plp__search-input" placeholder={`Search ${selectedBrandLabel}…`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                  {searchTerm && <button className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>}
+                </div>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="plp__sort-select">
+                  <option value="recommended">Recommended</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                  <option value="rating">Customer Rating</option>
+                  <option value="newest">Newest First</option>
+                </select>
+                <div className="plp__view-toggle">
+                  <button className={`plp__view-btn ${viewMode === 'grid' ? 'is-active' : ''}`} type="button" onClick={() => setViewMode('grid')} title="Grid view">
+                    <svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+                  </button>
+                  <button className={`plp__view-btn ${viewMode === 'list' ? 'is-active' : ''}`} type="button" onClick={() => setViewMode('list')} title="List view">
+                    <svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="14" height="2" rx="1"/><rect x="1" y="12" width="14" height="2" rx="1"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className={`products-grid ${viewMode === 'list' ? 'products-grid--list' : ''}`}>
               {filteredBrandProducts.map((product) => (
-                <article key={product.id} className="product-card">
+                <article key={product.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
                   <Link to={`/product/${product.id}`} className="product-card__image">
                     {product.badge && <span className={`product-card__badge${product.badge.includes('Off') ? ' product-card__badge--sale' : ''}`}>{product.badge}</span>}
                     {product.stockSource === 'out' && <div className="product-card__overlay">Out of Stock</div>}
@@ -208,6 +309,7 @@ function BrandsPage() {
                       <span className="product-card__price">{formatPrice(product.price)}</span>
                       {product.originalPrice && <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>}
                     </div>
+                    <p className={`product-stock-source product-stock-source--${product.stockSource}`}>{getStockLabel(product.stockSource)}</p>
                     {product.stockSource !== 'out' ? (
                       <button className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
                         {addedId === product.id ? (
@@ -222,16 +324,16 @@ function BrandsPage() {
                   </div>
                 </article>
               ))}
+              {filteredBrandProducts.length === 0 && (
+                <div className="empty-state">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="44" height="44"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  <p className="empty-state__message">No products match your filters</p>
+                  {activeFilterCount > 0 && <button className="btn btn--outline btn--sm" type="button" onClick={clearBrandFilters}>Clear filters</button>}
+                </div>
+              )}
             </div>
-          </>
-        ) : (
-          <div className="empty-state" style={{ marginTop: '2rem' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="44" height="44"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <p className="empty-state__title">No products found for {selectedBrandLabel}</p>
-            <p className="empty-state__sub">Try browsing all brands or searching for a product.</p>
-            <Link to="/brands" className="btn btn--sm btn--primary" style={{ marginTop: '0.5rem' }}>Back to Brands</Link>
-          </div>
-        )}
+          </main>
+        </div>
       </div>
     </div>
   )

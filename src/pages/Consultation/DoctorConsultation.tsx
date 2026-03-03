@@ -293,19 +293,19 @@ function DoctorConsultation() {
       {/* Hero */}
       <section className="page-hero page-hero--doctor">
         <div className="container">
-          <nav className="page-hero__breadcrumbs">
+          <nav className="svc-hero__breadcrumbs">
             <Link to="/">Home</Link>
             <span>/</span>
             <Link to="/health-services">Health Services</Link>
             <span>/</span>
             <span>Doctor Consultation</span>
           </nav>
-          <h1 className="page-hero__title">Doctor Consultation</h1>
-          <p className="page-hero__sub">Connect with a licensed doctor via secure chat. Get advice, diagnosis, and a digital prescription - all in minutes.</p>
-          <div className="page-hero__pills">
-            <span className="page-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Licensed &amp; verified</span>
-            <span className="page-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>24/7 available</span>
-            <span className="page-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Encrypted &amp; private</span>
+          <h1 className="svc-hero__title">Doctor Consultation</h1>
+          <p className="svc-hero__sub">Connect with a licensed doctor via secure chat. Get advice, diagnosis, and a digital prescription - all in minutes.</p>
+          <div className="svc-hero__pills">
+            <span className="svc-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Licensed &amp; verified</span>
+            <span className="svc-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>24/7 available</span>
+            <span className="svc-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Encrypted &amp; private</span>
           </div>
         </div>
       </section>

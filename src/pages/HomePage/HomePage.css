@@ -10,7 +10,7 @@
 .home .section__title,
 .hero__headline,
 .hs-reviews__title,
-.hs-services__title,
+.hp-services__title,
 .newsletter__title {
   font-family: 'Fraunces', 'Times New Roman', serif;
   letter-spacing: -0.01em;
@@ -1348,17 +1348,17 @@
 }
 
 /* ── Services Section ───────────────────── */
-.hs-services {
+.hp-services {
   background: #0f172a;
   padding: 3rem 0;
 }
 
-.hs-services__head {
+.hp-services__head {
   text-align: center;
   margin-bottom: 2.25rem;
 }
 
-.hs-services__eyebrow {
+.hp-services__eyebrow {
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -1367,14 +1367,14 @@
   margin: 0 0 0.6rem;
 }
 
-.hs-services__title {
+.hp-services__title {
   font-size: clamp(1.75rem, 3.5vw, 2.5rem);
   font-weight: 800;
   color: #f1f5f9;
   margin: 0 0 0.875rem;
 }
 
-.hs-services__sub {
+.hp-services__sub {
   font-size: 0.95rem;
   color: #94a3b8;
   max-width: 520px;
@@ -1382,14 +1382,14 @@
   line-height: 1.65;
 }
 
-.hs-services__grid {
+.hp-services__grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
 /* Service card base */
-.hs-svc-card {
+.hp-svc-card {
   display: flex;
   gap: 1rem;
   background: rgba(255, 255, 255, 0.04);
@@ -1400,14 +1400,14 @@
   align-items: flex-start;
 }
 
-.hs-svc-card:hover {
+.hp-svc-card:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.18);
   transform: translateY(-3px);
 }
 
 /* Icon wrap */
-.hs-svc-card__icon-wrap {
+.hp-svc-card__icon-wrap {
   width: 46px;
   height: 46px;
   border-radius: 14px;
@@ -1417,64 +1417,64 @@
   flex-shrink: 0;
 }
 
-.hs-svc-card__icon-wrap svg {
+.hp-svc-card__icon-wrap svg {
   width: 22px;
   height: 22px;
 }
 
-.hs-svc-card--doctor .hs-svc-card__icon-wrap {
+.hp-svc-card--doctor .hp-svc-card__icon-wrap {
   background: rgba(99, 102, 241, 0.18);
   color: #818cf8;
 }
 
-.hs-svc-card--paed .hs-svc-card__icon-wrap {
+.hp-svc-card--paed .hp-svc-card__icon-wrap {
   background: rgba(16, 185, 129, 0.18);
   color: #34d399;
 }
 
-.hs-svc-card--rx .hs-svc-card__icon-wrap {
+.hp-svc-card--rx .hp-svc-card__icon-wrap {
   background: rgba(245, 158, 11, 0.18);
   color: #fbbf24;
 }
 
-.hs-svc-card--lab .hs-svc-card__icon-wrap {
+.hp-svc-card--lab .hp-svc-card__icon-wrap {
   background: rgba(14, 165, 233, 0.18);
   color: #38bdf8;
 }
 
 /* Card body */
-.hs-svc-card__body {
+.hp-svc-card__body {
   flex: 1;
   min-width: 0;
 }
 
-.hs-svc-card__title {
+.hp-svc-card__title {
   font-size: 1.02rem;
   font-weight: 700;
   color: #f1f5f9;
   margin: 0 0 0.35rem;
 }
 
-.hs-svc-card__desc {
+.hp-svc-card__desc {
   font-size: 0.8rem;
   color: #94a3b8;
   line-height: 1.55;
   margin: 0 0 0.5rem;
 }
 
-.hs-svc-card__cta {
+.hp-svc-card__cta {
   display: inline-block;
   font-size: 0.78rem;
   font-weight: 700;
   transition: letter-spacing 0.15s;
 }
 
-.hs-svc-card--doctor .hs-svc-card__cta { color: #818cf8; }
-.hs-svc-card--paed   .hs-svc-card__cta { color: #34d399; }
-.hs-svc-card--rx     .hs-svc-card__cta { color: #fbbf24; }
-.hs-svc-card--lab    .hs-svc-card__cta { color: #38bdf8; }
+.hp-svc-card--doctor .hp-svc-card__cta { color: #818cf8; }
+.hp-svc-card--paed   .hp-svc-card__cta { color: #34d399; }
+.hp-svc-card--rx     .hp-svc-card__cta { color: #fbbf24; }
+.hp-svc-card--lab    .hp-svc-card__cta { color: #38bdf8; }
 
-.hs-svc-card:hover .hs-svc-card__cta {
+.hp-svc-card:hover .hp-svc-card__cta {
   letter-spacing: 0.02em;
 }
 
@@ -1622,11 +1622,11 @@
     flex-direction: column;
   }
 
-  .hs-services__grid {
+  .hp-services__grid {
     grid-template-columns: 1fr;
   }
 
-  .hs-services {
+  .hp-services {
     padding: 3.5rem 0;
   }
 

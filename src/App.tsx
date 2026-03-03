@@ -7,6 +7,7 @@ import ProductListingPage from './pages/ProductListing/ProductListingPage'
 import ProductDetailPage from './pages/ProductDetail/ProductDetailPage'
 import CartPage from './pages/Cart/CartPage'
 import CheckoutPage from './pages/Checkout/CheckoutPage'
+import AccountLayout from './pages/Account/AccountLayout'
 import AccountPage from './pages/Account/AccountPage'
 import AccountAddressesPage from './pages/Account/AccountAddressesPage'
 import AccountPaymentPage from './pages/Account/AccountPaymentPage'
@@ -49,6 +50,9 @@ import PrivacyPage from './pages/Legal/PrivacyPage'
 import TermsPage from './pages/Legal/TermsPage'
 import CookiesPage from './pages/Legal/CookiesPage'
 import PrescriptionHistoryPage from './pages/PrescriptionHistory/PrescriptionHistoryPage'
+import AccountConsultationsPage from './pages/Account/AccountConsultationsPage'
+import AccountLabTestsPage from './pages/Account/AccountLabTestsPage'
+import AccountFavouritesPage from './pages/Account/AccountFavouritesPage'
 import DoctorDashboardPage from './pages/Doctor/DoctorDashboardPage'
 import PediatricianDashboardPage from './pages/Pediatrician/PediatricianDashboardPage'
 import PharmacistDashboardPage from './pages/Pharmacist/PharmacistDashboardPage'
@@ -77,14 +81,19 @@ function App() {
           <Route path="product/:id" element={<ProductDetailPage />} />
           <Route path="cart" element={<CartPage />} />
           <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-          <Route path="account" element={<AccountPage />} />
-          <Route path="account/orders" element={<OrderHistoryPage />} />
-          <Route path="account/orders/:id" element={<OrderDetailPage />} />
-          <Route path="account/addresses" element={<AccountAddressesPage />} />
-          <Route path="account/payment" element={<AccountPaymentPage />} />
-          <Route path="account/settings" element={<AccountSettingsPage />} />
-          <Route path="account/edit" element={<AccountEditPage />} />
-          <Route path="account/prescriptions" element={<PrescriptionHistoryPage />} />
+          <Route path="account" element={<AccountLayout />}>
+            <Route index element={<AccountPage />} />
+            <Route path="orders" element={<OrderHistoryPage />} />
+            <Route path="orders/:id" element={<OrderDetailPage />} />
+            <Route path="addresses" element={<AccountAddressesPage />} />
+            <Route path="payment" element={<AccountPaymentPage />} />
+            <Route path="settings" element={<AccountSettingsPage />} />
+            <Route path="edit" element={<AccountEditPage />} />
+            <Route path="prescriptions" element={<PrescriptionHistoryPage />} />
+            <Route path="consultations" element={<AccountConsultationsPage />} />
+            <Route path="lab-tests" element={<AccountLabTestsPage />} />
+            <Route path="favourites" element={<AccountFavouritesPage />} />
+          </Route>
           <Route path="orders" element={<OrderHistoryPage />} />
           <Route path="prescriptions" element={<ProtectedRoute><PrescriptionUploadPage /></ProtectedRoute>} />
           <Route path="prescriptions/history" element={<PrescriptionHistoryPage />} />

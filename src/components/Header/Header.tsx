@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import './Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
@@ -16,6 +16,8 @@ import { loadCategories } from '../../data/categories'
 import { loadHealthConcerns } from '../../data/healthConcerns'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
+import { favouritesService } from '../../services/favouritesService'
+import { getFavouriteCount } from '../../data/favourites'
 import { useAuth } from '../../context/AuthContext'
 
 function Header() {
@@ -26,12 +28,14 @@ function Header() {
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/')
+  const accountsRef = useRef<HTMLDivElement>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isAccountsOpen, setIsAccountsOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [cartCount, setCartCount] = useState(0)
+  const [favCount, setFavCount] = useState(0)
 
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev)
@@ -42,14 +46,31 @@ function Header() {
   const toggleSearch = () => setIsSearchOpen(!isSearchOpen)
 
   useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (accountsRef.current && !accountsRef.current.contains(e.target as Node)) {
+        setIsAccountsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    setIsAccountsOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
     const refresh = () => {
       void cartService.count().then((response) => setCartCount(response.data))
     }
     refresh()
-    const unsubscribe = cartService.subscribe(() => {
-      refresh()
-    })
+    const unsubscribe = cartService.subscribe(() => { refresh() })
     return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    setFavCount(getFavouriteCount())
+    return favouritesService.subscribe(() => setFavCount(getFavouriteCount()))
   }, [])
 
   const [categories] = useState(() => loadCategories())
@@ -215,11 +236,10 @@ function Header() {
               </button>
 
               <div
+                ref={accountsRef}
                 className={`header__accounts ${isAccountsOpen ? 'header__accounts--open' : ''}`}
-                onMouseEnter={() => setIsAccountsOpen(true)}
-                onMouseLeave={() => setIsAccountsOpen(false)}
               >
-                <button className="header__action-btn" type="button">
+                <button className="header__action-btn" type="button" onClick={() => setIsAccountsOpen(prev => !prev)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
@@ -229,38 +249,57 @@ function Header() {
                   </span>
                 </button>
                 <div className="header__accounts-dropdown">
+                  <nav className="had-links">
+                    <Link to="/account" className="had-link">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                      </svg>
+                      Account
+                    </Link>
+                    <Link to="/account/orders" className="had-link">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                        <rect x="9" y="3" width="6" height="4" rx="1"/>
+                        <path d="M9 12h6M9 16h4"/>
+                      </svg>
+                      Orders
+                    </Link>
+                    <Link to="/account/favourites" className="had-link">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                      Favourites
+                    </Link>
+                  </nav>
+                  <div className="had-divider" />
                   {isLoggedIn ? (
-                    <>
-                      <p className="header__accounts-greeting">Hello, {user?.name?.split(' ')[0]}</p>
-                      <Link to="/account" className="header__accounts-link">My Account</Link>
-                      <Link to="/account/profile" className="header__accounts-link">Profile</Link>
-                      <div className="header__accounts-divider" />
-                      <button className="header__accounts-signout" onClick={logout} type="button">Sign Out</button>
-                    </>
+                    <button className="had-signout" onClick={logout} type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                      </svg>
+                      Sign Out
+                    </button>
                   ) : (
-                    <>
-                      <p className="header__accounts-greeting">Hello, sign in</p>
-                      <Link to="/login" className="header__accounts-signin-btn">Sign In</Link>
-                      <p className="header__accounts-register">
-                        New customer? <Link to="/register">Register here</Link>
-                      </p>
-                      <div className="header__accounts-divider" />
-                      <Link to="/account/orders" className="header__accounts-link">Your Orders</Link>
-                    </>
+                    <div className="had-cta__btns">
+                      <Link to="/login" className="had-cta__signin">Sign In</Link>
+                      <Link to="/register" className="had-cta__register">Create Account</Link>
+                    </div>
                   )}
                 </div>
               </div>
 
-              <Link to="/account/orders" className="header__action-btn header__action-btn--orders">
+<Link to="/account/favourites" className="header__action-btn header__action-btn--fav">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-                  <rect x="9" y="3" width="6" height="4" rx="1"/>
-                  <path d="M9 12h6M9 16h4"/>
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                 </svg>
-                <span className="header__action-text">Orders</span>
+                {favCount > 0 && <span className="header__cart-badge">{favCount}</span>}
+                <span className="header__action-text">Favourites</span>
               </Link>
 
-              <Link to="/cart" className="header__action-btn header__action-btn--cart">
+<Link to="/cart" className="header__action-btn header__action-btn--cart">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="9" cy="21" r="1"/>
                   <circle cx="20" cy="21" r="1"/>

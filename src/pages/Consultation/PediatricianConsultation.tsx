@@ -259,25 +259,25 @@ function PediatricianConsultation() {
       {/* Hero */}
       <section className="page-hero page-hero--ped">
         <div className="container">
-          <nav className="page-hero__breadcrumbs">
+          <nav className="svc-hero__breadcrumbs">
             <Link to="/">Home</Link>
             <span>/</span>
             <Link to="/health-services">Health Services</Link>
             <span>/</span>
             <span>Pediatric Consultation</span>
           </nav>
-          <h1 className="page-hero__title">Pediatric Consultation</h1>
-          <p className="page-hero__sub">Expert care for your child from certified pediatricians. Start an instant chat consultation.</p>
-          <div className="page-hero__pills">
-            <span className="page-hero__pill page-hero__pill--teal">
+          <h1 className="svc-hero__title">Pediatric Consultation</h1>
+          <p className="svc-hero__sub">Expert care for your child from certified pediatricians. Start an instant chat consultation.</p>
+          <div className="svc-hero__pills">
+            <span className="svc-hero__pill svc-hero__pill--teal">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
               Child Specialists
             </span>
-            <span className="page-hero__pill page-hero__pill--teal">
+            <span className="svc-hero__pill svc-hero__pill--teal">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               Ages 0-18
             </span>
-            <span className="page-hero__pill page-hero__pill--teal">
+            <span className="svc-hero__pill svc-hero__pill--teal">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               Instant Chat
             </span>

@@ -242,7 +242,8 @@
   display: none;
 }
 
-.header__action-btn--cart {
+.header__action-btn--cart,
+.header__action-btn--fav {
   position: relative;
 }
 
@@ -273,28 +274,25 @@
   height: 24px;
 }
 
-/* Accounts dropdown */
+/* ── Accounts wrapper ── */
 .header__accounts {
   position: relative;
 }
 
 .header__accounts-dropdown {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 8px);
   right: 0;
-  min-width: 200px;
-  background: var(--color-white);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  width: 292px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.14), 0 4px 16px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
   opacity: 0;
   visibility: hidden;
   transform: translateY(8px);
-  transition: all 200ms ease;
+  transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
   z-index: 200;
 }
 
@@ -304,76 +302,117 @@
   transform: translateY(0);
 }
 
-.header__accounts-greeting {
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
-  margin: 0 0 0.25rem;
+/* ── Divider ── */
+.had-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 0;
 }
 
-.header__accounts-signin-btn {
+/* ── Nav links ── */
+.had-links {
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem 0;
+}
+
+.had-link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  text-decoration: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.had-link svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: #94a3b8;
+}
+
+.had-link:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.had-link:hover svg {
+  color: var(--color-primary);
+}
+
+/* ── Sign out ── */
+.had-signout {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #dc2626;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.had-signout:hover {
+  background: #fef2f2;
+}
+
+.had-signout svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+/* ── Auth buttons ── */
+.had-cta__btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.75rem 1.1rem;
+}
+
+.had-cta__signin {
   display: block;
   text-align: center;
   background: var(--color-primary);
   color: #fff;
   font-weight: 700;
-  font-size: 0.9rem;
-  padding: 0.55rem 1rem;
-  border-radius: var(--radius-full);
-  transition: background var(--transition-fast);
+  font-size: 0.875rem;
+  padding: 0.6rem 0.5rem;
+  border-radius: 10px;
+  transition: background 0.15s ease;
 }
 
-.header__accounts-signin-btn:hover {
-  background: var(--color-primary-dark);
+.had-cta__signin:hover {
+  background: var(--color-primary-dark, #c01042);
   color: #fff;
 }
 
-.header__accounts-register {
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-  margin: 0;
+.had-cta__register {
+  display: block;
   text-align: center;
-}
-
-.header__accounts-register a {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.header__accounts-divider {
-  height: 1px;
-  background: var(--color-border-light);
-  margin: 0.25rem 0;
-}
-
-.header__accounts-link {
+  background: transparent;
+  color: #0f172a;
+  font-weight: 700;
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  font-weight: 500;
-  padding: 0.3rem 0.4rem;
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  padding: 0.6rem 0.5rem;
+  border-radius: 10px;
+  border: 1.5px solid rgba(15, 23, 42, 0.14);
+  transition: all 0.15s ease;
 }
 
-.header__accounts-link:hover {
+.had-cta__register:hover {
+  border-color: var(--color-primary);
   color: var(--color-primary);
-  background: var(--color-background-alt);
-}
-
-.header__accounts-signout {
-  font-size: 0.875rem;
-  color: #dc2626;
-  font-weight: 500;
-  padding: 0.3rem 0.4rem;
-  border-radius: var(--radius-md);
-  text-align: left;
-  transition: all var(--transition-fast);
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.header__accounts-signout:hover {
-  background: #fef2f2;
+  background: rgba(232, 23, 80, 0.04);
 }
 
 /* Navigation */

@@ -6,6 +6,8 @@ import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
 import { StockSource } from '../../data/cart'
 import { CatalogProduct, loadCatalogProducts } from '../../data/products'
 import { cartService } from '../../services/cartService'
+import { favouritesService } from '../../services/favouritesService'
+import { loadFavourites } from '../../data/favourites'
 import './ProductListingPage.css'
 
 type ListingProduct = CatalogProduct
@@ -47,7 +49,12 @@ function ProductListingPage() {
   const [addedProductId, setAddedProductId] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
+  const buildWishlistMap = () => {
+    const map: Record<number, boolean> = {}
+    loadFavourites().forEach((f) => { map[f.id] = true })
+    return map
+  }
+  const [wishlist, setWishlist] = useState<Record<number, boolean>>(buildWishlistMap)
 
   const products: ListingProduct[] = loadCatalogProducts()
 
@@ -90,8 +97,21 @@ function ProductListingPage() {
     )
   }
 
-  const toggleWishlist = (id: number) => {
-    setWishlist((prev) => ({ ...prev, [id]: !prev[id] }))
+  useEffect(() => {
+    return favouritesService.subscribe(() => setWishlist(buildWishlistMap()))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const toggleWishlist = (product: ListingProduct) => {
+    void favouritesService.toggle({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      image: product.image,
+      stockSource: product.stockSource,
+    })
   }
 
   const filteredProducts = useMemo(() => {
@@ -491,7 +511,7 @@ function ProductListingPage() {
                       className={`product-card__wishlist ${wishlist[product.id] ? 'is-active' : ''}`}
                       type="button"
                       title={wishlist[product.id] ? 'Remove from wishlist' : 'Save to wishlist'}
-                      onClick={(e) => { e.preventDefault(); toggleWishlist(product.id) }}
+                      onClick={(e) => { e.preventDefault(); toggleWishlist(product) }}
                     >
                       <svg viewBox="0 0 24 24" fill={wishlist[product.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>

@@ -541,47 +541,47 @@ function HomePage() {
       </section>
 
       {/* Services Section */}
-      <section className="hs-services">
+      <section className="hp-services">
         <div className="container">
-          <div className="hs-services__head">
-            <p className="hs-services__eyebrow">Complete Healthcare</p>
-            <h2 className="hs-services__title">Everything you need, in one place</h2>
-            <p className="hs-services__sub">Prescriptions, consults, and lab tests - delivered fast with licensed experts.</p>
+          <div className="hp-services__head">
+            <p className="hp-services__eyebrow">Complete Healthcare</p>
+            <h2 className="hp-services__title">Everything you need, in one place</h2>
+            <p className="hp-services__sub">Prescriptions, consults, and lab tests - delivered fast with licensed experts.</p>
           </div>
-          <div className="hs-services__grid">
+          <div className="hp-services__grid">
 
-            <Link to="/doctor-consultation" className="hs-svc-card hs-svc-card--doctor" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-              <div className="hs-svc-card__icon-wrap">
+            <Link to="/doctor-consultation" className="hp-svc-card hp-svc-card--doctor" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <div className="hp-svc-card__icon-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/>
                   <path d="M20 21a8 8 0 1 0-16 0"/>
                   <path d="M16 11v4M14 13h4"/>
                 </svg>
               </div>
-              <div className="hs-svc-card__body">
-                <h3 className="hs-svc-card__title">Doctor Consultation</h3>
-                <p className="hs-svc-card__desc">Chat with licensed doctors and get e-prescriptions, 7 days a week.</p>
-                <span className="hs-svc-card__cta">Book a doctor →</span>
+              <div className="hp-svc-card__body">
+                <h3 className="hp-svc-card__title">Doctor Consultation</h3>
+                <p className="hp-svc-card__desc">Chat with licensed doctors and get e-prescriptions, 7 days a week.</p>
+                <span className="hp-svc-card__cta">Book a doctor →</span>
               </div>
             </Link>
 
-            <Link to="/pediatric-consultation" className="hs-svc-card hs-svc-card--paed" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-              <div className="hs-svc-card__icon-wrap">
+            <Link to="/pediatric-consultation" className="hp-svc-card hp-svc-card--paed" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <div className="hp-svc-card__icon-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <circle cx="12" cy="6" r="3"/>
                   <path d="M9 14c-3 0-5 1.5-5 3v1h16v-1c0-1.5-2-3-5-3"/>
                   <path d="M8 10c0 0-1 3 4 3s4-3 4-3"/>
                 </svg>
               </div>
-              <div className="hs-svc-card__body">
-                <h3 className="hs-svc-card__title">Pediatric Care</h3>
-                <p className="hs-svc-card__desc">Specialist pediatricians for infants, children, and teens on demand.</p>
-                <span className="hs-svc-card__cta">See pediatricians →</span>
+              <div className="hp-svc-card__body">
+                <h3 className="hp-svc-card__title">Pediatric Care</h3>
+                <p className="hp-svc-card__desc">Specialist pediatricians for infants, children, and teens on demand.</p>
+                <span className="hp-svc-card__cta">See pediatricians →</span>
               </div>
             </Link>
 
-            <Link to="/prescriptions" className="hs-svc-card hs-svc-card--rx" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-              <div className="hs-svc-card__icon-wrap">
+            <Link to="/prescriptions" className="hp-svc-card hp-svc-card--rx" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <div className="hp-svc-card__icon-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
@@ -589,24 +589,24 @@ function HomePage() {
                   <line x1="9" y1="17" x2="13" y2="17"/>
                 </svg>
               </div>
-              <div className="hs-svc-card__body">
-                <h3 className="hs-svc-card__title">Prescription Upload</h3>
-                <p className="hs-svc-card__desc">Upload your prescription for pharmacist verification and same-day delivery.</p>
-                <span className="hs-svc-card__cta">Upload prescription →</span>
+              <div className="hp-svc-card__body">
+                <h3 className="hp-svc-card__title">Prescription Upload</h3>
+                <p className="hp-svc-card__desc">Upload your prescription for pharmacist verification and same-day delivery.</p>
+                <span className="hp-svc-card__cta">Upload prescription →</span>
               </div>
             </Link>
 
-            <Link to="/laboratory" className="hs-svc-card hs-svc-card--lab" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-              <div className="hs-svc-card__icon-wrap">
+            <Link to="/laboratory" className="hp-svc-card hp-svc-card--lab" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <div className="hp-svc-card__icon-wrap">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11M3 9h18M3 9l3 9h12l3-9"/>
                   <circle cx="12" cy="16" r="1"/>
                 </svg>
               </div>
-              <div className="hs-svc-card__body">
-                <h3 className="hs-svc-card__title">Lab Tests</h3>
-                <p className="hs-svc-card__desc">Book 200+ diagnostics with home sample collection and results in 24–48h.</p>
-                <span className="hs-svc-card__cta">Book a test →</span>
+              <div className="hp-svc-card__body">
+                <h3 className="hp-svc-card__title">Lab Tests</h3>
+                <p className="hp-svc-card__desc">Book 200+ diagnostics with home sample collection and results in 24–48h.</p>
+                <span className="hp-svc-card__cta">Book a test →</span>
               </div>
             </Link>
 

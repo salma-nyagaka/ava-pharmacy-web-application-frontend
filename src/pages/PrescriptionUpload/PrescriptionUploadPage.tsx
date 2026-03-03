@@ -120,21 +120,21 @@ function PrescriptionUploadPage() {
     <>
       <section className="page-hero page-hero--prescriptions">
         <div className="container">
-          <nav className="page-hero__breadcrumbs">
+          <nav className="svc-hero__breadcrumbs">
             <Link to="/">Home</Link>
             <span>/</span>
             <Link to="/health-services">Health Services</Link>
             <span>/</span>
             <span>Prescriptions</span>
           </nav>
-          <h1 className="page-hero__title">Upload Prescription</h1>
-          <p className="page-hero__sub">Submit your prescription securely. We'll review it within 24 hours.</p>
-          <div className="page-hero__pills">
-            <span className="page-hero__pill">Secure upload</span>
-            <span className="page-hero__pill">24hr review</span>
-            <span className="page-hero__pill">Fast dispensing</span>
+          <h1 className="svc-hero__title">Upload Prescription</h1>
+          <p className="svc-hero__sub">Submit your prescription securely. We'll review it within 24 hours.</p>
+          <div className="svc-hero__pills">
+            <span className="svc-hero__pill">Secure upload</span>
+            <span className="svc-hero__pill">24hr review</span>
+            <span className="svc-hero__pill">Fast dispensing</span>
             {!isLoggedIn && (
-              <Link to="/login?redirect=/prescriptions" className="page-hero__pill" style={{ textDecoration: 'none' }}>Sign in to track</Link>
+              <Link to="/login?redirect=/prescriptions" className="svc-hero__pill" style={{ textDecoration: 'none' }}>Sign in to track</Link>
             )}
           </div>
         </div>
