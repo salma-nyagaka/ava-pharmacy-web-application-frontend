@@ -454,10 +454,7 @@ function Header() {
               </Link>
             </li>
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/health-services" className={`header__nav-link${isActive('/health-services') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>Consult &amp; Care</Link>
-            </li>
-            <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
-              <Link to="/lab-tests" className={`header__nav-link${isActive('/lab-tests') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>Lab Tests</Link>
+              <Link to="/health-services" className={`header__nav-link${isActive('/health-services') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>Health Services</Link>
             </li>
           </ul>
         </div>

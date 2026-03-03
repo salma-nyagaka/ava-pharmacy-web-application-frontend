@@ -117,26 +117,30 @@ function PrescriptionUploadPage() {
   }
 
   return (
-    <div className="rup-page">
-      <div className="container">
-
-        <div style={{ paddingTop: '1.25rem', marginBottom: '0.75rem' }}>
-          <Link to="/health-services" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', textDecoration: 'none', padding: '0.45rem 0.875rem', border: '1px solid rgba(15,23,42,0.12)', borderRadius: '8px' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M15 18l-6-6 6-6"/></svg>
-            Health Services
-          </Link>
-        </div>
-
-        {/* Page header */}
-        <div className="rup-header">
-          <div>
-            <h1>Upload Prescription</h1>
-            <p className="rup-header__sub">Submit your prescription securely. We'll review it within 24 hours.</p>
+    <>
+      <section className="page-hero page-hero--prescriptions">
+        <div className="container">
+          <nav className="page-hero__breadcrumbs">
+            <Link to="/">Home</Link>
+            <span>/</span>
+            <Link to="/health-services">Health Services</Link>
+            <span>/</span>
+            <span>Prescriptions</span>
+          </nav>
+          <h1 className="page-hero__title">Upload Prescription</h1>
+          <p className="page-hero__sub">Submit your prescription securely. We'll review it within 24 hours.</p>
+          <div className="page-hero__pills">
+            <span className="page-hero__pill">Secure upload</span>
+            <span className="page-hero__pill">24hr review</span>
+            <span className="page-hero__pill">Fast dispensing</span>
+            {!isLoggedIn && (
+              <Link to="/login?redirect=/prescriptions" className="page-hero__pill" style={{ textDecoration: 'none' }}>Sign in to track</Link>
+            )}
           </div>
-          {!isLoggedIn && (
-            <Link to="/login?redirect=/prescriptions" className="btn btn--primary btn--sm">Sign in to track prescriptions</Link>
-          )}
         </div>
+      </section>
+      <div className="rup-page">
+      <div className="container">
 
         <div className="rup-layout">
           {/* ── Upload form ── */}
@@ -409,6 +413,7 @@ function PrescriptionUploadPage() {
         </div>
       )}
     </div>
+    </>
   )
 }
 

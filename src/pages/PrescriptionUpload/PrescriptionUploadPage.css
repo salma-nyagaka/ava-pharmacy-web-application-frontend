@@ -1,28 +1,8 @@
 /* ── Page ───────────────────────────────── */
 .rup-page {
-  padding: 2.5rem 0 5rem;
+  padding: 2rem 0 5rem;
 }
 
-.rup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-}
-
-.rup-header h1 {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #111;
-  margin-bottom: 0.35rem;
-}
-
-.rup-header__sub {
-  font-size: 0.9375rem;
-  color: var(--color-text-muted);
-}
 
 /* ── Two-column layout ──────────────────── */
 .rup-layout {

@@ -168,55 +168,29 @@ function LabServicesPage() {
     resetBookingForm()
   }
 
-  const scrollToTests = () => {
-    testsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
   return (
     <div className="lab-services">
-      <section className="page">
+      <section className="page-hero page-hero--lab">
         <div className="container">
-
-          <nav className="breadcrumbs">
+          <nav className="page-hero__breadcrumbs">
             <Link to="/">Home</Link>
+            <span>/</span>
+            <Link to="/health-services">Health Services</Link>
             <span>/</span>
             <span>Lab tests</span>
           </nav>
-
-          {/* Hero */}
-          <div className="lab-hero">
-            <div className="lab-hero__left">
-              <span className="lab-hero__eyebrow">Lab Services</span>
-              <h1 className="lab-hero__title">Professional laboratory diagnostics</h1>
-              <p className="lab-hero__sub">
-                Book tests, track sample progress, and access validated results - all in one place.
-              </p>
-              <button className="btn btn--primary lab-hero__cta" type="button" onClick={scrollToTests}>
-                Browse {tests.length} tests
-                <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                  <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-            <div className="lab-hero__stat-grid">
-              <div className="lab-hero__stat">
-                <strong>{tests.length}</strong>
-                <span>Available tests</span>
-              </div>
-              <div className="lab-hero__stat">
-                <strong>{categories.length}</strong>
-                <span>Categories</span>
-              </div>
-              <div className="lab-hero__stat lab-hero__stat--accent">
-                <strong>{stats.active}</strong>
-                <span>Active requests</span>
-              </div>
-              <div className="lab-hero__stat lab-hero__stat--green">
-                <strong>{stats.ready}</strong>
-                <span>Results ready</span>
-              </div>
-            </div>
+          <h1 className="page-hero__title">Professional Lab Diagnostics</h1>
+          <p className="page-hero__sub">Book tests, track sample progress, and access validated results - all in one place.</p>
+          <div className="page-hero__pills">
+            <span className="page-hero__pill">{tests.length} tests available</span>
+            <span className="page-hero__pill">{categories.length} categories</span>
+            {stats.active > 0 && <span className="page-hero__pill">{stats.active} active requests</span>}
+            {stats.ready > 0 && <span className="page-hero__pill">{stats.ready} results ready</span>}
           </div>
+        </div>
+      </section>
+      <section className="page">
+        <div className="container">
 
           {/* Test catalogue */}
           <div className="lab-tests" ref={testsRef}>

@@ -1,24 +1,15 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import './HealthServicesPage.css'
-
-const COLOR_HEX: Record<string, string> = {
-  blue:   '#2563eb',
-  green:  '#16a34a',
-  purple: '#7c3aed',
-  amber:  '#d97706',
-}
 
 const services = [
   {
     key: 'doctor',
     title: 'Doctor Consultation',
-    badge: 'Consultation',
-    desc: 'Connect with licensed general practitioners and specialists from the comfort of your home. Get diagnoses, treatment plans, and e-prescriptions in minutes.',
+    desc: 'Connect with licensed GPs and specialists from home. Get diagnoses, treatment plans, and digital prescriptions in minutes.',
     path: '/doctor-consultation',
     cta: 'Book a Consultation',
     color: 'blue',
-    features: ['Same-day appointments', 'E-prescriptions issued', 'Follow-up support included'],
+    features: ['Same day appointments', 'Digital prescriptions issued', 'Follow up support included'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -28,12 +19,11 @@ const services = [
   {
     key: 'pediatric',
     title: 'Pediatric Services',
-    badge: 'Pediatrics',
-    desc: 'Expert child health consultations for infants, toddlers, and teens. Our paediatricians provide personalised care and guidance for parents and guardians.',
+    desc: 'Expert child health consultations for infants, toddlers, and teens. Personalised care and guidance for parents and guardians.',
     path: '/pediatric-consultation',
     cta: 'Book for Your Child',
     color: 'green',
-    features: ['Ages 0–18 covered', 'Vaccination guidance', 'Growth & development tracking'],
+    features: ['Ages 0 to 18 covered', 'Vaccination guidance', 'Growth and development tracking'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -45,12 +35,11 @@ const services = [
   {
     key: 'lab',
     title: 'Laboratory Services',
-    badge: 'Diagnostics',
-    desc: 'Book diagnostics online, visit a nearby partner lab, and receive certified results digitally. Covering blood panels, urinalysis, imaging referrals, and more.',
+    desc: 'Book diagnostics online, visit a nearby partner lab, and receive certified results digitally. Blood panels, urinalysis, imaging and more.',
     path: '/lab-tests',
     cta: 'Book a Lab Test',
     color: 'purple',
-    features: ['200+ tests available', 'Results in 24–48 hours', 'Home sample collection'],
+    features: ['200+ tests available', 'Results in 24 to 48 hours', 'Home sample collection'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M14.5 2v14.5a4.5 4.5 0 0 1-9 0V2"/>
@@ -62,12 +51,11 @@ const services = [
   {
     key: 'prescription',
     title: 'Prescription Fulfillment',
-    badge: 'Pharmacy',
-    desc: 'Upload your prescription, have it verified by our licensed pharmacists, and get your medication delivered or ready for pickup — all digitally.',
+    desc: 'Upload your prescription, have it verified by our licensed pharmacists, and get your medication delivered or ready for pickup.',
     path: '/prescriptions',
     cta: 'Upload Prescription',
     color: 'amber',
-    features: ['Instant pharmacist review', 'Medication delivery available', 'Secure & confidential'],
+    features: ['Instant pharmacist review', 'Medication delivery available', 'Secure and confidential'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -84,14 +72,10 @@ const steps = [
   { n: '01', title: 'Choose a Service',  desc: 'Select from consultations, lab tests, or prescription uploads.' },
   { n: '02', title: 'Book or Upload',    desc: 'Pick a time slot, answer a short health form, or upload your documents.' },
   { n: '03', title: 'Get Expert Care',   desc: 'Connect with a licensed professional or receive certified lab results.' },
-  { n: '04', title: 'Receive Treatment', desc: 'Get e-prescriptions, medication delivery, or a referral — all in one place.' },
+  { n: '04', title: 'Receive Treatment', desc: 'Get prescriptions, medication delivery, or a referral, all in one place.' },
 ]
 
-type Service = typeof services[number]
-
 function HealthServicesPage() {
-  const [selected, setSelected] = useState<Service | null>(null)
-
   return (
     <div className="hs-page">
 
@@ -99,29 +83,34 @@ function HealthServicesPage() {
       <section className="hs-services">
         <div className="container">
           <div className="hs-section-head">
+            <span className="hs-section-eyebrow">What we offer</span>
             <h2 className="hs-section-title">Our Services</h2>
             <p className="hs-section-sub">Everything you need to manage your health in one platform.</p>
           </div>
           <div className="hs-services__grid">
             {services.map((s) => (
-              <div
-                key={s.key}
-                className={`hs-card hs-card--${s.color}`}
-                style={{ '--hs-accent': COLOR_HEX[s.color] } as React.CSSProperties}
-              >
-                <div className="hs-card__top">
-                  <span className="hs-card__icon">{s.icon}</span>
-                  <span className="hs-card__badge">{s.badge}</span>
+              <div key={s.key} className={`hs-service-card hs-service-card--${s.color}`}>
+                <div className="hs-service-card__top">
+                  <span className="hs-service-card__icon">{s.icon}</span>
+                  <h3 className="hs-service-card__title">{s.title}</h3>
+                  <p className="hs-service-card__desc">{s.desc}</p>
                 </div>
-                <h3 className="hs-card__title">{s.title}</h3>
-                <div className="hs-card__actions">
-                  <button className="btn btn--outline btn--sm" onClick={() => setSelected(s)}>
-                    Details
-                  </button>
-                  <Link to={s.path} className="btn btn--sm hs-card__book">
-                    Book →
-                  </Link>
-                </div>
+                <ul className="hs-service-card__features">
+                  {s.features.map((f) => (
+                    <li key={f}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link to={s.path} className="hs-service-card__cta">
+                  {s.cta}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </Link>
               </div>
             ))}
           </div>
@@ -132,6 +121,7 @@ function HealthServicesPage() {
       <section className="hs-how">
         <div className="container">
           <div className="hs-section-head">
+            <span className="hs-section-eyebrow">Simple process</span>
             <h2 className="hs-section-title">How it works</h2>
             <p className="hs-section-sub">From booking to treatment in four simple steps.</p>
           </div>
@@ -173,52 +163,6 @@ function HealthServicesPage() {
           </div>
         </div>
       </section>
-
-      {/* Details modal */}
-      {selected && (
-        <div className="modal-overlay" onClick={() => setSelected(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal__header">
-              <div className="hs-modal__title-row">
-                <span className={`hs-modal__icon hs-card--${selected.color}`}>
-                  {selected.icon}
-                </span>
-                <div>
-                  <span className="hs-modal__badge">{selected.badge}</span>
-                  <h2>{selected.title}</h2>
-                </div>
-              </div>
-              <button className="modal__close" onClick={() => setSelected(null)}>×</button>
-            </div>
-            <div className="modal__content">
-              <p className="hs-modal__desc">{selected.desc}</p>
-              <div className="hs-modal__features">
-                <p className="hs-modal__features-label">What's included</p>
-                <ul>
-                  {selected.features.map((f) => (
-                    <li key={f}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" onClick={() => setSelected(null)}>Close</button>
-              <Link
-                to={selected.path}
-                className="btn btn--primary btn--sm"
-                onClick={() => setSelected(null)}
-              >
-                {selected.cta} →
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   )

@@ -48,6 +48,79 @@
   gap: 1.5rem;
 }
 
+/* ── Page hero (shared banner for all service pages) ── */
+.page-hero {
+  background: linear-gradient(120deg, #010e2d 0%, #031b4e 55%, #052570 100%);
+  padding: 1.5rem 0 1.25rem;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.page-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 80% 50%, rgba(255,255,255,0.05) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.page-hero__breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.775rem;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 0.65rem;
+  position: relative;
+}
+
+.page-hero__breadcrumbs a {
+  color: rgba(255,255,255,0.72);
+  text-decoration: none;
+}
+
+.page-hero__breadcrumbs a:hover { color: #fff; }
+
+.page-hero__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.2px;
+  position: relative;
+  color: #fff;
+}
+
+.page-hero__sub {
+  font-size: 0.875rem;
+  color: rgba(255,255,255,0.82);
+  line-height: 1.55;
+  margin-bottom: 0.9rem;
+  max-width: 540px;
+  position: relative;
+}
+
+.page-hero__pills {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.page-hero__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 20px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.775rem;
+  font-weight: 500;
+  color: #fff;
+}
+
 .page-grid--2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -55,6 +128,80 @@
 .page-grid--3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+
+/* ── Page hero color variants (per service) ── */
+
+/* Doctor Consultation - blue */
+.page-hero--doctor {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-bottom: 1px solid #bfdbfe;
+}
+.page-hero--doctor .page-hero__breadcrumbs       { color: #64748b; }
+.page-hero--doctor .page-hero__breadcrumbs a     { color: #64748b; }
+.page-hero--doctor .page-hero__breadcrumbs a:hover { color: #0f172a; }
+.page-hero--doctor .page-hero__breadcrumbs span  { color: #cbd5e1; }
+.page-hero--doctor .page-hero__title             { color: #1d4ed8; }
+.page-hero--doctor .page-hero__sub               { color: #475569; }
+.page-hero--doctor .page-hero__pill {
+  background: #fff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+.page-hero--doctor::before { display: none; }
+
+/* Lab Tests - purple */
+.page-hero--lab {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border-bottom: 1px solid #ddd6fe;
+}
+.page-hero--lab .page-hero__breadcrumbs           { color: #64748b; }
+.page-hero--lab .page-hero__breadcrumbs a         { color: #64748b; }
+.page-hero--lab .page-hero__breadcrumbs a:hover   { color: #0f172a; }
+.page-hero--lab .page-hero__breadcrumbs span      { color: #cbd5e1; }
+.page-hero--lab .page-hero__title                 { color: #6d28d9; }
+.page-hero--lab .page-hero__sub                   { color: #475569; }
+.page-hero--lab .page-hero__pill {
+  background: #fff;
+  border-color: #ddd6fe;
+  color: #7c3aed;
+}
+.page-hero--lab::before { display: none; }
+
+/* Prescriptions - amber */
+.page-hero--prescriptions {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-bottom: 1px solid #fde68a;
+}
+.page-hero--prescriptions .page-hero__breadcrumbs         { color: #64748b; }
+.page-hero--prescriptions .page-hero__breadcrumbs a       { color: #64748b; }
+.page-hero--prescriptions .page-hero__breadcrumbs a:hover { color: #0f172a; }
+.page-hero--prescriptions .page-hero__breadcrumbs span    { color: #cbd5e1; }
+.page-hero--prescriptions .page-hero__title               { color: #b45309; }
+.page-hero--prescriptions .page-hero__sub                 { color: #475569; }
+.page-hero--prescriptions .page-hero__pill {
+  background: #fff;
+  border-color: #fde68a;
+  color: #d97706;
+}
+.page-hero--prescriptions::before { display: none; }
+
+/* Pediatric - teal/green */
+.page-hero--ped {
+  background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+  border-bottom: 1px solid #99f6e4;
+}
+.page-hero--ped .page-hero__breadcrumbs           { color: #64748b; }
+.page-hero--ped .page-hero__breadcrumbs a         { color: #64748b; }
+.page-hero--ped .page-hero__breadcrumbs a:hover   { color: #0f172a; }
+.page-hero--ped .page-hero__breadcrumbs span      { color: #cbd5e1; }
+.page-hero--ped .page-hero__title                 { color: #0d9488; }
+.page-hero--ped .page-hero__sub                   { color: #475569; }
+.page-hero--ped .page-hero__pill {
+  background: #fff;
+  border-color: #99f6e4;
+  color: #0d9488;
+}
+.page-hero--ped::before { display: none; }
 
 .page-grid--4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
