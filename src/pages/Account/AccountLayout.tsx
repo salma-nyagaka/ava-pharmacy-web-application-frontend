@@ -103,7 +103,6 @@ function AccountLayout() {
   }
 
   const isActive = (item: typeof NAV_ITEMS[number]) => {
-    if (item.exact) return location.pathname === item.link
     return location.pathname.startsWith(item.link)
   }
 
