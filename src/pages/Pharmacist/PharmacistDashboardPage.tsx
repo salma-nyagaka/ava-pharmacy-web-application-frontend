@@ -296,20 +296,6 @@ function PharmacistDashboardPage() {
                   </div>
                 )}
 
-                {/* Audit trail */}
-                {activeRx.audit.length > 0 && (
-                  <div className="px-modal__section">
-                    <p className="px-section-label">Activity history</p>
-                    <div className="px-audit-list">
-                      {activeRx.audit.map((entry, i) => (
-                        <div key={`${entry.time}-${i}`} className="px-audit-entry">
-                          <span className="px-audit-time">{entry.time}</span>
-                          <span className="px-audit-action">{entry.action}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Right: decision panel */}
