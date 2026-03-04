@@ -1,302 +1,384 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { PrescriptionRecord } from '../../data/prescriptions'
+import { useAuth } from '../../context/AuthContext'
+import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
+import '../Admin/AdminShared.css'
+import '../Admin/PrescriptionManagement.css'
 import './PharmacistDashboardPage.css'
 
-function getInitials(name: string) {
-  return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
-}
+const statusClass = (status: PrescriptionStatus) =>
+  status === 'Approved' ? 'admin-status--success'
+  : status === 'Pending' ? 'admin-status--warning'
+  : status === 'Clarification' ? 'admin-status--warning'
+  : 'admin-status--danger'
+
+const isImageFile = (f: string) =>
+  f.startsWith('data:image') || /\.(jpg|jpeg|png|gif|webp)$/i.test(f)
+
+const isPdfFile = (f: string) =>
+  f.startsWith('data:application/pdf') || /\.pdf$/i.test(f)
 
 function PharmacistDashboardPage() {
-  const [records, setRecords] = useState<PrescriptionRecord[]>([])
-  const [feedback, setFeedback] = useState('')
+  const { user } = useAuth()
+  const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState<'all' | PrescriptionStatus>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
+  const [showClarificationInput, setShowClarificationInput] = useState(false)
+  const [clarificationNote, setClarificationNote] = useState('')
 
   useEffect(() => {
-    void prescriptionService.list().then((response) => setRecords(response.data))
+    void prescriptionService.list().then((r) => setPrescriptions(r.data))
   }, [])
 
-  const queue = useMemo(() => {
-    return records
-      .filter((item) => item.status !== 'Rejected')
-      .sort((a, b) => {
-        const aRank = a.status === 'Clarification' ? 0 : a.status === 'Pending' ? 1 : 2
-        const bRank = b.status === 'Clarification' ? 0 : b.status === 'Pending' ? 1 : 2
-        if (aRank !== bRank) return aRank - bRank
-        return b.id.localeCompare(a.id)
-      })
-      .slice(0, 8)
-      .map((item) => ({
-        id: item.id,
-        patient: item.patient,
-        submitted: item.submitted,
-        priority: item.status === 'Clarification' ? 'High' : item.status === 'Pending' ? 'Normal' : 'Low',
-        status: item.status,
-        dispatchStatus: item.dispatchStatus,
-      }))
-  }, [records])
+  useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedStatus])
 
-  const pendingReviews = records.filter((item) => item.status === 'Pending' || item.status === 'Clarification').length
-  const flaggedChecks = records.filter((item) => item.status === 'Clarification').length
+  useEffect(() => {
+    if (!activeRx) return
+    const updated = prescriptions.find((p) => p.id === activeRx.id)
+    setActiveRx(updated ?? null)
+  }, [prescriptions]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleApproveBatch = async () => {
-    const candidates = records.filter((item) => item.status === 'Pending' || item.status === 'Clarification')
-    const batch = candidates.slice(0, 3)
-    if (batch.length === 0) {
-      setFeedback('No pending prescriptions available for batch approval.')
-      return
-    }
-    const approvedIds = new Set(batch.map((item) => item.id))
-    const updated = records.map((item) =>
-      approvedIds.has(item.id)
-        ? { ...item, status: 'Approved' as const, dispatchStatus: item.dispatchStatus === 'Not started' ? 'Queued' as const : item.dispatchStatus }
-        : item
-    )
-    let response = await prescriptionService.saveAll(updated)
-    for (const item of batch) {
-      response = await prescriptionService.appendAudit(item.id, 'Batch approved from pharmacist dashboard')
-    }
-    setRecords(response.data)
-    setFeedback(`✓ Approved ${batch.length} prescription(s): ${batch.map((item) => item.id).join(', ')}`)
+  useEffect(() => {
+    if (!activeRx) { return }
+    setShowClarificationInput(false)
+    setClarificationNote('')
+  }, [activeRx?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const actor = user?.name ?? 'Pharmacist'
+
+  const updateRx = async (id: string, updates: Partial<PrescriptionRecord>, action: string) => {
+    const r = await prescriptionService.update(id, updates, action)
+    setPrescriptions(r.data)
   }
 
-  const handleExportAuditLog = () => {
-    const rows = [
-      'Prescription ID,Patient,Status,Dispatch,Last Audit Action',
-      ...records.map((item) => {
-        const latestAudit = item.audit?.[0]?.action ?? 'No audit'
-        return [item.id, item.patient, item.status, item.dispatchStatus, `"${latestAudit.replace(/"/g, '""')}"`].join(',')
-      }),
-    ]
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'pharmacist-audit-log.csv'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-    setFeedback('✓ Audit log downloaded to your computer.')
+  const handleApprove = () => {
+    if (!activeRx) return
+    void updateRx(activeRx.id, { status: 'Approved', pharmacist: actor }, `Approved by ${actor}`)
   }
 
-  const statusBadgeClass = (status: string) => {
-    if (status === 'Clarification') return 'ph-badge ph-badge--clarify'
-    if (status === 'Pending') return 'ph-badge ph-badge--pending'
-    if (status === 'Approved') return 'ph-badge ph-badge--approved'
-    return 'ph-badge ph-badge--low'
+  const handleClarification = (note: string) => {
+    if (!activeRx) return
+    void updateRx(activeRx.id, { status: 'Clarification', dispatchStatus: 'Not started', pharmacist: actor }, `Clarification requested by ${actor}${note ? ': ' + note : ''}`)
+    setShowClarificationInput(false)
+    setClarificationNote('')
   }
+
+  const handleReject = () => {
+    if (!activeRx) return
+    void updateRx(activeRx.id, { status: 'Rejected', dispatchStatus: 'Not started', pharmacist: actor }, `Rejected by ${actor}`)
+  }
+
+  const filtered = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase()
+    return prescriptions.filter((rx) => {
+      if (selectedStatus !== 'all' && rx.status !== selectedStatus) return false
+      if (!q) return true
+      return [rx.id, rx.patient, rx.doctor, rx.pharmacist].some((v) => v.toLowerCase().includes(q))
+    })
+  }, [prescriptions, searchTerm, selectedStatus])
+
+  const PAGE_SIZE = 8
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  const stats = useMemo(() => ({
+    pending: prescriptions.filter((p) => p.status === 'Pending').length,
+    approved: prescriptions.filter((p) => p.status === 'Approved').length,
+    clarification: prescriptions.filter((p) => p.status === 'Clarification').length,
+    rejected: prescriptions.filter((p) => p.status === 'Rejected').length,
+  }), [prescriptions])
 
   return (
-    <div className="ph-page">
-      {/* ── Hero ── */}
-      <div className="ph-hero">
-        <div className="ph-hero__inner">
-          <div className="ph-hero__left">
-            <div className="ph-hero__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" width="26" height="26">
-                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-                <rect x="9" y="3" width="6" height="4" rx="2"/>
-                <path d="M9 12h6M9 16h4"/>
-              </svg>
-            </div>
-            <div>
-              <h1 className="ph-hero__title">Pharmacist Dashboard</h1>
-              <p className="ph-hero__sub">Review prescriptions, check safety, and approve dispensing</p>
-            </div>
-          </div>
-          <span className="ph-hero__badge">Pharmacy Portal</span>
-        </div>
-      </div>
-
-      {/* ── Stats ── */}
-      <div className="ph-stats">
-        <div className="ph-stat">
-          <div className="ph-stat__icon ph-stat__icon--warning">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
-          </div>
-          <div>
-            <p className="ph-stat__value">{pendingReviews}</p>
-            <p className="ph-stat__label">Awaiting your review</p>
-          </div>
-        </div>
-        <div className="ph-stat">
-          <div className="ph-stat__icon ph-stat__icon--danger">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-          </div>
-          <div>
-            <p className="ph-stat__value">{flaggedChecks}</p>
-            <p className="ph-stat__label">Need clarification</p>
-          </div>
-        </div>
-        <div className="ph-stat">
-          <div className="ph-stat__icon ph-stat__icon--success">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </div>
-          <div>
-            <p className="ph-stat__value">~6 min</p>
-            <p className="ph-stat__label">Average review time</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Body ── */}
-      <div className="ph-body">
-        {/* Queue */}
+    <div className="admin-page">
+      {/* Header */}
+      <div className="admin-page__header">
         <div>
-          <div className="ph-queue-card">
-            <div className="ph-queue-card__header">
-              <h2 className="ph-section-title">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-                  <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-                  <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                </svg>
-                Prescription Queue
-                {queue.length > 0 && <span className="ph-section-title__count">{queue.length}</span>}
-              </h2>
-              <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0 }}>
-                Red bar = urgent · Yellow = pending · Green = approved
-              </p>
+          <h1>Prescription Review</h1>
+          <p className="px-subtitle">Review and approve prescriptions submitted by patients.</p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="px-stats">
+        <div className="px-stat px-stat--pending" onClick={() => setSelectedStatus('Pending')} role="button" tabIndex={0}>
+          <span className="px-stat__value">{stats.pending}</span>
+          <span className="px-stat__label">Pending</span>
+        </div>
+        <div className="px-stat px-stat--approved" onClick={() => setSelectedStatus('Approved')} role="button" tabIndex={0}>
+          <span className="px-stat__value">{stats.approved}</span>
+          <span className="px-stat__label">Approved</span>
+        </div>
+        <div className="px-stat px-stat--clarification" onClick={() => setSelectedStatus('Clarification')} role="button" tabIndex={0}>
+          <span className="px-stat__value">{stats.clarification}</span>
+          <span className="px-stat__label">Clarification</span>
+        </div>
+        <div className="px-stat px-stat--rejected" onClick={() => setSelectedStatus('Rejected')} role="button" tabIndex={0}>
+          <span className="px-stat__value">{stats.rejected}</span>
+          <span className="px-stat__label">Rejected</span>
+        </div>
+      </div>
+
+      {/* Pending banner */}
+      {stats.pending > 0 && (
+        <div className="px-pending-banner">
+          <span>⏳ <strong>{stats.pending}</strong> prescription{stats.pending > 1 ? 's' : ''} awaiting your review</span>
+          <button className="px-pending-banner__btn" type="button" onClick={() => setSelectedStatus('Pending')}>
+            Filter pending →
+          </button>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="admin-page__filters">
+        <input
+          type="text"
+          placeholder="Search by ID, patient, doctor…"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as 'all' | PrescriptionStatus)}>
+          <option value="all">All statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Clarification">Clarification</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        {selectedStatus !== 'all' && (
+          <button className="px-clear-filter" type="button" onClick={() => setSelectedStatus('all')}>✕ Clear filter</button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="admin-page__table">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Patient · Doctor</th>
+              <th>Handled by</th>
+              <th>Status</th>
+              <th>Dispatch</th>
+              <th>Submitted</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {paged.map((rx) => (
+              <tr key={rx.id} className={rx.status === 'Pending' ? 'px-row--pending' : ''}>
+                <td><span className="px-rx-id">{rx.id}</span></td>
+                <td>
+                  <p className="px-patient">{rx.patient}</p>
+                  <p className="px-doctor-name">{rx.doctor || '—'}</p>
+                </td>
+                <td>
+                  <span className={rx.pharmacist === 'Unassigned' ? 'px-unassigned' : 'px-pharmacist'}>{rx.pharmacist}</span>
+                </td>
+                <td><span className={`admin-status ${statusClass(rx.status)}`}>{rx.status}</span></td>
+                <td><span className="admin-status admin-status--info">{rx.dispatchStatus}</span></td>
+                <td className="px-date">{rx.submitted}</td>
+                <td>
+                  <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(rx)}>Review</button>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} className="prescription-empty">No prescriptions match your filters.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {filtered.length > PAGE_SIZE && (
+        <div className="prescription-pagination">
+          <button className="pagination__button" type="button" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
+          <div className="pagination__pages">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>{page}</button>
+            ))}
+          </div>
+          <button className="pagination__button" type="button" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
+        </div>
+      )}
+
+      {/* Modal */}
+      {activeRx && (
+        <div className="modal-overlay" onClick={() => setActiveRx(null)}>
+          <div className="px-modal" onClick={(e) => e.stopPropagation()}>
+
+            {/* Modal header */}
+            <div className="px-modal__header">
+              <div className="px-modal__header-left">
+                <span className="px-modal__rx-id">{activeRx.id}</span>
+                <span className={`admin-status ${statusClass(activeRx.status)}`}>{activeRx.status}</span>
+                {activeRx.pharmacist !== 'Unassigned' && (
+                  <span className="px-modal__assigned-pill">Handled by {activeRx.pharmacist}</span>
+                )}
+              </div>
+              <div className="px-modal__header-right">
+                <span className="px-modal__submitted">Submitted {activeRx.submitted}</span>
+                <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
+              </div>
             </div>
-            <div className="ph-queue-card__body">
-              {queue.length === 0 ? (
-                <div className="ph-empty">
-                  <div className="ph-empty__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" width="24" height="24">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
+
+            {/* Two-panel body */}
+            <div className="px-modal__body">
+
+              {/* Left: prescription content */}
+              <div className="px-modal__left">
+
+                {/* Patient & doctor */}
+                <div className="px-detail-row">
+                  <div className="px-detail-cell">
+                    <span className="px-info-label">Patient</span>
+                    <span className="px-info-value">{activeRx.patient}</span>
                   </div>
-                  <p className="ph-empty__title">All caught up!</p>
-                  <p className="ph-empty__sub">No prescriptions need review right now.</p>
+                  <div className="px-detail-cell">
+                    <span className="px-info-label">Prescribing doctor</span>
+                    <span className="px-info-value">{activeRx.doctor || '—'}</span>
+                  </div>
                 </div>
-              ) : (
-                queue.map((item) => (
-                  <div key={item.id} className="ph-queue-item">
-                    <div className={`ph-queue-item__priority-bar ph-queue-item__priority-bar--${item.priority.toLowerCase()}`} />
-                    <div className="ph-queue-item__avatar">{getInitials(item.patient)}</div>
-                    <div className="ph-queue-item__info">
-                      <p className="ph-queue-item__id">{item.id}</p>
-                      <p className="ph-queue-item__name">{item.patient}</p>
-                      <p className="ph-queue-item__meta">Submitted: {item.submitted} · Dispatch: {item.dispatchStatus}</p>
-                    </div>
-                    <div className="ph-queue-item__right">
-                      <span className={statusBadgeClass(item.status)}>
-                        <span className="ph-badge__dot" />
-                        {item.status}
-                      </span>
-                      <Link to={`/pharmacist/review/${item.id}`} className="ph-btn-review">
-                        Review
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-                        </svg>
-                      </Link>
+
+                {/* Files */}
+                {activeRx.files.length > 0 && (
+                  <div className="px-modal__section">
+                    <p className="px-section-label">Prescription documents</p>
+                    <div className="px-doc-list">
+                      {activeRx.files.map((f, i) => (
+                        isImageFile(f) ? (
+                          <div key={i} className="px-doc-preview">
+                            <img src={f} alt={`Document ${i + 1}`} className="px-doc-img" />
+                            <a href={f} download={`prescription-doc-${i + 1}`} className="px-doc-download">↓ Download</a>
+                          </div>
+                        ) : (
+                          <div key={i} className="px-doc-card">
+                            <div className="px-doc-card__icon">
+                              {isPdfFile(f) ? (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                              ) : (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4338ca" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                              )}
+                            </div>
+                            <span className="px-doc-card__name">{f.length > 60 || f.startsWith('data:') ? `Document ${i + 1}` : f}</span>
+                            <a href={f} download={`prescription-doc-${i + 1}`} className="px-doc-card__view">Download</a>
+                          </div>
+                        )
+                      ))}
                     </div>
                   </div>
-                ))
-              )}
+                )}
+
+                {/* Items */}
+                {activeRx.items.length > 0 && (
+                  <div className="px-modal__section">
+                    <p className="px-section-label">Prescribed items</p>
+                    <div className="px-items-list">
+                      {activeRx.items.map((item) => (
+                        <div key={item.name} className="px-item">
+                          <div>
+                            <p className="px-item__name">{item.name}</p>
+                            <p className="px-item__meta">{item.dose} · {item.frequency}</p>
+                          </div>
+                          <span className="px-item__qty">Qty {item.qty}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {activeRx.notes && (
+                  <div className="px-modal__section">
+                    <p className="px-section-label">Patient notes</p>
+                    <p className="px-notes-text">{activeRx.notes}</p>
+                  </div>
+                )}
+
+                {/* Audit trail */}
+                {activeRx.audit.length > 0 && (
+                  <div className="px-modal__section">
+                    <p className="px-section-label">Activity history</p>
+                    <div className="px-audit-list">
+                      {activeRx.audit.map((entry, i) => (
+                        <div key={`${entry.time}-${i}`} className="px-audit-entry">
+                          <span className="px-audit-time">{entry.time}</span>
+                          <span className="px-audit-action">{entry.action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: decision panel */}
+              <div className="px-modal__right">
+                <div className="px-workflow-section">
+                  <p className="px-section-label">Decision</p>
+                  <div className="px-decision-btns">
+                    <button
+                      className={`px-decision-btn px-decision-btn--approve ${activeRx.status === 'Approved' ? 'px-decision-btn--active' : ''}`}
+                      type="button"
+                      onClick={handleApprove}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                      Approve
+                    </button>
+                    <button
+                      className={`px-decision-btn px-decision-btn--clarify ${activeRx.status === 'Clarification' ? 'px-decision-btn--active' : ''}`}
+                      type="button"
+                      onClick={() => setShowClarificationInput((p) => !p)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      Request clarification
+                    </button>
+                    <button
+                      className={`px-decision-btn px-decision-btn--reject ${activeRx.status === 'Rejected' ? 'px-decision-btn--active' : ''}`}
+                      type="button"
+                      onClick={handleReject}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      Reject
+                    </button>
+                  </div>
+
+                  {showClarificationInput && (
+                    <div className="px-clarification-box">
+                      <textarea
+                        className="px-clarification-textarea"
+                        placeholder="Enter the clarification message for the patient…"
+                        value={clarificationNote}
+                        onChange={(e) => setClarificationNote(e.target.value)}
+                        rows={3}
+                        autoFocus
+                      />
+                      <div className="px-clarification-actions">
+                        <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowClarificationInput(false); setClarificationNote('') }}>
+                          Cancel
+                        </button>
+                        <button
+                          className="btn btn--sm px-decision-btn--clarify-confirm"
+                          type="button"
+                          onClick={() => handleClarification(clarificationNote)}
+                          disabled={!clarificationNote.trim()}
+                        >
+                          Send clarification
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-modal__footer">
+              <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
             </div>
           </div>
         </div>
-
-        {/* Sidebar */}
-        <aside className="ph-sidebar">
-          {/* How to use guide */}
-          <div className="ph-card">
-            <h3 className="ph-section-title" style={{ marginBottom: '0.85rem' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              How to review
-            </h3>
-            <div className="ph-guide-list">
-              {[
-                'Find a prescription in the queue above',
-                'Click "Review" to open it',
-                'Check the uploaded file and patient notes',
-                'Approve, request clarification, or reject',
-              ].map((step, i) => (
-                <div key={i} className="ph-guide-step">
-                  <span className="ph-guide-step__num">{i + 1}</span>
-                  <span>{step}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Safety alerts */}
-          <div className="ph-card">
-            <h3 className="ph-section-title" style={{ marginBottom: '0.85rem' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" width="16" height="16">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-              Safety reminders
-            </h3>
-            <div className="ph-alert-list">
-              <div className="ph-alert-item">
-                <span className="ph-alert-item__icon">⚠️</span>
-                <span>Red / "High priority" prescriptions need immediate attention — check those first.</span>
-              </div>
-              <div className="ph-alert-item">
-                <span className="ph-alert-item__icon">📋</span>
-                <span>Always review the uploaded file and patient notes before approving.</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick actions */}
-          <div className="ph-card">
-            <h3 className="ph-section-title" style={{ marginBottom: '0.85rem' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-              </svg>
-              Quick actions
-            </h3>
-            <div className="ph-actions">
-              <button className="ph-action-btn ph-action-btn--primary" type="button" onClick={() => void handleApproveBatch()}>
-                <span className="ph-action-btn__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                </span>
-                <span className="ph-action-btn__text">
-                  <span className="ph-action-btn__label">Approve next 3</span>
-                  <span className="ph-action-btn__desc">Batch approve pending prescriptions</span>
-                </span>
-              </button>
-              <button className="ph-action-btn ph-action-btn--outline" type="button" onClick={handleExportAuditLog}>
-                <span className="ph-action-btn__icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" width="16" height="16">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                </span>
-                <span className="ph-action-btn__text">
-                  <span className="ph-action-btn__label">Download audit log</span>
-                  <span className="ph-action-btn__desc">Save a CSV of all prescription activity</span>
-                </span>
-              </button>
-            </div>
-            {feedback && (
-              <div className="ph-feedback">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                {feedback}
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
+      )}
     </div>
   )
 }
