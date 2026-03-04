@@ -101,7 +101,7 @@ function PharmacistDashboardPage() {
     }
     for (const { product, qty } of manualItems) {
       await cartService.add(
-        { id: product.id, name: product.name, brand: product.brand, price: product.price, image: product.image, stockSource: product.stockSource, prescriptionId: activeRx.id },
+        { id: product.id, name: product.name, brand: product.brand, price: product.price, image: product.image, stockSource: product.stockSource === 'out' ? undefined : product.stockSource, prescriptionId: activeRx.id },
         qty,
       )
     }
