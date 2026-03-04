@@ -154,7 +154,7 @@ function App() {
           <Route path="admin/lab-tests" element={<LabTestManagement />} />
           <Route path="admin/lab-requests" element={<LabRequestManagement />} />
           <Route path="admin/lab-partners" element={<LabPartnerManagement />} />
-          <Route path="lab/tech" element={<LabTechPortal />} />
+          <Route path="labtech/dashboard" element={<LabTechPortal />} />
           <Route path="admin/support" element={<SupportManagement />} />
           <Route path="admin/settings" element={<Settings />} />
           <Route path="*" element={<div style={{padding: '4rem 0', textAlign: 'center'}}>

@@ -71,13 +71,13 @@ function LoginPage() {
         labPartnerName: partner.name,
         labTechId: tech.id,
       })
-      navigate('/lab/tech')
+      navigate('/labtech/dashboard')
       return
     }
 
     if (emailLower === 'lab@ava.com') {
       login({ name: 'Lab Technician', email: email.trim(), role: 'lab_technician' })
-      navigate('/lab/tech')
+      navigate('/labtech/dashboard')
       return
     }
 
