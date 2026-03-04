@@ -77,7 +77,9 @@ export function loadCategories(): Category[] {
     const topLevel = parsed.filter((c) => !c.parentId)
     const children = parsed.filter((c) => c.parentId)
 
-    return topLevel.map((cat) => {
+    if (topLevel.length === 0) return categoryData
+
+    const mapped = topLevel.map((cat) => {
       const slug = slugify(cat.name)
       const subcategories = children
         .filter((child) => child.parentId === cat.id)
@@ -89,6 +91,8 @@ export function loadCategories(): Category[] {
         subcategories,
       }
     })
+
+    return mapped.every((c) => c.subcategories.length === 0) ? categoryData : mapped
   } catch {
     return categoryData
   }
