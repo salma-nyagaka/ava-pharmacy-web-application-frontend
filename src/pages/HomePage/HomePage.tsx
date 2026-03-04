@@ -9,7 +9,7 @@ import {
   categoryMedicines,
   categoryDevices,
 } from '../../assets/images/remote'
-import huggiesBanner from '../../assets/images/banner/huggies.png'
+import backgroundBanner from '../../assets/images/banner/background.jpg'
 // import niveaBanner from '../../assets/images/banner/nivea.png'
 // import larocheBanner from '../../assets/images/banner/laroche-pink.png'
 import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
@@ -127,9 +127,7 @@ function HomePage() {
   }, [])
 
   const bannerSlides = [
-    { id: 1, image: huggiesBanner,  alt: 'CeraVe Skincare Collection',             link: '/category/beauty-skincare?q=cerave' },
-    // { id: 2, image: niveaBanner,   alt: 'Nivea Body & Skin Care',                 link: '/category/beauty-skincare?q=nivea' },
-    // { id: 3, image: larocheBanner, alt: 'La Roche-Posay Dermatologist Solutions', link: '/category/beauty-skincare?q=laroche' },
+    { id: 1, image: backgroundBanner, alt: 'Coming Soon', link: '/' },
   ]
 
   useEffect(() => {
@@ -249,39 +247,13 @@ function HomePage() {
           {bannerSlides.map(slide => (
             <Link key={slide.id} to={slide.link} className="hero-carousel__slide">
               <img src={slide.image} alt={slide.alt} className="hero-carousel__img" />
+              <div className="hero-carousel__coming-soon">
+                <span>Coming Soon</span>
+              </div>
             </Link>
           ))}
         </div>
 
-        <button
-          className="hero-carousel__arrow hero-carousel__arrow--prev"
-          onClick={() => setCurrentSlide(s => (s - 1 + bannerSlides.length) % bannerSlides.length)}
-          aria-label="Previous slide"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6"/>
-          </svg>
-        </button>
-        <button
-          className="hero-carousel__arrow hero-carousel__arrow--next"
-          onClick={() => setCurrentSlide(s => (s + 1) % bannerSlides.length)}
-          aria-label="Next slide"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
-        </button>
-
-        <div className="hero-carousel__dots">
-          {bannerSlides.map((_, i) => (
-            <button
-              key={i}
-              className={`hero-carousel__dot${i === currentSlide ? ' hero-carousel__dot--active' : ''}`}
-              onClick={() => setCurrentSlide(i)}
-              aria-label={`Go to slide ${i + 1}`}
-            />
-          ))}
-        </div>
       </section>
 
       {/* Promotional Banner */}
