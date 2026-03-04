@@ -172,7 +172,9 @@
 .page-hero--lab .svc-hero__breadcrumbs a:hover   { color: #0f172a; }
 .page-hero--lab .svc-hero__breadcrumbs span      { color: #cbd5e1; }
 .page-hero--lab .page-hero__title                 { color: #6d28d9; }
+.page-hero--lab .svc-hero__title                  { color: #6d28d9; }
 .page-hero--lab .page-hero__sub                   { color: #475569; }
+.page-hero--lab .svc-hero__sub                    { color: #475569; }
 .page-hero--lab .page-hero__pill {
   background: #fff;
   border-color: #ddd6fe;
@@ -190,7 +192,9 @@
 .page-hero--prescriptions .svc-hero__breadcrumbs a:hover { color: #0f172a; }
 .page-hero--prescriptions .svc-hero__breadcrumbs span    { color: #cbd5e1; }
 .page-hero--prescriptions .page-hero__title               { color: #b45309; }
+.page-hero--prescriptions .svc-hero__title                { color: #b45309; }
 .page-hero--prescriptions .page-hero__sub                 { color: #475569; }
+.page-hero--prescriptions .svc-hero__sub                  { color: #475569; }
 .page-hero--prescriptions .page-hero__pill {
   background: #fff;
   border-color: #fde68a;
@@ -208,7 +212,9 @@
 .page-hero--ped .svc-hero__breadcrumbs a:hover   { color: #0f172a; }
 .page-hero--ped .svc-hero__breadcrumbs span      { color: #cbd5e1; }
 .page-hero--ped .page-hero__title                 { color: #0d9488; }
+.page-hero--ped .svc-hero__title                  { color: #0d9488; }
 .page-hero--ped .page-hero__sub                   { color: #475569; }
+.page-hero--ped .svc-hero__sub                    { color: #475569; }
 .page-hero--ped .page-hero__pill {
   background: #fff;
   border-color: #99f6e4;

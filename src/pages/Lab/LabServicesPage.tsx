@@ -181,11 +181,11 @@ function LabServicesPage() {
           </nav>
           <h1 className="svc-hero__title">Professional Lab Diagnostics</h1>
           <p className="svc-hero__sub">Book tests, track sample progress, and access validated results - all in one place.</p>
-          <div className="svc-hero__pills">
-            <span className="svc-hero__pill">{tests.length} tests available</span>
-            <span className="svc-hero__pill">{categories.length} categories</span>
-            {stats.active > 0 && <span className="svc-hero__pill">{stats.active} active requests</span>}
-            {stats.ready > 0 && <span className="svc-hero__pill">{stats.ready} results ready</span>}
+          <div className="page-hero__pills">
+            <span className="page-hero__pill">{tests.length} tests available</span>
+            <span className="page-hero__pill">{categories.length} categories</span>
+            {stats.active > 0 && <span className="page-hero__pill">{stats.active} active requests</span>}
+            {stats.ready > 0 && <span className="page-hero__pill">{stats.ready} results ready</span>}
           </div>
         </div>
       </section>
