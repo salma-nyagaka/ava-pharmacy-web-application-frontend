@@ -44,7 +44,7 @@ function LoginPage() {
     }
     if (emailLower === 'pharmacist@ava.com') {
       login({ name: 'Pharmacist User', email: email.trim(), role: 'pharmacist' })
-      navigate('/pharmacist')
+      navigate('/pharmacist/dashboard')
       return
     }
 

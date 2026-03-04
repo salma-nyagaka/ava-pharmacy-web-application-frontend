@@ -129,7 +129,7 @@ function App() {
           <Route path="doctor/dashboard" element={<DoctorDashboardPage />} />
           <Route path="pediatrician/register" element={<ProfessionalRegisterPage />} />
           <Route path="pediatrician/dashboard" element={<PediatricianDashboardPage />} />
-          <Route path="pharmacist" element={<PharmacistDashboardPage />} />
+          <Route path="pharmacist/dashboard" element={<PharmacistDashboardPage />} />
           <Route path="pharmacist/review/:id" element={<PrescriptionReviewPage />} />
           <Route path="lab-tests" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
           <Route path="laboratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
