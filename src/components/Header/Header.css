@@ -373,22 +373,24 @@
 
 /* ── Auth buttons ── */
 .had-cta__btns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 0.5rem;
-  padding: 0.75rem 1.1rem;
+  padding: 0.75rem 1rem 0.9rem;
 }
 
 .had-cta__signin {
+  flex: 1;
   display: block;
   text-align: center;
   background: var(--color-primary);
   color: #fff;
-  font-weight: 700;
-  font-size: 0.875rem;
-  padding: 0.6rem 0.5rem;
-  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  border: none;
   transition: background 0.15s ease;
+  white-space: nowrap;
 }
 
 .had-cta__signin:hover {
@@ -397,16 +399,18 @@
 }
 
 .had-cta__register {
+  flex: 1;
   display: block;
   text-align: center;
   background: transparent;
-  color: #0f172a;
-  font-weight: 700;
-  font-size: 0.875rem;
-  padding: 0.6rem 0.5rem;
-  border-radius: 10px;
-  border: 1.5px solid rgba(15, 23, 42, 0.14);
+  color: #374151;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  border: 1.5px solid #d1d5db;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .had-cta__register:hover {
