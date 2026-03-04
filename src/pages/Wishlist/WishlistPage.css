@@ -1,0 +1,23 @@
+.wishlist-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.wishlist-item img {
+  border-radius: var(--radius-lg);
+  height: 180px;
+  width: 100%;
+  object-fit: cover;
+}
+
+.wishlist-item__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wishlist-item__price {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}

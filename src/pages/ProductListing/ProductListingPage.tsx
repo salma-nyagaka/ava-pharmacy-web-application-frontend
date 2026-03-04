@@ -1,0 +1,652 @@
+import { useMemo, useState, useEffect } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { getCategoryBySlug, getSubcategoryBySlug } from '../../data/categories'
+import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
+import { StockSource } from '../../data/cart'
+import { CatalogProduct, loadCatalogProducts } from '../../data/products'
+import { cartService } from '../../services/cartService'
+import { favouritesService } from '../../services/favouritesService'
+import { loadFavourites } from '../../data/favourites'
+import './ProductListingPage.css'
+
+type ListingProduct = CatalogProduct
+
+const ITEMS_PER_PAGE = 12
+
+const getStockLabel = (stockSource: StockSource) => {
+  if (stockSource === 'branch') return 'In stock at selected branch'
+  if (stockSource === 'warehouse') return 'Available in central warehouse (2-3 days)'
+  return 'Out of stock'
+}
+
+function ProductListingPage() {
+  const [searchParams] = useSearchParams()
+  const { category: categoryParam } = useParams()
+  const categorySlug = categoryParam || searchParams.get('category') || 'all'
+  const activeCategory = getCategoryBySlug(categorySlug)
+  const activeSubcategorySlug = searchParams.get('subcategory')
+  const activeSubcategory = getSubcategoryBySlug(activeCategory?.slug, activeSubcategorySlug)
+  const queryFromUrl = searchParams.get('query') ?? ''
+
+  const formatSlug = (value: string) =>
+    value
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, (match) => match.toUpperCase())
+
+  const categoryTitle = activeCategory?.name ?? (categorySlug === 'all' ? 'All Products' : formatSlug(categorySlug))
+  const categoryPath = activeCategory?.path ?? '/products'
+  const subcategories = activeCategory?.subcategories ?? []
+
+  const [searchTerm, setSearchTerm] = useState(queryFromUrl)
+  const [minPrice, setMinPrice] = useState(0)
+  const [maxPrice, setMaxPrice] = useState(10000)
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([])
+  const [minRating, setMinRating] = useState(0)
+  const [availability, setAvailability] = useState<'all' | 'in_stock' | 'out_of_stock'>('all')
+  const [sortBy, setSortBy] = useState('recommended')
+  const [restockAlerts, setRestockAlerts] = useState<Record<number, boolean>>({})
+  const [addedProductId, setAddedProductId] = useState<number | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const buildWishlistMap = () => {
+    const map: Record<number, boolean> = {}
+    loadFavourites().forEach((f) => { map[f.id] = true })
+    return map
+  }
+  const [wishlist, setWishlist] = useState<Record<number, boolean>>(buildWishlistMap)
+
+  const products: ListingProduct[] = loadCatalogProducts()
+
+  const promotions = loadPromotions()
+  const productsWithDeals = products.map((product) =>
+    applyPromotionsToProduct(
+      { ...product, inStock: product.stockSource !== 'out' },
+      promotions
+    ) as ListingProduct & { inStock: boolean; dealLabel?: string | null }
+  )
+
+  const brands = Array.from(new Set(products.map((product) => product.brand))).sort((a, b) => a.localeCompare(b))
+
+  const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
+
+  const renderStars = (rating: number) => {
+    const fullStars = Math.min(5, Math.max(0, Math.round(rating)))
+    const stars = []
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <svg key={`full-${i}`} className="star star--filled" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      )
+    }
+    const emptyStars = 5 - fullStars
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(
+        <svg key={`empty-${i}`} className="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      )
+    }
+    return stars
+  }
+
+  const toggleBrand = (brand: string) => {
+    setSelectedBrands((prev) =>
+      prev.includes(brand) ? prev.filter((item) => item !== brand) : [...prev, brand]
+    )
+  }
+
+  useEffect(() => {
+    return favouritesService.subscribe(() => setWishlist(buildWishlistMap()))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const toggleWishlist = (product: ListingProduct) => {
+    void favouritesService.toggle({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      image: product.image,
+      stockSource: product.stockSource,
+    })
+  }
+
+  const filteredProducts = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    return productsWithDeals.filter((product) => {
+      const categoryMatches = categorySlug === 'all' || !activeCategory || product.category === activeCategory.name
+      const subcategoryMatches = !activeSubcategory || product.subcategorySlugs.includes(activeSubcategory.slug)
+      const queryMatches =
+        !query ||
+        [product.name, product.brand, product.category].some((value) => value.toLowerCase().includes(query))
+      const priceMatches = product.price >= minPrice && product.price <= maxPrice
+      const brandMatches = selectedBrands.length === 0 || selectedBrands.includes(product.brand)
+      const ratingMatches = minRating === 0 || product.rating >= minRating
+      const availabilityMatches =
+        availability === 'all' ||
+        (availability === 'in_stock' && product.stockSource !== 'out') ||
+        (availability === 'out_of_stock' && product.stockSource === 'out')
+
+      return (
+        categoryMatches &&
+        subcategoryMatches &&
+        queryMatches &&
+        priceMatches &&
+        brandMatches &&
+        ratingMatches &&
+        availabilityMatches
+      )
+    })
+  }, [
+    productsWithDeals,
+    categorySlug,
+    activeCategory,
+    activeSubcategory,
+    searchTerm,
+    minPrice,
+    maxPrice,
+    selectedBrands,
+    minRating,
+    availability,
+  ])
+
+  const sortedProducts = useMemo(() => {
+    const list = [...filteredProducts]
+    if (sortBy === 'price-low') list.sort((a, b) => a.price - b.price)
+    if (sortBy === 'price-high') list.sort((a, b) => b.price - a.price)
+    if (sortBy === 'rating') {
+      list.sort((a, b) => {
+        const ratingDiff = b.rating - a.rating
+        if (ratingDiff !== 0) return ratingDiff
+        const reviewsDiff = b.reviews - a.reviews
+        if (reviewsDiff !== 0) return reviewsDiff
+        return a.name.localeCompare(b.name)
+      })
+    }
+    if (sortBy === 'newest') list.sort((a, b) => b.id - a.id)
+    return list
+  }, [filteredProducts, sortBy])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, minPrice, maxPrice, selectedBrands, minRating, availability, sortBy])
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE))
+  const paginatedProducts = useMemo(
+    () => sortedProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [sortedProducts, currentPage]
+  )
+
+  const startItem = sortedProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, sortedProducts.length)
+
+  const getPageNumbers = (): (number | '...')[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const pages: (number | '...')[] = [1]
+    if (currentPage > 3) pages.push('...')
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i)
+    }
+    if (currentPage < totalPages - 2) pages.push('...')
+    pages.push(totalPages)
+    return pages
+  }
+
+  const activeFilterCount =
+    (searchTerm ? 1 : 0) +
+    selectedBrands.length +
+    (minRating > 0 ? 1 : 0) +
+    (availability !== 'all' ? 1 : 0) +
+    (minPrice > 0 || maxPrice < 10000 ? 1 : 0)
+
+  const clearAllFilters = () => {
+    setSearchTerm(queryFromUrl)
+    setMinPrice(0)
+    setMaxPrice(10000)
+    setSelectedBrands([])
+    setMinRating(0)
+    setAvailability('all')
+  }
+
+  const handleAddToCart = (product: ListingProduct) => {
+    if (product.stockSource === 'out') return
+    void cartService.add({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      image: product.image,
+      stockSource: product.stockSource,
+    })
+    setAddedProductId(product.id)
+    window.setTimeout(() => {
+      setAddedProductId((prev) => (prev === product.id ? null : prev))
+    }, 1200)
+  }
+
+  const toggleRestockAlert = (productId: number) => {
+    setRestockAlerts((prev) => ({ ...prev, [productId]: !prev[productId] }))
+  }
+
+  return (
+    <div className="plp">
+      <div className="container">
+        <nav className="breadcrumbs">
+          <Link to="/">Home</Link>
+          <span>/</span>
+          {activeCategory ? (
+            activeSubcategory ? (
+              <>
+                <Link to={categoryPath}>{categoryTitle}</Link>
+                <span>/</span>
+                <span>{activeSubcategory.name}</span>
+              </>
+            ) : (
+              <span>{categoryTitle}</span>
+            )
+          ) : (
+            <span>{categoryTitle}</span>
+          )}
+        </nav>
+
+        <div className="plp__header">
+          <div className="plp__header-top">
+            <div>
+              <h1 className="plp__title">{categoryTitle}</h1>
+              <p className="plp__subtitle">
+                {activeSubcategory ? activeSubcategory.name : 'Explore curated picks, essentials, and best sellers.'}
+              </p>
+            </div>
+          </div>
+          {subcategories.length > 0 && (
+            <div className="plp__subcategories">
+              <Link
+                to={categoryPath}
+                className={`plp__subcategory ${!activeSubcategory ? 'is-active' : ''}`}
+              >
+                All {categoryTitle}
+              </Link>
+              {subcategories.map((subcategory) => (
+                <Link
+                  key={subcategory.slug}
+                  to={`${categoryPath}?subcategory=${encodeURIComponent(subcategory.slug)}`}
+                  className={`plp__subcategory ${activeSubcategorySlug === subcategory.slug ? 'is-active' : ''}`}
+                >
+                  {subcategory.name}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {activeFilterCount > 0 && (
+          <div className="plp__filter-chips">
+            <span className="plp__filter-chips__label">Active filters:</span>
+            {searchTerm && (
+              <span className="plp__chip">
+                Search: &ldquo;{searchTerm}&rdquo;
+                <button className="plp__chip__remove" type="button" onClick={() => setSearchTerm('')}>×</button>
+              </span>
+            )}
+            {selectedBrands.map((b) => (
+              <span key={b} className="plp__chip">
+                {b}
+                <button className="plp__chip__remove" type="button" onClick={() => toggleBrand(b)}>×</button>
+              </span>
+            ))}
+            {minRating > 0 && (
+              <span className="plp__chip">
+                {minRating}★ &amp; Up
+                <button className="plp__chip__remove" type="button" onClick={() => setMinRating(0)}>×</button>
+              </span>
+            )}
+            {availability !== 'all' && (
+              <span className="plp__chip">
+                {availability === 'in_stock' ? 'In Stock' : 'Out of Stock'}
+                <button className="plp__chip__remove" type="button" onClick={() => setAvailability('all')}>×</button>
+              </span>
+            )}
+            {(minPrice > 0 || maxPrice < 10000) && (
+              <span className="plp__chip">
+                KSh {minPrice.toLocaleString()}–{maxPrice.toLocaleString()}
+                <button className="plp__chip__remove" type="button" onClick={() => { setMinPrice(0); setMaxPrice(10000) }}>×</button>
+              </span>
+            )}
+            <button className="plp__chip plp__chip--clear" type="button" onClick={clearAllFilters}>
+              Clear all
+            </button>
+          </div>
+        )}
+
+        <div className="plp__layout">
+          <aside className="plp__sidebar">
+            <div className="filter-panel">
+              <div className="filter-panel__header">
+                <span className="filter-panel__title">
+                  Filters
+                  {activeFilterCount > 0 && <span className="filter-panel__count">{activeFilterCount}</span>}
+                </span>
+                {activeFilterCount > 0 && (
+                  <button className="filter-panel__clear" type="button" onClick={clearAllFilters}>
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Price Range</h4>
+                <div className="price-inputs">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    className="price-input"
+                    value={minPrice}
+                    onChange={(event) => setMinPrice(Number(event.target.value) || 0)}
+                  />
+                  <span className="price-sep">–</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    className="price-input"
+                    value={maxPrice}
+                    onChange={(event) => setMaxPrice(Number(event.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Brands</h4>
+                <div className="filter-options">
+                  {brands.map((brand) => (
+                    <label key={brand} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={selectedBrands.includes(brand)}
+                        onChange={() => toggleBrand(brand)}
+                      />
+                      <span>{brand}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Customer Rating</h4>
+                <div className="filter-options">
+                  {[4, 3, 2, 1].map((rating) => (
+                    <label key={rating} className="checkbox-label">
+                      <input
+                        type="radio"
+                        name="rating-filter"
+                        checked={minRating === rating}
+                        onChange={() => setMinRating(rating)}
+                      />
+                      <div className="rating-filter">
+                        {Array(rating).fill(0).map((_, index) => (
+                          <svg key={`${rating}-${index}`} className="star star--filled" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                        ))}
+                        <span>& Up</span>
+                      </div>
+                    </label>
+                  ))}
+                  <label className="checkbox-label">
+                    <input
+                      type="radio"
+                      name="rating-filter"
+                      checked={minRating === 0}
+                      onChange={() => setMinRating(0)}
+                    />
+                    <span>All ratings</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="filter-panel__section filter-panel__section--last">
+                <h4 className="filter-panel__heading">Availability</h4>
+                <div className="filter-options">
+                  {([
+                    { value: 'all', label: 'All' },
+                    { value: 'in_stock', label: 'In Stock' },
+                    { value: 'out_of_stock', label: 'Out of Stock' },
+                  ] as const).map(({ value, label }) => (
+                    <label key={value} className="checkbox-label">
+                      <input
+                        type="radio"
+                        name="availability-filter"
+                        checked={availability === value}
+                        onChange={() => setAvailability(value)}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <main className="plp__main">
+            <div className="plp__toolbar">
+              <p className="plp__results-count">
+                {sortedProducts.length === 0
+                  ? 'No products found'
+                  : `Showing ${startItem}–${endItem} of ${sortedProducts.length} product${sortedProducts.length !== 1 ? 's' : ''}`}
+              </p>
+              <div className="plp__toolbar-right">
+                <div className="plp__search-wrap">
+                  <svg className="plp__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <input
+                    type="text"
+                    className="plp__search-input"
+                    placeholder={`Search${activeCategory ? ` in ${categoryTitle}` : ''}…`}
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
+                  {searchTerm && (
+                    <button className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>
+                  )}
+                </div>
+                <select
+                  id="sort-select"
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value)}
+                  className="plp__sort-select"
+                >
+                  <option value="recommended">Recommended</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                  <option value="rating">Customer Rating</option>
+                  <option value="newest">Newest First</option>
+                </select>
+                <div className="plp__view-toggle">
+                  <button
+                    className={`plp__view-btn ${viewMode === 'grid' ? 'is-active' : ''}`}
+                    type="button"
+                    title="Grid view"
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <svg viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="1" y="1" width="6" height="6" rx="1"/>
+                      <rect x="9" y="1" width="6" height="6" rx="1"/>
+                      <rect x="1" y="9" width="6" height="6" rx="1"/>
+                      <rect x="9" y="9" width="6" height="6" rx="1"/>
+                    </svg>
+                  </button>
+                  <button
+                    className={`plp__view-btn ${viewMode === 'list' ? 'is-active' : ''}`}
+                    type="button"
+                    title="List view"
+                    onClick={() => setViewMode('list')}
+                  >
+                    <svg viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="1" y="2" width="14" height="2" rx="1"/>
+                      <rect x="1" y="7" width="14" height="2" rx="1"/>
+                      <rect x="1" y="12" width="14" height="2" rx="1"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className={`products-grid ${viewMode === 'list' ? 'products-grid--list' : ''}`}>
+              {paginatedProducts.map((product) => (
+                <article key={product.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
+                  <Link to={`/product/${product.id}`} className="product-card__image">
+                    {product.badge && (
+                      <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
+                        {product.badge}
+                      </span>
+                    )}
+                    {product.stockSource === 'out' && (
+                      <div className="product-card__overlay">Out of Stock</div>
+                    )}
+                    <button
+                      className={`product-card__wishlist ${wishlist[product.id] ? 'is-active' : ''}`}
+                      type="button"
+                      title={wishlist[product.id] ? 'Remove from wishlist' : 'Save to wishlist'}
+                      onClick={(e) => { e.preventDefault(); toggleWishlist(product) }}
+                    >
+                      <svg viewBox="0 0 24 24" fill={wishlist[product.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
+                    <ImageWithFallback src={product.image} alt={product.name} />
+                  </Link>
+
+                  <div className="product-card__content">
+                    <span className="product-card__brand">{product.brand}</span>
+                    <h3 className="product-card__name">
+                      <Link to={`/product/${product.id}`}>{product.name}</Link>
+                    </h3>
+
+                    <div className="product-card__rating">
+                      <div className="product-card__stars">
+                        {renderStars(product.rating)}
+                      </div>
+                      <span className="product-card__reviews">{product.rating.toFixed(1)} ({product.reviews})</span>
+                    </div>
+
+                    <div className="product-card__pricing">
+                      <span className="product-card__price">{formatPrice(product.price)}</span>
+                      {product.originalPrice && (
+                        <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
+                      )}
+                    </div>
+
+                    <p className={`product-stock-source product-stock-source--${product.stockSource}`}>
+                      {getStockLabel(product.stockSource)}
+                    </p>
+
+                    {product.stockSource !== 'out' ? (
+                      <button className={`product-card__add-to-cart ${addedProductId === product.id ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
+                        {addedProductId === product.id ? (
+                          <>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                            Added
+                          </>
+                        ) : (
+                          <>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="9" cy="21" r="1"/>
+                              <circle cx="20" cy="21" r="1"/>
+                              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                            </svg>
+                            Add to Cart
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        className="product-card__add-to-cart product-card__add-to-cart--restock"
+                        type="button"
+                        onClick={() => toggleRestockAlert(product.id)}
+                      >
+                        {restockAlerts[product.id] ? 'Restock Alert Set ✓' : 'Notify on Restock'}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+              {sortedProducts.length === 0 && (
+                <div className="empty-state">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <p className="empty-state__title">No products found</p>
+                  <p className="empty-state__sub">Try adjusting your filters or search term.</p>
+                  {activeFilterCount > 0 && (
+                    <button className="btn btn--sm btn--primary" type="button" onClick={clearAllFilters}>
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="pagination-wrap">
+                <p className="pagination-info">
+                  Showing <strong>{startItem}–{endItem}</strong> of <strong>{sortedProducts.length}</strong> results
+                </p>
+                <div className="pagination">
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    aria-label="Previous page"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                    Prev
+                  </button>
+
+                  <div className="pagination__pages">
+                    {getPageNumbers().map((page, idx) =>
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="pagination__ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={page}
+                          className={`pagination__btn pagination__btn--page ${currentPage === page ? 'pagination__btn--active' : ''}`}
+                          onClick={() => setCurrentPage(page as number)}
+                          aria-current={currentPage === page ? 'page' : undefined}
+                        >
+                          {page}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    aria-label="Next page"
+                  >
+                    Next
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default ProductListingPage

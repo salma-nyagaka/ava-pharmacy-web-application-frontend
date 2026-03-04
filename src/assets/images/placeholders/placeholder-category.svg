@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" role="img" aria-label="Category Image">
+  <rect width="400" height="400" fill="#f8f9fc"/>
+  <rect x="40" y="40" width="320" height="320" rx="24" fill="#ffe0ea"/>
+  <text x="200" y="200" fill="#031b4e" font-size="26" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700">Category</text>
+  <text x="200" y="238" fill="#8a91ac" font-size="14" text-anchor="middle" font-family="Arial, Helvetica, sans-serif">Ava Pharmacy</text>
+</svg>

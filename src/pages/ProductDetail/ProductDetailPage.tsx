@@ -1,0 +1,342 @@
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { loadCatalogProducts, getCatalogProductById } from '../../data/products'
+import { cartService } from '../../services/cartService'
+import './ProductDetailPage.css'
+
+function ProductDetailPage() {
+  const { id: routeId } = useParams()
+  const [quantity, setQuantity] = useState(1)
+  const [selectedImage, setSelectedImage] = useState(0)
+  const [restockEnabled, setRestockEnabled] = useState(false)
+  const [cartMessage, setCartMessage] = useState('')
+
+  const parsedId = Number.parseInt(routeId ?? '1', 10) || 1
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [routeId])
+  const catalogProducts = loadCatalogProducts()
+  if (catalogProducts.length === 0) {
+    return (
+      <div className="pdp">
+        <div className="container">
+          <p>No products are available right now.</p>
+        </div>
+      </div>
+    )
+  }
+  const fallbackProduct = catalogProducts[0]
+  const selectedProduct = getCatalogProductById(parsedId) ?? fallbackProduct
+  const stockSource = selectedProduct.stockSource
+  const inStock = stockSource !== 'out'
+
+  const product = {
+    id: selectedProduct.id,
+    name: selectedProduct.name,
+    brand: selectedProduct.brand,
+    price: selectedProduct.price,
+    originalPrice: selectedProduct.originalPrice,
+    rating: selectedProduct.rating,
+    reviews: selectedProduct.reviews,
+    inStock,
+    stockSource,
+    sku: selectedProduct.sku,
+    category: selectedProduct.category,
+    categorySlug: selectedProduct.categorySlug,
+    images: selectedProduct.gallery.length > 0 ? selectedProduct.gallery : [selectedProduct.image],
+    description: selectedProduct.description,
+    features: selectedProduct.features,
+    directions: selectedProduct.directions,
+    warnings: selectedProduct.warnings,
+  }
+
+  const relatedProducts = catalogProducts
+    .filter((item) => item.id !== product.id && item.categorySlug === product.categorySlug)
+    .slice(0, 3)
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      image: item.image,
+      rating: item.rating,
+    }))
+
+  const reviews = [
+    {
+      id: 1,
+      author: 'Jane D.',
+      rating: 5,
+      date: '2 weeks ago',
+      comment: 'Excellent quality! I\'ve been taking these for a month and feel much better. Highly recommend!',
+      verified: true,
+    },
+    {
+      id: 2,
+      author: 'Michael K.',
+      rating: 4,
+      date: '1 month ago',
+      comment: 'Good product, easy to swallow. Noticed improvement in my overall health.',
+      verified: true,
+    },
+    {
+      id: 3,
+      author: 'Sarah M.',
+      rating: 5,
+      date: '1 month ago',
+      comment: 'Great value for money. Will definitely buy again!',
+      verified: true,
+    },
+  ]
+
+  const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
+
+  const getStockLabel = () => {
+    if (product.stockSource === 'branch') return 'In stock at branch - ready for same-day pickup'
+    if (product.stockSource === 'warehouse') return 'Available from central warehouse - delivery in 2-3 business days'
+    return 'Out of stock - set a restock alert'
+  }
+
+  const handleAddToCart = () => {
+    if (!product.inStock) return
+    void cartService.add(
+      {
+        id: product.id,
+        name: product.name,
+        brand: product.brand,
+        price: product.price,
+        image: product.images[0],
+        stockSource: product.stockSource === 'out' ? undefined : product.stockSource,
+      },
+      quantity
+    )
+    setCartMessage('Added to cart.')
+    window.setTimeout(() => setCartMessage(''), 1500)
+  }
+
+  const renderStars = (rating: number) => {
+    const fullStars = Math.min(5, Math.max(0, Math.round(rating)))
+    const stars = []
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <svg key={`full-${i}`} className="star star--filled" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      )
+    }
+    const emptyStars = 5 - fullStars
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(
+        <svg key={`empty-${i}`} className="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      )
+    }
+    return stars
+  }
+
+  return (
+    <div className="pdp">
+      <div className="container">
+        {/* Breadcrumbs */}
+        <nav className="breadcrumbs">
+          <Link to="/">Home</Link>
+          <span>/</span>
+          <Link to={`/category/${product.categorySlug}`}>{product.category}</Link>
+          <span>/</span>
+          <span>{product.name}</span>
+        </nav>
+
+        {/* Product Main Section */}
+        <div className="pdp__main">
+          {/* Images */}
+          <div className="pdp__gallery">
+            <div className="pdp__main-image">
+              <ImageWithFallback src={product.images[selectedImage]} alt={product.name} />
+            </div>
+            <div className="pdp__thumbnails">
+              {product.images.map((image, index) => (
+                <button
+                  key={index}
+                  className={`pdp__thumbnail ${selectedImage === index ? 'pdp__thumbnail--active' : ''}`}
+                  onClick={() => setSelectedImage(index)}
+                >
+                  <ImageWithFallback src={image} alt={`${product.name} ${index + 1}`} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Product Info */}
+          <div className="pdp__info">
+            <span className="pdp__brand">{product.brand}</span>
+            <h1 className="pdp__title">{product.name}</h1>
+
+            <div className="pdp__rating-section">
+              <div className="pdp__stars">
+                {renderStars(product.rating)}
+              </div>
+              <span className="pdp__rating-text">{product.rating} ({product.reviews} reviews)</span>
+            </div>
+
+            <div className="pdp__pricing">
+              <span className="pdp__price">{formatPrice(product.price)}</span>
+              {product.originalPrice && (
+                <span className="pdp__original-price">{formatPrice(product.originalPrice)}</span>
+              )}
+              {product.originalPrice && (
+                <span className="pdp__savings">Save {Math.round((1 - product.price / product.originalPrice) * 100)}%</span>
+              )}
+            </div>
+
+            <p className="pdp__sku">SKU: {product.sku}</p>
+
+            <div className="pdp__availability">
+              {product.inStock ? (
+                <span className="pdp__in-stock">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  {product.stockSource === 'branch' ? 'In Stock' : 'Warehouse Stock'}
+                </span>
+              ) : (
+                <span className="pdp__out-of-stock">Out of Stock</span>
+              )}
+            </div>
+            <p className="pdp__sku">{getStockLabel()}</p>
+
+            <div className="pdp__description">
+              <p>{product.description}</p>
+            </div>
+
+            {/* Quantity & Add to Cart */}
+            <div className="pdp__actions">
+              <div className="quantity-selector">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+                <input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+                <button onClick={() => setQuantity(quantity + 1)}>+</button>
+              </div>
+
+              {product.inStock ? (
+                <button className="btn btn--primary btn--lg pdp__add-to-cart" type="button" onClick={handleAddToCart}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="9" cy="21" r="1"/>
+                    <circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                  </svg>
+                  Add to Cart
+                </button>
+              ) : (
+                <button className="btn btn--outline btn--lg pdp__add-to-cart" type="button" onClick={() => setRestockEnabled((prev) => !prev)}>
+                  {restockEnabled ? 'Restock Alert Enabled' : 'Notify on Restock'}
+                </button>
+              )}
+
+              <button className="pdp__wishlist-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+              </button>
+            </div>
+            {cartMessage && <p className="pdp__sku">{cartMessage}</p>}
+
+            {/* Trust Badges */}
+            <div className="pdp__trust-badges">
+              <div className="trust-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <span>100% Genuine</span>
+              </div>
+              <div className="trust-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="1" y="3" width="15" height="13"/>
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                  <circle cx="5.5" cy="18.5" r="2.5"/>
+                  <circle cx="18.5" cy="18.5" r="2.5"/>
+                </svg>
+                <span>Fast Delivery</span>
+              </div>
+              <div className="trust-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span>Easy Returns</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs Section */}
+        <div className="pdp__tabs">
+          <div className="tabs">
+            <button className="tab tab--active">Description</button>
+            <button className="tab">Features</button>
+            <button className="tab">Reviews ({product.reviews})</button>
+          </div>
+
+          <div className="tab-content">
+            <div className="tab-panel">
+              <h3>Product Description</h3>
+              <p>{product.description}</p>
+              <h4>Directions</h4>
+              <p>{product.directions}</p>
+              <h4>Warnings</h4>
+              <p>{product.warnings}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="pdp__reviews">
+          <h2>Customer Reviews</h2>
+          <div className="reviews-summary">
+            <div className="reviews-summary__score">
+              <span className="reviews-summary__number">{product.rating}</span>
+              <div className="reviews-summary__stars">{renderStars(product.rating)}</div>
+              <span className="reviews-summary__count">Based on {product.reviews} reviews</span>
+            </div>
+          </div>
+
+          <div className="reviews-list">
+            {reviews.map((review) => (
+              <div key={review.id} className="review">
+                <div className="review__header">
+                  <div className="review__stars">{renderStars(review.rating)}</div>
+                  <span className="review__date">{review.date}</span>
+                </div>
+                <p className="review__author">
+                  {review.author}
+                  {review.verified && <span className="review__verified">Verified Purchase</span>}
+                </p>
+                <p className="review__comment">{review.comment}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Related Products */}
+        <div className="pdp__related">
+          <h2>Related Products</h2>
+          <div className="related-products">
+            {relatedProducts.map((relatedProduct) => (
+              <Link key={relatedProduct.id} to={`/product/${relatedProduct.id}`} className="related-product">
+                <ImageWithFallback src={relatedProduct.image} alt={relatedProduct.name} />
+                <h4>{relatedProduct.name}</h4>
+                <div className="related-product__stars">{renderStars(relatedProduct.rating)}</div>
+                <p className="related-product__price">{formatPrice(relatedProduct.price)}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default ProductDetailPage

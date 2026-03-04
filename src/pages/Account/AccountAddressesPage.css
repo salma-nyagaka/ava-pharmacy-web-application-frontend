@@ -1,0 +1,284 @@
+.addr-page {
+  padding: 2rem 0 4rem;
+  background: #f8fafc;
+  min-height: 60vh;
+}
+
+.addr-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1.75rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.addr-header__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #94a3b8;
+  margin: 0 0 0.25rem;
+}
+
+.addr-header__title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.2rem;
+}
+
+.addr-header__sub {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ── Form card ───────────────────────────────────────── */
+.addr-form-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+}
+
+.addr-form-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 1.25rem;
+}
+
+.addr-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.addr-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.addr-form-group--full {
+  grid-column: 1 / -1;
+}
+
+.addr-form-group label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.addr-form-group input {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  color: #0f172a;
+  background: #f8fafc;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  outline: none;
+}
+
+.addr-form-group input:focus {
+  border-color: rgba(232, 23, 80, 0.4);
+  background: #fff;
+}
+
+.addr-form-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0;
+}
+
+.addr-form-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1.1rem;
+}
+
+/* ── Address grid ────────────────────────────────────── */
+.addr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+/* ── Address card ────────────────────────────────────── */
+.addr-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.addr-card:hover {
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
+}
+
+.addr-card--default {
+  border-left: 4px solid #10b981;
+}
+
+.addr-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.addr-card__label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.addr-card__label svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.addr-card__default-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.addr-card__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.addr-card__detail p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.addr-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.addr-card__delete {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.06);
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.addr-card__delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.addr-card__delete svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Add button ──────────────────────────────────────── */
+.addr-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  border: 2px dashed rgba(15, 23, 42, 0.15);
+  background: transparent;
+  border-radius: 16px;
+  padding: 1.25rem;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 120px;
+}
+
+.addr-add-btn:hover {
+  border-color: rgba(232, 23, 80, 0.4);
+  color: var(--color-primary);
+  background: rgba(232, 23, 80, 0.03);
+}
+
+.addr-add-btn__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(232, 23, 80, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+
+.addr-add-btn:hover .addr-add-btn__icon {
+  background: rgba(232, 23, 80, 0.18);
+}
+
+.addr-add-btn__icon svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-primary);
+}
+
+@media (max-width: 700px) {
+  .addr-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .addr-header__title {
+    font-size: 1.6rem;
+  }
+
+  .addr-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .addr-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .addr-form-group--full {
+    grid-column: 1;
+  }
+}

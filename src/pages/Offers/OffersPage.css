@@ -1,0 +1,43 @@
+.offers-page {
+  background: #f8fafc;
+  min-height: 80vh;
+  padding-bottom: 4rem;
+}
+
+.offers-hero {
+  background: #fff;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  padding: 2.5rem 0 2rem;
+  margin-bottom: 2rem;
+}
+
+.offers-hero__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin: 0 0 0.4rem;
+}
+
+.offers-hero__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.4rem;
+  line-height: 1.2;
+}
+
+.offers-hero__sub {
+  font-size: 0.9375rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.offers-saving-badge {
+  top: auto !important;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  background: #059669 !important;
+}
+

@@ -1,0 +1,520 @@
+.pay-page {
+  padding: 2rem 0 4rem;
+  background: #f8fafc;
+  min-height: 60vh;
+}
+
+.pay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1.75rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pay-header__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #94a3b8;
+  margin: 0 0 0.25rem;
+}
+
+.pay-header__title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.2rem;
+}
+
+.pay-header__sub {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ── Layout ──────────────────────────────────────────── */
+.pay-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.pay-cards-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── Saved card ──────────────────────────────────────── */
+.pay-card {
+  border-radius: 18px;
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pay-card::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.pay-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
+}
+
+.pay-card--visa {
+  background: linear-gradient(135deg, #1a56db 0%, #1e40af 100%);
+}
+
+.pay-card--mastercard {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.pay-card--unknown {
+  background: linear-gradient(135deg, #475569 0%, #1e293b 100%);
+}
+
+.pay-card--default {
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22), 0 0 0 2px #10b981;
+}
+
+.pay-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pay-card__chip {
+  width: 36px;
+  height: 26px;
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  border-radius: 5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pay-card__chip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.08) 3px,
+    rgba(0,0,0,0.08) 6px
+  );
+}
+
+.pay-card__default-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pay-card__number {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  font-family: 'Courier New', monospace;
+}
+
+.pay-card__bottom {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.25rem;
+}
+
+.pay-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.pay-card__meta-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.65;
+}
+
+.pay-card__meta-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.pay-card__brand {
+  margin-left: auto;
+}
+
+.pay-card__visa {
+  font-size: 1.15rem;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.03em;
+  font-family: serif;
+  color: #fff;
+}
+
+.pay-card__mc {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 28px;
+}
+
+.pay-card__mc-l,
+.pay-card__mc-r {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.pay-card__mc-l {
+  background: #eb001b;
+  left: 0;
+  opacity: 0.9;
+}
+
+.pay-card__mc-r {
+  background: #f79e1b;
+  left: 16px;
+  opacity: 0.9;
+}
+
+.pay-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.pay-card__action-btn {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.pay-card__action-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.pay-card__remove {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  color: #fca5a5;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pay-card__remove:hover {
+  background: rgba(239, 68, 68, 0.35);
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #fff;
+}
+
+.pay-card__remove svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ── Add button ──────────────────────────────────────── */
+.pay-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  border: 2px dashed rgba(15, 23, 42, 0.15);
+  background: transparent;
+  border-radius: 18px;
+  padding: 1.5rem;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 100px;
+}
+
+.pay-add-btn:hover {
+  border-color: rgba(232, 23, 80, 0.4);
+  color: var(--color-primary);
+  background: rgba(232, 23, 80, 0.03);
+}
+
+.pay-add-btn__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(232, 23, 80, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pay-add-btn:hover .pay-add-btn__icon {
+  background: rgba(232, 23, 80, 0.18);
+}
+
+.pay-add-btn__icon svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-primary);
+}
+
+/* ── Form card ───────────────────────────────────────── */
+.pay-form-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.pay-form-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.25rem;
+}
+
+/* ── Card preview ────────────────────────────────────── */
+.pay-preview {
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  margin-bottom: 0.25rem;
+}
+
+.pay-preview::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.pay-preview--visa {
+  background: linear-gradient(135deg, #1a56db, #1e40af);
+}
+
+.pay-preview--mastercard {
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+}
+
+.pay-preview--unknown {
+  background: linear-gradient(135deg, #475569, #1e293b);
+}
+
+.pay-preview__top {
+  display: flex;
+}
+
+.pay-preview__chip {
+  width: 30px;
+  height: 22px;
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pay-preview__chip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.08) 3px,
+    rgba(0,0,0,0.08) 6px
+  );
+}
+
+.pay-preview__number {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  font-family: 'Courier New', monospace;
+  opacity: 0.95;
+}
+
+.pay-preview__bottom {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.pay-preview__label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+}
+
+.pay-preview__value {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.pay-preview__brand {
+  margin-left: auto;
+}
+
+.pay-preview__visa {
+  font-size: 1.1rem;
+  font-weight: 900;
+  font-style: italic;
+  font-family: serif;
+  letter-spacing: -0.03em;
+}
+
+.pay-preview__mc {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 38px;
+  height: 24px;
+}
+
+.pay-preview__mc span {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.pay-preview__mc span:first-child {
+  background: #eb001b;
+  left: 0;
+  opacity: 0.9;
+}
+
+.pay-preview__mc span:last-child {
+  background: #f79e1b;
+  left: 14px;
+  opacity: 0.9;
+}
+
+/* ── Form fields ─────────────────────────────────────── */
+.pay-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pay-form-group label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pay-form-group input {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  color: #0f172a;
+  background: #f8fafc;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  outline: none;
+}
+
+.pay-form-group input:focus {
+  border-color: rgba(232, 23, 80, 0.4);
+  background: #fff;
+}
+
+.pay-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.pay-form-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.pay-form-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 900px) {
+  .pay-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .pay-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pay-header__title {
+    font-size: 1.6rem;
+  }
+
+  .pay-form-row {
+    grid-template-columns: 1fr;
+  }
+}

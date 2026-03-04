@@ -1,0 +1,296 @@
+.about {
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+  color: #0f172a;
+}
+
+/* ── Stats bar ─────────────────────────── */
+.about__stats {
+  background: #0f172a;
+  padding: 2.5rem 0;
+}
+
+.about__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.about__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1.75rem 1rem;
+  background: #0f172a;
+  text-align: center;
+}
+
+.about__stat-value {
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: -0.02em;
+  font-family: 'Fraunces', serif;
+}
+
+.about__stat-label {
+  font-size: 0.8125rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* ── Section shared ─────────────────────── */
+.about__section-head {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.about__section-title {
+  font-family: 'Fraunces', 'Times New Roman', serif;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.625rem;
+}
+
+.about__section-sub {
+  font-size: 1rem;
+  color: #64748b;
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+/* ── Pillars ───────────────────────────── */
+.about__pillars {
+  padding: 5rem 0;
+  background: #fff;
+}
+
+.about__pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.about__pillar-card {
+  padding: 2rem;
+  border-radius: 20px;
+  border: 1.5px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  transition: box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.about__pillar-card:hover {
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.09);
+  transform: translateY(-4px);
+}
+
+.about__pillar-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(232, 23, 80, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.about__pillar-icon svg {
+  width: 24px;
+  height: 24px;
+  color: var(--color-primary, #e81750);
+}
+
+.about__pillar-title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.about__pillar-body {
+  font-size: 0.9rem;
+  color: #64748b;
+  line-height: 1.65;
+}
+
+/* ── Services ──────────────────────────── */
+.about__services {
+  padding: 5rem 0;
+  background: #f8fafc;
+}
+
+.about__services-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+}
+
+.about__svc-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.75rem 1.5rem;
+  border-radius: 20px;
+  border: 1.5px solid transparent;
+  background: #fff;
+  text-decoration: none;
+  transition: all 0.22s ease;
+  gap: 0;
+}
+
+.about__svc-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.1);
+}
+
+.about__svc-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  flex-shrink: 0;
+}
+
+.about__svc-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.about__svc-card--indigo .about__svc-icon { background: rgba(99, 102, 241, 0.12); color: #6366f1; }
+.about__svc-card--emerald .about__svc-icon { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.about__svc-card--amber   .about__svc-icon { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+.about__svc-card--sky     .about__svc-icon { background: rgba(14, 165, 233, 0.12); color: #0ea5e9; }
+
+.about__svc-card--indigo:hover { border-color: rgba(99, 102, 241, 0.25); }
+.about__svc-card--emerald:hover { border-color: rgba(16, 185, 129, 0.25); }
+.about__svc-card--amber:hover   { border-color: rgba(245, 158, 11, 0.25); }
+.about__svc-card--sky:hover     { border-color: rgba(14, 165, 233, 0.25); }
+
+.about__svc-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.about__svc-body {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.65;
+  flex: 1;
+  margin-bottom: 1.25rem;
+}
+
+.about__svc-cta {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0f172a;
+  transition: letter-spacing 0.15s;
+}
+
+.about__svc-card--indigo .about__svc-cta { color: #6366f1; }
+.about__svc-card--emerald .about__svc-cta { color: #10b981; }
+.about__svc-card--amber   .about__svc-cta { color: #f59e0b; }
+.about__svc-card--sky     .about__svc-cta { color: #0ea5e9; }
+
+.about__svc-card:hover .about__svc-cta {
+  letter-spacing: 0.02em;
+}
+
+/* ── Contact CTA ───────────────────────── */
+.about__contact-cta {
+  padding: 5rem 0;
+  background: #fff;
+}
+
+.about__contact-cta-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 3rem 3.5rem;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border-radius: 24px;
+}
+
+.about__contact-cta-title {
+  font-family: 'Fraunces', 'Times New Roman', serif;
+  font-size: clamp(1.375rem, 2.5vw, 1.75rem);
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.about__contact-cta-sub {
+  font-size: 0.9375rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.about__contact-cta-actions {
+  display: flex;
+  gap: 0.875rem;
+  flex-shrink: 0;
+}
+
+.about__contact-cta .btn--outline {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #f1f5f9;
+}
+
+.about__contact-cta .btn--outline:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Responsive ────────────────────────── */
+@media (max-width: 1024px) {
+  .about__services-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .about__stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .about__pillars-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about__services-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .about__contact-cta-inner {
+    flex-direction: column;
+    text-align: center;
+    padding: 2.5rem 2rem;
+  }
+
+  .about__contact-cta-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .about__stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .about__contact-cta-inner {
+    padding: 2rem 1.5rem;
+  }
+}
