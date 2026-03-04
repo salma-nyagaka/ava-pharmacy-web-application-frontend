@@ -64,7 +64,14 @@ function OffersPage() {
     setSelectedBrands((prev) => prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand])
 
   const handleAddToCart = (deal: typeof allDeals[0]) => {
-    void cartService.add({ id: deal.id, name: deal.name, brand: deal.brand, price: deal.price, image: deal.image, stockSource: deal.stockSource })
+    void cartService.add({
+      id: deal.id,
+      name: deal.name,
+      brand: deal.brand,
+      price: deal.price,
+      image: deal.image,
+      stockSource: deal.stockSource === 'out' ? undefined : deal.stockSource,
+    })
     setAddedId(deal.id)
     window.setTimeout(() => setAddedId((prev) => prev === deal.id ? null : prev), 1200)
   }
