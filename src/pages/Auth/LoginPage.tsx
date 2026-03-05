@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { loadDoctorProfiles } from '../../data/telemedicine'
+import { loadAdminUsers } from '../Admin/adminUsers'
 import { loadLabPartners } from '../../data/labPartners'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import './AuthPage.css'
@@ -37,15 +38,28 @@ function LoginPage() {
     }
 
     const emailLower = email.trim().toLowerCase()
-    if (emailLower === 'admin@ava.com') {
-      login({ name: 'Admin User', email: email.trim(), role: 'admin' })
-      navigate('/admin')
-      return
-    }
-    if (emailLower === 'pharmacist@ava.com') {
-      login({ name: 'Pharmacist User', email: email.trim(), role: 'pharmacist' })
-      navigate('/pharmacist/dashboard')
-      return
+    const adminUsers = loadAdminUsers()
+    const adminMatch = adminUsers.find((user) => user.email.toLowerCase() === emailLower)
+    if (adminMatch) {
+      if (adminMatch.status !== 'active') {
+        setError('Your account has been suspended. Please contact support.')
+        return
+      }
+      if (adminMatch.role === 'admin') {
+        login({ name: adminMatch.name, email: adminMatch.email, role: 'admin' })
+        navigate('/admin')
+        return
+      }
+      if (adminMatch.role === 'pharmacist') {
+        login({ name: adminMatch.name, email: adminMatch.email, role: 'pharmacist' })
+        navigate('/pharmacist/dashboard')
+        return
+      }
+      if (adminMatch.role === 'lab_technician') {
+        login({ name: adminMatch.name, email: adminMatch.email, role: 'lab_technician' })
+        navigate('/labtech/dashboard')
+        return
+      }
     }
 
     const partners = loadLabPartners()
@@ -95,7 +109,7 @@ function LoginPage() {
     } else if (role === 'pediatrician') {
       navigate('/pediatrician/dashboard')
     } else {
-      navigate('/account')
+      navigate('/')
     }
   }
 

@@ -1,5 +1,5 @@
-import { FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { FormEvent, useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { logAdminAction } from '../../data/adminAudit'
 import {
   AdminUserRole,
@@ -22,11 +22,13 @@ function getInitials(fullName: string) {
 }
 
 function UserCreatePage() {
+  const location = useLocation()
   const navigate = useNavigate()
+  const isPharmacistCreate = location.pathname.endsWith('/admin/users/pharmacist/new')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState<AdminUserRole>('customer')
+  const [role, setRole] = useState<AdminUserRole>(() => (isPharmacistCreate ? 'pharmacist' : 'customer'))
   const [status, setStatus] = useState<'active' | 'suspended'>('active')
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
@@ -35,6 +37,12 @@ function UserCreatePage() {
     'prescription_review',
   ])
   const [formError, setFormError] = useState('')
+
+  useEffect(() => {
+    if (isPharmacistCreate && role !== 'pharmacist') {
+      setRole('pharmacist')
+    }
+  }, [isPharmacistCreate, role])
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -54,12 +62,13 @@ function UserCreatePage() {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
+    const resolvedRole: AdminUserRole = isPharmacistCreate ? 'pharmacist' : role
     if (!name.trim() || !email.trim() || !phone.trim()) {
       setFormError('Name, email, and phone are required.')
       return
     }
 
-    if (role === 'pharmacist' && pharmacistPermissions.length === 0) {
+    if (resolvedRole === 'pharmacist' && pharmacistPermissions.length === 0) {
       setFormError('Select at least one pharmacist permission.')
       return
     }
@@ -76,24 +85,24 @@ function UserCreatePage() {
       name: name.trim(),
       email: email.trim().toLowerCase(),
       phone: phone.trim(),
-      role,
+      role: resolvedRole,
       status,
       joinedDate: new Date().toISOString().slice(0, 10),
       totalOrders: 0,
       address: address.trim() || 'Not set',
       notes: noteItems,
-      pharmacistPermissions: role === 'pharmacist' ? pharmacistPermissions : undefined,
+      pharmacistPermissions: resolvedRole === 'pharmacist' ? pharmacistPermissions : undefined,
     }
 
     saveAdminUsers([nextUser, ...users])
     logAdminAction({
-      action: 'Create user',
+      action: resolvedRole === 'pharmacist' ? 'Create pharmacist' : 'Create user',
       entity: 'User',
       entityId: String(nextUser.id),
       detail:
-        role === 'pharmacist'
-          ? `${nextUser.name} (${formatAdminRole(role)}) permissions: ${(nextUser.pharmacistPermissions ?? []).join(', ')}`
-          : `${nextUser.name} (${formatAdminRole(role)})`,
+        resolvedRole === 'pharmacist'
+          ? `${nextUser.name} (${formatAdminRole(resolvedRole)}) permissions: ${(nextUser.pharmacistPermissions ?? []).join(', ')}`
+          : `${nextUser.name} (${formatAdminRole(resolvedRole)})`,
     })
 
     navigate('/admin/users')
@@ -108,7 +117,7 @@ function UserCreatePage() {
           <button className="pm-back-btn" type="button" onClick={handleBack}>
             ← Back
           </button>
-          <h1>Add User</h1>
+          <h1>{isPharmacistCreate ? 'Add Pharmacist' : 'Add User'}</h1>
         </div>
       </div>
 
@@ -164,17 +173,21 @@ function UserCreatePage() {
           <div className="uc-row">
             <div className="form-group">
               <label htmlFor="user-role">Role</label>
-              <select
-                id="user-role"
-                value={role}
-                onChange={(event) => setRole(event.target.value as AdminUserRole)}
-              >
-                {adminRoleOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              {isPharmacistCreate ? (
+                <input id="user-role" type="text" value="Pharmacist" readOnly />
+              ) : (
+                <select
+                  id="user-role"
+                  value={role}
+                  onChange={(event) => setRole(event.target.value as AdminUserRole)}
+                >
+                  {adminRoleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="form-group">
               <label htmlFor="user-status">Status</label>

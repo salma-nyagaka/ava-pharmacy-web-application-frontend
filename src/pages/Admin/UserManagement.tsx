@@ -81,8 +81,8 @@ function UserManagement() {
             <span className="stat-mini__label">Staff Users</span>
           </div>
         </div>
-        <Link className="btn btn--primary btn--sm" to="/admin/users/new">
-          Add User
+        <Link className="btn btn--primary btn--sm" to="/admin/users/pharmacist/new">
+          Add Pharmacist
         </Link>
       </div>
 

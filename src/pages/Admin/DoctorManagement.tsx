@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import './AdminShared.css'
 import './DoctorManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
@@ -49,6 +49,7 @@ const blankAdd = (): Omit<DoctorProfile, 'id' | 'status' | 'rating' | 'verifiedA
 
 function DoctorManagement() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [doctors, setDoctors] = useState<DoctorProfile[]>(() => loadDoctorProfiles())
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState('all')
@@ -79,6 +80,19 @@ function DoctorManagement() {
   const [manageStatusNote, setManageStatusNote] = useState('')
 
   useEffect(() => { saveDoctorProfiles(doctors) }, [doctors])
+
+  useEffect(() => {
+    const typeParam = searchParams.get('type')
+    if (!typeParam) return
+    const normalized = typeParam.toLowerCase()
+    if (normalized === 'doctor') {
+      setSelectedType('Doctor')
+      return
+    }
+    if (normalized === 'pediatrician' || normalized === 'paedetrician') {
+      setSelectedType('Pediatrician')
+    }
+  }, [searchParams])
 
   const handleBack = () => {
     if (window.history.length > 1) { navigate(-1); return }

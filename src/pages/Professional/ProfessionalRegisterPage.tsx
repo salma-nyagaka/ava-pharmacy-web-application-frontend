@@ -1,14 +1,9 @@
-import { useMemo, useState } from 'react'
-import { loadDoctorProfiles, saveDoctorProfiles } from '../../data/telemedicine'
-import type { DoctorProfile } from '../../data/telemedicine'
+import { useEffect, useState } from 'react'
 import {
-  LabPartner,
-  LabTechnician,
-  loadLabPartners,
-  nextLabPartnerId,
-  nextLabTechId,
-  saveLabPartners,
-} from '../../data/labPartners'
+  professionalRegistrationService,
+  ProfessionalRegistrationError,
+  type LabPartnerOption,
+} from '../../services/professionalRegistrationService'
 import './ProfessionalRegisterPage.css'
 
 type ProfType = 'Doctor' | 'Pediatrician' | 'Lab Partner' | 'Lab Technician'
@@ -96,6 +91,41 @@ const LANGUAGES = ['English', 'Swahili', 'Kikuyu', 'Luo', 'Somali', 'Kamba', 'Gi
 const CONSULT_MODES = ['Video', 'Chat', 'Phone']
 const PAYOUT_METHODS = ['M-Pesa', 'Bank Transfer'] as const
 
+const PROFESSIONAL_TYPE_MAP: Record<ProfType, string> = {
+  Doctor: 'doctor',
+  Pediatrician: 'pediatrician',
+  'Lab Partner': 'lab_partner',
+  'Lab Technician': 'lab_technician',
+}
+
+const API_TO_FORM_ERROR_MAP: Record<string, string> = {
+  license_number: 'license',
+  license_board: 'licenseBoard',
+  license_country: 'licenseCountry',
+  license_expiry: 'licenseExpiry',
+  id_number: 'idNumber',
+  partner_id: 'labPartnerId',
+  payout_method: 'payoutMethod',
+  payout_account: 'payoutAccount',
+  years_experience: 'experience',
+  background_consent: 'backgroundConsent',
+  compliance_declaration: 'complianceDeclaration',
+  agreed_to_terms: 'terms',
+}
+
+const mergeFiles = (current: File[], incoming: File[]) => {
+  const seen = new Set(current.map((file) => `${file.name}:${file.size}`))
+  const next = [...current]
+  for (const file of incoming) {
+    const key = `${file.name}:${file.size}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      next.push(file)
+    }
+  }
+  return next
+}
+
 const blank = () => ({
   name: '',
   email: '',
@@ -136,10 +166,16 @@ const blank = () => ({
 function ProfessionalRegisterPage() {
   const [type, setType] = useState<ProfType | null>(null)
   const [form, setForm] = useState(blank())
-  const [uploadedDocs, setUploadedDocs] = useState<string[]>([])
-  const [cvUploads, setCvUploads] = useState<string[]>([])
+  const [uploadedDocs, setUploadedDocs] = useState<File[]>([])
+  const [cvUploads, setCvUploads] = useState<File[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [successDetail, setSuccessDetail] = useState('')
+  const [successSteps, setSuccessSteps] = useState<string[]>([])
+  const [labPartners, setLabPartners] = useState<LabPartnerOption[]>([])
+  const [labPartnerError, setLabPartnerError] = useState('')
 
   const specialties = type === 'Doctor'
     ? DOCTOR_SPECIALTIES
@@ -155,10 +191,34 @@ function ProfessionalRegisterPage() {
         ? LAB_PARTNER_DOCS
         : LAB_TECH_DOCS
 
-  const labPartners = useMemo(() => loadLabPartners(), [])
-
   const set = (field: keyof ReturnType<typeof blank>, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }))
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadPartners = async () => {
+      try {
+        const data = await professionalRegistrationService.listLabPartners()
+        if (!cancelled) {
+          setLabPartners(data)
+          setLabPartnerError('')
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLabPartners([])
+          setLabPartnerError(
+            error instanceof Error ? error.message : 'Unable to load lab partners right now.',
+          )
+        }
+      }
+    }
+
+    loadPartners()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const toggleLanguage = (lang: string) =>
     set('languages', form.languages.includes(lang)
@@ -210,110 +270,79 @@ function ProfessionalRegisterPage() {
     return Object.keys(e).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitError('')
+    setErrors({})
     if (!validate() || !type) return
-    const submittedAt = new Date().toISOString().slice(0, 10)
-    const documentNames = Array.from(new Set([
-      ...form.docChecklist,
-      ...uploadedDocs,
-      ...cvUploads,
-    ]))
 
-    if (type === 'Lab Partner') {
-      const partners = loadLabPartners()
-      const id = nextLabPartnerId(partners)
-      const partner: LabPartner = {
-        id,
-        name: form.labName.trim(),
-        contactName: form.name.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        location: form.labLocation.trim(),
-        accreditation: form.labAccreditation.trim(),
-        licenseNumber: form.license.trim(),
-        county: form.county.trim() || undefined,
-        address: form.address.trim() || undefined,
-        payoutMethod: form.payoutMethod,
-        payoutAccount: form.payoutAccount.trim(),
-        status: 'Pending',
-        submittedAt,
-        notes: form.bio.trim() || undefined,
-        documents: documentNames,
-        techs: [],
-      }
-      saveLabPartners([partner, ...partners])
+    const formData = new FormData()
+    formData.append('type', PROFESSIONAL_TYPE_MAP[type])
+    formData.append('name', form.name.trim())
+    formData.append('email', form.email.trim())
+    formData.append('phone', form.phone.trim())
+    formData.append('license', form.license.trim())
+    formData.append('licenseBoard', form.licenseBoard.trim())
+    formData.append('licenseCountry', form.licenseCountry.trim())
+    formData.append('licenseExpiry', form.licenseExpiry.trim())
+    formData.append('idNumber', form.idNumber.trim())
+    formData.append('specialty', form.specialty)
+    formData.append('facility', form.facility.trim())
+    formData.append('labName', form.labName.trim())
+    formData.append('labLocation', form.labLocation.trim())
+    formData.append('labAccreditation', form.labAccreditation.trim())
+    formData.append('labPartnerId', form.labPartnerId)
+    formData.append('experience', form.experience ? String(form.experience) : '')
+    formData.append('availability', form.availability.trim())
+    formData.append('fee', form.fee ? String(form.fee) : '')
+    formData.append('county', form.county.trim())
+    formData.append('address', form.address.trim())
+    formData.append('bio', form.bio.trim())
+    formData.append('payoutMethod', form.payoutMethod)
+    formData.append('payoutAccount', form.payoutAccount.trim())
+    formData.append('ref1Name', form.ref1Name.trim())
+    formData.append('ref1Email', form.ref1Email.trim())
+    formData.append('ref1Phone', form.ref1Phone.trim())
+    formData.append('ref2Name', form.ref2Name.trim())
+    formData.append('ref2Email', form.ref2Email.trim())
+    formData.append('ref2Phone', form.ref2Phone.trim())
+    formData.append('backgroundConsent', String(form.backgroundConsent))
+    formData.append('complianceDeclaration', String(form.complianceDeclaration))
+    formData.append('agreedToTerms', String(form.agreedToTerms))
+    formData.append('languages', JSON.stringify(form.languages))
+    formData.append('consultModes', JSON.stringify(form.consultModes))
+    formData.append('docChecklist', JSON.stringify(form.docChecklist))
+
+    for (const file of uploadedDocs) {
+      formData.append('documents', file)
+    }
+    for (const file of cvUploads) {
+      formData.append('cv_files', file)
+    }
+
+    setSubmitting(true)
+
+    try {
+      const response = await professionalRegistrationService.submit(formData)
+      setSuccessDetail(response.detail)
+      setSuccessSteps(response.next_steps)
       setSubmitted(true)
+      setErrors({})
       window.scrollTo({ top: 0, behavior: 'smooth' })
-      return
-    }
-
-    if (type === 'Lab Technician') {
-      const partners = loadLabPartners()
-      const partnerIndex = partners.findIndex((partner) => partner.id === form.labPartnerId)
-      if (partnerIndex === -1) {
-        setErrors((prev) => ({ ...prev, labPartnerId: 'Select a valid lab partner.' }))
-        return
+    } catch (error) {
+      if (error instanceof ProfessionalRegistrationError) {
+        const mappedErrors = Object.entries(error.fieldErrors).reduce<Record<string, string>>((acc, [key, value]) => {
+          acc[API_TO_FORM_ERROR_MAP[key] ?? key] = value
+          return acc
+        }, {})
+        setErrors((prev) => ({ ...prev, ...mappedErrors }))
+        setSubmitError(error.message)
+      } else {
+        setSubmitError('Unable to submit your application right now. Please try again.')
       }
-      const tech: LabTechnician = {
-        id: nextLabTechId(partners),
-        name: form.name.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        status: 'Active',
-        specialty: form.specialty,
-        licenseNumber: form.license.trim(),
-        licenseExpiry: form.licenseExpiry.trim(),
-        idNumber: form.idNumber.trim(),
-        documents: documentNames,
-      }
-      const updated = partners.map((partner, index) =>
-        index === partnerIndex ? { ...partner, techs: [tech, ...partner.techs] } : partner
-      )
-      saveLabPartners(updated)
-      setSubmitted(true)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-      return
+    } finally {
+      setSubmitting(false)
     }
-
-    const existing = loadDoctorProfiles()
-    const newProfile: DoctorProfile = {
-      id: `${type === 'Doctor' ? 'DOC' : 'PED'}-${Math.floor(1000 + Math.random() * 9000)}`,
-      name: form.name.trim(),
-      type,
-      specialty: form.specialty,
-      status: 'Pending',
-      email: form.email.trim(),
-      phone: form.phone.trim(),
-      license: form.license.trim(),
-      licenseBoard: form.licenseBoard.trim(),
-      licenseCountry: form.licenseCountry.trim(),
-      licenseExpiry: form.licenseExpiry.trim(),
-      idNumber: form.idNumber.trim(),
-      facility: form.facility.trim() || 'Independent Practice',
-      county: form.county.trim() || undefined,
-      address: form.address.trim() || undefined,
-      submitted: submittedAt,
-      commission: 15,
-      consultFee: parseInt(form.fee) || (type === 'Doctor' ? 1500 : 1200),
-      rating: 0,
-      availability: form.availability.trim() || 'To be confirmed',
-      languages: form.languages.length > 0 ? form.languages : ['English'],
-      consultModes: form.consultModes,
-      payoutMethod: form.payoutMethod,
-      payoutAccount: form.payoutAccount.trim(),
-      backgroundConsent: form.backgroundConsent,
-      complianceDeclaration: form.complianceDeclaration,
-      referees: [
-        { name: form.ref1Name.trim(), email: form.ref1Email.trim(), phone: form.ref1Phone.trim() },
-        { name: form.ref2Name.trim(), email: form.ref2Email.trim(), phone: form.ref2Phone.trim() },
-      ].filter((ref) => ref.name || ref.email || ref.phone),
-      cvFiles: cvUploads,
-      documents: documentNames.map((name) => ({ name, status: 'Submitted' as const })),
-    }
-    saveDoctorProfiles([newProfile, ...existing])
-    setSubmitted(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   if (submitted) {
@@ -323,21 +352,21 @@ function ProfessionalRegisterPage() {
           <div className="pr-success__icon">✓</div>
           <h1 className="pr-success__title">Application submitted!</h1>
           <p className="pr-success__sub">
-            Thank you, <strong>{form.name}</strong>. Your {type?.toLowerCase()} application is now under review.
+            {successDetail || <>Thank you, <strong>{form.name}</strong>. Your {type?.toLowerCase()} application is now under review.</>}
           </p>
           <div className="pr-success__timeline">
-            {[
-              { step: '1', label: 'Application received', done: true },
-              { step: '2', label: 'Document review', note: '24–48 hours', done: false },
-              { step: '3', label: 'Background & credentials check', done: false },
-              { step: '4', label: 'Onboarding call scheduled', done: false },
-              { step: '5', label: 'Go live on AVA Health', done: false },
-            ].map(({ step, label, note, done }) => (
-              <div key={step} className={`pr-timeline-step ${done ? 'pr-timeline-step--done' : ''}`}>
-                <div className="pr-timeline-step__dot">{done ? '✓' : step}</div>
+            {(successSteps.length > 0 ? successSteps : [
+              'Application received',
+              'Document review',
+              'Background & credentials check',
+              'Onboarding call scheduled',
+              'Go live on AVA Health',
+            ]).map((label, index) => (
+              <div key={label} className={`pr-timeline-step ${index === 0 ? 'pr-timeline-step--done' : ''}`}>
+                <div className="pr-timeline-step__dot">{index === 0 ? '✓' : String(index + 1)}</div>
                 <div>
                   <span className="pr-timeline-step__label">{label}</span>
-                  {note && <span className="pr-timeline-step__note">{note}</span>}
+                  {index === 1 && <span className="pr-timeline-step__note">24–48 hours</span>}
                 </div>
               </div>
             ))}
@@ -619,8 +648,9 @@ function ProfessionalRegisterPage() {
                             ))}
                           </select>
                           {errors.labPartnerId && <p className="pr-field-error">{errors.labPartnerId}</p>}
+                          {labPartnerError && <p className="pr-field-error">{labPartnerError}</p>}
                           {labPartners.length === 0 && (
-                            <p className="pr-hint">No lab partners yet. Register a lab partner first.</p>
+                            <p className="pr-hint">No verified lab partners are available yet.</p>
                           )}
                         </div>
                           <div className="pr-form-group">
@@ -888,17 +918,17 @@ function ProfessionalRegisterPage() {
                     multiple
                     accept=".pdf,.jpg,.jpeg,.png"
                     onChange={(e) => {
-                      const files = Array.from(e.target.files ?? []).map((f) => f.name)
-                      setUploadedDocs((prev) => Array.from(new Set([...prev, ...files])))
+                      const files = Array.from(e.target.files ?? [])
+                      setUploadedDocs((prev) => mergeFiles(prev, files))
                       e.currentTarget.value = ''
                     }}
                   />
                   {uploadedDocs.length > 0 && (
                     <div className="pr-uploaded-list">
-                      {uploadedDocs.map((name) => (
-                        <div key={name} className="pr-uploaded-item">
-                          <span>📄 {name}</span>
-                          <button type="button" onClick={() => setUploadedDocs((prev) => prev.filter((n) => n !== name))}>Remove</button>
+                      {uploadedDocs.map((file) => (
+                        <div key={`${file.name}:${file.size}`} className="pr-uploaded-item">
+                          <span>📄 {file.name}</span>
+                          <button type="button" onClick={() => setUploadedDocs((prev) => prev.filter((item) => item !== file))}>Remove</button>
                         </div>
                       ))}
                     </div>
@@ -912,17 +942,17 @@ function ProfessionalRegisterPage() {
                     multiple
                     accept=".pdf,.doc,.docx"
                     onChange={(e) => {
-                      const files = Array.from(e.target.files ?? []).map((f) => f.name)
-                      setCvUploads((prev) => Array.from(new Set([...prev, ...files])))
+                      const files = Array.from(e.target.files ?? [])
+                      setCvUploads((prev) => mergeFiles(prev, files))
                       e.currentTarget.value = ''
                     }}
                   />
                   {cvUploads.length > 0 && (
                     <div className="pr-uploaded-list">
-                      {cvUploads.map((name) => (
-                        <div key={name} className="pr-uploaded-item">
-                          <span>📎 {name}</span>
-                          <button type="button" onClick={() => setCvUploads((prev) => prev.filter((n) => n !== name))}>Remove</button>
+                      {cvUploads.map((file) => (
+                        <div key={`${file.name}:${file.size}`} className="pr-uploaded-item">
+                          <span>📎 {file.name}</span>
+                          <button type="button" onClick={() => setCvUploads((prev) => prev.filter((item) => item !== file))}>Remove</button>
                         </div>
                       ))}
                     </div>
@@ -946,8 +976,9 @@ function ProfessionalRegisterPage() {
                   </span>
                 </label>
                 {errors.terms && <p className="pr-field-error">{errors.terms}</p>}
-                <button type="submit" className="pr-submit-btn">
-                  Submit application
+                {submitError && <p className="pr-field-error">{submitError}</p>}
+                <button type="submit" className="pr-submit-btn" disabled={submitting}>
+                  {submitting ? 'Submitting application...' : 'Submit application'}
                 </button>
               </div>
             </>
