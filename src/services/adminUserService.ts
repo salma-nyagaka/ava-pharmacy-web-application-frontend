@@ -64,7 +64,7 @@ const extractMessage = (payload: unknown, fallback: string) => {
   return fallback
 }
 
-const getAuthHeaders = () => {
+const getAuthHeaders = (): Record<string, string> => {
   if (typeof window === 'undefined') return {}
   const token =
     window.localStorage.getItem('ava_access_token') ||

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import './AccountPaymentPage.css'
 
 type CardType = 'visa' | 'mastercard' | 'unknown'

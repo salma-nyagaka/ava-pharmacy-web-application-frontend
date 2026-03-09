@@ -26,13 +26,14 @@ function UserManagement() {
         if (cancelled) return
         const mapped = data.map((user) => {
           const role = (user.role ?? 'customer') as AdminUserRole
+          const status: 'active' | 'suspended' = user.status === 'suspended' ? 'suspended' : 'active'
           return {
             id: user.id,
             name: user.name || `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email,
             email: user.email,
             phone: user.phone ?? '',
             role,
-            status: user.status === 'suspended' ? 'suspended' : 'active',
+            status,
             joinedDate: user.created_at ?? new Date().toISOString().slice(0, 10),
             totalOrders: 0,
             lastOrderDate: undefined,
