@@ -1230,7 +1230,7 @@ function ProfessionalRegisterPage() {
       </div>
 
       {/* ── Bottom Navigation ────────────────────── */}
-      <div className="pr-bottom-nav">
+      <div className={`pr-bottom-nav${currentStep === 1 && !type ? ' pr-bottom-nav--hidden' : ''}`}>
         <div className="pr-bottom-nav__inner">
           <button
             type="button"

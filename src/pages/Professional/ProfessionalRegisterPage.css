@@ -1192,6 +1192,9 @@
   justify-content: space-between;
   gap: 1rem;
 }
+.pr-bottom-nav--hidden {
+  visibility: hidden;
+}
 
 .pr-nav-back {
   display: flex;
