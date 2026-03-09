@@ -12,7 +12,7 @@ function StoreLocatorPage() {
     <div>
       <PageHeader
         title="Find a store"
-        subtitle="Locate the nearest Ava Pharmacy branch for pickup or in-person consultations."
+        subtitle="Locate the nearest  branch for pickup or in-person consultations."
         badge="Store Locator"
       />
       <section className="page">

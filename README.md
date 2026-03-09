@@ -1,6 +1,6 @@
-# Ava Pharmacy Frontend
+#  Frontend
 
-React web application for Ava Pharmacy.
+React web application for .
 
 ## Project Structure
 

@@ -25,7 +25,7 @@ function RegisterPage() {
     <div>
       <PageHeader
         title="Create your account"
-        subtitle="Join Ava Pharmacy to shop, book consultations, and manage prescriptions securely."
+        subtitle="Join  to shop, book consultations, and manage prescriptions securely."
         badge="New Account"
       />
       <section className="page">

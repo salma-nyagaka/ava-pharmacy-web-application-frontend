@@ -201,7 +201,7 @@ function Header() {
           <div className="header__main-content">
             {/* Logo */}
             <Link to="/" className="header__logo">
-              <img src={logo} alt="Ava Pharmacy" className="header__logo-img" />
+              <img src={logo} alt="" className="header__logo-img" />
             </Link>
 
             {/* Search Bar */}

@@ -100,8 +100,8 @@ function AboutPage() {
   return (
     <div className="about">
       <PageHeader
-        title="About Ava Pharmacy"
-        subtitle="At AVA Pharmacy, we believe that true wellness is a balance of health, beauty, and peace of mind - empowering you to feel your best, naturally, affordably, and stylishly."
+        title="About "
+        subtitle="At , we believe that true wellness is a balance of health, beauty, and peace of mind - empowering you to feel your best, naturally, affordably, and stylishly."
         badge="Company"
       />
 
@@ -123,7 +123,7 @@ function AboutPage() {
       <section className="about__pillars">
         <div className="container">
           <div className="about__section-head">
-            <h2 className="about__section-title">Why Choose AVA Pharmacy</h2>
+            <h2 className="about__section-title">Why Choose </h2>
             <p className="about__section-sub">We've created a curated space where you can explore high-quality products, receive trusted advice, and invest in your personal care with confidence.</p>
           </div>
           <div className="about__pillars-grid">

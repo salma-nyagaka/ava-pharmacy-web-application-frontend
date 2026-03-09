@@ -30,7 +30,7 @@ function Footer() {
             {/* Brand Column */}
             <div className="footer__brand">
               <Link to="/" className="footer__logo">
-                <img src={logo} alt="Ava Pharmacy" />
+                <img src={logo} alt="" />
               </Link>
               <p className="footer__description">
                 Your one-stop destination for premium wellness products, expert skincare solutions,
@@ -111,7 +111,7 @@ function Footer() {
               <div className="footer__map-card">
                 <div className="footer__map">
                   <iframe
-                    title="Ava Pharmacy location"
+                    title=" location"
                     src="https://maps.google.com/maps?q=The+Hub+Karen,Nairobi,Kenya&output=embed&z=15"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
@@ -142,7 +142,7 @@ function Footer() {
         <div className="container">
           <div className="footer__bottom-content">
             <p className="footer__copyright">
-              &copy; {currentYear} AVA Pharmacy. All rights reserved.
+              &copy; {currentYear} . All rights reserved.
             </p>
             <div className="footer__legal">
               <Link to="/privacy">Privacy Policy</Link>

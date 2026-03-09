@@ -5,7 +5,7 @@ function TermsPage() {
     <div>
       <PageHeader
         title="Terms of service"
-        subtitle="Please review the rules for using Ava Pharmacy services."
+        subtitle="Please review the rules for using  services."
         badge="Legal"
       />
       <section className="page">

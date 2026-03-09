@@ -10,7 +10,7 @@ function CareersPage() {
   return (
     <div>
       <PageHeader
-        title="Careers at Ava Pharmacy"
+        title="Careers at "
         subtitle="Join our mission to deliver safe, modern healthcare experiences."
         badge="Hiring"
       />

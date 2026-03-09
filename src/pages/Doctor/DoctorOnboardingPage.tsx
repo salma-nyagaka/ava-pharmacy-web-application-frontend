@@ -59,7 +59,7 @@ function DoctorOnboardingPage() {
     <div>
       <PageHeader
         title="Doctor registration"
-        subtitle="Submit your credentials to join Ava Pharmacy telemedicine services."
+        subtitle="Submit your credentials to join  telemedicine services."
         badge="Doctor Portal"
       />
       <section className="page">

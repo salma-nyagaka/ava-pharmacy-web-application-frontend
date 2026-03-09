@@ -1,4 +1,4 @@
-# Ava Pharmacy Frontend -> Backend Implementation Guide
+#  Frontend -> Backend Implementation Guide
 
 This document describes what the frontend expects from the backend. The current frontend uses local storage and mock services. Replace those with real API endpoints that return the same shapes.
 

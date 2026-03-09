@@ -54,7 +54,7 @@ function downloadReceipt(order: Order) {
 <body>
   <div class="receipt">
     <div class="receipt__top">
-      <p class="receipt__logo">Ava Pharmacy</p>
+      <p class="receipt__logo"></p>
       <p class="receipt__tagline">Your health, our priority</p>
     </div>
     <div class="receipt__body">
@@ -86,7 +86,7 @@ function downloadReceipt(order: Order) {
       </div>
     </div>
     <div class="receipt__footer">
-      Thank you for shopping with Ava Pharmacy · avapharmacy.com
+      Thank you for shopping with  · avapharmacy.com
     </div>
   </div>
   <script>window.onload = () => window.print()</script>
