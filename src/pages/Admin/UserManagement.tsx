@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AdminUserRole, adminRoleOptions, formatAdminRole, loadAdminUsers } from './adminUsers'
+import { AdminUserRole, PharmacistPermission, adminRoleOptions, formatAdminRole, loadAdminUsers } from './adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
 import { AdminUserError, adminUserService } from '../../services/adminUserService'
 import './UserManagement.css'
@@ -39,7 +39,7 @@ function UserManagement() {
             lastOrderDate: undefined,
             address: user.address ?? 'Not set',
             notes: [],
-            pharmacistPermissions: user.pharmacist_permissions ?? [],
+            pharmacistPermissions: (user.pharmacist_permissions ?? []) as PharmacistPermission[],
           }
         })
         setUsers(mapped)
