@@ -79,7 +79,6 @@ function AccountAddressesPage() {
             <h1 className="addr-header__title">Saved Addresses</h1>
             <p className="addr-header__sub">Manage delivery addresses for faster checkout</p>
           </div>
-          <Link to="/account" className="btn btn--outline btn--sm">← Back to Account</Link>
         </div>
 
         {showForm && (

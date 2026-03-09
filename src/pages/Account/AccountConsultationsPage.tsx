@@ -107,7 +107,6 @@ function AccountConsultationsPage() {
             <h1 className="ac-header__title">My Consultations</h1>
             <p className="ac-header__sub">All your doctor and paediatric consultations in one place</p>
           </div>
-          <Link to="/account" className="btn btn--outline btn--sm">← Back to Account</Link>
         </div>
 
         {/* ── Tabs ── */}
