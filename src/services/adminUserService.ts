@@ -19,6 +19,7 @@ export interface AdminUserApi {
   status?: string
   address?: string
   pharmacist_permissions?: string[]
+  created_at?: string
 }
 
 export class AdminUserError extends Error {
@@ -89,6 +90,38 @@ const splitName = (fullName: string) => {
 }
 
 export const adminUserService = {
+  async listUsers() {
+    const response = await fetch(`${API_BASE_URL}/admin/users/`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    })
+    const payload = await handleResponse<AdminUserApi[] | { results: AdminUserApi[] }>(response)
+    if (Array.isArray(payload)) return payload
+    if (payload && typeof payload === 'object' && Array.isArray(payload.results)) return payload.results
+    return []
+  },
+
+  async suspendUser(id: number) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/suspend/`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+      },
+    })
+    return handleResponse<AdminUserApi>(response)
+  },
+
+  async activateUser(id: number) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/activate/`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+      },
+    })
+    return handleResponse<AdminUserApi>(response)
+  },
+
   async createPharmacist(payload: PharmacistCreatePayload) {
     const { first_name, last_name } = splitName(payload.name)
     const response = await fetch(`${API_BASE_URL}/admin/users/`, {

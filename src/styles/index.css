@@ -67,6 +67,8 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+  overflow-x: hidden;
 }
 
 body {
@@ -74,6 +76,7 @@ body {
   line-height: 1.6;
   color: var(--color-text-primary);
   background-color: var(--color-background);
+  overflow-x: hidden;
 }
 
 a {

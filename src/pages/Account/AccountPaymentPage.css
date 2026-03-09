@@ -7,31 +7,36 @@
 .pay-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 1.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
   gap: 1rem;
   flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 20px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
 }
 
 .pay-header__eyebrow {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #94a3b8;
+  color: #cbd5e1;
   margin: 0 0 0.25rem;
 }
 
 .pay-header__title {
-  font-size: 2rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: #0f172a;
   margin: 0 0 0.2rem;
 }
 
 .pay-header__sub {
-  font-size: 0.875rem;
-  color: #64748b;
+  font-size: 0.78rem;
+  color: #94a3b8;
   margin: 0;
 }
 

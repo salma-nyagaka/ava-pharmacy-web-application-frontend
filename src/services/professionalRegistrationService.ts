@@ -1,5 +1,9 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/avapharmacy/api/v1').replace(/\/$/, '')
 
+const REGISTRATION_ENDPOINT = `${API_BASE_URL}/professionals/register/`
+
+export type ProfessionalRegistrationType = 'doctor' | 'pediatrician' | 'lab_partner' | 'lab_technician'
+
 export interface LabPartnerOption {
   id: number
   reference: string
@@ -37,22 +41,43 @@ const extractFieldErrors = (payload: unknown) => {
 
   const asRecord = payload as Record<string, unknown>
   const nestedError = asRecord.error
+  const nestedErrors = asRecord.errors
   const details = nestedError && typeof nestedError === 'object'
     ? (nestedError as Record<string, unknown>).details
     : undefined
-  const source = details && typeof details === 'object' ? details as Record<string, unknown> : asRecord
+  const altDetails = nestedErrors && typeof nestedErrors === 'object'
+    ? (nestedErrors as Record<string, unknown>).details
+    : undefined
+  const source = (details && typeof details === 'object')
+    ? details as Record<string, unknown>
+    : (altDetails && typeof altDetails === 'object')
+        ? altDetails as Record<string, unknown>
+        : asRecord
+
+  const pickMessage = (value: unknown): string | undefined => {
+    if (typeof value === 'string') return value
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const msg = pickMessage(item)
+        if (msg) return msg
+      }
+      return undefined
+    }
+    if (value && typeof value === 'object') {
+      for (const item of Object.values(value as Record<string, unknown>)) {
+        const msg = pickMessage(item)
+        if (msg) return msg
+      }
+    }
+    return undefined
+  }
 
   return Object.entries(source).reduce<Record<string, string>>((acc, [key, value]) => {
     if (key === 'error' || key === 'detail') {
       return acc
     }
-    if (Array.isArray(value) && value.length > 0) {
-      acc[key] = String(value[0])
-      return acc
-    }
-    if (typeof value === 'string') {
-      acc[key] = value
-    }
+    const msg = pickMessage(value)
+    if (msg) acc[key] = msg
     return acc
   }, {})
 }
@@ -96,8 +121,9 @@ export const professionalRegistrationService = {
     return handleResponse<LabPartnerOption[]>(response)
   },
 
-  async submit(formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/professionals/register/`, {
+  async submit(type: ProfessionalRegistrationType, formData: FormData) {
+    formData.set('type', type)
+    const response = await fetch(REGISTRATION_ENDPOINT, {
       method: 'POST',
       body: formData,
     })

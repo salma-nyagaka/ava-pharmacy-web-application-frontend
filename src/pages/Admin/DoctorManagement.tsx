@@ -7,23 +7,8 @@ import {
   DoctorDocument,
   DoctorProfile,
   DoctorType,
-  loadDoctorProfiles,
-  saveDoctorProfiles,
 } from '../../data/telemedicine'
-
-const SPECIALTIES = [
-  'General Medicine', 'Cardiology', 'Dermatology', 'Oncology',
-  'Pediatrics', 'Neonatology', 'Neurology', 'Orthopedics',
-  'Gynecology', 'Psychiatry', 'ENT', 'Ophthalmology',
-]
-
-const DOCUMENT_OPTIONS = [
-  'Medical License',
-  'ID Document',
-  'Specialty Certificate',
-  'Facility Letter',
-  'Pediatric Specialty Certificate',
-]
+import { adminDoctorService, AdminDoctorError, type AdminDoctorApi } from '../../services/adminDoctorService'
 
 function getInitials(name: string) {
   const parts = name.replace(/^Dr\.\s*/i, '').trim().split(/\s+/)
@@ -31,38 +16,122 @@ function getInitials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-const blankAdd = (): Omit<DoctorProfile, 'id' | 'status' | 'rating' | 'verifiedAt'> => ({
-  name: '',
-  type: 'Doctor',
-  specialty: '',
-  email: '',
-  phone: '',
-  license: '',
-  facility: '',
-  submitted: new Date().toISOString().slice(0, 10),
-  commission: 15,
-  consultFee: 1500,
-  availability: '',
-  languages: [],
-  documents: [],
-})
+const normalizeDoctorType = (value: unknown): DoctorType => {
+  const asText = String(value ?? '').toLowerCase()
+  if (asText.includes('pediatric') || asText.includes('paediatric')) return 'Pediatrician'
+  return 'Doctor'
+}
+
+const normalizeDoctorStatus = (value: unknown): DoctorProfile['status'] => {
+  const asText = String(value ?? '').toLowerCase()
+  if (['approved', 'active', 'verified'].includes(asText)) return 'Active'
+  if (['rejected', 'declined', 'suspended'].includes(asText)) return 'Suspended'
+  return 'Pending'
+}
+
+const normalizeDocStatus = (value: unknown): DoctorDocument['status'] => {
+  const asText = String(value ?? '').toLowerCase()
+  if (asText.includes('verif')) return 'Verified'
+  if (asText.includes('miss') || asText.includes('required')) return 'Missing'
+  return 'Submitted'
+}
+
+const normalizeLanguages = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.map((lang) => String(lang)).filter(Boolean)
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((lang) => lang.trim()).filter(Boolean)
+  }
+  return []
+}
+
+const formatDate = (value?: unknown) => {
+  if (typeof value === 'string' && value.length >= 10) return value.slice(0, 10)
+  return new Date().toISOString().slice(0, 10)
+}
+
+const toNumber = (value: unknown, fallback: number) => {
+  const numeric = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(numeric) ? numeric : fallback
+}
+
+const buildDocuments = (api: AdminDoctorApi) => {
+  if (Array.isArray(api.documents)) {
+    return api.documents.map((doc) => {
+      if (typeof doc === 'string') {
+        return { name: doc, status: 'Submitted' } as DoctorDocument
+      }
+      const name = doc?.name ? String(doc.name) : 'Document'
+      return {
+        name,
+        status: normalizeDocStatus(doc?.status),
+        note: doc?.note ? String(doc.note) : undefined,
+      } as DoctorDocument
+    })
+  }
+  if (Array.isArray(api.doc_checklist)) {
+    return api.doc_checklist.map((doc) => ({ name: String(doc), status: 'Submitted' as const }))
+  }
+  if (typeof api.doc_checklist === 'string') {
+    try {
+      const parsed = JSON.parse(api.doc_checklist)
+      if (Array.isArray(parsed)) {
+        return parsed.map((doc) => ({ name: String(doc), status: 'Submitted' as const }))
+      }
+    } catch {
+      return api.doc_checklist.split(',').map((doc) => ({ name: doc.trim(), status: 'Submitted' as const })).filter((doc) => doc.name)
+    }
+  }
+  return [] as DoctorDocument[]
+}
+
+const mapDoctor = (api: AdminDoctorApi): DoctorProfile => {
+  const idValue = api.id ?? api.reference ?? api.application_id ?? api.uuid ?? ''
+  const combinedName = [api.first_name, api.last_name].filter(Boolean).join(' ').trim()
+  const name = (api.name && String(api.name).trim())
+    || (api.full_name && String(api.full_name).trim())
+    || combinedName
+    || 'Unknown'
+  const statusSource = api.status ?? api.application_status ?? api.state
+  const submittedSource = api.submitted_at ?? api.created_at ?? api.updated_at
+
+  return {
+    id: String(idValue),
+    name,
+    type: normalizeDoctorType(api.type ?? api.registration_type ?? api.professional_type),
+    specialty: String(api.specialty ?? ''),
+    email: String(api.email ?? ''),
+    phone: String(api.phone ?? ''),
+    license: String(api.license_number ?? api.license ?? ''),
+    facility: String(api.facility ?? ''),
+    submitted: formatDate(submittedSource),
+    status: normalizeDoctorStatus(statusSource),
+    commission: toNumber(api.commission, 15),
+    consultFee: toNumber(api.fee ?? api.consult_fee, 0),
+    rating: toNumber(api.rating, 0),
+    availability: String(api.availability ?? ''),
+    languages: normalizeLanguages(api.languages),
+    statusNote: typeof api.status_note === 'string' ? api.status_note : typeof api.note === 'string' ? api.note : undefined,
+    rejectionNote: typeof api.rejection_note === 'string' ? api.rejection_note : undefined,
+    documents: buildDocuments(api),
+  }
+}
 
 function DoctorManagement() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [doctors, setDoctors] = useState<DoctorProfile[]>(() => loadDoctorProfiles())
+  const [doctors, setDoctors] = useState<DoctorProfile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [detailCache, setDetailCache] = useState<Record<string, DoctorProfile>>({})
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null)
+  const [detailError, setDetailError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedType, setSelectedType] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
-
-  // Add doctor
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [addDraft, setAddDraft] = useState(blankAdd())
-  const [addLangInput, setAddLangInput] = useState('')
-  const [addDocChecked, setAddDocChecked] = useState<string[]>([])
-  const [addError, setAddError] = useState('')
 
   // Verify
   const [showVerifyModal, setShowVerifyModal] = useState(false)
@@ -70,16 +139,54 @@ function DoctorManagement() {
   const [verifyAction, setVerifyAction] = useState<'approve' | 'request_docs' | 'reject' | null>(null)
   const [verifyNote, setVerifyNote] = useState('')
   const [verifyNoteError, setVerifyNoteError] = useState(false)
+  const [verifySubmitting, setVerifySubmitting] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
 
   // Manage
   const [manageDoctor, setManageDoctor] = useState<DoctorProfile | null>(null)
-  const [manageStatus, setManageStatus] = useState('Active')
-  const [manageCommission, setManageCommission] = useState(15)
-  const [manageFee, setManageFee] = useState(1500)
-  const [manageAvailability, setManageAvailability] = useState('')
-  const [manageStatusNote, setManageStatusNote] = useState('')
+  const [provisioningId, setProvisioningId] = useState<string | null>(null)
+  const [provisionError, setProvisionError] = useState('')
+  const [provisionSuccess, setProvisionSuccess] = useState('')
 
-  useEffect(() => { saveDoctorProfiles(doctors) }, [doctors])
+  const refreshDoctors = async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const payload = await adminDoctorService.listDoctors()
+      setDoctors(payload.map(mapDoctor))
+      setDetailCache({})
+    } catch (error) {
+      const message = error instanceof AdminDoctorError || error instanceof Error
+        ? error.message
+        : 'Unable to load doctors.'
+      setLoadError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadDoctorDetail = async (doctorId: string) => {
+    if (!doctorId || detailCache[doctorId]) return
+    setDetailLoadingId(doctorId)
+    setDetailError('')
+    try {
+      const payload = await adminDoctorService.getDoctor(doctorId)
+      const mapped = mapDoctor(payload)
+      setDetailCache((prev) => ({ ...prev, [doctorId]: mapped }))
+      setDoctors((prev) => prev.map((doctor) => doctor.id === doctorId ? { ...doctor, ...mapped } : doctor))
+    } catch (error) {
+      const message = error instanceof AdminDoctorError || error instanceof Error
+        ? error.message
+        : 'Unable to load doctor details.'
+      setDetailError(message)
+    } finally {
+      setDetailLoadingId(null)
+    }
+  }
+
+  useEffect(() => {
+    refreshDoctors()
+  }, [])
 
   useEffect(() => {
     const typeParam = searchParams.get('type')
@@ -99,7 +206,10 @@ function DoctorManagement() {
     navigate('/admin')
   }
 
-  const specialties = useMemo(() => Array.from(new Set(doctors.map((d) => d.specialty))), [doctors])
+  const specialties = useMemo(
+    () => Array.from(new Set(doctors.map((d) => d.specialty).filter(Boolean))),
+    [doctors],
+  )
 
   const filteredDoctors = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -120,7 +230,14 @@ function DoctorManagement() {
   const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / PAGE_SIZE))
   const pagedDoctors = filteredDoctors.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const pendingDoctors = doctors.filter((d) => d.status === 'Pending')
-  const selectedPendingDoctor = pendingDoctors.find((d) => d.id === selectedPendingId) ?? pendingDoctors[0]
+  const rawSelectedPending = pendingDoctors.find((d) => d.id === selectedPendingId) ?? pendingDoctors[0]
+  const selectedPendingDoctor = rawSelectedPending ? (detailCache[rawSelectedPending.id] ?? rawSelectedPending) : null
+  const manageDoctorDetails = manageDoctor ? (detailCache[manageDoctor.id] ?? manageDoctor) : null
+
+  useEffect(() => {
+    if (!showVerifyModal || !selectedPendingDoctor) return
+    loadDoctorDetail(selectedPendingDoctor.id)
+  }, [showVerifyModal, selectedPendingDoctor?.id])
 
   // Stats
   const stats = useMemo(() => ({
@@ -129,91 +246,75 @@ function DoctorManagement() {
     suspended: doctors.filter((d) => d.status === 'Suspended').length,
   }), [doctors])
 
-  // ── Add doctor ────────────────────────────────────────
-  const openAddModal = () => {
-    setAddDraft(blankAdd())
-    setAddLangInput('')
-    setAddDocChecked([])
-    setAddError('')
-    setShowAddModal(true)
-  }
-
-  const handleAddSave = () => {
-    if (!addDraft.name.trim() || !addDraft.email.trim() || !addDraft.license.trim()) {
-      setAddError('Name, email, and license number are required.')
-      return
-    }
-    const languages = addLangInput.split(',').map((l) => l.trim()).filter(Boolean)
-    const documents: DoctorDocument[] = addDocChecked.map((name) => ({ name, status: 'Submitted' }))
-    const newDoctor: DoctorProfile = {
-      ...addDraft,
-      id: `DOC-${Date.now()}`,
-      name: addDraft.name.trim(),
-      status: 'Pending',
-      rating: 0,
-      languages,
-      documents,
-    }
-    setDoctors((prev) => [newDoctor, ...prev])
-    logAdminAction({ action: 'Add doctor', entity: 'Doctor', entityId: newDoctor.id, detail: newDoctor.name })
-    setShowAddModal(false)
-  }
-
   // ── Verify ────────────────────────────────────────────
   const openVerifyModal = () => {
     setSelectedPendingId(pendingDoctors[0]?.id ?? null)
     setVerifyAction(null)
     setVerifyNote('')
     setVerifyNoteError(false)
+    setVerifyError('')
     setShowVerifyModal(true)
   }
 
-  const handleVerifySubmit = () => {
+  const handleVerifySubmit = async () => {
     if (!selectedPendingDoctor) return
     if ((verifyAction === 'reject' || verifyAction === 'request_docs') && !verifyNote.trim()) {
       setVerifyNoteError(true)
       return
     }
-    if (verifyAction === 'approve') {
-      setDoctors((prev) => prev.map((d) =>
-        d.id === selectedPendingDoctor.id
-          ? { ...d, status: 'Active', verifiedAt: new Date().toISOString().slice(0, 10) }
-          : d
-      ))
-      logAdminAction({ action: 'Approve doctor', entity: 'Doctor', entityId: selectedPendingDoctor.id, detail: selectedPendingDoctor.name })
-    } else if (verifyAction === 'request_docs') {
-      setDoctors((prev) => prev.map((d) =>
-        d.id === selectedPendingDoctor.id ? { ...d, statusNote: verifyNote.trim() } : d
-      ))
-      logAdminAction({ action: 'Request documents', entity: 'Doctor', entityId: selectedPendingDoctor.id, detail: verifyNote })
-    } else if (verifyAction === 'reject') {
-      setDoctors((prev) => prev.map((d) =>
-        d.id === selectedPendingDoctor.id ? { ...d, status: 'Suspended', rejectionNote: verifyNote.trim() } : d
-      ))
-      logAdminAction({ action: 'Reject doctor', entity: 'Doctor', entityId: selectedPendingDoctor.id, detail: verifyNote })
+    if (!verifyAction) return
+
+    setVerifySubmitting(true)
+    setVerifyError('')
+    try {
+      await adminDoctorService.actionDoctor(selectedPendingDoctor.id, {
+        action: verifyAction,
+        note: verifyNote.trim() || undefined,
+      })
+      logAdminAction({
+        action: `Doctor action: ${verifyAction}`,
+        entity: 'Doctor',
+        entityId: selectedPendingDoctor.id,
+        detail: verifyNote.trim() || selectedPendingDoctor.name,
+      })
+      await refreshDoctors()
+      setShowVerifyModal(false)
+    } catch (error) {
+      const message = error instanceof AdminDoctorError || error instanceof Error
+        ? error.message
+        : 'Unable to update doctor status.'
+      setVerifyError(message)
+    } finally {
+      setVerifySubmitting(false)
     }
-    setShowVerifyModal(false)
   }
 
   // ── Manage ────────────────────────────────────────────
   const openManageModal = (doctor: DoctorProfile) => {
     setManageDoctor(doctor)
-    setManageStatus(doctor.status)
-    setManageCommission(doctor.commission)
-    setManageFee(doctor.consultFee)
-    setManageAvailability(doctor.availability)
-    setManageStatusNote(doctor.statusNote ?? '')
+    setProvisionError('')
+    setProvisionSuccess('')
+    loadDoctorDetail(doctor.id)
   }
 
-  const handleManageSave = () => {
+  const handleProvisionAccount = async () => {
     if (!manageDoctor) return
-    setDoctors((prev) => prev.map((d) =>
-      d.id === manageDoctor.id
-        ? { ...d, status: manageStatus as DoctorProfile['status'], commission: manageCommission, consultFee: manageFee, availability: manageAvailability, statusNote: manageStatus === 'Suspended' ? manageStatusNote : '' }
-        : d
-    ))
-    logAdminAction({ action: 'Update doctor', entity: 'Doctor', entityId: manageDoctor.id, detail: `Status ${manageStatus}, commission ${manageCommission}%, fee KSh ${manageFee}` })
-    setManageDoctor(null)
+    setProvisioningId(manageDoctor.id)
+    setProvisionError('')
+    setProvisionSuccess('')
+    try {
+      await adminDoctorService.provisionAccount(manageDoctor.id)
+      logAdminAction({ action: 'Provision doctor account', entity: 'Doctor', entityId: manageDoctor.id, detail: manageDoctor.name })
+      setProvisionSuccess('Account provisioned successfully.')
+      await refreshDoctors()
+    } catch (error) {
+      const message = error instanceof AdminDoctorError || error instanceof Error
+        ? error.message
+        : 'Unable to provision account.'
+      setProvisionError(message)
+    } finally {
+      setProvisioningId(null)
+    }
   }
 
   return (
@@ -231,11 +332,12 @@ function DoctorManagement() {
               Review {pendingDoctors.length} pending
             </button>
           )}
-          <button className="btn btn--primary btn--sm" type="button" onClick={openAddModal}>
-            + Add doctor
+          <button className="btn btn--primary btn--sm" type="button" onClick={refreshDoctors} disabled={loading}>
+            {loading ? 'Loading…' : 'Refresh'}
           </button>
         </div>
       </div>
+      {loadError && <p className="dm-field-error">{loadError}</p>}
 
       {/* Stats */}
       <div className="dm-stats">
@@ -297,7 +399,10 @@ function DoctorManagement() {
             </tr>
           </thead>
           <tbody>
-            {pagedDoctors.map((doctor) => (
+            {loading && (
+              <tr><td colSpan={6} className="doctor-empty">Loading doctors…</td></tr>
+            )}
+            {!loading && pagedDoctors.map((doctor) => (
               <tr key={doctor.id}>
                 <td>
                   <div className="dm-doctor-cell">
@@ -311,7 +416,7 @@ function DoctorManagement() {
                 <td>
                   <span className={`dm-type-badge dm-type-badge--${doctor.type.toLowerCase()}`}>{doctor.type}</span>
                 </td>
-                <td>{doctor.specialty}</td>
+                <td>{doctor.specialty || '-'}</td>
                 <td>
                   <span className="dm-fee">KSh {doctor.consultFee.toLocaleString()}</span>
                   {doctor.rating > 0 && <span className="dm-rating">★ {doctor.rating.toFixed(1)}</span>}
@@ -327,18 +432,29 @@ function DoctorManagement() {
                 <td>
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
                     {doctor.status === 'Pending' && (
-                      <button className="btn btn--outline btn--sm" type="button" onClick={() => { setSelectedPendingId(doctor.id); setVerifyAction(null); setVerifyNote(''); setVerifyNoteError(false); setShowVerifyModal(true) }}>
+                      <button
+                        className="btn btn--outline btn--sm"
+                        type="button"
+                        onClick={() => {
+                          setSelectedPendingId(doctor.id)
+                          setVerifyAction(null)
+                          setVerifyNote('')
+                          setVerifyNoteError(false)
+                          setVerifyError('')
+                          setShowVerifyModal(true)
+                        }}
+                      >
                         Review
                       </button>
                     )}
                     <button className="btn btn--outline btn--sm" type="button" onClick={() => openManageModal(doctor)}>
-                      Manage
+                      Details
                     </button>
                   </div>
                 </td>
               </tr>
             ))}
-            {filteredDoctors.length === 0 && (
+            {!loading && filteredDoctors.length === 0 && (
               <tr><td colSpan={6} className="doctor-empty">No doctors match your filters.</td></tr>
             )}
           </tbody>
@@ -358,106 +474,6 @@ function DoctorManagement() {
         </div>
       )}
 
-      {/* ── Add Doctor Modal ──────────────────────────────── */}
-      {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="dm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal__header">
-              <h2>Add doctor</h2>
-              <button className="modal__close" type="button" onClick={() => setShowAddModal(false)}>×</button>
-            </div>
-            <div className="modal__content">
-              <p className="dm-section-label">Identity</p>
-              <div className="dm-form-row">
-                <div className="form-group">
-                  <label>Full name <span className="dm-required">Required</span></label>
-                  <input type="text" value={addDraft.name} onChange={(e) => setAddDraft((p) => ({ ...p, name: e.target.value }))} placeholder="Dr. Jane Mwangi" />
-                </div>
-                <div className="form-group">
-                  <label>Type</label>
-                  <div className="dm-type-toggle">
-                    {(['Doctor', 'Pediatrician'] as DoctorType[]).map((t) => (
-                      <button key={t} type="button" className={`dm-type-btn ${addDraft.type === t ? 'dm-type-btn--active' : ''}`} onClick={() => setAddDraft((p) => ({ ...p, type: t }))}>{t}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="dm-form-row">
-                <div className="form-group">
-                  <label>Email <span className="dm-required">Required</span></label>
-                  <input type="email" value={addDraft.email} onChange={(e) => setAddDraft((p) => ({ ...p, email: e.target.value }))} placeholder="doctor@avahealth.co.ke" />
-                </div>
-                <div className="form-group">
-                  <label>Phone</label>
-                  <input type="text" value={addDraft.phone} onChange={(e) => setAddDraft((p) => ({ ...p, phone: e.target.value }))} placeholder="+254 700 000 000" />
-                </div>
-              </div>
-
-              <p className="dm-section-label">Professional</p>
-              <div className="dm-form-row">
-                <div className="form-group">
-                  <label>License number <span className="dm-required">Required</span></label>
-                  <input type="text" value={addDraft.license} onChange={(e) => setAddDraft((p) => ({ ...p, license: e.target.value }))} placeholder="KMD-XXXXX" />
-                </div>
-                <div className="form-group">
-                  <label>Specialty</label>
-                  <select value={addDraft.specialty} onChange={(e) => setAddDraft((p) => ({ ...p, specialty: e.target.value }))}>
-                    <option value="">Select specialty</option>
-                    {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="dm-form-row">
-                <div className="form-group">
-                  <label>Facility</label>
-                  <input type="text" value={addDraft.facility} onChange={(e) => setAddDraft((p) => ({ ...p, facility: e.target.value }))} placeholder="Clinic / hospital name" />
-                </div>
-                <div className="form-group">
-                  <label>Availability</label>
-                  <input type="text" value={addDraft.availability} onChange={(e) => setAddDraft((p) => ({ ...p, availability: e.target.value }))} placeholder="Mon - Fri, 9am - 5pm" />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Languages <span className="dm-hint">comma-separated</span></label>
-                <input type="text" value={addLangInput} onChange={(e) => setAddLangInput(e.target.value)} placeholder="English, Swahili" />
-              </div>
-
-              <p className="dm-section-label">Terms</p>
-              <div className="dm-form-row">
-                <div className="form-group">
-                  <label>Commission (%)</label>
-                  <input type="number" min={0} max={100} value={addDraft.commission} onChange={(e) => setAddDraft((p) => ({ ...p, commission: Number(e.target.value) }))} />
-                </div>
-                <div className="form-group">
-                  <label>Consultation fee (KSh)</label>
-                  <input type="number" min={0} value={addDraft.consultFee} onChange={(e) => setAddDraft((p) => ({ ...p, consultFee: Number(e.target.value) }))} />
-                </div>
-              </div>
-
-              <p className="dm-section-label">Documents submitted</p>
-              <div className="dm-doc-checklist">
-                {DOCUMENT_OPTIONS.map((doc) => (
-                  <label key={doc} className="dm-doc-check">
-                    <input
-                      type="checkbox"
-                      checked={addDocChecked.includes(doc)}
-                      onChange={() => setAddDocChecked((prev) => prev.includes(doc) ? prev.filter((d) => d !== doc) : [...prev, doc])}
-                    />
-                    <span>{doc}</span>
-                  </label>
-                ))}
-              </div>
-
-              {addError && <p className="dm-field-error">{addError}</p>}
-            </div>
-            <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="btn btn--primary btn--sm" type="button" onClick={handleAddSave}>Add &amp; set to pending</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Verify Modal ──────────────────────────────────── */}
       {showVerifyModal && (
         <div className="modal-overlay" onClick={() => setShowVerifyModal(false)}>
@@ -467,14 +483,16 @@ function DoctorManagement() {
               <button className="modal__close" type="button" onClick={() => setShowVerifyModal(false)}>×</button>
             </div>
             <div className="modal__content">
-              {pendingDoctors.length === 0 ? (
+              {loading ? (
+                <p className="doctor-empty-message">Loading applications…</p>
+              ) : pendingDoctors.length === 0 ? (
                 <p className="doctor-empty-message">No pending applications.</p>
               ) : (
                 <>
                   {pendingDoctors.length > 1 && (
                     <div className="form-group">
                       <label>Application</label>
-                      <select value={selectedPendingDoctor?.id} onChange={(e) => { setSelectedPendingId(e.target.value); setVerifyAction(null); setVerifyNote(''); setVerifyNoteError(false) }}>
+                      <select value={selectedPendingDoctor?.id} onChange={(e) => { setSelectedPendingId(e.target.value); setVerifyAction(null); setVerifyNote(''); setVerifyNoteError(false); setVerifyError('') }}>
                         {pendingDoctors.map((d) => <option key={d.id} value={d.id}>{d.name} - {d.specialty}</option>)}
                       </select>
                     </div>
@@ -496,9 +514,13 @@ function DoctorManagement() {
                         <div className="dm-detail-row"><span>License</span><span>{selectedPendingDoctor.license}</span></div>
                         <div className="dm-detail-row"><span>Email</span><span>{selectedPendingDoctor.email}</span></div>
                         <div className="dm-detail-row"><span>Phone</span><span>{selectedPendingDoctor.phone}</span></div>
-                        <div className="dm-detail-row"><span>Languages</span><span>{selectedPendingDoctor.languages.join(', ')}</span></div>
+                        <div className="dm-detail-row"><span>Languages</span><span>{selectedPendingDoctor.languages.join(', ') || '-'}</span></div>
                         <div className="dm-detail-row"><span>Availability</span><span>{selectedPendingDoctor.availability || '-'}</span></div>
                       </div>
+                      {detailLoadingId === selectedPendingDoctor.id && (
+                        <p className="dm-hint" style={{ marginTop: '0.5rem' }}>Refreshing application details…</p>
+                      )}
+                      {detailError && <p className="dm-field-error">{detailError}</p>}
 
                       {/* Documents */}
                       <p className="dm-section-label" style={{ marginTop: '1rem' }}>Documents</p>
@@ -549,80 +571,81 @@ function DoctorManagement() {
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowVerifyModal(false)}>Cancel</button>
-              <button className="btn btn--primary btn--sm" type="button" onClick={handleVerifySubmit} disabled={!selectedPendingDoctor || !verifyAction}>
-                Confirm decision
+              <button className="btn btn--primary btn--sm" type="button" onClick={handleVerifySubmit} disabled={!selectedPendingDoctor || !verifyAction || verifySubmitting}>
+                {verifySubmitting ? 'Submitting…' : 'Confirm decision'}
               </button>
             </div>
+            {verifyError && <p className="dm-field-error" style={{ marginTop: '0.75rem' }}>{verifyError}</p>}
           </div>
         </div>
       )}
 
       {/* ── Manage Modal ──────────────────────────────────── */}
-      {manageDoctor && (
+      {manageDoctorDetails && (
         <div className="modal-overlay" onClick={() => setManageDoctor(null)}>
           <div className="dm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
-              <h2>Manage doctor</h2>
+              <h2>Doctor details</h2>
               <button className="modal__close" type="button" onClick={() => setManageDoctor(null)}>×</button>
             </div>
             <div className="modal__content">
               {/* Profile header */}
               <div className="dm-verify-header">
-                <div className="dm-avatar dm-avatar--lg">{getInitials(manageDoctor.name)}</div>
+                <div className="dm-avatar dm-avatar--lg">{getInitials(manageDoctorDetails.name)}</div>
                 <div>
-                  <p className="dm-verify-name">{manageDoctor.name}</p>
-                  <p className="dm-verify-meta">{manageDoctor.type} · {manageDoctor.specialty}</p>
-                  <p className="dm-verify-meta">{manageDoctor.facility}</p>
+                  <p className="dm-verify-name">{manageDoctorDetails.name}</p>
+                  <p className="dm-verify-meta">{manageDoctorDetails.type} · {manageDoctorDetails.specialty}</p>
+                  <p className="dm-verify-meta">{manageDoctorDetails.facility}</p>
                 </div>
               </div>
 
               {/* Contact info (read-only) */}
               <div className="dm-detail-grid">
-                <div className="dm-detail-row"><span>Email</span><span>{manageDoctor.email}</span></div>
-                <div className="dm-detail-row"><span>Phone</span><span>{manageDoctor.phone}</span></div>
-                <div className="dm-detail-row"><span>License</span><span>{manageDoctor.license}</span></div>
-                <div className="dm-detail-row"><span>Languages</span><span>{manageDoctor.languages.join(', ')}</span></div>
-                {manageDoctor.verifiedAt && <div className="dm-detail-row"><span>Verified</span><span>{manageDoctor.verifiedAt}</span></div>}
-                {manageDoctor.rating > 0 && <div className="dm-detail-row"><span>Rating</span><span>★ {manageDoctor.rating.toFixed(1)}</span></div>}
+                <div className="dm-detail-row"><span>Email</span><span>{manageDoctorDetails.email}</span></div>
+                <div className="dm-detail-row"><span>Phone</span><span>{manageDoctorDetails.phone}</span></div>
+                <div className="dm-detail-row"><span>License</span><span>{manageDoctorDetails.license}</span></div>
+                <div className="dm-detail-row"><span>Languages</span><span>{manageDoctorDetails.languages.join(', ') || '-'}</span></div>
+                <div className="dm-detail-row"><span>Status</span><span>{manageDoctorDetails.status}</span></div>
+                {manageDoctorDetails.verifiedAt && <div className="dm-detail-row"><span>Verified</span><span>{manageDoctorDetails.verifiedAt}</span></div>}
+                {manageDoctorDetails.rating > 0 && <div className="dm-detail-row"><span>Rating</span><span>★ {manageDoctorDetails.rating.toFixed(1)}</span></div>}
+                {manageDoctorDetails.availability && <div className="dm-detail-row"><span>Availability</span><span>{manageDoctorDetails.availability}</span></div>}
               </div>
 
-              {/* Editable fields */}
-              <p className="dm-section-label" style={{ marginTop: '1rem' }}>Terms</p>
-              <div className="dm-form-row">
-                <div className="form-group">
-                  <label>Commission (%)</label>
-                  <input type="number" min={0} max={100} value={manageCommission} onChange={(e) => setManageCommission(Number(e.target.value))} />
-                </div>
-                <div className="form-group">
-                  <label>Consultation fee (KSh)</label>
-                  <input type="number" min={0} value={manageFee} onChange={(e) => setManageFee(Number(e.target.value))} />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Availability schedule</label>
-                <input type="text" value={manageAvailability} onChange={(e) => setManageAvailability(e.target.value)} placeholder="Mon - Fri, 9am - 5pm" />
-              </div>
-
-              <p className="dm-section-label">Status</p>
-              <div className="dm-manage-status-row">
-                {(['Active', 'Pending', 'Suspended'] as DoctorProfile['status'][]).map((s) => (
-                  <button key={s} type="button" className={`dm-manage-status-btn dm-manage-status-btn--${s.toLowerCase()} ${manageStatus === s ? 'dm-manage-status-btn--selected' : ''}`} onClick={() => setManageStatus(s)}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-              {manageStatus === 'Suspended' && (
-                <div className="form-group" style={{ marginTop: '0.75rem' }}>
-                  <label>Suspension reason</label>
-                  <textarea rows={2} value={manageStatusNote} onChange={(e) => setManageStatusNote(e.target.value)} placeholder="Reason for suspension" />
+              {(manageDoctorDetails.statusNote || manageDoctorDetails.rejectionNote) && (
+                <div className="dm-detail-row" style={{ marginTop: '0.75rem' }}>
+                  <span>Notes</span>
+                  <span>{manageDoctorDetails.statusNote || manageDoctorDetails.rejectionNote}</span>
                 </div>
               )}
+
+              <p className="dm-section-label" style={{ marginTop: '1rem' }}>Documents</p>
+              <div className="dm-doc-list">
+                {manageDoctorDetails.documents.map((doc) => (
+                  <div key={doc.name} className="dm-doc-item">
+                    <span className="dm-doc-item__name">{doc.name}</span>
+                    <span className={`dm-doc-status dm-doc-status--${doc.status.toLowerCase()}`}>{doc.status}</span>
+                    {doc.note && <span className="dm-doc-item__note">{doc.note}</span>}
+                  </div>
+                ))}
+                {manageDoctorDetails.documents.length === 0 && (
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>No documents uploaded.</p>
+                )}
+              </div>
+              {detailLoadingId === manageDoctorDetails.id && (
+                <p className="dm-hint" style={{ marginTop: '0.5rem' }}>Refreshing application details…</p>
+              )}
+              {detailError && <p className="dm-field-error">{detailError}</p>}
             </div>
             <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" type="button" onClick={() => setManageDoctor(null)}>Cancel</button>
-              <button className="btn btn--primary btn--sm" type="button" onClick={handleManageSave}>Save changes</button>
+              <button className="btn btn--outline btn--sm" type="button" onClick={() => setManageDoctor(null)}>Close</button>
+              {manageDoctorDetails.status === 'Active' && (
+                <button className="btn btn--primary btn--sm" type="button" onClick={handleProvisionAccount} disabled={provisioningId === manageDoctorDetails.id}>
+                  {provisioningId === manageDoctorDetails.id ? 'Provisioning…' : 'Provision account'}
+                </button>
+              )}
             </div>
+            {provisionError && <p className="dm-field-error" style={{ marginTop: '0.75rem' }}>{provisionError}</p>}
+            {provisionSuccess && <p className="dm-hint" style={{ marginTop: '0.5rem' }}>{provisionSuccess}</p>}
           </div>
         </div>
       )}

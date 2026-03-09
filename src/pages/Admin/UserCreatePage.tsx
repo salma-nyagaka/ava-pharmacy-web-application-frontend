@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { logAdminAction } from '../../data/adminAudit'
+import { AdminUserError, adminUserService } from '../../services/adminUserService'
 import {
   AdminUserRole,
   PharmacistPermission,
@@ -37,6 +38,7 @@ function UserCreatePage() {
     'prescription_review',
   ])
   const [formError, setFormError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (isPharmacistCreate && role !== 'pharmacist') {
@@ -70,6 +72,35 @@ function UserCreatePage() {
 
     if (resolvedRole === 'pharmacist' && pharmacistPermissions.length === 0) {
       setFormError('Select at least one pharmacist permission.')
+      return
+    }
+
+    if (resolvedRole === 'pharmacist' && isPharmacistCreate) {
+      setSubmitting(true)
+      setFormError('')
+      adminUserService.createPharmacist({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        address: address.trim() || undefined,
+        pharmacistPermissions,
+      }).then(() => {
+        logAdminAction({
+          action: 'Create pharmacist',
+          entity: 'User',
+          entityId: 'backend',
+          detail: `${name.trim()} (Pharmacist) invite sent`,
+        })
+        navigate('/admin/users')
+      }).catch((error) => {
+        if (error instanceof AdminUserError) {
+          setFormError(error.message)
+          return
+        }
+        setFormError('Unable to create pharmacist right now. Please try again.')
+      }).finally(() => {
+        setSubmitting(false)
+      })
       return
     }
 
@@ -196,6 +227,7 @@ function UserCreatePage() {
                   type="button"
                   className={`uc-status-btn ${status === 'active' ? 'uc-status-btn--active' : ''}`}
                   onClick={() => setStatus('active')}
+                  disabled={isPharmacistCreate}
                 >
                   Active
                 </button>
@@ -203,6 +235,7 @@ function UserCreatePage() {
                   type="button"
                   className={`uc-status-btn ${status === 'suspended' ? 'uc-status-btn--suspended' : ''}`}
                   onClick={() => setStatus('suspended')}
+                  disabled={isPharmacistCreate}
                 >
                   Suspended
                 </button>
@@ -265,8 +298,8 @@ function UserCreatePage() {
           <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
             Cancel
           </button>
-          <button className="btn btn--primary btn--sm" type="submit">
-            Create user
+          <button className="btn btn--primary btn--sm" type="submit" disabled={submitting}>
+            {submitting ? 'Creating account...' : isPharmacistCreate ? 'Create pharmacist' : 'Create user'}
           </button>
         </div>
       </form>
