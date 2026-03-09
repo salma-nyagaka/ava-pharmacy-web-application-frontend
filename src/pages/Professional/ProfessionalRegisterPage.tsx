@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   professionalRegistrationService,
   ProfessionalRegistrationError,
@@ -543,13 +543,15 @@ function ProfessionalRegisterPage() {
             const done = step < currentStep
             const active = step === currentStep
             return (
-              <div key={step} className={`pr-step-node ${done ? 'done' : ''} ${active ? 'active' : ''}`}>
+              <React.Fragment key={step}>
                 {i > 0 && <div className={`pr-step-line ${done ? 'done' : ''}`} />}
-                <div className="pr-step-circle">
-                  {done ? <CheckIcon /> : <span>{step}</span>}
+                <div className={`pr-step-node ${done ? 'done' : ''} ${active ? 'active' : ''}`}>
+                  <div className="pr-step-circle">
+                    {done ? <CheckIcon /> : <span>{step}</span>}
+                  </div>
+                  <span className="pr-step-name">{label}</span>
                 </div>
-                <span className="pr-step-name">{label}</span>
-              </div>
+              </React.Fragment>
             )
           })}
         </div>
