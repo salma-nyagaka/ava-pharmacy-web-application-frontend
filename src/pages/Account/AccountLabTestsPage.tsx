@@ -136,7 +136,6 @@ function AccountLabTestsPage() {
           </div>
           <div className="alt-header__actions">
             <Link to="/lab-tests" className="btn btn--primary btn--sm">+ Book new test</Link>
-            <Link to="/account" className="btn btn--outline btn--sm">← Back to Account</Link>
           </div>
         </div>
 

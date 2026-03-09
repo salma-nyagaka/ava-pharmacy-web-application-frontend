@@ -376,29 +376,26 @@ function LabPartnerManagement() {
                 </div>
                 <div>
                   <p className="lp-section-title">Lab technicians</p>
-                  <div className="lp-tech-list">
-                    {managePartner.techs.map((tech) => (
-                      <div key={tech.id} className="lp-tech-card">
-                        <div>
-                          <p>{tech.name}</p>
-                          <span>{tech.email} · {tech.phone}</span>
-                          {tech.specialty && <span className="lp-tech-meta">Specialty: {tech.specialty}</span>}
-                          {tech.licenseNumber && <span className="lp-tech-meta">License: {tech.licenseNumber}</span>}
-                          {tech.licenseExpiry && <span className="lp-tech-meta">Expiry: {tech.licenseExpiry}</span>}
-                          {tech.idNumber && <span className="lp-tech-meta">ID: {tech.idNumber}</span>}
-                        </div>
-                        <span className={`lp-tech-status ${tech.status === 'Active' ? 'lp-tech-status--active' : 'lp-tech-status--inactive'}`}>
-                          {tech.status}
-                        </span>
-                      </div>
-                    ))}
-                    {managePartner.techs.length === 0 && (
-                      <div className="lp-empty-state">No technicians added yet.</div>
-                    )}
-                  </div>
+                  {managePartner.techs.length > 0 ? (
+                    <ul className="lp-tech-simple">
+                      {managePartner.techs.map((tech) => (
+                        <li key={tech.id} className="lp-tech-simple__item">
+                          <div className="lp-tech-simple__main">
+                            <span className="lp-tech-simple__name">{tech.name}</span>
+                            <span className="lp-tech-simple__meta">{tech.email} · {tech.phone}</span>
+                          </div>
+                          <span className={`lp-tech-status ${tech.status === 'Active' ? 'lp-tech-status--active' : 'lp-tech-status--inactive'}`}>
+                            {tech.status}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="lp-empty-state">No technicians added yet.</div>
+                  )}
                   <div className="lp-add-tech">
                     <p className="lp-section-title">Add technician</p>
-                    <div className="form-row">
+                    <div className="lp-add-tech__grid">
                       <div className="form-group">
                         <label>Name</label>
                         <input value={techDraft.name} onChange={(event) => setTechDraft((p) => ({ ...p, name: event.target.value }))} />
@@ -407,8 +404,6 @@ function LabPartnerManagement() {
                         <label>Email</label>
                         <input value={techDraft.email} onChange={(event) => setTechDraft((p) => ({ ...p, email: event.target.value }))} />
                       </div>
-                    </div>
-                    <div className="form-row">
                       <div className="form-group">
                         <label>Phone</label>
                         <input value={techDraft.phone} onChange={(event) => setTechDraft((p) => ({ ...p, phone: event.target.value }))} />

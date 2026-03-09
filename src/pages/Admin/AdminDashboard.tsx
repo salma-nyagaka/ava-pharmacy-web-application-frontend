@@ -98,33 +98,45 @@ function AdminDashboard() {
           </div>
 
           <div className="quick-actions-group">
-            <p className="quick-actions-group__label">Health Services</p>
+            <p className="quick-actions-group__label">Health Services &amp; Health Workers</p>
             <div className="quick-actions-admin">
-              <Link to="/admin/doctors" className="admin-action">
+              <Link to="/admin/doctors?type=Doctor" className="admin-action">
                 <span>🩺</span>
                 <span>Doctors</span>
+              </Link>
+              <Link to="/admin/doctors?type=Pediatrician" className="admin-action">
+                <span>👶</span>
+                <span>Pediatricians</span>
               </Link>
               <Link to="/admin/prescriptions" className="admin-action">
                 <span>💊</span>
                 <span>Prescriptions</span>
               </Link>
+              <Link to="/admin/lab-partners" className="admin-action">
+                <span>🔬</span>
+                <span>Lab Partners</span>
+              </Link>
               <Link to="/admin/lab-tests" className="admin-action">
                 <span>🧪</span>
                 <span>Lab Tests</span>
               </Link>
-              <Link to="/admin/lab-partners" className="admin-action">
-                <span>🔬</span>
-                <span>Lab Partners</span>
+              <Link to="/admin/users/pharmacist/new" className="admin-action">
+                <span>🧑‍⚕️</span>
+                <span>Add Pharmacist</span>
+              </Link>
+              <Link to="/admin/users" className="admin-action">
+                <span>🏥</span>
+                <span>Manage Pharmacists</span>
               </Link>
             </div>
           </div>
 
           <div className="quick-actions-group">
-            <p className="quick-actions-group__label">Finance & Users</p>
+            <p className="quick-actions-group__label">Finance &amp; Customers</p>
             <div className="quick-actions-admin">
               <Link to="/admin/users" className="admin-action">
                 <span>👥</span>
-                <span>Users</span>
+                <span>Customers</span>
               </Link>
               <Link to="/admin/payouts" className="admin-action">
                 <span>💸</span>

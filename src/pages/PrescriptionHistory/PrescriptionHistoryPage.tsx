@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import PageHeader from '../../components/PageHeader/PageHeader'
 import { PrescriptionRecord } from '../../data/prescriptions'
 import { cartService } from '../../services/cartService'
 import { prescriptionService } from '../../services/prescriptionService'
+import './PrescriptionHistoryPage.css'
 
 function PrescriptionHistoryPage() {
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
@@ -41,14 +41,15 @@ function PrescriptionHistoryPage() {
   }
 
   return (
-    <div>
-      <PageHeader
-        title="Prescription history"
-        subtitle="Track approvals, re-uploads, and pharmacist feedback for your prescriptions."
-        badge="Prescriptions"
-      />
-      <section className="page">
-        <div className="container">
+    <div className="rx-page">
+      <div className="rx-header">
+        <div>
+          <h2 className="rx-header__title">Prescription history</h2>
+          <p className="rx-header__sub">Track approvals, re-uploads, and pharmacist feedback for your prescriptions.</p>
+        </div>
+        <span className="rx-header__badge">Prescriptions</span>
+      </div>
+      <div className="rx-table-card">
           <table className="table">
             <thead>
               <tr>
@@ -83,27 +84,27 @@ function PrescriptionHistoryPage() {
                     <span className="status-pill status-pill--info">{rx.dispatchStatus}</span>
                   </td>
                   <td>
-                    <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(rx)}>
-                      View
-                    </button>
-                    {rx.status === 'Approved' && (
-                      <button
-                        className="btn btn--primary btn--sm"
-                        type="button"
-                        onClick={() => addPrescriptionItemsToCart(rx)}
-                        style={{ marginLeft: '0.5rem' }}
-                      >
-                        Add to cart
+                    <div className="rx-actions">
+                      <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(rx)}>
+                        View
                       </button>
-                    )}
+                      {rx.status === 'Approved' && (
+                        <button
+                          className="btn btn--primary btn--sm"
+                          type="button"
+                          onClick={() => addPrescriptionItemsToCart(rx)}
+                        >
+                          Add to cart
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {message && <p className="card__meta" style={{ marginTop: '0.75rem' }}>{message}</p>}
-        </div>
-      </section>
+        {message && <p className="card__meta" style={{ marginTop: '0.75rem' }}>{message}</p>}
+      </div>
 
       {activeRx && (
         <div className="modal-overlay" onClick={() => setActiveRx(null)}>

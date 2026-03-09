@@ -103,7 +103,6 @@ function RegisterPage() {
                     <option value="customer">Customer</option>
                     <option value="doctor">Doctor</option>
                     <option value="pediatrician">Pediatrician</option>
-                    <option value="pharmacist">Pharmacist</option>
                     <option value="lab">Lab Technician</option>
                   </select>
                 </div>

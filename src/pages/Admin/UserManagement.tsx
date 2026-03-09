@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { adminRoleOptions, formatAdminRole, loadAdminUsers, saveAdminUsers } from './adminUsers'
+import { AdminUserRole, adminRoleOptions, formatAdminRole, loadAdminUsers } from './adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
+import { AdminUserError, adminUserService } from '../../services/adminUserService'
 import './UserManagement.css'
 
 function UserManagement() {
@@ -12,10 +13,47 @@ function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1)
 
   const [users, setUsers] = useState(() => loadAdminUsers())
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    saveAdminUsers(users)
-  }, [users])
+    let cancelled = false
+    const loadUsers = async () => {
+      setLoading(true)
+      setLoadError('')
+      try {
+        const data = await adminUserService.listUsers()
+        if (cancelled) return
+        const mapped = data.map((user) => {
+          const role = (user.role ?? 'customer') as AdminUserRole
+          return {
+            id: user.id,
+            name: user.name || `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email,
+            email: user.email,
+            phone: user.phone ?? '',
+            role,
+            status: user.status === 'suspended' ? 'suspended' : 'active',
+            joinedDate: user.created_at ?? new Date().toISOString().slice(0, 10),
+            totalOrders: 0,
+            lastOrderDate: undefined,
+            address: user.address ?? 'Not set',
+            notes: [],
+            pharmacistPermissions: user.pharmacist_permissions ?? [],
+          }
+        })
+        setUsers(mapped)
+      } catch (error) {
+        if (cancelled) return
+        setLoadError(error instanceof AdminUserError ? error.message : 'Unable to load users.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    loadUsers()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const filteredUsers = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -51,14 +89,29 @@ function UserManagement() {
   }
 
   const handleToggleStatus = (userId: number, nextStatus: 'active' | 'suspended') => {
-    setUsers((prev) =>
-      prev.map((user) => (user.id === userId ? { ...user, status: nextStatus } : user))
-    )
-    logAdminAction({
-      action: 'Update user status',
-      entity: 'User',
-      entityId: String(userId),
-      detail: `Status set to ${nextStatus}`,
+    const update = nextStatus === 'active'
+      ? adminUserService.activateUser(userId)
+      : adminUserService.suspendUser(userId)
+
+    update.then((response) => {
+      setUsers((prev) =>
+        prev.map((user) => (
+          user.id === userId
+            ? {
+              ...user,
+              status: response.status === 'suspended' ? 'suspended' : 'active',
+            }
+            : user
+        ))
+      )
+      logAdminAction({
+        action: 'Update user status',
+        entity: 'User',
+        entityId: String(userId),
+        detail: `Status set to ${nextStatus}`,
+      })
+    }).catch(() => {
+      setLoadError('Unable to update user status.')
     })
   }
 
@@ -81,8 +134,8 @@ function UserManagement() {
             <span className="stat-mini__label">Staff Users</span>
           </div>
         </div>
-        <Link className="btn btn--primary btn--sm" to="/admin/users/new">
-          Add User
+        <Link className="btn btn--primary btn--sm" to="/admin/users/pharmacist/new">
+          Add Pharmacist
         </Link>
       </div>
 
@@ -111,6 +164,8 @@ function UserManagement() {
       </div>
 
       <div className="user-management__table">
+        {loadError && <p className="user-empty">{loadError}</p>}
+        {loading && <p className="user-empty">Loading users...</p>}
         <table>
           <thead>
             <tr>

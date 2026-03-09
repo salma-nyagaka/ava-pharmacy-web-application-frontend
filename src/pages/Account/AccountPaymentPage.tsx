@@ -84,7 +84,6 @@ function AccountPaymentPage() {
             <h1 className="pay-header__title">Payment Methods</h1>
             <p className="pay-header__sub">Securely manage your saved cards</p>
           </div>
-          <Link to="/account" className="btn btn--outline btn--sm">← Back to Account</Link>
         </div>
 
         <div className="pay-layout">
