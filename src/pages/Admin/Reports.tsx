@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import '../../styles/pages/Admin/AdminShared.css'
-import '../../styles/pages/Admin/Reports.css'
+import './AdminShared.css'
+import './Reports.css'
 
 function Reports() {
   const navigate = useNavigate()

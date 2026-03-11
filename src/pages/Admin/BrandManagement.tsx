@@ -2,10 +2,10 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { adminProductService, ApiBrand } from '../../services/adminProductService'
-import '../../styles/pages/Admin/AdminShared.css'
+import './AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
-import '../../styles/pages/Admin/BrandManagement.css'
+import './BrandManagement.css'
 
 function sortBrands(items: ApiBrand[]) {
   return [...items].sort((a, b) => a.name.localeCompare(b.name))

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import '../../styles/pages/Consultation/ConsultationPage.css'
+import './ConsultationPage.css'
 
 type ConsultationStatus = 'form' | 'waiting' | 'chatting' | 'completed'
 

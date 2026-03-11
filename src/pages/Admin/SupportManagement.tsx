@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { logAdminAction } from '../../data/adminAudit'
 import { SupportPriority, SupportStatus, SupportTicket } from '../../data/support'
 import { supportService } from '../../services/supportService'
-import { loadAdminUsers } from './adminUsers'
-import '../../styles/pages/Admin/AdminShared.css'
-import '../../styles/pages/Admin/SupportManagement.css'
+import { loadAdminUsers } from '../../data/adminUsers'
+import './AdminShared.css'
+import './SupportManagement.css'
 
 const PAGE_SIZE = 6
 

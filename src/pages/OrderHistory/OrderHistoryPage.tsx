@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { STATUS_CFG } from './ordersData'
-import type { Order } from './ordersData'
+import { STATUS_CFG } from '../../data/ordersData'
+import type { Order } from '../../data/ordersData'
 import { useOrders } from '../../hooks/useOrders'
-import '../../styles/pages/OrderHistory/OrderHistoryPage.css'
+import './OrderHistoryPage.css'
 
 const FILTER_TABS = ['All', 'Processing', 'In Transit', 'Delivered', 'Cancelled']
 

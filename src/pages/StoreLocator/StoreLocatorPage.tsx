@@ -1,5 +1,5 @@
 import PageHeader from '../../components/PageHeader/PageHeader'
-import '../../styles/pages/StoreLocator/StoreLocatorPage.css'
+import './StoreLocatorPage.css'
 
 function StoreLocatorPage() {
   const branches = [

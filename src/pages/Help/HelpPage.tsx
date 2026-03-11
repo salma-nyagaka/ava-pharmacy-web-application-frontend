@@ -1,5 +1,5 @@
 import PageHeader from '../../components/PageHeader/PageHeader'
-import '../../styles/pages/Help/HelpPage.css'
+import './HelpPage.css'
 
 function HelpPage() {
   const faqs = [

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
-import '../../styles/pages/Pharmacist/PrescriptionReviewPage.css'
+import './PrescriptionReviewPage.css'
 
 function statusBarClass(status: string) {
   if (status === 'Approved') return 'prx-status-bar prx-status-bar--approved'

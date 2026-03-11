@@ -10,10 +10,10 @@ import {
   ApiProduct,
   ProductCreatePayload,
 } from '../../services/adminProductService'
-import '../../styles/pages/Admin/AdminShared.css'
+import './AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
-import '../../styles/pages/Admin/ProductManagement.css'
+import './ProductManagement.css'
 
 const PAGE_SIZE = 6
 function formatFeatureLines(features: string[] | null | undefined): string {

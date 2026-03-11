@@ -3,7 +3,7 @@ import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallb
 import avatarSarah from '../../assets/images/avatars/avatar-sarah.svg'
 import avatarMichael from '../../assets/images/avatars/avatar-michael.svg'
 import avatarEmily from '../../assets/images/avatars/avatar-emily.svg'
-import '../../styles/pages/Consultation/ConsultationPage.css'
+import './ConsultationPage.css'
 
 function ConsultationPage() {
   const [message, setMessage] = useState('')

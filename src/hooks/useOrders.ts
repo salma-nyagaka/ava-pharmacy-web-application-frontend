@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchOrders, type Order as ApiOrder } from '../services/orderService'
-import type { Order, OrderStatus } from '../pages/OrderHistory/ordersData'
+import type { Order, OrderStatus } from '../data/ordersData'
 
 function mapApiStatus(status: string): OrderStatus {
   if (status === 'shipped') return 'In Transit'

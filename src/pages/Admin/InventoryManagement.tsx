@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { adminProductService, ApiInventoryProduct, StockSource } from '../../services/adminProductService'
-import '../../styles/pages/Admin/AdminShared.css'
-import '../../styles/pages/Admin/InventoryManagement.css'
+import './AdminShared.css'
+import './InventoryManagement.css'
 
 const PAGE_SIZE = 10
 const STOCK_SOURCE_OPTIONS: Array<{ value: StockSource; label: string }> = [

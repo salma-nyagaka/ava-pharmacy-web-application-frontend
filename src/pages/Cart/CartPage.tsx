@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { CartItem } from '../../data/cart'
 import { cartService } from '../../services/cartService'
-import '../../styles/pages/Cart/CartPage.css'
+import './CartPage.css'
 
 const FREE_DELIVERY_THRESHOLD = 3000
 const DELIVERY_FEE = 300

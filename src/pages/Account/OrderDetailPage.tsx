@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ORDERS, STATUS_CFG, TRACK_STEPS, getRelativeTime } from '../OrderHistory/ordersData'
+import { ORDERS, STATUS_CFG, TRACK_STEPS, getRelativeTime } from '../../data/ordersData'
 import './OrderDetailPage.css'
 
 function OrderDetailPage() {

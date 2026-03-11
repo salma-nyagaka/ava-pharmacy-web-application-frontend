@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { adminProductService, ApiHealthConcern } from '../../services/adminProductService'
-import '../../styles/pages/Admin/AdminShared.css'
+import './AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 

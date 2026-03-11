@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import '../../styles/pages/Admin/AdminShared.css'
-import '../../styles/pages/Admin/DoctorManagement.css'
+import './AdminShared.css'
+import './DoctorManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
 import {
   DoctorDocument,

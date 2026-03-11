@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import favicon from '../../assets/images/logos/favicon.png'
-import '../../styles/pages/Auth/AuthPage.css'
+import './AuthPage.css'
 
 function LoginPage() {
   const { login, isLoggedIn, user } = useAuth()

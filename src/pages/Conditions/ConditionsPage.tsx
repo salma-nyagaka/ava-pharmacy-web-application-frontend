@@ -4,8 +4,8 @@ import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallb
 import { cartService } from '../../services/cartService'
 import { fetchHealthConcernsFromBackend, type HealthConcern, matchesHealthConcern } from '../../data/healthConcerns'
 import { loadCatalogProducts } from '../../data/products'
-import '../../styles/pages/Conditions/ConditionsPage.css'
-import '../../styles/pages/ProductListing/ProductListingPage.css'
+import './ConditionsPage.css'
+import '../ProductListing/ProductListingPage.css'
 
 type ConditionMeta = { color: string; desc: string; icon: ReactNode }
 

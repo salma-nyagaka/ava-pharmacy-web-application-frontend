@@ -15,7 +15,7 @@ import {
   saveDoctorMessages,
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
-import '../../styles/pages/Doctor/DoctorDashboardPage.css'
+import './DoctorDashboardPage.css'
 
 type DoctorTab = 'queue' | 'messages' | 'prescriptions' | 'patients' | 'earnings'
 

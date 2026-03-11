@@ -4,9 +4,9 @@ import { CatalogProduct, productCatalog } from '../../data/products'
 import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
 import { cartService } from '../../services/cartService'
-import '../../styles/pages/Admin/AdminShared.css'
-import '../../styles/pages/Admin/PrescriptionManagement.css'
-import '../../styles/pages/Pharmacist/PharmacistDashboardPage.css'
+import '../Admin/AdminShared.css'
+import '../Admin/PrescriptionManagement.css'
+import './PharmacistDashboardPage.css'
 
 const statusClass = (status: PrescriptionStatus) =>
   status === 'Approved' ? 'admin-status--success'

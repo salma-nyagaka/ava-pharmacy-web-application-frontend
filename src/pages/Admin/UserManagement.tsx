@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AdminUserRole, PharmacistPermission, adminRoleOptions, formatAdminRole, loadAdminUsers } from './adminUsers'
+import { AdminUserRole, PharmacistPermission, adminRoleOptions, formatAdminRole, loadAdminUsers } from '../../data/adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
 import { AdminUserError, adminUserService } from '../../services/adminUserService'
-import '../../styles/pages/Admin/UserManagement.css'
+import './UserManagement.css'
 
 function UserManagement() {
   const navigate = useNavigate()

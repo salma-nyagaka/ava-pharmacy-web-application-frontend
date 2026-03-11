@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { type AdminOrder, getOrderTotals, loadAdminOrders, saveAdminOrders } from './adminOrders'
+import { type AdminOrder, getOrderTotals, loadAdminOrders, saveAdminOrders } from '../../data/adminOrders'
 import { logAdminAction } from '../../data/adminAudit'
-import '../../styles/pages/Admin/OrderManagement.css'
+import './OrderManagement.css'
 
 const formatCurrency = (value: number) => `KSh ${value.toLocaleString()}`
 

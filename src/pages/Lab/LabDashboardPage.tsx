@@ -17,8 +17,8 @@ import {
   upsertLabResult,
 } from '../../data/labs'
 import { loadLabPartners } from '../../data/labPartners'
-import { loadAdminUsers } from '../Admin/adminUsers'
-import '../../styles/pages/Lab/LabDashboardPage.css'
+import { loadAdminUsers } from '../../data/adminUsers'
+import './LabDashboardPage.css'
 
 function getStatusClass(status: LabRequestStatus) {
   if (status === 'Completed') return 'status-pill--success'

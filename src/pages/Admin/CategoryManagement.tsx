@@ -5,7 +5,7 @@ import {
   ApiProductCategory,
   ApiProductSubcategory,
 } from '../../services/adminProductService'
-import '../../styles/pages/Admin/CategoryManagement.css'
+import './CategoryManagement.css'
 
 type ViewMode = 'categories' | 'subcategories'
 type ModalMode = 'create-category' | 'create-subcategory' | 'edit-category' | 'edit-subcategory'

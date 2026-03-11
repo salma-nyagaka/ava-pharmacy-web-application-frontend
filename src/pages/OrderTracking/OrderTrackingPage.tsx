@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import PageHeader from '../../components/PageHeader/PageHeader'
-import '../../styles/pages/OrderTracking/OrderTrackingPage.css'
+import './OrderTrackingPage.css'
 
 const STEP_ICONS: Record<string, string> = {
   'Order confirmed': '✅',

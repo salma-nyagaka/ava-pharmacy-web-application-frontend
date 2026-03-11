@@ -4,8 +4,8 @@ import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallb
 import { cartService } from '../../services/cartService'
 import { loadCatalogProducts } from '../../data/products'
 import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
-import '../../styles/pages/Offers/OffersPage.css'
-import '../../styles/pages/ProductListing/ProductListingPage.css'
+import './OffersPage.css'
+import '../ProductListing/ProductListingPage.css'
 
 const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
 

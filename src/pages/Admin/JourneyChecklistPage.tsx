@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import '../../styles/pages/Admin/AdminShared.css'
-import '../../styles/pages/Admin/JourneyChecklistPage.css'
+import './AdminShared.css'
+import './JourneyChecklistPage.css'
 
 type ChecklistStatus = 'Ready' | 'Mock Ready' | 'Needs Backend'
 

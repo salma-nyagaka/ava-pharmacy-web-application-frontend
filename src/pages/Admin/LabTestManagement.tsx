@@ -11,8 +11,8 @@ import {
   saveSampleTypes,
 } from '../../data/labs'
 import { logAdminAction } from '../../data/adminAudit'
-import '../../styles/pages/Admin/AdminShared.css'
-import '../../styles/pages/Admin/LabTestManagement.css'
+import './AdminShared.css'
+import './LabTestManagement.css'
 
 const PAGE_SIZE = 8
 

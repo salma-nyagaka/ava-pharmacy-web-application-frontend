@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { PrescriptionRecord } from '../../data/prescriptions'
 import { cartService } from '../../services/cartService'
 import { prescriptionService } from '../../services/prescriptionService'
-import '../../styles/pages/PrescriptionHistory/PrescriptionHistoryPage.css'
+import './PrescriptionHistoryPage.css'
 
 function PrescriptionHistoryPage() {
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])

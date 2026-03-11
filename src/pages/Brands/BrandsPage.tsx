@@ -4,8 +4,8 @@ import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallb
 import { cartService } from '../../services/cartService'
 import { loadCatalogProducts } from '../../data/products'
 import { categoryData } from '../../data/categories'
-import '../../styles/pages/Brands/BrandsPage.css'
-import '../../styles/pages/ProductListing/ProductListingPage.css'
+import './BrandsPage.css'
+import '../ProductListing/ProductListingPage.css'
 
 const getStockLabel = (s: string) =>
   s === 'branch' ? 'In stock at selected branch' : s === 'warehouse' ? 'Available in central warehouse (2-3 days)' : 'Out of stock'

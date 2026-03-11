@@ -17,8 +17,8 @@ import {
   saveDoctorMessages,
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
-import '../../styles/pages/Doctor/DoctorDashboardPage.css'
-import '../../styles/pages/Pediatrician/PediatricianDashboardPage.css'
+import '../Doctor/DoctorDashboardPage.css'
+import './PediatricianDashboardPage.css'
 
 type PediatricTab = 'queue' | 'messages' | 'consents' | 'prescriptions' | 'profiles' | 'earnings'
 
