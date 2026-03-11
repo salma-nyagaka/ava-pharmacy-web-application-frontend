@@ -37,7 +37,6 @@ export interface ApiBrand {
   logo: string | null
   description: string
   is_active: boolean
-  health_concerns: ApiHealthConcern[]
 }
 
 export interface ApiProductSubcategory {

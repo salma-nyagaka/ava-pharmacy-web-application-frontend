@@ -1,26 +1,33 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { adminProductService, ApiHealthConcern } from '../../services/adminProductService'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { adminProductService, ApiBrand } from '../../services/adminProductService'
 import '../../styles/pages/Admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/pages/Admin/BrandManagement.css'
 
-function HealthConcernManagement() {
+function sortBrands(items: ApiBrand[]) {
+  return [...items].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function BrandManagement() {
   const navigate = useNavigate()
-  const [concerns, setConcerns] = useState<ApiHealthConcern[]>([])
+  const [brands, setBrands] = useState<ApiBrand[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
 
   const [showModal, setShowModal] = useState(false)
-  const [editing, setEditing] = useState<ApiHealthConcern | null>(null)
+  const [editing, setEditing] = useState<ApiBrand | null>(null)
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
-  const [formIcon, setFormIcon] = useState('')
+  const [formLogoFile, setFormLogoFile] = useState<File | null>(null)
+  const [logoPreviewSrc, setLogoPreviewSrc] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
-  const [deleteTarget, setDeleteTarget] = useState<ApiHealthConcern | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ApiBrand | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
@@ -30,9 +37,10 @@ function HealthConcernManagement() {
     setLoading(true)
     setError('')
     try {
-      setConcerns(await adminProductService.listHealthConcerns())
+      const results = await adminProductService.listBrands()
+      setBrands(sortBrands(results))
     } catch {
-      setError('Unable to load health concerns. Check your connection and try again.')
+      setError('Unable to load brands. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -40,43 +48,100 @@ function HealthConcernManagement() {
 
   useEffect(() => { void load() }, [])
 
+  useEffect(() => {
+    if (!formLogoFile) {
+      setLogoPreviewSrc(editing?.logo ?? null)
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(formLogoFile)
+    setLogoPreviewSrc(objectUrl)
+
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [editing, formLogoFile])
+
   const handleBack = () => {
     if (window.history.length > 1) { navigate(-1); return }
     navigate('/admin')
   }
 
-  const openAddModal = () => {
+  const resetForm = () => {
     setEditing(null)
-    setFormName(''); setFormDescription(''); setFormIcon(''); setFormError('')
+    setFormName('')
+    setFormDescription('')
+    setFormLogoFile(null)
+    setLogoPreviewSrc(null)
+    setFormError('')
+  }
+
+  const openAddModal = () => {
+    resetForm()
     setShowModal(true)
   }
 
-  const openEditModal = (c: ApiHealthConcern) => {
-    setEditing(c)
-    setFormName(c.name); setFormDescription(c.description ?? ''); setFormIcon(c.icon ?? ''); setFormError('')
+  const openEditModal = (brand: ApiBrand) => {
+    setEditing(brand)
+    setFormName(brand.name)
+    setFormDescription(brand.description ?? '')
+    setFormLogoFile(null)
+    setFormError('')
     setShowModal(true)
   }
 
-  const closeModal = () => { if (!saving) setShowModal(false) }
+  const closeModal = () => {
+    if (saving) return
+    resetForm()
+    setShowModal(false)
+  }
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault()
-    if (!formName.trim()) { setFormError('Name is required.'); return }
-    setSaving(true); setFormError('')
+
+    if (!formName.trim()) {
+      setFormError('Name is required.')
+      return
+    }
+
+    if (!editing && !formLogoFile) {
+      setFormError('Brand logo is required.')
+      return
+    }
+
+    setSaving(true)
+    setFormError('')
+
     try {
+      const trimmedName = formName.trim()
+      const trimmedDescription = formDescription.trim()
+
       if (editing) {
-        const updated = await adminProductService.updateHealthConcern(editing.id, {
-          name: formName.trim(), description: formDescription.trim(), icon: formIcon.trim(),
-        })
-        setConcerns((prev) => prev.map((c) => (c.id === editing.id ? updated : c)))
+        const payload =
+          formLogoFile
+            ? (() => {
+                const formData = new FormData()
+                formData.append('name', trimmedName)
+                formData.append('description', trimmedDescription)
+                formData.append('logo', formLogoFile)
+                return formData
+              })()
+            : {
+                name: trimmedName,
+                description: trimmedDescription,
+              }
+
+        const updated = await adminProductService.updateBrand(editing.id, payload)
+        setBrands((prev) => sortBrands(prev.map((brand) => (brand.id === editing.id ? updated : brand))))
       } else {
-        const created = await adminProductService.createHealthConcern({
-          name: formName.trim(),
-          description: formDescription.trim() || undefined,
-          icon: formIcon.trim() || undefined,
-        })
-        setConcerns((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+        const payload = new FormData()
+        payload.append('name', trimmedName)
+        if (trimmedDescription) payload.append('description', trimmedDescription)
+        payload.append('logo', formLogoFile!)
+
+        const created = await adminProductService.createBrand(payload)
+        setBrands((prev) => sortBrands([...prev, created]))
       }
+
+      resetForm()
       setShowModal(false)
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
@@ -86,22 +151,30 @@ function HealthConcernManagement() {
     }
   }
 
-  const handleToggle = async (c: ApiHealthConcern) => {
-    setTogglingIds((prev) => new Set(prev).add(c.id))
+  const handleToggle = async (brand: ApiBrand) => {
+    setTogglingIds((prev) => new Set(prev).add(brand.id))
     try {
-      const updated = await adminProductService.updateHealthConcern(c.id, { is_active: !c.is_active })
-      setConcerns((prev) => prev.map((x) => (x.id === c.id ? updated : x)))
-    } catch { /* silent */ } finally {
-      setTogglingIds((prev) => { const s = new Set(prev); s.delete(c.id); return s })
+      const updated = await adminProductService.updateBrand(brand.id, { is_active: !brand.is_active })
+      setBrands((prev) => sortBrands(prev.map((item) => (item.id === brand.id ? updated : item))))
+    } catch {
+      // silent
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(brand.id)
+        return next
+      })
     }
   }
 
   const handleDelete = async () => {
     if (!deleteTarget) return
-    setDeleting(true); setDeleteError('')
+
+    setDeleting(true)
+    setDeleteError('')
     try {
-      await adminProductService.deleteHealthConcern(deleteTarget.id)
-      setConcerns((prev) => prev.filter((c) => c.id !== deleteTarget.id))
+      await adminProductService.deleteBrand(deleteTarget.id)
+      setBrands((prev) => prev.filter((brand) => brand.id !== deleteTarget.id))
       setDeleteTarget(null)
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
@@ -112,17 +185,21 @@ function HealthConcernManagement() {
   }
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return concerns
-    return concerns.filter((c) => c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q))
-  }, [concerns, search])
+    const query = search.trim().toLowerCase()
+    if (!query) return brands
 
-  const activeCount = concerns.filter((c) => c.is_active).length
+    return brands.filter((brand) => (
+      brand.name.toLowerCase().includes(query) ||
+      brand.slug.toLowerCase().includes(query) ||
+      brand.description?.toLowerCase().includes(query)
+    ))
+  }, [brands, search])
+
+  const activeCount = brands.filter((brand) => brand.is_active).length
+  const withLogosCount = brands.filter((brand) => Boolean(brand.logo)).length
 
   return (
     <div className="category-management">
-
-      {/* ── Header ── */}
       <div className="category-management__header">
         <div className="category-management__title">
           <button className="pm-back-btn" type="button" onClick={handleBack}>
@@ -132,37 +209,34 @@ function HealthConcernManagement() {
             Back
           </button>
           <div className="cm-title-group">
-            <h1>Health Concerns</h1>
-            <p className="cm-title-sub">Tag products with health concerns to help customers find what they need</p>
+            <h1>Brand Management</h1>
+            <p className="cm-title-sub">Create and manage catalog brands using the same admin workflow as the rest of the store.</p>
           </div>
         </div>
         <div className="category-management__actions">
           <button className="btn btn--primary btn--sm" type="button" onClick={openAddModal}>
-            + Health Concern
+            + Brand
           </button>
-      
         </div>
       </div>
 
-      {/* ── Stats ── */}
       <div className="cm-stat-strip">
         <div className="cm-stat-item">
-          <strong className="cm-stat-item__value">{loading ? '—' : concerns.length}</strong>
+          <strong className="cm-stat-item__value">{loading ? '-' : brands.length}</strong>
           <span className="cm-stat-item__label">Total</span>
         </div>
         <div className="cm-stat-divider" />
         <div className="cm-stat-item">
-          <strong className="cm-stat-item__value cm-stat-item__value--green">{loading ? '—' : activeCount}</strong>
+          <strong className="cm-stat-item__value cm-stat-item__value--green">{loading ? '-' : activeCount}</strong>
           <span className="cm-stat-item__label">Active</span>
         </div>
         <div className="cm-stat-divider" />
         <div className="cm-stat-item">
-          <strong className="cm-stat-item__value">{loading ? '—' : concerns.length - activeCount}</strong>
-          <span className="cm-stat-item__label">Inactive</span>
+          <strong className="cm-stat-item__value">{loading ? '-' : withLogosCount}</strong>
+          <span className="cm-stat-item__label">With Logo</span>
         </div>
       </div>
 
-      {/* ── Toolbar ── */}
       <div className="cm-toolbar">
         <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
           <div className="cm-search-box">
@@ -171,7 +245,7 @@ function HealthConcernManagement() {
             </svg>
             <input
               type="search"
-              placeholder="Search health concerns…"
+              placeholder="Search brands..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -189,9 +263,7 @@ function HealthConcernManagement() {
         </div>
       </div>
 
-      {/* ── Panel ── */}
       <div className="cm-panel">
-
         {error && (
           <div className="cm-error-banner">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -206,9 +278,9 @@ function HealthConcernManagement() {
           <div className="cm-skeletons">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="cm-skeleton-row">
-                <div className="cm-skeleton" style={{ width: '28%' }} />
-                <div className="cm-skeleton" style={{ width: '8%', borderRadius: '999px' }} />
-                <div className="cm-skeleton" style={{ width: '36%' }} />
+                <div className="cm-skeleton" style={{ width: '22%' }} />
+                <div className="cm-skeleton" style={{ width: '30%' }} />
+                <div className="cm-skeleton" style={{ width: '18%', borderRadius: '999px' }} />
                 <div className="cm-skeleton" style={{ width: '10%', borderRadius: '999px' }} />
               </div>
             ))}
@@ -220,18 +292,19 @@ function HealthConcernManagement() {
             <div className="cm-empty-state">
               <div className="cm-empty-state__icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="36" height="36">
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                  <path d="M5 7.5A2.5 2.5 0 017.5 5H16a3 3 0 013 3v8.5A2.5 2.5 0 0116.5 19H8l-3 3V7.5z" />
+                  <path d="M9 9h6M9 13h4" strokeLinecap="round" />
                 </svg>
               </div>
               <p className="cm-empty-state__title">
-                {search ? `No results for "${search}"` : 'No health concerns yet'}
+                {search ? `No results for "${search}"` : 'No brands yet'}
               </p>
               <p className="cm-empty-state__sub">
-                {search ? 'Try a different keyword.' : 'Add health concerns to help shoppers filter by condition.'}
+                {search ? 'Try a different keyword.' : 'Add brands so products can be grouped and merchandised consistently.'}
               </p>
               {!search && (
                 <button className="btn btn--primary btn--sm" type="button" onClick={openAddModal}>
-                  + Add Health Concern
+                  + Add Brand
                 </button>
               )}
             </div>
@@ -240,39 +313,51 @@ function HealthConcernManagement() {
               <table className="cm-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Icon</th>
+                    <th>Brand</th>
                     <th>Description</th>
                     <th>Status</th>
                     <th className="cm-th-actions"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((c) => (
-                    <tr key={c.id}>
+                  {filtered.map((brand) => (
+                    <tr key={brand.id}>
                       <td>
-                        <div className="cm-name-cell">
-                          <span className="cm-name-cell__name">{c.name}</span>
-                          <span className="cm-name-cell__id">#{c.id}</span>
+                        <div className="cm-brand-identity">
+                          <div className={`cm-brand-logo${brand.logo ? '' : ' cm-brand-logo--placeholder'}`}>
+                            {brand.logo ? (
+                              <ImageWithFallback
+                                src={brand.logo}
+                                alt={`${brand.name} logo`}
+                                className="cm-brand-logo__img"
+                              />
+                            ) : (
+                              <span>{brand.name.slice(0, 2).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div className="cm-name-cell">
+                            <span className="cm-name-cell__name">{brand.name}</span>
+                            <span className="cm-name-cell__id">#{brand.id}</span>
+                          </div>
                         </div>
                       </td>
                       <td>
-                        {c.icon
-                          ? <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>{c.icon}</span>
-                          : <span className="cm-name-cell__id">—</span>}
+                        {brand.description ? (
+                          <span className="cm-name-cell__desc" style={{ maxWidth: 340 }}>
+                            {brand.description}
+                          </span>
+                        ) : (
+                          <span className="cm-name-cell__id">-</span>
+                        )}
                       </td>
-                      <td>
-                        <span className="cm-name-cell__desc" style={{ maxWidth: 340 }}>
-                          {c.description || <span className="cm-name-cell__id">—</span>}
-                        </span>
-                      </td>
+
                       <td>
                         <button
                           type="button"
-                          className={`cm-toggle${c.is_active ? ' cm-toggle--on' : ''}`}
-                          onClick={() => void handleToggle(c)}
-                          disabled={togglingIds.has(c.id)}
-                          title={c.is_active ? 'Click to deactivate' : 'Click to activate'}
+                          className={`cm-toggle${brand.is_active ? ' cm-toggle--on' : ''}`}
+                          onClick={() => void handleToggle(brand)}
+                          disabled={togglingIds.has(brand.id)}
+                          title={brand.is_active ? 'Click to deactivate' : 'Click to activate'}
                         >
                           <span className="cm-toggle__knob" />
                         </button>
@@ -282,7 +367,7 @@ function HealthConcernManagement() {
                           <button
                             type="button"
                             className="cm-row-btn cm-row-btn--edit"
-                            onClick={() => openEditModal(c)}
+                            onClick={() => openEditModal(brand)}
                             title="Edit"
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
@@ -294,7 +379,7 @@ function HealthConcernManagement() {
                           <button
                             type="button"
                             className="cm-row-btn cm-row-btn--delete"
-                            onClick={() => { setDeleteTarget(c); setDeleteError('') }}
+                            onClick={() => { setDeleteTarget(brand); setDeleteError('') }}
                             title="Delete"
                           >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
@@ -315,14 +400,13 @@ function HealthConcernManagement() {
         )}
       </div>
 
-      {/* ── Create / Edit Modal ── */}
       {showModal && (
         <div className="cm-overlay" onClick={closeModal}>
           <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="cm-modal__header">
               <div>
-                <h2>{editing ? 'Edit Health Concern' : 'New Health Concern'}</h2>
-                <p>Tag products so shoppers can filter by health condition.</p>
+                <h2>{editing ? 'Edit Brand' : 'New Brand'}</h2>
+                <p>Keep brand names, logos, and descriptions consistent across the catalog.</p>
               </div>
               <button type="button" className="cm-modal__close" onClick={closeModal} disabled={saving} aria-label="Close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
@@ -332,41 +416,68 @@ function HealthConcernManagement() {
             </div>
 
             <form className="cm-form" onSubmit={handleSave}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.9rem' }}>
-                <label className="cm-field">
-                  <span>Name</span>
-                  <input
-                    type="text"
-                    value={formName}
-                    onChange={(e) => { setFormName(e.target.value); setFormError('') }}
-                    placeholder="e.g. Pain Relief"
-                    disabled={saving}
-                    autoFocus
-                  />
-                </label>
-                <label className="cm-field">
-                  <span>Icon <em className="cm-field__optional">optional</em></span>
-                  <input
-                    type="text"
-                    value={formIcon}
-                    onChange={(e) => setFormIcon(e.target.value)}
-                    placeholder="💊"
-                    disabled={saving}
-                    style={{ width: 72, textAlign: 'center', fontSize: '1.25rem' }}
-                  />
-                </label>
-              </div>
+              <label className="cm-field">
+                <span>Name</span>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => { setFormName(e.target.value); setFormError('') }}
+                  placeholder="e.g. Panadol"
+                  disabled={saving}
+                  autoFocus
+                />
+              </label>
 
               <label className="cm-field">
                 <span>Description <em className="cm-field__optional">optional</em></span>
                 <textarea
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Brief description visible to shoppers"
+                  placeholder="Short description visible to shoppers"
                   disabled={saving}
-                  rows={2}
+                  rows={3}
                 />
               </label>
+
+              <div className="cm-field">
+                <span>Brand Logo {editing && <em className="cm-field__optional">optional</em>}</span>
+                <input
+                  id="brand-logo-input"
+                  className="cm-file-input__native"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => { setFormLogoFile(e.currentTarget.files?.[0] ?? null); setFormError('') }}
+                  disabled={saving}
+                  required={!editing}
+                />
+                <label htmlFor="brand-logo-input" className={`cm-file-input${saving ? ' cm-file-input--disabled' : ''}`}>
+                  <span className="cm-file-input__button">
+                    {editing ? 'Replace logo' : 'Choose logo'}
+                  </span>
+                  <span className="cm-file-input__text">
+                    {formLogoFile?.name ?? (editing ? 'Keep current logo' : 'No file selected')}
+                  </span>
+                </label>
+                <p className="cm-upload-note">
+                  {editing ? 'Upload a new image only if you want to replace the current logo.' : 'Upload the main logo used across the storefront.'}
+                </p>
+              </div>
+
+              {logoPreviewSrc && (
+                <div className="cm-brand-preview">
+                  <ImageWithFallback
+                    src={logoPreviewSrc}
+                    alt={editing ? `${editing.name} logo preview` : 'Brand logo preview'}
+                    className="cm-brand-preview__img"
+                  />
+                  <div className="cm-brand-preview__meta">
+                    <span className="cm-brand-preview__label">{formLogoFile ? 'Selected file' : 'Current logo'}</span>
+                    <span className="cm-brand-preview__name">
+                      {formLogoFile?.name ?? editing?.name ?? 'Brand logo'}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {formError && (
                 <p className="cm-form__error">
@@ -383,7 +494,7 @@ function HealthConcernManagement() {
                 </button>
                 <button type="submit" className="btn btn--primary btn--sm" disabled={saving}>
                   {saving
-                    ? <><span className="cm-spinner" /> Saving…</>
+                    ? <><span className="cm-spinner" /> Saving...</>
                     : editing ? 'Save Changes' : 'Create'}
                 </button>
               </div>
@@ -392,12 +503,11 @@ function HealthConcernManagement() {
         </div>
       )}
 
-      {/* ── Delete Confirmation ── */}
       {deleteTarget && (
         <div className="cm-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
           <div className="cm-modal cm-modal--sm" onClick={(e) => e.stopPropagation()}>
             <div className="cm-modal__header cm-modal__header--danger">
-              <h2>Delete Health Concern</h2>
+              <h2>Delete Brand</h2>
               <button
                 type="button"
                 className="cm-modal__close"
@@ -419,7 +529,7 @@ function HealthConcernManagement() {
                 </svg>
               </div>
               <p>Delete <strong>"{deleteTarget.name}"</strong>? This action cannot be undone.</p>
-              <p className="cm-delete-warning">Products tagged with this concern will have it removed.</p>
+              <p className="cm-delete-warning">Products linked to this brand may need review after deletion.</p>
               {deleteError && (
                 <p className="cm-form__error" style={{ marginTop: '0.75rem', justifyContent: 'center' }}>
                   <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
@@ -445,7 +555,7 @@ function HealthConcernManagement() {
                 onClick={() => void handleDelete()}
                 disabled={deleting}
               >
-                {deleting ? <><span className="cm-spinner cm-spinner--light" /> Deleting…</> : 'Delete'}
+                {deleting ? <><span className="cm-spinner cm-spinner--light" /> Deleting...</> : 'Delete'}
               </button>
             </div>
           </div>
@@ -455,4 +565,4 @@ function HealthConcernManagement() {
   )
 }
 
-export default HealthConcernManagement
+export default BrandManagement

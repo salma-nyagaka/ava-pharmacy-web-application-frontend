@@ -23,6 +23,7 @@ import AdminDashboard from './pages/Admin/AdminDashboard'
 import ProductManagement from './pages/Admin/ProductManagement'
 import CategoryManagement from './pages/Admin/CategoryManagement'
 import HealthConcernManagement from './pages/Admin/HealthConcernManagement'
+import BrandManagement from './pages/Admin/BrandManagement'
 import UserManagement from './pages/Admin/UserManagement'
 import UserDetailsPage from './pages/Admin/UserDetailsPage'
 import UserCreatePage from './pages/Admin/UserCreatePage'
@@ -147,6 +148,7 @@ function App() {
           <Route path="admin/products" element={<AdminRoute><ProductManagement /></AdminRoute>} />
           <Route path="admin/categories" element={<AdminRoute><CategoryManagement /></AdminRoute>} />
           <Route path="admin/health-concerns" element={<AdminRoute><HealthConcernManagement /></AdminRoute>} />
+          <Route path="admin/brands" element={<AdminRoute><BrandManagement /></AdminRoute>} />
           <Route path="admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
           <Route path="admin/users/pharmacist/new" element={<AdminRoute><UserCreatePage /></AdminRoute>} />
           <Route path="admin/users/:id" element={<AdminRoute><UserDetailsPage /></AdminRoute>} />

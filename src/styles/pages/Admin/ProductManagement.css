@@ -241,6 +241,23 @@
   color: #6b7280;
 }
 
+.product-table-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.product-table-catalog__sub {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.product-table-catalog__category {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
 .product-info {
   display: flex;
   align-items: center;

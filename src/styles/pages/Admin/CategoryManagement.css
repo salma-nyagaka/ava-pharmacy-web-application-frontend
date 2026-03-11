@@ -49,6 +49,18 @@
   flex-wrap: wrap;
 }
 
+.category-management__actions .btn {
+  min-height: 36px;
+}
+
+.category-management__actions .btn--primary {
+  border: 2px solid transparent;
+}
+
+.category-management__actions .btn--ghost {
+  border-width: 2px;
+}
+
 .category-management .pm-back-btn {
   margin: 0;
 }
@@ -509,6 +521,92 @@
   color: #475569;
 }
 
+/* ── Brand Cells / Upload Preview ── */
+.cm-brand-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 220px;
+}
+
+.cm-brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0.35rem;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cm-brand-logo--placeholder {
+  padding: 0;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.cm-brand-logo__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.cm-upload-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.cm-brand-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.cm-brand-preview__img {
+  width: 68px;
+  height: 68px;
+  padding: 0.4rem;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.cm-brand-preview__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.cm-brand-preview__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.cm-brand-preview__name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  word-break: break-word;
+}
+
 /* ── Parent Badge (subcategories view) ── */
 .cm-parent-badge {
   display: inline-flex;
@@ -827,6 +925,9 @@
     width: 100%;
   }
 
+  .cm-brand-preview {
+    align-items: flex-start;
+  }
 
   .cm-modal__actions {
     flex-direction: column-reverse;
@@ -845,5 +946,10 @@
 
   .cm-stat-divider {
     display: none;
+  }
+
+  .cm-brand-preview {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

@@ -74,6 +74,7 @@ function AdminDashboard() {
             <div className="quick-actions-admin">
               <Link to="/admin/categories" className="admin-action"><span>🗂️</span><span>Categories</span></Link>
               <Link to="/admin/health-concerns" className="admin-action"><span>🩺</span><span>Health Concerns</span></Link>
+              <Link to="/admin/brands" className="admin-action"><span>🏭</span><span>Brands</span></Link>
               <Link to="/admin/products" className="admin-action"><span>🛍️</span><span>Products</span></Link>
               <Link to="/admin/inventory" className="admin-action"><span>📦</span><span>Inventory</span></Link>
               <Link to="/admin/orders" className="admin-action"><span>🧾</span><span>Orders</span></Link>

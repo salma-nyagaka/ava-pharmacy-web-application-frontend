@@ -10,8 +10,10 @@ import {
   ApiProduct,
   ProductCreatePayload,
 } from '../../services/adminProductService'
+import '../../styles/pages/Admin/AdminShared.css'
+import '../../styles/admin/shared/AdminButtonUtilities.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/pages/Admin/ProductManagement.css'
-import '../../styles/pages/Admin/CategoryManagement.css'
 
 const PAGE_SIZE = 6
 
@@ -116,8 +118,8 @@ function ProductManagement() {
     setProductPrice('')
     setProductOriginalPrice('')
     setProductStock('')
-    setProductSubcategoryId('')
-    setProductBrandId('')
+    setProductSubcategoryId(subcategories[0]?.id ?? '')
+    setProductBrandId(brands[0]?.id ?? '')
     setProductHealthConcernIds([])
     setProductStatus('active')
     setProductRequiresRx(false)
@@ -157,8 +159,8 @@ function ProductManagement() {
     setProductPrice(product.price)
     setProductOriginalPrice(product.original_price ?? '')
     setProductStock(String(product.stock_quantity))
-    setProductSubcategoryId(product.subcategory_id ?? '')
-    setProductBrandId(product.brand?.id ?? '')
+    setProductSubcategoryId(product.subcategory_id ?? (subcategories[0]?.id ?? ''))
+    setProductBrandId(product.brand?.id ?? (brands[0]?.id ?? ''))
     setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
     setProductStatus(product.is_active ? 'active' : 'inactive')
     setProductRequiresRx(product.requires_prescription)
@@ -173,6 +175,14 @@ function ProductManagement() {
     e.preventDefault()
     if (!productName.trim()) { setFormError('Product name is required.'); return }
     if (!productPrice) { setFormError('Price is required.'); return }
+    if (productBrandId === '') {
+      setFormError(brands.length === 0 ? 'Create a brand before adding a product.' : 'Brand is required.')
+      return
+    }
+    if (productSubcategoryId === '') {
+      setFormError(subcategories.length === 0 ? 'Create a subcategory before adding a product.' : 'Subcategory is required.')
+      return
+    }
     if (!editingProduct && !productImageFile) { setFormError('Product image is required.'); return }
 
     const sku = productSku.trim() || generateSku(productName)
@@ -185,8 +195,8 @@ function ProductManagement() {
       price: Number(productPrice),
       original_price: productOriginalPrice ? Number(productOriginalPrice) : undefined,
       stock_quantity: Number(productStock) || 0,
-      brand_id: productBrandId !== '' ? Number(productBrandId) : null,
-      subcategory_id: productSubcategoryId !== '' ? Number(productSubcategoryId) : null,
+      brand_id: Number(productBrandId),
+      subcategory_id: Number(productSubcategoryId),
       health_concern_ids: productHealthConcernIds,
       is_active: productStatus === 'active',
       requires_prescription: productRequiresRx,
@@ -206,9 +216,7 @@ function ProductManagement() {
       if (payload.strength) formData.append('strength', payload.strength)
       if (payload.original_price !== undefined) formData.append('original_price', String(payload.original_price))
       if (payload.brand_id !== null && payload.brand_id !== undefined) formData.append('brand_id', String(payload.brand_id))
-      else if (editingProduct && editingProduct.brand) formData.append('brand_id', '')
       if (payload.subcategory_id !== null && payload.subcategory_id !== undefined) formData.append('subcategory_id', String(payload.subcategory_id))
-      else if (editingProduct && editingProduct.subcategory_id !== null) formData.append('subcategory_id', '')
       productHealthConcernIds.forEach((id) => formData.append('health_concern_ids', String(id)))
       if (payload.description) formData.append('description', payload.description)
       if (productImageFile) formData.append('image', productImageFile)
@@ -341,16 +349,51 @@ function ProductManagement() {
       ? subcategories
       : subcategories.filter((subcategory) => String(subcategory.category) === selectedCategory)
 
+  useEffect(() => {
+    if (!showAddModal || editingProduct || productBrandId !== '' || brands.length === 0) return
+    setProductBrandId(brands[0].id)
+  }, [showAddModal, editingProduct, productBrandId, brands])
+
+  useEffect(() => {
+    if (!showAddModal || editingProduct || productSubcategoryId !== '' || subcategories.length === 0) return
+    setProductSubcategoryId(subcategories[0].id)
+  }, [showAddModal, editingProduct, productSubcategoryId, subcategories])
+
   const hasActiveFilters =
     searchTerm.trim() !== '' ||
     selectedCategory !== 'all' ||
     selectedSubcat !== 'all' ||
     selectedConcern !== 'all'
 
+  const resolveProductSubcategory = (product: ApiProduct) => {
+    if (product.subcategory_id !== null) {
+      const byId = subcategories.find((subcategory) => subcategory.id === product.subcategory_id)
+      if (byId) return byId
+    }
+
+    if (product.subcategory_name) {
+      const normalizedSubcategory = product.subcategory_name.trim().toLowerCase()
+      const normalizedCategory = product.category_name?.trim().toLowerCase()
+
+      const exactMatch = subcategories.find((subcategory) => (
+        subcategory.name.trim().toLowerCase() === normalizedSubcategory &&
+        (!normalizedCategory || subcategory.category_name.trim().toLowerCase() === normalizedCategory)
+      ))
+      if (exactMatch) return exactMatch
+
+      const byName = subcategories.find((subcategory) => subcategory.name.trim().toLowerCase() === normalizedSubcategory)
+      if (byName) return byName
+    }
+
+    return null
+  }
+
   const getProductCategoryId = (product: ApiProduct) => {
     if (product.category !== null) return product.category
-    if (product.subcategory_id === null) return null
-    return subcategories.find((subcategory) => subcategory.id === product.subcategory_id)?.category ?? null
+    const resolvedSubcategory = resolveProductSubcategory(product)
+    if (resolvedSubcategory) return resolvedSubcategory.category
+    if (!product.category_name) return null
+    return categories.find((category) => category.name.trim().toLowerCase() === product.category_name!.trim().toLowerCase())?.id ?? null
   }
 
   const clearFilters = () => {
@@ -378,18 +421,30 @@ function ProductManagement() {
   const pagedProducts = filteredProducts.slice(startIndex, startIndex + PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE))
 
-  const getSubcategoryLabel = (subcategoryId: number | null) => {
-    if (!subcategoryId) return 'Uncategorized'
-    const sub = subcategories.find((s) => s.id === subcategoryId)
-    if (!sub) return 'Uncategorized'
-    return `${sub.category_name} / ${sub.name}`
+  const getProductCatalog = (product: ApiProduct) => {
+    const resolvedSubcategory = resolveProductSubcategory(product)
+    const categoryName =
+      product.category_name ||
+      resolvedSubcategory?.category_name ||
+      (getProductCategoryId(product) !== null
+        ? categories.find((category) => category.id === getProductCategoryId(product))?.name ?? null
+        : null) ||
+      'Uncategorized'
+
+    const subcategoryName =
+      product.subcategory_name ||
+      resolvedSubcategory?.name ||
+      'Uncategorized'
+
+    return {
+      categoryName,
+      subcategoryName,
+      combinedLabel: `${categoryName} / ${subcategoryName}`,
+    }
   }
 
   const getCategoryLabel = (product: ApiProduct) => {
-    if (product.category_name) return product.category_name
-    const categoryId = getProductCategoryId(product)
-    if (categoryId === null) return 'Uncategorized'
-    return categories.find((category) => category.id === categoryId)?.name ?? 'Uncategorized'
+    return getProductCatalog(product).categoryName
   }
 
   const getProductBrandLabel = (product: ApiProduct) => product.brand?.name ?? product.brand_name ?? 'No brand'
@@ -423,7 +478,7 @@ function ProductManagement() {
           </div>
         </div>
         <div className="product-management__actions">
-          <button className="btn btn--secondary btn--sm" type="button" onClick={openBrandModal}>+ Brand</button>
+        
           <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
           <Link className="btn btn--secondary btn--sm" to="/admin/inventory">
             Add Inventory
@@ -527,7 +582,7 @@ function ProductManagement() {
                         <div className="product-info__catalog-tags">
                           <span className="product-catalog-chip">{getCategoryLabel(product)}</span>
                           <span className="product-catalog-chip product-catalog-chip--sub">
-                            {product.subcategory_name ?? 'No subcategory'}
+                            {getProductCatalog(product).subcategoryName}
                           </span>
                         </div>
                         {product.health_concerns.length > 0 && (
@@ -547,7 +602,12 @@ function ProductManagement() {
                       </div>
                     </div>
                   </td>
-                  <td className="td--muted">{getSubcategoryLabel(product.subcategory_id)}</td>
+                  <td className="td--muted">
+                    <div className="product-table-catalog">
+                      <span className="product-table-catalog__sub">{getProductCatalog(product).subcategoryName}</span>
+                      <span className="product-table-catalog__category">{getProductCatalog(product).categoryName}</span>
+                    </div>
+                  </td>
                   <td>KSh {Number(product.price).toLocaleString()}</td>
                   <td>
                     <span className={`stock ${product.stock_quantity < 20 ? 'stock--low' : ''}`}>{product.stock_quantity}</span>
@@ -660,15 +720,16 @@ function ProductManagement() {
                   </div>
                   <div className="pf-row">
                     <div className="pf-field">
-                      <label className="pf-label">Brand</label>
+                      <label className="pf-label">Brand <span className="pf-req">*</span></label>
                       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                         <select
                           className="pf-input"
                           style={{ flex: 1 }}
                           value={productBrandId}
                           onChange={(e) => setProductBrandId(e.target.value !== '' ? Number(e.target.value) : '')}
+                          disabled={brands.length === 0}
                         >
-                          <option value="">No brand</option>
+                          {brands.length === 0 && <option value="">Create a brand first</option>}
                           {brands.map((brand) => (
                             <option key={brand.id} value={brand.id}>{brand.name}</option>
                           ))}
@@ -677,9 +738,14 @@ function ProductManagement() {
                       </div>
                     </div>
                     <div className="pf-field">
-                      <label className="pf-label">Subcategory</label>
-                      <select className="pf-input" value={productSubcategoryId} onChange={(e) => setProductSubcategoryId(e.target.value !== '' ? Number(e.target.value) : '')}>
-                        <option value="">No subcategory</option>
+                      <label className="pf-label">Subcategory <span className="pf-req">*</span></label>
+                      <select
+                        className="pf-input"
+                        value={productSubcategoryId}
+                        onChange={(e) => setProductSubcategoryId(e.target.value !== '' ? Number(e.target.value) : '')}
+                        disabled={subcategories.length === 0}
+                      >
+                        {subcategories.length === 0 && <option value="">Create a subcategory first</option>}
                         {subcategories.map((s) => (
                           <option key={s.id} value={s.id}>{s.category_name} / {s.name}</option>
                         ))}
