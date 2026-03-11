@@ -12,10 +12,9 @@ import {
 import backgroundBanner from '../../assets/images/banner/background.jpg'
 // import niveaBanner from '../../assets/images/banner/nivea.png'
 // import larocheBanner from '../../assets/images/banner/laroche-pink.png'
-import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
 import { cartService } from '../../services/cartService'
-import { loadCatalogProducts } from '../../data/products'
 import { loadCategories } from '../../data/categories'
+import { useProducts } from '../../hooks/useProducts'
 import './HomePage.css'
 
 const CATEGORY_IMAGE_MAP: Record<string, string> = {
@@ -52,21 +51,14 @@ function HomePage() {
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
   ]
 
-  const catalogProducts = loadCatalogProducts()
+  const { products: catalogProducts } = useProducts({ page_size: 50 })
   const featuredProducts = catalogProducts.filter((product) => product.stockSource !== 'out').slice(0, 4)
   const curatedProducts = catalogProducts.filter((product) => product.badge === 'New' || product.badge === 'Popular')
-  const newProducts = [...curatedProducts, ...catalogProducts.filter((product) => !curatedProducts.includes(product))]
-    .slice(0, 4)
-  const promotions = loadPromotions()
-  const featuredDeals = featuredProducts.map((product) =>
-    applyPromotionsToProduct(product, promotions)
-  )
-  const newDeals = newProducts.map((product) =>
-    applyPromotionsToProduct(product, promotions)
-  )
+  const newProducts = [...curatedProducts, ...catalogProducts.filter((product) => !curatedProducts.includes(product))].slice(0, 4)
+  const featuredDeals = featuredProducts
+  const newDeals = newProducts
   const offerDeals = catalogProducts
-    .map((product) => applyPromotionsToProduct(product, promotions))
-    .filter((product) => product.stockSource !== 'out' && (product.originalPrice ?? product.price) > product.price)
+    .filter((product) => product.stockSource !== 'out' && product.originalPrice !== null && product.originalPrice > product.price)
     .slice(0, 4)
 
   const formatPrice = (price: number) => {

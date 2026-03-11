@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import { loadCatalogProducts, getCatalogProductById } from '../../data/products'
 import { cartService } from '../../services/cartService'
+import { fetchProductById, fetchProducts } from '../../services/productService'
+import { mapApiProduct } from '../../hooks/useProducts'
 import './ProductDetailPage.css'
 
 function ProductDetailPage() {
@@ -11,24 +12,41 @@ function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = useState(0)
   const [restockEnabled, setRestockEnabled] = useState(false)
   const [cartMessage, setCartMessage] = useState('')
+  const [selectedProduct, setSelectedProduct] = useState<ReturnType<typeof mapApiProduct> | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<{ id: number; name: string; price: number; image: string; rating: number }[]>([])
 
-  const parsedId = Number.parseInt(routeId ?? '1', 10) || 1
+  const parsedId = Number.parseInt(routeId ?? '0', 10) || 0
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [routeId])
-  const catalogProducts = loadCatalogProducts()
-  if (catalogProducts.length === 0) {
+
+  useEffect(() => {
+    if (!parsedId) return
+    fetchProductById(parsedId).then((data) => {
+      const mapped = mapApiProduct(data as Parameters<typeof mapApiProduct>[0])
+      setSelectedProduct(mapped)
+      fetchProducts({ category: data.category_slug, page_size: 4 }).then(({ data: related }) => {
+        setRelatedProducts(
+          related
+            .filter((r) => r.id !== parsedId)
+            .slice(0, 3)
+            .map((r) => ({ id: r.id, name: r.name, price: parseFloat(r.final_price ?? r.price), image: r.image ?? '', rating: r.average_rating }))
+        )
+      }).catch(() => {})
+    }).catch(() => {})
+  }, [parsedId])
+
+  if (!selectedProduct) {
     return (
       <div className="pdp">
         <div className="container">
-          <p>No products are available right now.</p>
+          <p>Loading product…</p>
         </div>
       </div>
     )
   }
-  const fallbackProduct = catalogProducts[0]
-  const selectedProduct = getCatalogProductById(parsedId) ?? fallbackProduct
+
   const stockSource = selectedProduct.stockSource
   const inStock = stockSource !== 'out'
 
@@ -51,17 +69,6 @@ function ProductDetailPage() {
     directions: selectedProduct.directions,
     warnings: selectedProduct.warnings,
   }
-
-  const relatedProducts = catalogProducts
-    .filter((item) => item.id !== product.id && item.categorySlug === product.categorySlug)
-    .slice(0, 3)
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      image: item.image,
-      rating: item.rating,
-    }))
 
   const reviews = [
     {

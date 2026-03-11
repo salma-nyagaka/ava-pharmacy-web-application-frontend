@@ -21,6 +21,8 @@ import DoctorConsultation from './pages/Consultation/DoctorConsultation'
 import PediatricianConsultation from './pages/Consultation/PediatricianConsultation'
 import AdminDashboard from './pages/Admin/AdminDashboard'
 import ProductManagement from './pages/Admin/ProductManagement'
+import CategoryManagement from './pages/Admin/CategoryManagement'
+import HealthConcernManagement from './pages/Admin/HealthConcernManagement'
 import UserManagement from './pages/Admin/UserManagement'
 import UserDetailsPage from './pages/Admin/UserDetailsPage'
 import UserCreatePage from './pages/Admin/UserCreatePage'
@@ -36,6 +38,8 @@ import LabTechPortal from './pages/LabTech/LabTechPortal'
 import SupportManagement from './pages/Admin/SupportManagement'
 import LoginPage from './pages/Auth/LoginPage'
 import RegisterPage from './pages/Auth/RegisterPage'
+import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage'
+import ResetPasswordPage from './pages/Auth/ResetPasswordPage'
 import OrderTrackingPage from './pages/OrderTracking/OrderTrackingPage'
 import OrderConfirmationPage from './pages/OrderConfirmation/OrderConfirmationPage'
 import WishlistPage from './pages/Wishlist/WishlistPage'
@@ -105,6 +109,8 @@ function App() {
           <Route path="pediatric-consultation" element={<ProtectedRoute><PediatricianConsultation /></ProtectedRoute>} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="order-confirmation" element={<OrderConfirmationPage />} />
           <Route path="track-order" element={<OrderTrackingPage />} />
           <Route path="wishlist" element={<WishlistPage />} />
@@ -139,6 +145,8 @@ function App() {
           <Route path="inventory" element={<InventoryOverviewPage />} />
           <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="admin/products" element={<AdminRoute><ProductManagement /></AdminRoute>} />
+          <Route path="admin/categories" element={<AdminRoute><CategoryManagement /></AdminRoute>} />
+          <Route path="admin/health-concerns" element={<AdminRoute><HealthConcernManagement /></AdminRoute>} />
           <Route path="admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
           <Route path="admin/users/pharmacist/new" element={<AdminRoute><UserCreatePage /></AdminRoute>} />
           <Route path="admin/users/:id" element={<AdminRoute><UserDetailsPage /></AdminRoute>} />

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ORDERS, STATUS_CFG } from './ordersData'
+import { STATUS_CFG } from './ordersData'
 import type { Order } from './ordersData'
+import { useOrders } from '../../hooks/useOrders'
 import './OrderHistoryPage.css'
 
 const FILTER_TABS = ['All', 'Processing', 'In Transit', 'Delivered', 'Cancelled']
@@ -213,6 +214,7 @@ function OrderHistoryPage() {
   const [activeFilter, setActiveFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null)
+  const { orders: ORDERS } = useOrders()
 
   const formatPrice = (n: number) => `KSh ${n.toLocaleString()}`
 

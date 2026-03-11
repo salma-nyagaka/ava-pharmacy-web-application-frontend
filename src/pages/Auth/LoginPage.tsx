@@ -1,14 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { loadDoctorProfiles } from '../../data/telemedicine'
-import { loadAdminUsers } from '../Admin/adminUsers'
-import { loadLabPartners } from '../../data/labPartners'
 import favicon from '../../assets/images/logos/favicon.png'
 import './AuthPage.css'
 
 function LoginPage() {
-  const { login } = useAuth()
+  const { login, isLoggedIn, user } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirect = searchParams.get('redirect') ?? ''
@@ -17,100 +14,67 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  if (isLoggedIn && user?.role === 'admin') {
+    return <Navigate to="/admin" replace />
+  }
+
+  const clearField = (field: string) =>
+    setFieldErrors((prev) => { const n = { ...prev }; delete n[field]; return n })
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim() || !password.trim()) {
       setError('Please enter your email and password.')
       return
     }
 
-    const profiles = loadDoctorProfiles()
-    const match = profiles.find((p) => p.email.toLowerCase() === email.trim().toLowerCase())
+    setLoading(true)
+    setError('')
+    setFieldErrors({})
 
-    if (match && match.status === 'Pending') {
-      setError('Your application is still under review. You will be notified once approved.')
-      return
-    }
+    try {
+      const loggedInUser = await login(email.trim(), password)
 
-    if (match && match.status === 'Suspended') {
-      setError('Your account has been suspended. Please contact support.')
-      return
-    }
-
-    const emailLower = email.trim().toLowerCase()
-    const adminUsers = loadAdminUsers()
-    const adminMatch = adminUsers.find((user) => user.email.toLowerCase() === emailLower)
-    if (adminMatch) {
-      if (adminMatch.status !== 'active') {
-        setError('Your account has been suspended. Please contact support.')
-        return
-      }
-      if (adminMatch.role === 'admin') {
-        login({ name: adminMatch.name, email: adminMatch.email, role: 'admin' })
+      if (redirect) {
+        navigate(redirect)
+      } else if (loggedInUser.role === 'admin') {
         navigate('/admin')
-        return
-      }
-      if (adminMatch.role === 'pharmacist') {
-        login({ name: adminMatch.name, email: adminMatch.email, role: 'pharmacist' })
+      } else if (loggedInUser.role === 'pharmacist') {
         navigate('/pharmacist/dashboard')
-        return
-      }
-      if (adminMatch.role === 'lab_technician') {
-        login({ name: adminMatch.name, email: adminMatch.email, role: 'lab_technician' })
+      } else if (loggedInUser.role === 'doctor') {
+        navigate('/doctor/dashboard')
+      } else if (loggedInUser.role === 'pediatrician') {
+        navigate('/pediatrician/dashboard')
+      } else if (loggedInUser.role === 'lab_technician') {
         navigate('/labtech/dashboard')
-        return
+      } else {
+        navigate('/')
       }
-    }
-
-    const partners = loadLabPartners()
-    const labMatch = partners
-      .flatMap((partner) => partner.techs.map((tech) => ({ partner, tech })))
-      .find(({ tech }) => tech.email.toLowerCase() === emailLower)
-
-    if (labMatch) {
-      const { partner, tech } = labMatch
-      if (partner.status !== 'Verified') {
-        setError('Your lab partner is not verified yet. Please contact the lab admin.')
-        return
+    } catch (err: unknown) {
+      type ApiErr = { response?: { data?: { error?: { message?: string; details?: { errors?: { details?: Record<string, string[]> } } } } } }
+      const axiosErr = err as ApiErr
+      const details = axiosErr?.response?.data?.error?.details?.errors?.details
+      if (details && typeof details === 'object') {
+        const mapped: Record<string, string> = {}
+        const leftover: string[] = []
+        for (const [field, msgs] of Object.entries(details)) {
+          const msg = Array.isArray(msgs) ? msgs[0] : String(msgs)
+          if (field === 'email' || field === 'password') {
+            mapped[field] = msg
+          } else {
+            leftover.push(msg)
+          }
+        }
+        setFieldErrors(mapped)
+        if (leftover.length) setError(leftover.join(' '))
+      } else {
+        setError(axiosErr?.response?.data?.error?.message ?? 'Invalid email or password.')
       }
-      if (tech.status !== 'Active') {
-        setError('Your lab technician profile is inactive. Please contact support.')
-        return
-      }
-      login({
-        name: tech.name,
-        email: email.trim(),
-        role: 'lab_technician',
-        labPartnerId: partner.id,
-        labPartnerName: partner.name,
-        labTechId: tech.id,
-      })
-      navigate('/labtech/dashboard')
-      return
-    }
-
-    if (emailLower === 'lab@ava.com') {
-      login({ name: 'Lab Technician', email: email.trim(), role: 'lab_technician' })
-      navigate('/labtech/dashboard')
-      return
-    }
-
-    const role = match
-      ? match.type === 'Doctor' ? 'doctor' : 'pediatrician'
-      : 'patient'
-
-    const name = match ? match.name : email.split('@')[0]
-    login({ name, email: email.trim(), role })
-
-    if (redirect) {
-      navigate(redirect)
-    } else if (role === 'doctor') {
-      navigate('/doctor/dashboard')
-    } else if (role === 'pediatrician') {
-      navigate('/pediatrician/dashboard')
-    } else {
-      navigate('/')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -194,17 +158,18 @@ function LoginPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setError('') }}
+                  onChange={(e) => { setEmail(e.target.value); clearField('email') }}
                   autoComplete="email"
-                  className={error ? 'login-field__input--error' : ''}
+                  className={fieldErrors.email ? 'login-field__input--error' : ''}
                 />
               </div>
+              {fieldErrors.email && <span className="login-field__error">{fieldErrors.email}</span>}
             </div>
 
             <div className="login-field">
               <div className="login-field__label-row">
                 <label htmlFor="login-password">Password</label>
-                <Link to="/help" className="login-field__forgot">Forgot password?</Link>
+                <Link to="/auth/forgot-password" className="login-field__forgot">Forgot password?</Link>
               </div>
               <div className="login-field__input-wrap">
                 <span className="login-field__icon">
@@ -218,9 +183,9 @@ function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError('') }}
+                  onChange={(e) => { setPassword(e.target.value); clearField('password') }}
                   autoComplete="current-password"
-                  className={error ? 'login-field__input--error' : ''}
+                  className={fieldErrors.password ? 'login-field__input--error' : ''}
                 />
                 <button
                   type="button"
@@ -242,6 +207,7 @@ function LoginPage() {
                   )}
                 </button>
               </div>
+              {fieldErrors.password && <span className="login-field__error">{fieldErrors.password}</span>}
             </div>
 
             {error && (
@@ -253,8 +219,8 @@ function LoginPage() {
               </div>
             )}
 
-            <button type="submit" className="login-submit">
-              Sign in
+            <button type="submit" className="login-submit" disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
 
             <div className="login-divider"><span>or</span></div>
@@ -266,7 +232,7 @@ function LoginPage() {
 
           <p className="login-register">
             Don&apos;t have an account?{' '}
-            <Link to={`/register${redirect !== '/account' ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}>
+            <Link to="/register">
               Create one free
             </Link>
           </p>

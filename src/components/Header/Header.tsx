@@ -12,8 +12,8 @@ import brandCentrum from '../../assets/images/brands/centrum.jpeg'
 import brandSebamed from '../../assets/images/brands/sebamed.png'
 import brandHuggies from '../../assets/images/brands/huggies.jpeg'
 import brandAccuChek from '../../assets/images/brands/accu-check.png'
-import { loadCategories } from '../../data/categories'
 import { loadHealthConcerns } from '../../data/healthConcerns'
+import { useCategories } from '../../hooks/useCategories'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
@@ -73,7 +73,7 @@ function Header() {
     return favouritesService.subscribe(() => setFavCount(getFavouriteCount()))
   }, [])
 
-  const [categories] = useState(() => loadCategories())
+  const categories = useCategories()
   const [healthConcerns] = useState(() => loadHealthConcerns())
   const defaultCategorySlug = categories[0]?.slug ?? ALL_CATEGORIES_KEY
 
@@ -111,8 +111,8 @@ function Header() {
     openCategoryMenu()
   }
 
-  const buildSubcategoryPath = (categoryPath: string, subSlug: string) =>
-    `${categoryPath}?subcategory=${encodeURIComponent(subSlug)}`
+  const buildSubcategoryPath = (categorySlug: string, subSlug: string) =>
+    `/products?category=${encodeURIComponent(categorySlug)}&subcategory=${encodeURIComponent(subSlug)}`
 
   const activeCategoryData =
     activeCategory === ALL_CATEGORIES_KEY
@@ -126,14 +126,14 @@ function Header() {
             id: `${category.slug}-${item.slug}`,
             name: item.name,
             categoryName: category.name,
-            path: buildSubcategoryPath(category.path, item.slug),
+            path: buildSubcategoryPath(category.slug, item.slug),
           }))
         )
       : (activeCategoryData?.subcategories ?? []).map((item) => ({
           id: item.slug,
           name: item.name,
           categoryName: null,
-          path: buildSubcategoryPath(activeCategoryData.path, item.slug),
+          path: buildSubcategoryPath(activeCategoryData.slug, item.slug),
         }))
   const itemsSplitIndex = Math.ceil(megaPanelItems.length / 2)
   const itemsColumnOne = megaPanelItems.slice(0, itemsSplitIndex)
@@ -228,6 +228,18 @@ function Header() {
 
             {/* Actions */}
             <div className="header__actions">
+              {isLoggedIn && user?.role === 'admin' && (
+                <Link to="/admin" className="header__action-btn header__action-btn--admin">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/>
+                  </svg>
+                  <span className="header__action-text">Admin Dashboard</span>
+                </Link>
+              )}
+
               <button className="header__action-btn header__action-btn--search-mobile" onClick={toggleSearch}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"/>
@@ -367,7 +379,7 @@ function Header() {
                       {categories.map((category) => (
                         <li key={category.slug}>
                           <Link
-                            to={category.path}
+                            to={`/products?category=${encodeURIComponent(category.slug)}`}
                             onMouseEnter={() => setActiveCategory(category.slug)}
                             onFocus={() => setActiveCategory(category.slug)}
                             onClick={closeMenus}

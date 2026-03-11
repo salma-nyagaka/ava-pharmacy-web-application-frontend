@@ -2,12 +2,12 @@ import { useMemo, useState, useEffect } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { getCategoryBySlug, getSubcategoryBySlug } from '../../data/categories'
-import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
 import { StockSource } from '../../data/cart'
-import { CatalogProduct, loadCatalogProducts } from '../../data/products'
+import { CatalogProduct } from '../../data/products'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { loadFavourites } from '../../data/favourites'
+import { useProducts } from '../../hooks/useProducts'
 import './ProductListingPage.css'
 
 type ListingProduct = CatalogProduct
@@ -56,15 +56,13 @@ function ProductListingPage() {
   }
   const [wishlist, setWishlist] = useState<Record<number, boolean>>(buildWishlistMap)
 
-  const products: ListingProduct[] = loadCatalogProducts()
+  const { products } = useProducts({
+    category: categorySlug !== 'all' ? categorySlug : undefined,
+    search: queryFromUrl || undefined,
+    page_size: 200,
+  })
 
-  const promotions = loadPromotions()
-  const productsWithDeals = products.map((product) =>
-    applyPromotionsToProduct(
-      { ...product, inStock: product.stockSource !== 'out' },
-      promotions
-    ) as ListingProduct & { inStock: boolean; dealLabel?: string | null }
-  )
+  const productsWithDeals = products as (ListingProduct & { inStock: boolean; dealLabel?: string | null })[]
 
   const brands = Array.from(new Set(products.map((product) => product.brand))).sort((a, b) => a.localeCompare(b))
 

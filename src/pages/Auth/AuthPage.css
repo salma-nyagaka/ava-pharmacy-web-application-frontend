@@ -166,7 +166,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3rem 2rem;
+  padding: 2rem 2rem;
   background: #f8f9fc;
 }
 
@@ -176,7 +176,7 @@
 }
 
 .login-form-header {
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
 }
 
 .login-form-header__title {
@@ -197,7 +197,13 @@
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1.125rem;
+  gap: 0.9rem;
+}
+
+.login-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 .login-field {
@@ -274,6 +280,40 @@
 .login-field__input--error {
   border-color: #dc2626 !important;
   background: #fff8f8 !important;
+}
+
+.login-field__error {
+  font-size: 0.78rem;
+  color: #dc2626;
+  margin-top: 0.1rem;
+  line-height: 1.4;
+}
+
+/* ── Password rules ──────────────────────── */
+.pw-rules {
+  list-style: none;
+  padding: 0.5rem 0.75rem;
+  margin: 0.35rem 0 0;
+  background: #f8f9fc;
+  border: 1px solid #e8e8ef;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pw-rules__item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  line-height: 1.3;
+  transition: color 0.15s;
+}
+
+.pw-rules__item--pass {
+  color: #16a34a;
 }
 
 .login-field__toggle {
@@ -414,6 +454,23 @@
   text-decoration: underline;
 }
 
+.login-legal {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 0.25rem 0 0;
+  line-height: 1.5;
+}
+
+.login-legal a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-legal a:hover {
+  text-decoration: underline;
+}
+
 /* ── Legacy styles (RegisterPage reuse) ──── */
 .auth-layout {
   display: grid;
@@ -525,5 +582,11 @@
   .login-brand__stats {
     gap: 1rem;
     padding: 1rem 1.25rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .login-form-row {
+    grid-template-columns: 1fr;
   }
 }

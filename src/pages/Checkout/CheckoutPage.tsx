@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CartItem } from '../../data/cart'
 import { cartService } from '../../services/cartService'
+import { createOrder } from '../../services/orderService'
 import './CheckoutPage.css'
 
 type PaymentStatus = 'idle' | 'waiting' | 'confirmed'
@@ -210,7 +211,15 @@ function CheckoutPage() {
       setValidationError('Complete payment confirmation before placing the order.')
       return
     }
-    void cartService.clear().then(() => { navigate('/order-confirmation') })
+    const isAuth = !!localStorage.getItem('ava_access_token')
+    if (isAuth) {
+      createOrder({ payment_method: paymentMethod, notes: '' })
+        .then(() => cartService.clear())
+        .then(() => navigate('/order-confirmation'))
+        .catch(() => cartService.clear().then(() => navigate('/order-confirmation')))
+    } else {
+      void cartService.clear().then(() => { navigate('/order-confirmation') })
+    }
   }
 
   return (
