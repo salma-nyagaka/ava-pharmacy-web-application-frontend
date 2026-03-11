@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { PrescriptionRecord } from '../../data/prescriptions'
 import { cartService } from '../../services/cartService'
 import { prescriptionService } from '../../services/prescriptionService'
-import './PrescriptionUploadPage.css'
+import '../../styles/pages/PrescriptionUpload/PrescriptionUploadPage.css'
 
 const DISPATCH_STEPS = ['Not started', 'Queued', 'Packed', 'Dispatched', 'Delivered']
 

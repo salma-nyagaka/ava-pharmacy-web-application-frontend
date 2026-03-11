@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { adminProductService, ApiInventoryProduct, ApiStockMovement } from '../../services/adminProductService'
-import './AdminShared.css'
-import './InventoryManagement.css'
+import { adminProductService, ApiInventoryProduct } from '../../services/adminProductService'
+import '../../styles/pages/Admin/AdminShared.css'
+import '../../styles/pages/Admin/InventoryManagement.css'
 
 function getStockStatus(product: ApiInventoryProduct): 'In Stock' | 'Low' | 'Out' {
   if (product.stock_quantity === 0) return 'Out'

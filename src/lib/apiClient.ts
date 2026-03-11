@@ -59,6 +59,14 @@ export const apiClient = axios.create({
 
 // Attach access token to every request
 apiClient.interceptors.request.use((config) => {
+  if (config.data instanceof FormData && config.headers) {
+    if (typeof config.headers.delete === 'function') {
+      config.headers.delete('Content-Type')
+    } else {
+      delete (config.headers as Record<string, unknown>)['Content-Type']
+    }
+  }
+
   const token = localStorage.getItem('ava_access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`

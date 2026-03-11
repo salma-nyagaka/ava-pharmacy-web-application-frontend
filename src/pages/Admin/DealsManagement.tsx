@@ -11,8 +11,8 @@ import {
   savePromotions,
 } from '../../data/promotions'
 import { logAdminAction } from '../../data/adminAudit'
-import './AdminShared.css'
-import './DealsManagement.css'
+import '../../styles/pages/Admin/AdminShared.css'
+import '../../styles/pages/Admin/DealsManagement.css'
 
 const categoryOptions = [
   'Health & Wellness',

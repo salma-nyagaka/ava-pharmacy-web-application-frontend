@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext'
 import { logAdminAction } from '../../data/adminAudit'
 import { DispatchStatus, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
-import './AdminShared.css'
-import './PrescriptionManagement.css'
+import '../../styles/pages/Admin/AdminShared.css'
+import '../../styles/pages/Admin/PrescriptionManagement.css'
 
 const DISPATCH_STEPS: DispatchStatus[] = ['Not started', 'Queued', 'Packed', 'Dispatched', 'Delivered']
 

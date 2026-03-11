@@ -2,8 +2,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { formatAdminRole, formatPharmacistPermission, loadAdminUsers } from './adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
-import './AdminShared.css'
-import './UserDetailsPage.css'
+import '../../styles/pages/Admin/AdminShared.css'
+import '../../styles/pages/Admin/UserDetailsPage.css'
 
 function getInitials(name: string) {
   return name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()

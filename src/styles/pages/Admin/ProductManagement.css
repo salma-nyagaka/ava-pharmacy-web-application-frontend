@@ -27,8 +27,21 @@
 
 .product-management__title {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.pm-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.pm-title-row {
+  display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .product-management__title h1 {
@@ -66,16 +79,29 @@
   align-items: center;
 }
 
+.product-management__actions .btn {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-management .pm-back-btn {
+  margin: 0;
+}
+
 /* Filters */
 .product-management__filters {
   display: flex;
   gap: 0.75rem;
   margin-bottom: 1rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .product-management .search-box {
-  flex: 0 0 240px;
+  flex: 1 1 260px;
+  max-width: 320px;
   position: relative;
 }
 
@@ -106,6 +132,7 @@
 }
 
 .product-management__filters select {
+  flex: 0 0 200px;
   padding: 0.5rem 0.75rem;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -113,6 +140,60 @@
   min-width: 160px;
   background: #fff;
   cursor: pointer;
+}
+
+.product-management__clear-filters {
+  flex-shrink: 0;
+}
+
+.product-management__filter-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 0.875rem;
+  margin-bottom: 1rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.product-management__filter-summary-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.product-management__filter-summary-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.product-management__filter-summary-count {
+  font-size: 0.875rem;
+  color: #111827;
+  font-weight: 600;
+}
+
+.product-management__filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.product-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 /* Table */
@@ -188,6 +269,56 @@
   font-size: 0.7rem;
   color: #9ca3af;
   margin-top: 1px;
+}
+
+.product-info__catalog-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  max-width: 320px;
+}
+
+.product-catalog-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.product-catalog-chip--sub {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.product-info__health-concerns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  max-width: 320px;
+}
+
+.product-health-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.product-health-chip--more {
+  background: #f3f4f6;
+  color: #6b7280;
 }
 
 .rx-badge {

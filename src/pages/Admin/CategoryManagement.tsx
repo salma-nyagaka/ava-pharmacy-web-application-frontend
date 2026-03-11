@@ -1,11 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   adminProductService,
   ApiProductCategory,
   ApiProductSubcategory,
 } from '../../services/adminProductService'
-import './CategoryManagement.css'
+import '../../styles/pages/Admin/CategoryManagement.css'
 
 type ViewMode = 'categories' | 'subcategories'
 type ModalMode = 'create-category' | 'create-subcategory' | 'edit-category' | 'edit-subcategory'
@@ -251,13 +251,7 @@ function CategoryManagement() {
           >
             + Subcategory
           </button>
-          <Link className="btn btn--ghost btn--sm" to="/admin/products">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-              <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-              <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
-            </svg>
-            Products
-          </Link>
+     
         </div>
       </div>
 

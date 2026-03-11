@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import './HealthServicesPage.css'
+import '../../styles/pages/HealthServices/HealthServicesPage.css'
 
 const services = [
   {

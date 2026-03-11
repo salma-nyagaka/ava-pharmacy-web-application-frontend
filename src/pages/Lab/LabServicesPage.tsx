@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import './LabServicesPage.css'
+import '../../styles/pages/Lab/LabServicesPage.css'
 import {
   LabPaymentStatus,
   LabPriority,

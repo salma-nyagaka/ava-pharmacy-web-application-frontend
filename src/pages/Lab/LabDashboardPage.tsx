@@ -18,7 +18,7 @@ import {
 } from '../../data/labs'
 import { loadLabPartners } from '../../data/labPartners'
 import { loadAdminUsers } from '../Admin/adminUsers'
-import './LabDashboardPage.css'
+import '../../styles/pages/Lab/LabDashboardPage.css'
 
 function getStatusClass(status: LabRequestStatus) {
   if (status === 'Completed') return 'status-pill--success'

@@ -8,7 +8,7 @@ import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { loadFavourites } from '../../data/favourites'
 import { useProducts } from '../../hooks/useProducts'
-import './ProductListingPage.css'
+import '../../styles/pages/ProductListing/ProductListingPage.css'
 
 type ListingProduct = CatalogProduct
 

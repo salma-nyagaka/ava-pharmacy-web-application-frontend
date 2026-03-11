@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import './AdminShared.css'
-import './LabPartnerManagement.css'
+import '../../styles/pages/Admin/AdminShared.css'
+import '../../styles/pages/Admin/LabPartnerManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
 import {
   LabPartner,

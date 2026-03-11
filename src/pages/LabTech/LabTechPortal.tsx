@@ -17,7 +17,7 @@ import {
   upsertLabResult,
 } from '../../data/labs'
 import { loadLabPartners } from '../../data/labPartners'
-import './LabTechPortal.css'
+import '../../styles/pages/LabTech/LabTechPortal.css'
 
 type Tab = 'overview' | 'queue' | 'mine'
 

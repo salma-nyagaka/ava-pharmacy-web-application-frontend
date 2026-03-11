@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import './AccountSettingsPage.css'
+import '../../styles/pages/Account/AccountSettingsPage.css'
 
 const TABS = [
   {

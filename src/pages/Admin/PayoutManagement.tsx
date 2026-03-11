@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import './AdminShared.css'
-import './PayoutManagement.css'
+import '../../styles/pages/Admin/AdminShared.css'
+import '../../styles/pages/Admin/PayoutManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
 import { loadDoctorProfiles } from '../../data/telemedicine'
 import {

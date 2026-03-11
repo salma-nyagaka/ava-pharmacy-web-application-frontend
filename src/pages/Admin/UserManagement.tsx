@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { AdminUserRole, PharmacistPermission, adminRoleOptions, formatAdminRole, loadAdminUsers } from './adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
 import { AdminUserError, adminUserService } from '../../services/adminUserService'
-import './UserManagement.css'
+import '../../styles/pages/Admin/UserManagement.css'
 
 function UserManagement() {
   const navigate = useNavigate()

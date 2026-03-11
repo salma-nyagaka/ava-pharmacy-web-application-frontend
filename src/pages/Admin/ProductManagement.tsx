@@ -3,13 +3,15 @@ import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import {
   adminProductService,
+  ApiBrand,
+  ApiProductCategory,
   ApiHealthConcern,
   ApiProductSubcategory,
   ApiProduct,
   ProductCreatePayload,
 } from '../../services/adminProductService'
-import './ProductManagement.css'
-import './CategoryManagement.css'
+import '../../styles/pages/Admin/ProductManagement.css'
+import '../../styles/pages/Admin/CategoryManagement.css'
 
 const PAGE_SIZE = 6
 
@@ -28,16 +30,28 @@ function generateSlug(name: string): string {
     .slice(0, 80)
 }
 
+function isFieldErrorMap(value: unknown): value is Record<string, string | string[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+
+  return Object.values(value).every(
+    (entry) => typeof entry === 'string' || (Array.isArray(entry) && entry.every((item) => typeof item === 'string')),
+  )
+}
+
 function ProductManagement() {
   const navigate = useNavigate()
   const [products, setProducts] = useState<ApiProduct[]>([])
+  const [brands, setBrands] = useState<ApiBrand[]>([])
+  const [categories, setCategories] = useState<ApiProductCategory[]>([])
   const [subcategories, setSubcategories] = useState<ApiProductSubcategory[]>([])
   const [allConcerns, setAllConcerns] = useState<ApiHealthConcern[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedSubcat, setSelectedSubcat] = useState('all')
+  const [selectedConcern, setSelectedConcern] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null)
@@ -50,11 +64,19 @@ function ProductManagement() {
   const [productOriginalPrice, setProductOriginalPrice] = useState('')
   const [productStock, setProductStock] = useState('')
   const [productSubcategoryId, setProductSubcategoryId] = useState<number | ''>('')
+  const [productBrandId, setProductBrandId] = useState<number | ''>('')
   const [productHealthConcernIds, setProductHealthConcernIds] = useState<number[]>([])
   const [productStatus, setProductStatus] = useState<'active' | 'inactive'>('active')
   const [productRequiresRx, setProductRequiresRx] = useState(false)
   const [productDescription, setProductDescription] = useState('')
+  const [productImageFile, setProductImageFile] = useState<File | null>(null)
   const [formError, setFormError] = useState('')
+  const [showBrandModal, setShowBrandModal] = useState(false)
+  const [brandName, setBrandName] = useState('')
+  const [brandDescription, setBrandDescription] = useState('')
+  const [brandLogoFile, setBrandLogoFile] = useState<File | null>(null)
+  const [brandSaving, setBrandSaving] = useState(false)
+  const [brandFormError, setBrandFormError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<ApiProduct | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
@@ -67,12 +89,16 @@ function ProductManagement() {
     setLoading(true)
     setError('')
     try {
-      const [prods, subs, concerns] = await Promise.all([
+      const [prods, brandList, cats, subs, concerns] = await Promise.all([
         adminProductService.listProducts(),
+        adminProductService.listBrands(),
+        adminProductService.listProductCategories(),
         adminProductService.listProductSubcategories(),
         adminProductService.listHealthConcerns(),
       ])
       setProducts(prods)
+      setBrands(brandList)
+      setCategories(cats)
       setSubcategories(subs)
       setAllConcerns(concerns)
     } catch {
@@ -91,10 +117,12 @@ function ProductManagement() {
     setProductOriginalPrice('')
     setProductStock('')
     setProductSubcategoryId('')
+    setProductBrandId('')
     setProductHealthConcernIds([])
     setProductStatus('active')
     setProductRequiresRx(false)
     setProductDescription('')
+    setProductImageFile(null)
     setEditingProduct(null)
     setFormError('')
   }
@@ -102,6 +130,23 @@ function ProductManagement() {
   const openAddModal = () => {
     resetForm()
     setShowAddModal(true)
+  }
+
+  const openBrandModal = () => {
+    setBrandName('')
+    setBrandDescription('')
+    setBrandLogoFile(null)
+    setBrandFormError('')
+    setShowBrandModal(true)
+  }
+
+  const closeBrandModal = () => {
+    if (brandSaving) return
+    setBrandName('')
+    setBrandDescription('')
+    setBrandLogoFile(null)
+    setBrandFormError('')
+    setShowBrandModal(false)
   }
 
   const openEditModal = (product: ApiProduct) => {
@@ -113,10 +158,12 @@ function ProductManagement() {
     setProductOriginalPrice(product.original_price ?? '')
     setProductStock(String(product.stock_quantity))
     setProductSubcategoryId(product.subcategory_id ?? '')
+    setProductBrandId(product.brand?.id ?? '')
     setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
     setProductStatus(product.is_active ? 'active' : 'inactive')
     setProductRequiresRx(product.requires_prescription)
     setProductDescription(product.description ?? '')
+    setProductImageFile(null)
     setEditingProduct(product)
     setFormError('')
     setShowAddModal(true)
@@ -126,6 +173,7 @@ function ProductManagement() {
     e.preventDefault()
     if (!productName.trim()) { setFormError('Product name is required.'); return }
     if (!productPrice) { setFormError('Price is required.'); return }
+    if (!editingProduct && !productImageFile) { setFormError('Product image is required.'); return }
 
     const sku = productSku.trim() || generateSku(productName)
     const slug = productSlug.trim() || generateSlug(productName)
@@ -137,31 +185,87 @@ function ProductManagement() {
       price: Number(productPrice),
       original_price: productOriginalPrice ? Number(productOriginalPrice) : undefined,
       stock_quantity: Number(productStock) || 0,
+      brand_id: productBrandId !== '' ? Number(productBrandId) : null,
       subcategory_id: productSubcategoryId !== '' ? Number(productSubcategoryId) : null,
       health_concern_ids: productHealthConcernIds,
       is_active: productStatus === 'active',
       requires_prescription: productRequiresRx,
-      description: productDescription,
+      description: productDescription.trim() || undefined,
     }
+
+    const buildProductFormData = () => {
+      const formData = new FormData()
+      formData.append('name', payload.name)
+      formData.append('slug', payload.slug)
+      formData.append('sku', payload.sku)
+      formData.append('price', String(payload.price))
+      formData.append('stock_quantity', String(payload.stock_quantity))
+      formData.append('is_active', String(payload.is_active))
+      formData.append('requires_prescription', String(payload.requires_prescription))
+
+      if (payload.strength) formData.append('strength', payload.strength)
+      if (payload.original_price !== undefined) formData.append('original_price', String(payload.original_price))
+      if (payload.brand_id !== null && payload.brand_id !== undefined) formData.append('brand_id', String(payload.brand_id))
+      else if (editingProduct && editingProduct.brand) formData.append('brand_id', '')
+      if (payload.subcategory_id !== null && payload.subcategory_id !== undefined) formData.append('subcategory_id', String(payload.subcategory_id))
+      else if (editingProduct && editingProduct.subcategory_id !== null) formData.append('subcategory_id', '')
+      productHealthConcernIds.forEach((id) => formData.append('health_concern_ids', String(id)))
+      if (payload.description) formData.append('description', payload.description)
+      if (productImageFile) formData.append('image', productImageFile)
+      return formData
+    }
+
+    const requestPayload = !editingProduct || productImageFile ? buildProductFormData() : payload
 
     setSaving(true)
     setFormError('')
     try {
       if (editingProduct) {
-        const updated = await adminProductService.updateProduct(editingProduct.id, payload)
+        const updated = await adminProductService.updateProduct(editingProduct.id, requestPayload)
         setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? updated : p)))
       } else {
-        const created = await adminProductService.createProduct(payload)
+        const created = await adminProductService.createProduct(requestPayload)
         setProducts((prev) => [created, ...prev])
       }
       setShowAddModal(false)
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string; details?: { errors?: { details?: Record<string, string[]> } } } } } }
+      type ApiErr = {
+        response?: {
+          data?: {
+            error?: {
+              message?: string
+              details?: Record<string, string[] | string> | { errors?: { details?: Record<string, string[]> } }
+            }
+          }
+        }
+      }
       const apiErr = (err as ApiErr)?.response?.data?.error
-      const fieldErrors = apiErr?.details?.errors?.details
-      if (fieldErrors && typeof fieldErrors === 'object') {
+      const rawDetails = apiErr?.details
+      let fieldErrors: Record<string, string[] | string> | null = null
+
+      if (rawDetails && typeof rawDetails === 'object' && !Array.isArray(rawDetails)) {
+        if ('errors' in rawDetails) {
+          const nestedErrors = rawDetails.errors
+
+          if (
+            nestedErrors &&
+            typeof nestedErrors === 'object' &&
+            !Array.isArray(nestedErrors) &&
+            'details' in nestedErrors
+          ) {
+            const nestedDetails = nestedErrors.details
+
+            if (nestedDetails && typeof nestedDetails === 'object' && !Array.isArray(nestedDetails)) {
+              fieldErrors = nestedDetails
+            }
+          }
+        } else if (isFieldErrorMap(rawDetails)) {
+          fieldErrors = rawDetails
+        }
+      }
+      if (fieldErrors) {
         const msgs = Object.entries(fieldErrors)
-          .map(([field, errs]) => `${field}: ${(errs as string[]).join(', ')}`)
+          .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : String(errs)}`)
           .join(' · ')
         setFormError(msgs)
       } else {
@@ -169,6 +273,35 @@ function ProductManagement() {
       }
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleCreateBrand = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!brandName.trim()) { setBrandFormError('Brand name is required.'); return }
+    if (!brandLogoFile) { setBrandFormError('Brand logo is required.'); return }
+
+    setBrandSaving(true)
+    setBrandFormError('')
+    try {
+      const payload = new FormData()
+      payload.append('name', brandName.trim())
+      if (brandDescription.trim()) payload.append('description', brandDescription.trim())
+      payload.append('logo', brandLogoFile)
+
+      const created = await adminProductService.createBrand(payload)
+      setBrands((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+      setProductBrandId(created.id)
+      setBrandName('')
+      setBrandDescription('')
+      setBrandLogoFile(null)
+      setBrandFormError('')
+      setShowBrandModal(false)
+    } catch (err: unknown) {
+      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
+      setBrandFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to create brand.')
+    } finally {
+      setBrandSaving(false)
     }
   }
 
@@ -201,12 +334,44 @@ function ProductManagement() {
     navigate('/admin')
   }
 
-  useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedSubcat])
+  useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedCategory, selectedSubcat, selectedConcern])
+
+  const visibleSubcategories =
+    selectedCategory === 'all'
+      ? subcategories
+      : subcategories.filter((subcategory) => String(subcategory.category) === selectedCategory)
+
+  const hasActiveFilters =
+    searchTerm.trim() !== '' ||
+    selectedCategory !== 'all' ||
+    selectedSubcat !== 'all' ||
+    selectedConcern !== 'all'
+
+  const getProductCategoryId = (product: ApiProduct) => {
+    if (product.category !== null) return product.category
+    if (product.subcategory_id === null) return null
+    return subcategories.find((subcategory) => subcategory.id === product.subcategory_id)?.category ?? null
+  }
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setSelectedCategory('all')
+    setSelectedSubcat('all')
+    setSelectedConcern('all')
+  }
 
   const filteredProducts = products.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchCat = selectedSubcat === 'all' || String(p.subcategory_id) === selectedSubcat
-    return matchSearch && matchCat
+    const query = searchTerm.toLowerCase()
+    const matchSearch =
+      p.name.toLowerCase().includes(query) ||
+      p.sku.toLowerCase().includes(query)
+    const matchCategory = selectedCategory === 'all' || String(getProductCategoryId(p)) === selectedCategory
+    const matchSubcategory = selectedSubcat === 'all' || String(p.subcategory_id) === selectedSubcat
+    const matchConcern =
+      selectedConcern === 'all' ||
+      p.health_concerns.some((concern) => String(concern.id) === selectedConcern)
+
+    return matchSearch && matchCategory && matchSubcategory && matchConcern
   })
 
   const startIndex = (currentPage - 1) * PAGE_SIZE
@@ -220,6 +385,28 @@ function ProductManagement() {
     return `${sub.category_name} / ${sub.name}`
   }
 
+  const getCategoryLabel = (product: ApiProduct) => {
+    if (product.category_name) return product.category_name
+    const categoryId = getProductCategoryId(product)
+    if (categoryId === null) return 'Uncategorized'
+    return categories.find((category) => category.id === categoryId)?.name ?? 'Uncategorized'
+  }
+
+  const getProductBrandLabel = (product: ApiProduct) => product.brand?.name ?? product.brand_name ?? 'No brand'
+
+  const activeFilterChips = [
+    searchTerm.trim() ? { key: 'search', label: `Search: ${searchTerm.trim()}` } : null,
+    selectedCategory !== 'all'
+      ? { key: 'category', label: `Category: ${categories.find((category) => String(category.id) === selectedCategory)?.name ?? 'Unknown'}` }
+      : null,
+    selectedSubcat !== 'all'
+      ? { key: 'subcategory', label: `Subcategory: ${subcategories.find((subcategory) => String(subcategory.id) === selectedSubcat)?.name ?? 'Unknown'}` }
+      : null,
+    selectedConcern !== 'all'
+      ? { key: 'concern', label: `Health concern: ${allConcerns.find((concern) => String(concern.id) === selectedConcern)?.name ?? 'Unknown'}` }
+      : null,
+  ].filter((value): value is { key: string; label: string } => value !== null)
+
   return (
     <div className="product-management">
       <div className="product-management__header">
@@ -228,16 +415,18 @@ function ProductManagement() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
             Back
           </button>
-          <h1>Products</h1>
-          <span className="pm-count">{filteredProducts.length} items</span>
+          <div className="pm-title-group">
+            <div className="pm-title-row">
+              <h1>Products</h1>
+              <span className="pm-count">{filteredProducts.length} items</span>
+            </div>
+          </div>
         </div>
         <div className="product-management__actions">
+          <button className="btn btn--secondary btn--sm" type="button" onClick={openBrandModal}>+ Brand</button>
           <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
-          <Link className="btn btn--ghost btn--sm" to="/admin/categories">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-              <path d="M3 7l9-4 9 4v10l-9 4-9-4V7z" />
-            </svg>
-            Categories
+          <Link className="btn btn--secondary btn--sm" to="/admin/inventory">
+            Add Inventory
           </Link>
         </div>
       </div>
@@ -249,18 +438,63 @@ function ProductManagement() {
           <svg className="search-box__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder="Search products"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <select
+          value={selectedCategory}
+          onChange={(e) => {
+            setSelectedCategory(e.target.value)
+            setSelectedSubcat('all')
+          }}
+        >
+          <option value="all">All Categories</option>
+          {categories.map((category) => (
+            <option key={category.id} value={String(category.id)}>{category.name}</option>
+          ))}
+        </select>
         <select value={selectedSubcat} onChange={(e) => setSelectedSubcat(e.target.value)}>
           <option value="all">All Subcategories</option>
-          {subcategories.map((s) => (
+          {visibleSubcategories.map((s) => (
             <option key={s.id} value={String(s.id)}>{s.category_name} / {s.name}</option>
           ))}
         </select>
+        <select value={selectedConcern} onChange={(e) => setSelectedConcern(e.target.value)}>
+          <option value="all">All Health Concerns</option>
+          {allConcerns.map((concern) => (
+            <option key={concern.id} value={String(concern.id)}>{concern.name}</option>
+          ))}
+        </select>
+        {hasActiveFilters && (
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm product-management__clear-filters"
+            onClick={clearFilters}
+          >
+            Clear Filters
+          </button>
+        )}
       </div>
+
+      {hasActiveFilters && (
+        <div className="product-management__filter-summary">
+          <div className="product-management__filter-summary-copy">
+            <span className="product-management__filter-summary-label">Active filters</span>
+            <span className="product-management__filter-summary-count">
+              {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="product-management__filter-chips">
+            {activeFilterChips.map((chip) => (
+              <span key={chip.key} className="product-filter-chip">
+                {chip.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="product-management__table">
         {loading ? (
@@ -287,6 +521,29 @@ function ProductManagement() {
                       <div>
                         <span className="product-info__name">{product.name}</span>
                         <span className="product-info__concerns">{product.sku}</span>
+                        {getProductBrandLabel(product) !== 'No brand' && (
+                          <span className="product-info__concerns">Brand: {getProductBrandLabel(product)}</span>
+                        )}
+                        <div className="product-info__catalog-tags">
+                          <span className="product-catalog-chip">{getCategoryLabel(product)}</span>
+                          <span className="product-catalog-chip product-catalog-chip--sub">
+                            {product.subcategory_name ?? 'No subcategory'}
+                          </span>
+                        </div>
+                        {product.health_concerns.length > 0 && (
+                          <div className="product-info__health-concerns">
+                            {product.health_concerns.slice(0, 3).map((concern) => (
+                              <span key={concern.id} className="product-health-chip">
+                                {concern.name}
+                              </span>
+                            ))}
+                            {product.health_concerns.length > 3 && (
+                              <span className="product-health-chip product-health-chip--more">
+                                +{product.health_concerns.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -403,6 +660,23 @@ function ProductManagement() {
                   </div>
                   <div className="pf-row">
                     <div className="pf-field">
+                      <label className="pf-label">Brand</label>
+                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                        <select
+                          className="pf-input"
+                          style={{ flex: 1 }}
+                          value={productBrandId}
+                          onChange={(e) => setProductBrandId(e.target.value !== '' ? Number(e.target.value) : '')}
+                        >
+                          <option value="">No brand</option>
+                          {brands.map((brand) => (
+                            <option key={brand.id} value={brand.id}>{brand.name}</option>
+                          ))}
+                        </select>
+                        <button type="button" className="btn btn--secondary btn--sm" onClick={openBrandModal}>+ Brand</button>
+                      </div>
+                    </div>
+                    <div className="pf-field">
                       <label className="pf-label">Subcategory</label>
                       <select className="pf-input" value={productSubcategoryId} onChange={(e) => setProductSubcategoryId(e.target.value !== '' ? Number(e.target.value) : '')}>
                         <option value="">No subcategory</option>
@@ -411,6 +685,8 @@ function ProductManagement() {
                         ))}
                       </select>
                     </div>
+                  </div>
+                  <div className="pf-row">
                     <div className="pf-field pf-field--sm">
                       <label className="pf-label">Status</label>
                       <select className="pf-input" value={productStatus} onChange={(e) => setProductStatus(e.target.value as 'active' | 'inactive')}>
@@ -453,6 +729,20 @@ function ProductManagement() {
                       value={productDescription}
                       onChange={(e) => setProductDescription(e.target.value)}
                     />
+                  </div>
+                  <div className="pf-field">
+                    <label className="pf-label">Product Image <span className="pf-req">*</span></label>
+                    <input
+                      className="pf-input"
+                      type="file"
+                      accept="image/*"
+                      required={!editingProduct}
+                      onChange={(e) => setProductImageFile(e.currentTarget.files?.[0] ?? null)}
+                    />
+                    <span className="pf-hint">
+                      {editingProduct ? 'Leave empty to keep the current image.' : 'Upload the main product image.'}
+                    </span>
+                    {productImageFile && <span className="pf-hint">Selected: {productImageFile.name}</span>}
                   </div>
                 </div>
 
@@ -507,6 +797,78 @@ function ProductManagement() {
                   {saving ? (
                     <><span className="btn-spinner" />Saving…</>
                   ) : editingProduct ? 'Save Changes' : 'Add Product'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showBrandModal && (
+        <div className="cm-overlay" onClick={closeBrandModal}>
+          <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cm-modal__header">
+              <div>
+                <h2>New Brand</h2>
+                <p>Create a brand and immediately assign it to this product.</p>
+              </div>
+              <button type="button" className="cm-modal__close" onClick={closeBrandModal} disabled={brandSaving} aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <form className="cm-form" onSubmit={handleCreateBrand}>
+              <label className="cm-field">
+                <span>Name</span>
+                <input
+                  type="text"
+                  value={brandName}
+                  onChange={(e) => { setBrandName(e.target.value); setBrandFormError('') }}
+                  placeholder="e.g. Panadol"
+                  disabled={brandSaving}
+                  autoFocus
+                />
+              </label>
+
+              <label className="cm-field">
+                <span>Description <em className="cm-field__optional">optional</em></span>
+                <textarea
+                  value={brandDescription}
+                  onChange={(e) => setBrandDescription(e.target.value)}
+                  placeholder="Brief description visible to shoppers"
+                  disabled={brandSaving}
+                  rows={2}
+                />
+              </label>
+
+              <label className="cm-field">
+                <span>Brand Logo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => { setBrandLogoFile(e.target.files?.[0] ?? null); setBrandFormError('') }}
+                  disabled={brandSaving}
+                  required
+                />
+              </label>
+
+              {brandFormError && (
+                <p className="cm-form__error">
+                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  {brandFormError}
+                </p>
+              )}
+
+              <div className="cm-modal__actions">
+                <button type="button" className="btn btn--ghost btn--sm" onClick={closeBrandModal} disabled={brandSaving}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn--primary btn--sm" disabled={brandSaving}>
+                  {brandSaving ? <><span className="cm-spinner" /> Saving…</> : 'Create Brand'}
                 </button>
               </div>
             </form>

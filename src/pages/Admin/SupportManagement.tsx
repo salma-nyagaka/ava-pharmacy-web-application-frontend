@@ -4,8 +4,8 @@ import { logAdminAction } from '../../data/adminAudit'
 import { SupportPriority, SupportStatus, SupportTicket } from '../../data/support'
 import { supportService } from '../../services/supportService'
 import { loadAdminUsers } from './adminUsers'
-import './AdminShared.css'
-import './SupportManagement.css'
+import '../../styles/pages/Admin/AdminShared.css'
+import '../../styles/pages/Admin/SupportManagement.css'
 
 const PAGE_SIZE = 6
 

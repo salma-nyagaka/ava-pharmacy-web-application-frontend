@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { CartItem } from '../../data/cart'
 import { cartService } from '../../services/cartService'
 import { createOrder } from '../../services/orderService'
-import './CheckoutPage.css'
+import '../../styles/pages/Checkout/CheckoutPage.css'
 
 type PaymentStatus = 'idle' | 'waiting' | 'confirmed'
 type MpesaOption = 'stk' | 'paybill'

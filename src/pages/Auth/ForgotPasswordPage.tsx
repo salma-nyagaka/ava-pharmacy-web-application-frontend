@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiClient } from '../../lib/apiClient'
 import favicon from '../../assets/images/logos/favicon.png'
-import './AuthPage.css'
+import '../../styles/pages/Auth/AuthPage.css'
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('')

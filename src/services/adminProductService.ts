@@ -30,6 +30,16 @@ export interface ApiHealthConcern {
   created_at: string
 }
 
+export interface ApiBrand {
+  id: number
+  name: string
+  slug: string
+  logo: string | null
+  description: string
+  is_active: boolean
+  health_concerns: ApiHealthConcern[]
+}
+
 export interface ApiProductSubcategory {
   id: number
   name: string
@@ -61,8 +71,8 @@ export interface ApiProduct {
   category_name: string | null
   subcategory_id: number | null
   subcategory_name: string | null
-  brand: number | null
-  brand_name: string | null
+  brand: ApiBrand | null
+  brand_name?: string | null
   allow_backorder: boolean
   health_concerns: ApiHealthConcern[]
 }
@@ -112,6 +122,7 @@ export interface ProductCreatePayload {
   requires_prescription: boolean
   description?: string
   short_description?: string
+  image?: File | null
 }
 
 export interface InventoryAdjustPayload {
@@ -155,12 +166,12 @@ export const adminProductService = {
     return unwrapList<ApiProduct>(res)
   },
 
-  async createProduct(payload: ProductCreatePayload) {
+  async createProduct(payload: ProductCreatePayload | FormData) {
     const res = await apiClient.post('/admin/products/', payload)
     return unwrap<ApiProduct>(res)
   },
 
-  async updateProduct(id: number, payload: Partial<ProductCreatePayload>) {
+  async updateProduct(id: number, payload: Partial<ProductCreatePayload> | FormData) {
     const res = await apiClient.patch(`/admin/products/${id}/`, payload)
     return unwrap<ApiProduct>(res)
   },
@@ -215,6 +226,25 @@ export const adminProductService = {
 
   async deleteProductSubcategory(id: number) {
     await apiClient.delete(`/admin/product-subcategories/${id}/`)
+  },
+
+  async listBrands(params?: Record<string, string>) {
+    const res = await apiClient.get('/admin/brands/', { params })
+    return unwrapList<ApiBrand>(res)
+  },
+
+  async createBrand(payload: FormData | { name: string; description?: string; is_active?: boolean }) {
+    const res = await apiClient.post('/admin/brands/', payload)
+    return unwrap<ApiBrand>(res)
+  },
+
+  async updateBrand(id: number, payload: FormData | Partial<{ name: string; description: string; is_active: boolean }>) {
+    const res = await apiClient.patch(`/admin/brands/${id}/`, payload)
+    return unwrap<ApiBrand>(res)
+  },
+
+  async deleteBrand(id: number) {
+    await apiClient.delete(`/admin/brands/${id}/`)
   },
 
   async listInventory(params?: Record<string, string>) {

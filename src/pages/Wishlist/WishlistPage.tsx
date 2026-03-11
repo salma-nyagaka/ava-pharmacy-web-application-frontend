@@ -1,7 +1,7 @@
 import PageHeader from '../../components/PageHeader/PageHeader'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { productOmega3, productBpMonitor, productBabyDiapers } from '../../assets/images/remote'
-import './WishlistPage.css'
+import '../../styles/pages/Wishlist/WishlistPage.css'
 
 function WishlistPage() {
   const items = [

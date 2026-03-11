@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import './AccountAddressesPage.css'
+import '../../styles/pages/Account/AccountAddressesPage.css'
 
 interface Address {
   id: string

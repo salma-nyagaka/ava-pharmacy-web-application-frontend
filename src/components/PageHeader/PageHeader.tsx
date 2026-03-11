@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import './PageHeader.css'
+import '../../styles/components/PageHeader/PageHeader.css'
 
 type PageHeaderProps = {
   title: string

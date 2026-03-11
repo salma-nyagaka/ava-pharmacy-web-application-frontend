@@ -20,8 +20,8 @@ import {
   upsertLabResult,
 } from '../../data/labs'
 import { LabPartner, loadLabPartners } from '../../data/labPartners'
-import './AdminShared.css'
-import './LabRequestManagement.css'
+import '../../styles/pages/Admin/AdminShared.css'
+import '../../styles/pages/Admin/LabRequestManagement.css'
 
 const PAGE_SIZE = 10
 

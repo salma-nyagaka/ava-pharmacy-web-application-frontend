@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import './ConsultationPage.css'
+import '../../styles/pages/Consultation/ConsultationPage.css'
 
 type ConsultationStatus = 'form' | 'waiting' | 'chatting' | 'completed'
 

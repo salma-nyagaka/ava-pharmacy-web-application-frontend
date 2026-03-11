@@ -15,7 +15,7 @@ import backgroundBanner from '../../assets/images/banner/background.jpg'
 import { cartService } from '../../services/cartService'
 import { loadCategories } from '../../data/categories'
 import { useProducts } from '../../hooks/useProducts'
-import './HomePage.css'
+import '../../styles/pages/HomePage/HomePage.css'
 
 const CATEGORY_IMAGE_MAP: Record<string, string> = {
   'health-wellness': categoryHealth,

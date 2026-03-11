@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import './Header.css'
+import '../../styles/components/Header/Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import brandPanadol from '../../assets/images/brands/panadol.jpeg'
 import brandNivea from '../../assets/images/brands/nivea.png'
@@ -12,7 +12,7 @@ import brandCentrum from '../../assets/images/brands/centrum.jpeg'
 import brandSebamed from '../../assets/images/brands/sebamed.png'
 import brandHuggies from '../../assets/images/brands/huggies.jpeg'
 import brandAccuChek from '../../assets/images/brands/accu-check.png'
-import { loadHealthConcerns } from '../../data/healthConcerns'
+import { fetchHealthConcernsFromBackend, type HealthConcern } from '../../data/healthConcerns'
 import { useCategories } from '../../hooks/useCategories'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
@@ -73,8 +73,18 @@ function Header() {
     return favouritesService.subscribe(() => setFavCount(getFavouriteCount()))
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    fetchHealthConcernsFromBackend().then((items) => {
+      if (!cancelled) setHealthConcerns(items)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const categories = useCategories()
-  const [healthConcerns] = useState(() => loadHealthConcerns())
+  const [healthConcerns, setHealthConcerns] = useState<HealthConcern[]>([])
   const defaultCategorySlug = categories[0]?.slug ?? ALL_CATEGORIES_KEY
 
   const [activeCategory, setActiveCategory] = useState(defaultCategorySlug)

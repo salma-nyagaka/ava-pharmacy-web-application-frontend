@@ -4,7 +4,7 @@ import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallb
 import { cartService } from '../../services/cartService'
 import { fetchProductById, fetchProducts } from '../../services/productService'
 import { mapApiProduct } from '../../hooks/useProducts'
-import './ProductDetailPage.css'
+import '../../styles/pages/ProductDetail/ProductDetailPage.css'
 
 function ProductDetailPage() {
   const { id: routeId } = useParams()

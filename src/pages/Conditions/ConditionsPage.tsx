@@ -1,11 +1,11 @@
-import { ReactNode, useMemo, useState } from 'react'
+import { ReactNode, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
-import { getHealthConcernBySlug, healthConcerns, matchesHealthConcern } from '../../data/healthConcerns'
+import { fetchHealthConcernsFromBackend, type HealthConcern, matchesHealthConcern } from '../../data/healthConcerns'
 import { loadCatalogProducts } from '../../data/products'
-import './ConditionsPage.css'
-import '../ProductListing/ProductListingPage.css'
+import '../../styles/pages/Conditions/ConditionsPage.css'
+import '../../styles/pages/ProductListing/ProductListingPage.css'
 
 type ConditionMeta = { color: string; desc: string; icon: ReactNode }
 
@@ -38,7 +38,28 @@ const renderStars = (rating: number) => {
 function ConditionsPage() {
   const { condition } = useParams()
   const products = loadCatalogProducts()
-  const selectedConcern = getHealthConcernBySlug(condition)
+  const [healthConcerns, setHealthConcerns] = useState<HealthConcern[]>([])
+  const [concernsLoading, setConcernsLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setConcernsLoading(true)
+    fetchHealthConcernsFromBackend()
+      .then((items) => {
+        if (!cancelled) setHealthConcerns(items)
+      })
+      .finally(() => {
+        if (!cancelled) setConcernsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const selectedConcern = useMemo(
+    () => healthConcerns.find((concernItem) => concernItem.slug === condition),
+    [condition, healthConcerns],
+  )
 
   const [searchTerm, setSearchTerm]     = useState('')
   const [minPrice, setMinPrice]         = useState(0)
@@ -115,7 +136,11 @@ function ConditionsPage() {
         </div>
         <div className="container">
           <div className="cond-grid">
-            {healthConcerns.map((concern) => {
+            {concernsLoading ? (
+              <p style={{ color: '#6b7280' }}>Loading health concerns…</p>
+            ) : healthConcerns.length === 0 ? (
+              <p style={{ color: '#6b7280' }}>No health concerns have been created yet.</p>
+            ) : healthConcerns.map((concern) => {
               const meta = conditionMeta[concern.slug]
               const count = products.filter((p) => matchesHealthConcern(p, concern)).length
               return (
