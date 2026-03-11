@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import PageHeader from '../../components/PageHeader/PageHeader'
-import '../../styles/pages/About/AboutPage.css'
+import './AboutPage.css'
 
 const services = [
   {

@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import avatarJohn from '../../assets/images/avatars/avatar-john.svg'
-import '../../styles/pages/Account/AccountLayout.css'
+import './AccountLayout.css'
 
 const NAV_ITEMS = [
   {

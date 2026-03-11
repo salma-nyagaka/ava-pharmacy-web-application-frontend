@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { adminProductService, ApiOrder, ApiReports } from '../../services/adminProductService'
-import '../../styles/pages/Admin/AdminDashboard.css'
+import './AdminDashboard.css'
 
 function AdminDashboard() {
   const [reports, setReports] = useState<ApiReports | null>(null)

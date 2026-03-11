@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ORDERS, STATUS_CFG, TRACK_STEPS, getRelativeTime } from '../OrderHistory/ordersData'
-import '../../styles/pages/Account/OrderDetailPage.css'
+import './OrderDetailPage.css'
 
 function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import '../../styles/components/Header/Header.css'
+import './Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import brandPanadol from '../../assets/images/brands/panadol.jpeg'
 import brandNivea from '../../assets/images/brands/nivea.png'

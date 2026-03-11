@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import '../../styles/pages/Account/AccountLabTestsPage.css'
+import './AccountLabTestsPage.css'
 
 type LabStatus = 'Awaiting sample' | 'Processing' | 'Result ready' | 'Completed' | 'Cancelled'
 

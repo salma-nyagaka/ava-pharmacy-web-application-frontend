@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import '../../styles/pages/Account/AccountConsultationsPage.css'
+import './AccountConsultationsPage.css'
 
 type ConsultationType = 'Doctor' | 'Paediatric'
 type ConsultationStatus = 'Completed' | 'Upcoming' | 'Cancelled'

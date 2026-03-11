@@ -16,6 +16,16 @@ import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/pages/Admin/ProductManagement.css'
 
 const PAGE_SIZE = 6
+function formatFeatureLines(features: string[] | null | undefined): string {
+  return Array.isArray(features) ? features.join('\n') : ''
+}
+
+function parseFeatureLines(value: string): string[] {
+  return value
+    .split('\n')
+    .map((feature) => feature.trim())
+    .filter(Boolean)
+}
 
 function generateSku(name: string): string {
   const base = name.trim().toUpperCase().replace(/[^A-Z0-9]/g, '-').slice(0, 12)
@@ -39,6 +49,10 @@ function isFieldErrorMap(value: unknown): value is Record<string, string | strin
     (entry) => typeof entry === 'string' || (Array.isArray(entry) && entry.every((item) => typeof item === 'string')),
   )
 }
+
+type ProductFormPayload =
+  Pick<ProductCreatePayload, 'name' | 'slug' | 'sku' | 'price' | 'is_active' | 'requires_prescription'>
+  & Partial<ProductCreatePayload>
 
 function ProductManagement() {
   const navigate = useNavigate()
@@ -64,13 +78,16 @@ function ProductManagement() {
   const [productStrength, setProductStrength] = useState('')
   const [productPrice, setProductPrice] = useState('')
   const [productOriginalPrice, setProductOriginalPrice] = useState('')
-  const [productStock, setProductStock] = useState('')
   const [productSubcategoryId, setProductSubcategoryId] = useState<number | ''>('')
   const [productBrandId, setProductBrandId] = useState<number | ''>('')
   const [productHealthConcernIds, setProductHealthConcernIds] = useState<number[]>([])
   const [productStatus, setProductStatus] = useState<'active' | 'inactive'>('active')
   const [productRequiresRx, setProductRequiresRx] = useState(false)
   const [productDescription, setProductDescription] = useState('')
+  const [productFeaturesText, setProductFeaturesText] = useState('')
+  const [productDirections, setProductDirections] = useState('')
+  const [productWarnings, setProductWarnings] = useState('')
+  const [productBadge, setProductBadge] = useState('')
   const [productImageFile, setProductImageFile] = useState<File | null>(null)
   const [formError, setFormError] = useState('')
   const [showBrandModal, setShowBrandModal] = useState(false)
@@ -117,13 +134,16 @@ function ProductManagement() {
     setProductStrength('')
     setProductPrice('')
     setProductOriginalPrice('')
-    setProductStock('')
     setProductSubcategoryId(subcategories[0]?.id ?? '')
     setProductBrandId(brands[0]?.id ?? '')
     setProductHealthConcernIds([])
     setProductStatus('active')
     setProductRequiresRx(false)
     setProductDescription('')
+    setProductFeaturesText('')
+    setProductDirections('')
+    setProductWarnings('')
+    setProductBadge('')
     setProductImageFile(null)
     setEditingProduct(null)
     setFormError('')
@@ -158,13 +178,16 @@ function ProductManagement() {
     setProductStrength(product.strength ?? '')
     setProductPrice(product.price)
     setProductOriginalPrice(product.original_price ?? '')
-    setProductStock(String(product.stock_quantity))
     setProductSubcategoryId(product.subcategory_id ?? (subcategories[0]?.id ?? ''))
     setProductBrandId(product.brand?.id ?? (brands[0]?.id ?? ''))
     setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
     setProductStatus(product.is_active ? 'active' : 'inactive')
     setProductRequiresRx(product.requires_prescription)
     setProductDescription(product.description ?? '')
+    setProductFeaturesText(formatFeatureLines(product.features))
+    setProductDirections(product.directions ?? '')
+    setProductWarnings(product.warnings ?? '')
+    setProductBadge(product.badge ?? '')
     setProductImageFile(null)
     setEditingProduct(product)
     setFormError('')
@@ -185,53 +208,83 @@ function ProductManagement() {
     }
     if (!editingProduct && !productImageFile) { setFormError('Product image is required.'); return }
 
+    const features = parseFeatureLines(productFeaturesText)
     const sku = productSku.trim() || generateSku(productName)
     const slug = productSlug.trim() || generateSlug(productName)
-    const payload: ProductCreatePayload = {
+    const commonPayload: ProductFormPayload = {
       name: productName.trim(),
       slug,
       sku,
-      strength: productStrength.trim() || undefined,
+      strength: productStrength.trim(),
       price: Number(productPrice),
       original_price: productOriginalPrice ? Number(productOriginalPrice) : undefined,
-      stock_quantity: Number(productStock) || 0,
       brand_id: Number(productBrandId),
       subcategory_id: Number(productSubcategoryId),
       health_concern_ids: productHealthConcernIds,
       is_active: productStatus === 'active',
       requires_prescription: productRequiresRx,
-      description: productDescription.trim() || undefined,
+      description: productDescription.trim(),
+      features,
+      directions: productDirections.trim(),
+      warnings: productWarnings.trim(),
+      badge: productBadge.trim(),
     }
 
-    const buildProductFormData = () => {
+    const createPayload: ProductCreatePayload = {
+      ...commonPayload,
+      stock_quantity: 0,
+      low_stock_threshold: 5,
+      allow_backorder: false,
+      max_backorder_quantity: 0,
+    }
+
+    const updatePayload: ProductFormPayload = {
+      ...commonPayload,
+    }
+
+    const buildProductFormData = (
+      payload: ProductFormPayload,
+      options?: { includeInventory?: boolean },
+    ) => {
       const formData = new FormData()
       formData.append('name', payload.name)
       formData.append('slug', payload.slug)
       formData.append('sku', payload.sku)
       formData.append('price', String(payload.price))
-      formData.append('stock_quantity', String(payload.stock_quantity))
       formData.append('is_active', String(payload.is_active))
       formData.append('requires_prescription', String(payload.requires_prescription))
+      formData.append('strength', payload.strength ?? '')
+      formData.append('description', payload.description ?? '')
+      formData.append('features', JSON.stringify(payload.features ?? []))
+      formData.append('directions', payload.directions ?? '')
+      formData.append('warnings', payload.warnings ?? '')
+      formData.append('badge', payload.badge ?? '')
 
-      if (payload.strength) formData.append('strength', payload.strength)
+      if (options?.includeInventory) {
+        formData.append('stock_quantity', String(payload.stock_quantity ?? 0))
+        formData.append('low_stock_threshold', String(payload.low_stock_threshold ?? 5))
+        if (payload.stock_source) formData.append('stock_source', payload.stock_source)
+        formData.append('allow_backorder', String(payload.allow_backorder ?? false))
+        formData.append('max_backorder_quantity', String(payload.max_backorder_quantity ?? 0))
+      }
+
       if (payload.original_price !== undefined) formData.append('original_price', String(payload.original_price))
       if (payload.brand_id !== null && payload.brand_id !== undefined) formData.append('brand_id', String(payload.brand_id))
       if (payload.subcategory_id !== null && payload.subcategory_id !== undefined) formData.append('subcategory_id', String(payload.subcategory_id))
       productHealthConcernIds.forEach((id) => formData.append('health_concern_ids', String(id)))
-      if (payload.description) formData.append('description', payload.description)
       if (productImageFile) formData.append('image', productImageFile)
       return formData
     }
-
-    const requestPayload = !editingProduct || productImageFile ? buildProductFormData() : payload
 
     setSaving(true)
     setFormError('')
     try {
       if (editingProduct) {
+        const requestPayload = productImageFile ? buildProductFormData(updatePayload) : updatePayload
         const updated = await adminProductService.updateProduct(editingProduct.id, requestPayload)
         setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? updated : p)))
       } else {
+        const requestPayload = buildProductFormData(createPayload, { includeInventory: true })
         const created = await adminProductService.createProduct(requestPayload)
         setProducts((prev) => [created, ...prev])
       }
@@ -610,7 +663,7 @@ function ProductManagement() {
                   </td>
                   <td>KSh {Number(product.price).toLocaleString()}</td>
                   <td>
-                    <span className={`stock ${product.stock_quantity < 20 ? 'stock--low' : ''}`}>{product.stock_quantity}</span>
+                    <span className={`stock ${product.stock_quantity <= product.low_stock_threshold ? 'stock--low' : ''}`}>{product.stock_quantity}</span>
                   </td>
                   <td className="td--muted">{product.requires_prescription ? <span className="rx-badge">Required</span> : '-'}</td>
                   <td>
@@ -796,6 +849,52 @@ function ProductManagement() {
                       onChange={(e) => setProductDescription(e.target.value)}
                     />
                   </div>
+                  <div className="pf-row">
+                    <div className="pf-field pf-field--sm">
+                      <label className="pf-label">Badge <span className="pf-optional">optional</span></label>
+                      <input
+                        className="pf-input"
+                        type="text"
+                        placeholder="e.g. New, Best Seller"
+                        value={productBadge}
+                        onChange={(e) => setProductBadge(e.target.value)}
+                      />
+                      <span className="pf-hint">Short label shown on product cards.</span>
+                    </div>
+                  </div>
+                  <div className="pf-field">
+                    <label className="pf-label">Features <span className="pf-optional">optional</span></label>
+                    <textarea
+                      className="pf-input pf-textarea"
+                      rows={3}
+                      placeholder="Enter one feature per line"
+                      value={productFeaturesText}
+                      onChange={(e) => setProductFeaturesText(e.target.value)}
+                    />
+                    <span className="pf-hint">Each line becomes a separate bullet point on the product page.</span>
+                  </div>
+                  <div className="pf-row">
+                    <div className="pf-field">
+                      <label className="pf-label">Directions <span className="pf-optional">optional</span></label>
+                      <textarea
+                        className="pf-input pf-textarea"
+                        rows={3}
+                        placeholder="How the customer should use the product"
+                        value={productDirections}
+                        onChange={(e) => setProductDirections(e.target.value)}
+                      />
+                    </div>
+                    <div className="pf-field">
+                      <label className="pf-label">Warnings <span className="pf-optional">optional</span></label>
+                      <textarea
+                        className="pf-input pf-textarea"
+                        rows={3}
+                        placeholder="Safety warnings, contraindications, or cautions"
+                        value={productWarnings}
+                        onChange={(e) => setProductWarnings(e.target.value)}
+                      />
+                    </div>
+                  </div>
                   <div className="pf-field">
                     <label className="pf-label">Product Image <span className="pf-req">*</span></label>
                     <input
@@ -834,11 +933,7 @@ function ProductManagement() {
                 </div>
 
                 <div className="pf-section">
-                  <div className="pf-section__label">Inventory</div>
-                  <div className="pf-field pf-field--half">
-                    <label className="pf-label">Stock Quantity</label>
-                    <input className="pf-input" type="number" min="0" placeholder="0" value={productStock} onChange={(e) => setProductStock(e.target.value)} />
-                  </div>
+                  <div className="pf-section__label">Access</div>
                   <div className="pf-toggle-row" onClick={() => setProductRequiresRx(!productRequiresRx)}>
                     <div className="pf-toggle-row__text">
                       <span className="pf-toggle-row__title">Prescription Required</span>

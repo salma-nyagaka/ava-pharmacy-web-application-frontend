@@ -50,6 +50,8 @@ export interface ApiProductSubcategory {
   created_at: string
 }
 
+export type StockSource = 'branch' | 'warehouse' | 'out'
+
 export interface ApiProduct {
   id: number
   name: string
@@ -60,11 +62,17 @@ export interface ApiProduct {
   original_price: string | null
   stock_quantity: number
   low_stock_threshold: number
+  stock_source: StockSource
+  max_backorder_quantity: number
   is_active: boolean
   is_featured: boolean
   requires_prescription: boolean
   description: string
   short_description: string
+  features: string[]
+  directions: string
+  warnings: string
+  badge: string
   image: string | null
   category: number | null
   category_name: string | null
@@ -112,6 +120,7 @@ export interface ProductCreatePayload {
   original_price?: number
   stock_quantity: number
   low_stock_threshold?: number
+  stock_source?: StockSource
   category_id?: number | null
   subcategory_id?: number | null
   brand_id?: number | null
@@ -119,15 +128,23 @@ export interface ProductCreatePayload {
   is_active: boolean
   is_featured?: boolean
   requires_prescription: boolean
+  allow_backorder?: boolean
+  max_backorder_quantity?: number
   description?: string
   short_description?: string
+  features?: string[]
+  directions?: string
+  warnings?: string
+  badge?: string
   image?: File | null
 }
 
 export interface InventoryAdjustPayload {
   stock_quantity?: number
   low_stock_threshold?: number
+  stock_source?: StockSource
   allow_backorder?: boolean
+  max_backorder_quantity?: number
   reason?: string
 }
 

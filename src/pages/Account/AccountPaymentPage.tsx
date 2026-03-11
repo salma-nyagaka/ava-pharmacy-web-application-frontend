@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import '../../styles/pages/Account/AccountPaymentPage.css'
+import './AccountPaymentPage.css'
 
 type CardType = 'visa' | 'mastercard' | 'unknown'
 

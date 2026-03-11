@@ -1,19 +1,31 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { adminProductService, ApiInventoryProduct } from '../../services/adminProductService'
+import { adminProductService, ApiInventoryProduct, StockSource } from '../../services/adminProductService'
 import '../../styles/pages/Admin/AdminShared.css'
 import '../../styles/pages/Admin/InventoryManagement.css'
 
-function getStockStatus(product: ApiInventoryProduct): 'In Stock' | 'Low' | 'Out' {
-  if (product.stock_quantity === 0) return 'Out'
+const PAGE_SIZE = 10
+const STOCK_SOURCE_OPTIONS: Array<{ value: StockSource; label: string }> = [
+  { value: 'branch', label: 'In Branch' },
+  { value: 'warehouse', label: 'In Warehouse' },
+  { value: 'out', label: 'Out of Stock' },
+]
+
+type StockStatus = 'In Stock' | 'Low' | 'Backorder' | 'Out'
+
+function getStockStatus(product: ApiInventoryProduct): StockStatus {
+  if (product.stock_quantity === 0) return product.allow_backorder ? 'Backorder' : 'Out'
   if (product.stock_quantity <= product.low_stock_threshold) return 'Low'
   return 'In Stock'
+}
+
+function formatStockSource(value: StockSource): string {
+  return STOCK_SOURCE_OPTIONS.find((option) => option.value === value)?.label ?? value
 }
 
 function InventoryManagement() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const PAGE_SIZE = 10
 
   const [inventory, setInventory] = useState<ApiInventoryProduct[]>([])
   const [loading, setLoading] = useState(true)
@@ -24,12 +36,16 @@ function InventoryManagement() {
   const [adjustItem, setAdjustItem] = useState<ApiInventoryProduct | null>(null)
   const [adjustStock, setAdjustStock] = useState('')
   const [adjustThreshold, setAdjustThreshold] = useState('')
+  const [adjustSource, setAdjustSource] = useState<StockSource>('branch')
+  const [adjustAllowBackorder, setAdjustAllowBackorder] = useState(false)
+  const [adjustMaxBackorder, setAdjustMaxBackorder] = useState('0')
+  const [adjustError, setAdjustError] = useState('')
   const [adjustSaving, setAdjustSaving] = useState(false)
 
   const filterProductId = searchParams.get('product')
 
   useEffect(() => {
-    loadInventory()
+    void loadInventory()
   }, [])
 
   async function loadInventory() {
@@ -39,7 +55,7 @@ function InventoryManagement() {
       const items = await adminProductService.listInventory()
       setInventory(items)
       if (filterProductId) {
-        const match = items.find((p) => String(p.id) === filterProductId)
+        const match = items.find((product) => String(product.id) === filterProductId)
         if (match) setSearchTerm(match.name)
       }
     } catch {
@@ -54,9 +70,20 @@ function InventoryManagement() {
     navigate('/admin')
   }
 
+  const closeAdjustModal = () => {
+    if (adjustSaving) return
+    setAdjustItem(null)
+    setAdjustError('')
+  }
+
   const filteredInventory = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+
     return inventory.filter((item) => {
-      const matchSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchSearch =
+        query === '' ||
+        item.name.toLowerCase().includes(query) ||
+        item.sku.toLowerCase().includes(query)
       const status = getStockStatus(item)
       const matchStatus = selectedStatus === 'all' || status === selectedStatus
       return matchSearch && matchStatus
@@ -73,20 +100,38 @@ function InventoryManagement() {
     setAdjustItem(item)
     setAdjustStock(String(item.stock_quantity))
     setAdjustThreshold(String(item.low_stock_threshold))
+    setAdjustSource(item.stock_source)
+    setAdjustAllowBackorder(item.allow_backorder)
+    setAdjustMaxBackorder(String(item.max_backorder_quantity ?? 0))
+    setAdjustError('')
   }
 
   const handleAdjustSave = async () => {
     if (!adjustItem) return
+
+    const maxBackorderQuantity = adjustAllowBackorder
+      ? Math.max(0, Number.parseInt(adjustMaxBackorder, 10) || 0)
+      : 0
+
+    if (adjustAllowBackorder && maxBackorderQuantity === 0) {
+      setAdjustError('Set a max backorder quantity greater than 0 when backorder is enabled.')
+      return
+    }
+
     setAdjustSaving(true)
+    setAdjustError('')
     try {
       const updated = await adminProductService.adjustInventory(adjustItem.id, {
         stock_quantity: Math.max(0, Number.parseInt(adjustStock, 10) || 0),
         low_stock_threshold: Math.max(0, Number.parseInt(adjustThreshold, 10) || 0),
+        stock_source: adjustSource,
+        allow_backorder: adjustAllowBackorder,
+        max_backorder_quantity: maxBackorderQuantity,
       })
-      setInventory((prev) => prev.map((p) => (p.id === adjustItem.id ? updated : p)))
-      setAdjustItem(null)
+      setInventory((prev) => prev.map((product) => (product.id === adjustItem.id ? updated : product)))
+      closeAdjustModal()
     } catch {
-      // keep modal open on error
+      setAdjustError('Failed to save inventory changes.')
     } finally {
       setAdjustSaving(false)
     }
@@ -106,7 +151,7 @@ function InventoryManagement() {
       <div className="admin-page__filters">
         <input
           type="text"
-          placeholder="Search products"
+          placeholder="Search products or SKU"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -114,6 +159,7 @@ function InventoryManagement() {
           <option value="all">All statuses</option>
           <option value="In Stock">In Stock</option>
           <option value="Low">Low</option>
+          <option value="Backorder">Backorder</option>
           <option value="Out">Out</option>
         </select>
       </div>
@@ -128,7 +174,9 @@ function InventoryManagement() {
                 <th>Product</th>
                 <th>SKU</th>
                 <th>Stock</th>
-                <th>Low Stock Threshold</th>
+                <th>Threshold</th>
+                <th>Source</th>
+                <th>Backorder</th>
                 <th>Status</th>
                 <th>Action</th>
               </tr>
@@ -142,8 +190,10 @@ function InventoryManagement() {
                     <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{item.sku}</td>
                     <td>{item.stock_quantity}</td>
                     <td>{item.low_stock_threshold}</td>
+                    <td>{formatStockSource(item.stock_source)}</td>
+                    <td>{item.allow_backorder ? `Yes · Max ${item.max_backorder_quantity}` : 'No'}</td>
                     <td>
-                      <span className={`admin-status ${status === 'In Stock' ? 'admin-status--success' : status === 'Low' ? 'admin-status--warning' : 'admin-status--danger'}`}>
+                      <span className={`admin-status ${status === 'In Stock' ? 'admin-status--success' : status === 'Low' ? 'admin-status--warning' : status === 'Backorder' ? 'admin-status--warning' : 'admin-status--danger'}`}>
                         {status}
                       </span>
                     </td>
@@ -156,7 +206,7 @@ function InventoryManagement() {
                 )
               })}
               {filteredInventory.length === 0 && (
-                <tr><td colSpan={6} className="inventory-empty">No items match your filters.</td></tr>
+                <tr><td colSpan={8} className="inventory-empty">No items match your filters.</td></tr>
               )}
             </tbody>
           </table>
@@ -165,22 +215,22 @@ function InventoryManagement() {
 
       {filteredInventory.length > PAGE_SIZE && (
         <div className="inventory-pagination">
-          <button className="pagination__button" type="button" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
+          <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>Prev</button>
           <div className="pagination__pages">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
               <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>{page}</button>
             ))}
           </div>
-          <button className="pagination__button" type="button" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
+          <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>Next</button>
         </div>
       )}
 
       {adjustItem && (
-        <div className="modal-overlay" onClick={() => setAdjustItem(null)}>
+        <div className="modal-overlay" onClick={closeAdjustModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <h2>Adjust Stock</h2>
-              <button className="modal__close" onClick={() => setAdjustItem(null)}>×</button>
+              <button className="modal__close" onClick={closeAdjustModal}>×</button>
             </div>
             <div className="modal__content">
               <div className="adjust-info">
@@ -190,15 +240,36 @@ function InventoryManagement() {
               <div className="form-group">
                 <label>New stock count</label>
                 <input type="number" min={0} value={adjustStock} onChange={(e) => setAdjustStock(e.target.value)} />
-                <p className="adjust-hint">Status updates automatically based on stock.</p>
+                <p className="adjust-hint">Status updates automatically based on stock and threshold.</p>
               </div>
               <div className="form-group">
                 <label>Low stock threshold</label>
                 <input type="number" min={0} value={adjustThreshold} onChange={(e) => setAdjustThreshold(e.target.value)} />
               </div>
+              <div className="form-group">
+                <label>Stock source</label>
+                <select value={adjustSource} onChange={(e) => setAdjustSource(e.target.value as StockSource)}>
+                  {STOCK_SOURCE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input type="checkbox" checked={adjustAllowBackorder} onChange={(e) => setAdjustAllowBackorder(e.target.checked)} />
+                  Allow backorder
+                </label>
+              </div>
+              {adjustAllowBackorder && (
+                <div className="form-group">
+                  <label>Max backorder quantity</label>
+                  <input type="number" min={0} value={adjustMaxBackorder} onChange={(e) => setAdjustMaxBackorder(e.target.value)} />
+                </div>
+              )}
+              {adjustError && <p style={{ color: 'red', marginTop: '0.75rem' }}>{adjustError}</p>}
             </div>
             <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" onClick={() => setAdjustItem(null)}>Cancel</button>
+              <button className="btn btn--outline btn--sm" onClick={closeAdjustModal}>Cancel</button>
               <button className="btn btn--primary btn--sm" onClick={handleAdjustSave} disabled={adjustSaving}>
                 {adjustSaving ? 'Saving…' : 'Save'}
               </button>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import '../../styles/pages/Account/AccountPage.css'
+import './AccountPage.css'
 
 function AccountPage() {
   const recentOrders = [

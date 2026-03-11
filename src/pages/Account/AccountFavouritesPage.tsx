@@ -4,7 +4,7 @@ import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallb
 import { FavouriteItem, loadFavourites } from '../../data/favourites'
 import { favouritesService } from '../../services/favouritesService'
 import { cartService } from '../../services/cartService'
-import '../../styles/pages/Account/AccountFavouritesPage.css'
+import './AccountFavouritesPage.css'
 
 function AccountFavouritesPage() {
   const [items, setItems] = useState<FavouriteItem[]>(loadFavourites)
