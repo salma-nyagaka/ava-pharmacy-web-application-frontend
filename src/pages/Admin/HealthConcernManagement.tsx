@@ -5,6 +5,12 @@ import './AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 
+function formatDate(value?: string): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 function HealthConcernManagement() {
   const navigate = useNavigate()
   const [concerns, setConcerns] = useState<ApiHealthConcern[]>([])
@@ -78,6 +84,7 @@ function HealthConcernManagement() {
         setConcerns((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
       }
       setShowModal(false)
+      window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
       setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save. Please try again.')
@@ -91,6 +98,7 @@ function HealthConcernManagement() {
     try {
       const updated = await adminProductService.updateHealthConcern(c.id, { is_active: !c.is_active })
       setConcerns((prev) => prev.map((x) => (x.id === c.id ? updated : x)))
+      window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch { /* silent */ } finally {
       setTogglingIds((prev) => { const s = new Set(prev); s.delete(c.id); return s })
     }
@@ -103,6 +111,7 @@ function HealthConcernManagement() {
       await adminProductService.deleteHealthConcern(deleteTarget.id)
       setConcerns((prev) => prev.filter((c) => c.id !== deleteTarget.id))
       setDeleteTarget(null)
+      window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
       setDeleteError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to delete. Please try again.')
@@ -244,6 +253,9 @@ function HealthConcernManagement() {
                     <th>Icon</th>
                     <th>Description</th>
                     <th>Status</th>
+                    <th>Created At</th>
+                    <th>Created By</th>
+                    <th>Updated By</th>
                     <th className="cm-th-actions"></th>
                   </tr>
                 </thead>
@@ -277,6 +289,9 @@ function HealthConcernManagement() {
                           <span className="cm-toggle__knob" />
                         </button>
                       </td>
+                      <td style={{ fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(c.created_at)}</td>
+                      <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
+                      <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
                       <td>
                         <div className="cm-row-actions">
                           <button

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { CatalogProvider } from './context/CatalogContext'
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import AdminRoute from './components/ProtectedRoute/AdminRoute'
 import Layout from './components/Layout/Layout'
@@ -78,6 +79,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+      <CatalogProvider>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
@@ -172,6 +174,7 @@ function App() {
           </div>} />
         </Route>
       </Routes>
+      </CatalogProvider>
       </AuthProvider>
     </BrowserRouter>
   )

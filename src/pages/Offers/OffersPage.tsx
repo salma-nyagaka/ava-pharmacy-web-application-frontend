@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
-import { loadCatalogProducts } from '../../data/products'
-import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
+import { useProducts } from '../../hooks/useProducts'
 import './OffersPage.css'
 import '../ProductListing/ProductListingPage.css'
 
@@ -19,12 +18,10 @@ const renderStars = (rating: number) => {
 }
 
 function OffersPage() {
-  const promotions = loadPromotions()
-  const allDeals = useMemo(() =>
-    loadCatalogProducts()
-      .map((p) => applyPromotionsToProduct(p, promotions))
-      .filter((p) => p.stockSource !== 'out' && (p.originalPrice ?? p.price) > p.price),
-    [promotions]
+  const { products } = useProducts({ page_size: 200 })
+  const allDeals = useMemo(
+    () => products.filter((product) => product.stockSource !== 'out' && (product.originalPrice ?? product.price) > product.price),
+    [products],
   )
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -36,16 +33,16 @@ function OffersPage() {
   const [addedId, setAddedId] = useState<number | null>(null)
 
   const brands = useMemo(
-    () => Array.from(new Set(allDeals.map((p) => p.brand))).sort((a, b) => a.localeCompare(b)),
-    [allDeals]
+    () => Array.from(new Set(allDeals.map((product) => product.brand))).sort((a, b) => a.localeCompare(b)),
+    [allDeals],
   )
 
   const filteredDeals = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
-    let list = allDeals.filter((p) => {
-      const queryMatch = !query || [p.name, p.brand, p.category].some((v) => v.toLowerCase().includes(query))
-      const priceMatch = p.price >= minPrice && p.price <= maxPrice
-      const brandMatch = selectedBrands.length === 0 || selectedBrands.includes(p.brand)
+    let list = allDeals.filter((product) => {
+      const queryMatch = !query || [product.name, product.brand, product.category].some((value) => value.toLowerCase().includes(query))
+      const priceMatch = product.price >= minPrice && product.price <= maxPrice
+      const brandMatch = selectedBrands.length === 0 || selectedBrands.includes(product.brand)
       return queryMatch && priceMatch && brandMatch
     })
     if (sortBy === 'savings') list = [...list].sort((a, b) => ((b.originalPrice ?? b.price) - b.price) - ((a.originalPrice ?? a.price) - a.price))
@@ -57,13 +54,16 @@ function OffersPage() {
   const activeFilterCount = selectedBrands.length + (minPrice > 0 || maxPrice < 10000 ? 1 : 0)
 
   const clearAllFilters = () => {
-    setSearchTerm(''); setMinPrice(0); setMaxPrice(10000); setSelectedBrands([])
+    setSearchTerm('')
+    setMinPrice(0)
+    setMaxPrice(10000)
+    setSelectedBrands([])
   }
 
   const toggleBrand = (brand: string) =>
-    setSelectedBrands((prev) => prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand])
+    setSelectedBrands((prev) => prev.includes(brand) ? prev.filter((item) => item !== brand) : [...prev, brand])
 
-  const handleAddToCart = (deal: typeof allDeals[0]) => {
+  const handleAddToCart = (deal: typeof allDeals[number]) => {
     void cartService.add({
       id: deal.id,
       name: deal.name,
@@ -82,14 +82,12 @@ function OffersPage() {
         <div className="container">
           <p className="offers-hero__eyebrow">Promotions</p>
           <h1 className="offers-hero__title">Latest Offers</h1>
-          <p className="offers-hero__sub">Save on essentials, wellness products, and daily healthcare items. {allDeals.length} active deals.</p>
+          <p className="offers-hero__sub">Save on products created in admin with discounts or active promotions. {allDeals.length} active deals.</p>
         </div>
       </div>
 
       <div className="container">
         <div className="plp__layout">
-
-          {/* Sidebar */}
           <aside className="plp__sidebar">
             <div className="filter-panel">
               <div className="filter-panel__header">
@@ -125,13 +123,10 @@ function OffersPage() {
             </div>
           </aside>
 
-          {/* Main */}
           <main className="plp__main">
             <div className="plp__toolbar">
               <p className="plp__results-count">
-                {filteredDeals.length === 0
-                  ? 'No offers found'
-                  : `Showing ${filteredDeals.length} offer${filteredDeals.length !== 1 ? 's' : ''}`}
+                {filteredDeals.length === 0 ? 'No offers found' : `Showing ${filteredDeals.length} offer${filteredDeals.length !== 1 ? 's' : ''}`}
               </p>
               <div className="plp__toolbar-right">
                 <div className="plp__search-wrap">
@@ -218,7 +213,6 @@ function OffersPage() {
               )}
             </div>
           </main>
-
         </div>
       </div>
     </div>

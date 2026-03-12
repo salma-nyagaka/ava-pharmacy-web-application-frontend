@@ -13,6 +13,7 @@ export interface ApiProductCategory {
   id: number
   name: string
   slug: string
+  image: string | null
   description: string
   icon: string
   is_active: boolean
@@ -37,6 +38,9 @@ export interface ApiBrand {
   logo: string | null
   description: string
   is_active: boolean
+  created_at?: string
+  updated_at?: string
+  created_by_name?: string
 }
 
 export interface ApiProductSubcategory {
@@ -51,6 +55,28 @@ export interface ApiProductSubcategory {
 }
 
 export type StockSource = 'branch' | 'warehouse' | 'out'
+export type InventoryLocation = 'branch' | 'warehouse'
+
+export interface ApiProductInventory {
+  id: number
+  location: InventoryLocation
+  source_name: string
+  stock_quantity: number
+  low_stock_threshold: number
+  allow_backorder: boolean
+  max_backorder_quantity: number
+  is_pos_synced: boolean
+  last_synced_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface InventoryLocationPayload {
+  stock_quantity?: number
+  low_stock_threshold?: number
+  allow_backorder?: boolean
+  max_backorder_quantity?: number
+}
 
 export interface ApiProduct {
   id: number
@@ -59,11 +85,14 @@ export interface ApiProduct {
   slug: string
   strength: string
   price: string
+  cost_price: string | null
+  discount_price: string | null
   original_price: string | null
   stock_quantity: number
   low_stock_threshold: number
   stock_source: StockSource
   max_backorder_quantity: number
+  inventories: ApiProductInventory[]
   is_active: boolean
   is_featured: boolean
   requires_prescription: boolean
@@ -82,6 +111,10 @@ export interface ApiProduct {
   brand_name?: string | null
   allow_backorder: boolean
   health_concerns: ApiHealthConcern[]
+  created_at: string
+  updated_at: string
+  created_by: number | null
+  created_by_name: string
 }
 
 export interface ApiInventoryProduct extends ApiProduct {
@@ -117,10 +150,10 @@ export interface ProductCreatePayload {
   sku: string
   strength?: string
   price: number
-  original_price?: number
-  stock_quantity: number
-  low_stock_threshold?: number
-  stock_source?: StockSource
+  cost_price?: number
+  discount_price?: number
+  branch_inventory?: InventoryLocationPayload
+  warehouse_inventory?: InventoryLocationPayload
   category_id?: number | null
   subcategory_id?: number | null
   brand_id?: number | null
@@ -140,12 +173,21 @@ export interface ProductCreatePayload {
 }
 
 export interface InventoryAdjustPayload {
-  stock_quantity?: number
-  low_stock_threshold?: number
-  stock_source?: StockSource
-  allow_backorder?: boolean
-  max_backorder_quantity?: number
+  branch_inventory?: InventoryLocationPayload
+  warehouse_inventory?: InventoryLocationPayload
   reason?: string
+}
+
+export interface PosSyncPayload {
+  updates: Array<{
+    product_id?: number
+    sku?: string
+    pos_quantity: number
+    source_name?: string
+    low_stock_threshold?: number
+    allow_backorder?: boolean
+    max_backorder_quantity?: number
+  }>
 }
 
 export interface ApiStockMovement {
@@ -211,12 +253,12 @@ export const adminProductService = {
     return unwrapList<ApiProductCategory>(res)
   },
 
-  async createProductCategory(payload: { name: string; description?: string }) {
+  async createProductCategory(payload: FormData | { name: string; description?: string }) {
     const res = await apiClient.post('/admin/product-categories/', payload)
     return unwrap<ApiProductCategory>(res)
   },
 
-  async updateProductCategory(id: number, payload: Partial<{ name: string; description: string; is_active: boolean }>) {
+  async updateProductCategory(id: number, payload: FormData | Partial<{ name: string; description: string; is_active: boolean }>) {
     const res = await apiClient.patch(`/admin/product-categories/${id}/`, payload)
     return unwrap<ApiProductCategory>(res)
   },
@@ -271,6 +313,11 @@ export const adminProductService = {
   async adjustInventory(id: number, payload: InventoryAdjustPayload) {
     const res = await apiClient.patch(`/admin/inventory/${id}/`, payload)
     return unwrap<ApiInventoryProduct>(res)
+  },
+
+  async syncPosInventory(payload: PosSyncPayload) {
+    const res = await apiClient.post('/admin/inventory/pos-sync/', payload)
+    return unwrap<{ updated_count: number; updated: string[]; not_found: Array<number | string>; invalid: Array<Record<string, unknown>>; synced_at: string }>(res)
   },
 
   async getInventoryMovements(id: number) {

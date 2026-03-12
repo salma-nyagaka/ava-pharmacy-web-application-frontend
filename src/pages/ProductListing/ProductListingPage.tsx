@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import { getCategoryBySlug, getSubcategoryBySlug } from '../../data/categories'
+import { useCategories } from '../../hooks/useCategories'
 import { StockSource } from '../../data/cart'
 import { CatalogProduct } from '../../data/products'
 import { cartService } from '../../services/cartService'
@@ -23,18 +23,25 @@ const getStockLabel = (stockSource: StockSource) => {
 function ProductListingPage() {
   const [searchParams] = useSearchParams()
   const { category: categoryParam } = useParams()
+  const categories = useCategories()
   const categorySlug = categoryParam || searchParams.get('category') || 'all'
-  const activeCategory = getCategoryBySlug(categorySlug)
+  const activeCategory = categories.find((category) => category.slug === categorySlug)
   const activeSubcategorySlug = searchParams.get('subcategory')
-  const activeSubcategory = getSubcategoryBySlug(activeCategory?.slug, activeSubcategorySlug)
+  const activeSubcategory = activeCategory?.subcategories.find((subcategory) => subcategory.slug === activeSubcategorySlug)
   const queryFromUrl = searchParams.get('query') ?? ''
+  const brandParam = searchParams.get('brand') ?? undefined
+  const healthConcernParam = searchParams.get('health_concern') ?? undefined
 
   const formatSlug = (value: string) =>
     value
       .replace(/-/g, ' ')
       .replace(/\b\w/g, (match) => match.toUpperCase())
 
-  const categoryTitle = activeCategory?.name ?? (categorySlug === 'all' ? 'All Products' : formatSlug(categorySlug))
+  const categoryTitle = brandParam
+    ? formatSlug(brandParam)
+    : healthConcernParam
+      ? formatSlug(healthConcernParam)
+      : activeCategory?.name ?? (categorySlug === 'all' ? 'All Products' : formatSlug(categorySlug))
   const categoryPath = activeCategory?.path ?? '/products'
   const subcategories = activeCategory?.subcategories ?? []
 
@@ -58,6 +65,9 @@ function ProductListingPage() {
 
   const { products } = useProducts({
     category: categorySlug !== 'all' ? categorySlug : undefined,
+    subcategory: activeSubcategorySlug || undefined,
+    brand: brandParam,
+    health_concern: healthConcernParam,
     search: queryFromUrl || undefined,
     page_size: 200,
   })
@@ -115,8 +125,6 @@ function ProductListingPage() {
   const filteredProducts = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
     return productsWithDeals.filter((product) => {
-      const categoryMatches = categorySlug === 'all' || !activeCategory || product.category === activeCategory.name
-      const subcategoryMatches = !activeSubcategory || product.subcategorySlugs.includes(activeSubcategory.slug)
       const queryMatches =
         !query ||
         [product.name, product.brand, product.category].some((value) => value.toLowerCase().includes(query))
@@ -128,15 +136,7 @@ function ProductListingPage() {
         (availability === 'in_stock' && product.stockSource !== 'out') ||
         (availability === 'out_of_stock' && product.stockSource === 'out')
 
-      return (
-        categoryMatches &&
-        subcategoryMatches &&
-        queryMatches &&
-        priceMatches &&
-        brandMatches &&
-        ratingMatches &&
-        availabilityMatches
-      )
+      return queryMatches && priceMatches && brandMatches && ratingMatches && availabilityMatches
     })
   }, [
     productsWithDeals,

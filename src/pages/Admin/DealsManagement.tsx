@@ -237,6 +237,9 @@ function DealsManagement() {
               <th>Discount</th>
               <th>Schedule</th>
               <th>Status</th>
+              <th>Created At</th>
+              <th>Created By</th>
+              <th>Updated By</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -270,6 +273,9 @@ function DealsManagement() {
                   <td>
                     <span className={`deal-status deal-status--${status}`}>{status}</span>
                   </td>
+                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
+                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
+                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
                   <td>
                     <div className="action-buttons">
                       <button className="btn-sm btn--outline" type="button" onClick={() => openEdit(promotion)}>Edit</button>
@@ -284,7 +290,7 @@ function DealsManagement() {
             })}
             {filteredPromotions.length === 0 && (
               <tr>
-                <td colSpan={6} className="deals-empty">No deals match your filters.</td>
+                <td colSpan={9} className="deals-empty">No deals match your filters.</td>
               </tr>
             )}
           </tbody>

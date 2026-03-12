@@ -10,9 +10,13 @@
 }
 
 .product-management {
-  padding: 1.5rem 2rem 3rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  background: #f1f5f9;
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1.5rem 3rem 3rem;
+  max-width: none;
+  margin: 0;
 }
 
 /* Header */

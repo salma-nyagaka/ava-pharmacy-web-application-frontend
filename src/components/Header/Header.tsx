@@ -2,18 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import './Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
-import brandPanadol from '../../assets/images/brands/panadol.jpeg'
-import brandNivea from '../../assets/images/brands/nivea.png'
-import brandCerave from '../../assets/images/brands/cerave.png'
-import brandDurex from '../../assets/images/brands/durex.png'
-import brandEucerin from '../../assets/images/brands/eucerin.png'
-import brandVichy from '../../assets/images/brands/vichy.png'
-import brandCentrum from '../../assets/images/brands/centrum.jpeg'
-import brandSebamed from '../../assets/images/brands/sebamed.png'
-import brandHuggies from '../../assets/images/brands/huggies.jpeg'
-import brandAccuChek from '../../assets/images/brands/accu-check.png'
-import { fetchHealthConcernsFromBackend, type HealthConcern } from '../../data/healthConcerns'
-import { useCategories } from '../../hooks/useCategories'
+import { useCatalog } from '../../context/CatalogContext'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
@@ -73,36 +62,15 @@ function Header() {
     return favouritesService.subscribe(() => setFavCount(getFavouriteCount()))
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    fetchHealthConcernsFromBackend().then((items) => {
-      if (!cancelled) setHealthConcerns(items)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const categories = useCategories()
-  const [healthConcerns, setHealthConcerns] = useState<HealthConcern[]>([])
+  const { categories, brands, healthConcerns } = useCatalog()
   const defaultCategorySlug = categories[0]?.slug ?? ALL_CATEGORIES_KEY
 
   const [activeCategory, setActiveCategory] = useState(defaultCategorySlug)
   const banners = loadBanners()
   const activeBanner = banners.find((banner) => banner.status === 'active')
 
-  const brands = [
-    { name: 'Panadol', path: '/brands/panadol', logo: brandPanadol },
-    { name: 'Nivea', path: '/brands/nivea', logo: brandNivea },
-    { name: 'CeraVe', path: '/brands/cerave', logo: brandCerave },
-    { name: 'Durex', path: '/brands/durex', logo: brandDurex },
-    { name: 'Eucerin', path: '/brands/eucerin', logo: brandEucerin },
-    { name: 'Vichy', path: '/brands/vichy', logo: brandVichy },
-    { name: 'Centrum', path: '/brands/centrum', logo: brandCentrum },
-    { name: 'Sebamed', path: '/brands/sebamed', logo: brandSebamed },
-    { name: 'Huggies', path: '/brands/huggies', logo: brandHuggies },
-    { name: 'Accu-chek', path: '/brands/accu-chek', logo: brandAccuChek },
-  ]
+
+
 
   const handleToggleMenu = (menuKey: string) => {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey))
@@ -404,32 +372,50 @@ function Header() {
                   </div>
                   <div className="mega-panel__col mega-panel__values">
                     <h4>{activeCategoryLabel}</h4>
-                    <div className="mega-panel__values-grid">
-                      <ul className="mega-panel__values-list">
-                        {itemsColumnOne.map((item) => (
-                          <li key={item.id}>
-                            <Link to={item.path} onClick={closeMenus}>
-                              <span>{item.name}</span>
-                              {activeCategory === ALL_CATEGORIES_KEY && item.categoryName && (
-                                <small className="mega-panel__item-category">{item.categoryName}</small>
-                              )}
+                    {activeCategory === ALL_CATEGORIES_KEY ? (
+                      <div className="mega-panel__all-grid">
+                        {categories.filter((cat) => cat.subcategories.length > 0).map((cat) => (
+                          <div key={cat.slug} className="mega-panel__cat-group">
+                            <Link
+                              to={`/products?category=${encodeURIComponent(cat.slug)}`}
+                              onClick={closeMenus}
+                              className="mega-panel__cat-group-title"
+                            >
+                              {cat.name}
                             </Link>
-                          </li>
+                            <ul className="mega-panel__cat-group-list">
+                              {cat.subcategories.map((sub) => (
+                                <li key={sub.slug}>
+                                  <Link
+                                    to={buildSubcategoryPath(cat.slug, sub.slug)}
+                                    onClick={closeMenus}
+                                  >
+                                    {sub.name}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         ))}
-                      </ul>
-                      <ul className="mega-panel__values-list">
-                        {itemsColumnTwo.map((item) => (
-                          <li key={item.id}>
-                            <Link to={item.path} onClick={closeMenus}>
-                              <span>{item.name}</span>
-                              {activeCategory === ALL_CATEGORIES_KEY && item.categoryName && (
-                                <small className="mega-panel__item-category">{item.categoryName}</small>
-                              )}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="mega-panel__values-grid">
+                        <ul className="mega-panel__values-list">
+                          {itemsColumnOne.map((item) => (
+                            <li key={item.id}>
+                              <Link to={item.path} onClick={closeMenus}>{item.name}</Link>
+                            </li>
+                          ))}
+                        </ul>
+                        <ul className="mega-panel__values-list">
+                          {itemsColumnTwo.map((item) => (
+                            <li key={item.id}>
+                              <Link to={item.path} onClick={closeMenus}>{item.name}</Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <div className="mega-panel__col mega-panel__cta">
                     <div className="advisor-card">
@@ -461,7 +447,7 @@ function Header() {
                   {healthConcerns.map((condition) => (
                     <Link
                       key={condition.slug}
-                      to={condition.path}
+                      to={`/products?health_concern=${encodeURIComponent(condition.slug)}`}
                       onClick={closeMenus}
                       className="conditions-panel__card"
                     >
@@ -496,9 +482,9 @@ function Header() {
                 </div>
                 <div className="brands-panel__grid">
                   {brands.map((brand) => (
-                    <Link key={brand.name} to={brand.path} onClick={closeMenus} className="brands-panel__card">
+                    <Link key={brand.id} to={`/products?brand=${encodeURIComponent(brand.slug)}`} onClick={closeMenus} className="brands-panel__card">
                       <span className="brands-panel__logo">
-                        <img src={brand.logo} alt={`${brand.name} logo`} className="brands-panel__logo-img" />
+                        {brand.logo ? (<img src={brand.logo} alt={`${brand.name} logo`} className="brands-panel__logo-img" />) : (<span className="brands-panel__logo-img" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{brand.name.charAt(0)}</span>)}
                       </span>
                       <span>{brand.name}</span>
                     </Link>

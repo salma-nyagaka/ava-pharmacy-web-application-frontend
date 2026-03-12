@@ -16,6 +16,41 @@ import '../../styles/admin/shared/AdminEntityManagement.css'
 import './ProductManagement.css'
 
 const PAGE_SIZE = 6
+
+function formatDate(value?: string): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function formatCurrency(value?: string | number | null): string {
+  if (value === null || value === undefined || value === '') return '—'
+  const amount = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(amount) ? `KSh ${amount.toLocaleString()}` : '—'
+}
+
+function getEffectiveSellingPrice(product: ApiProduct): number {
+  const sellingPrice = Number(product.price)
+  const discountPrice = Number(product.discount_price)
+
+  if (Number.isFinite(discountPrice) && discountPrice > 0 && discountPrice < sellingPrice) {
+    return discountPrice
+  }
+
+  return sellingPrice
+}
+
+function getMarginData(product: ApiProduct): { amount: number; percent: number } | null {
+  const costPrice = Number(product.cost_price)
+  if (!Number.isFinite(costPrice) || costPrice <= 0) return null
+
+  const effectiveSellingPrice = getEffectiveSellingPrice(product)
+  const amount = effectiveSellingPrice - costPrice
+  const percent = effectiveSellingPrice > 0 ? (amount / effectiveSellingPrice) * 100 : 0
+
+  return { amount, percent }
+}
+
 function formatFeatureLines(features: string[] | null | undefined): string {
   return Array.isArray(features) ? features.join('\n') : ''
 }
@@ -40,6 +75,20 @@ function generateSlug(name: string): string {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 80)
+}
+
+function getInventoryItem(product: ApiProduct, location: 'branch' | 'warehouse') {
+  return product.inventories?.find((inventory) => inventory.location === location)
+}
+
+function getInventoryQuantity(product: ApiProduct, location: 'branch' | 'warehouse') {
+  return getInventoryItem(product, location)?.stock_quantity ?? 0
+}
+
+function formatInventoryBreakdown(product: ApiProduct): string {
+  const branchQty = getInventoryQuantity(product, 'branch')
+  const warehouseQty = getInventoryQuantity(product, 'warehouse')
+  return `Shop:${branchQty} · POS:${warehouseQty}`
 }
 
 function isFieldErrorMap(value: unknown): value is Record<string, string | string[]> {
@@ -77,7 +126,8 @@ function ProductManagement() {
   const [productSku, setProductSku] = useState('')
   const [productStrength, setProductStrength] = useState('')
   const [productPrice, setProductPrice] = useState('')
-  const [productOriginalPrice, setProductOriginalPrice] = useState('')
+  const [productCostPrice, setProductCostPrice] = useState('')
+  const [productDiscountPrice, setProductDiscountPrice] = useState('')
   const [productSubcategoryId, setProductSubcategoryId] = useState<number | ''>('')
   const [productBrandId, setProductBrandId] = useState<number | ''>('')
   const [productHealthConcernIds, setProductHealthConcernIds] = useState<number[]>([])
@@ -88,6 +138,10 @@ function ProductManagement() {
   const [productDirections, setProductDirections] = useState('')
   const [productWarnings, setProductWarnings] = useState('')
   const [productBadge, setProductBadge] = useState('')
+  const [branchStockQuantity, setBranchStockQuantity] = useState('0')
+  const [branchLowStockThreshold, setBranchLowStockThreshold] = useState('5')
+  const [branchAllowBackorder, setBranchAllowBackorder] = useState(false)
+  const [branchMaxBackorderQuantity, setBranchMaxBackorderQuantity] = useState('0')
   const [productImageFile, setProductImageFile] = useState<File | null>(null)
   const [formError, setFormError] = useState('')
   const [showBrandModal, setShowBrandModal] = useState(false)
@@ -133,7 +187,8 @@ function ProductManagement() {
     setProductSku('')
     setProductStrength('')
     setProductPrice('')
-    setProductOriginalPrice('')
+    setProductCostPrice('')
+    setProductDiscountPrice('')
     setProductSubcategoryId(subcategories[0]?.id ?? '')
     setProductBrandId(brands[0]?.id ?? '')
     setProductHealthConcernIds([])
@@ -144,6 +199,10 @@ function ProductManagement() {
     setProductDirections('')
     setProductWarnings('')
     setProductBadge('')
+    setBranchStockQuantity('0')
+    setBranchLowStockThreshold('5')
+    setBranchAllowBackorder(false)
+    setBranchMaxBackorderQuantity('0')
     setProductImageFile(null)
     setEditingProduct(null)
     setFormError('')
@@ -177,7 +236,8 @@ function ProductManagement() {
     setProductSku(product.sku)
     setProductStrength(product.strength ?? '')
     setProductPrice(product.price)
-    setProductOriginalPrice(product.original_price ?? '')
+    setProductCostPrice(product.cost_price ?? '')
+    setProductDiscountPrice(product.discount_price ?? '')
     setProductSubcategoryId(product.subcategory_id ?? (subcategories[0]?.id ?? ''))
     setProductBrandId(product.brand?.id ?? (brands[0]?.id ?? ''))
     setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
@@ -188,6 +248,10 @@ function ProductManagement() {
     setProductDirections(product.directions ?? '')
     setProductWarnings(product.warnings ?? '')
     setProductBadge(product.badge ?? '')
+    setBranchStockQuantity(String(getInventoryItem(product, 'branch')?.stock_quantity ?? 0))
+    setBranchLowStockThreshold(String(getInventoryItem(product, 'branch')?.low_stock_threshold ?? 5))
+    setBranchAllowBackorder(getInventoryItem(product, 'branch')?.allow_backorder ?? false)
+    setBranchMaxBackorderQuantity(String(getInventoryItem(product, 'branch')?.max_backorder_quantity ?? 0))
     setProductImageFile(null)
     setEditingProduct(product)
     setFormError('')
@@ -208,6 +272,29 @@ function ProductManagement() {
     }
     if (!editingProduct && !productImageFile) { setFormError('Product image is required.'); return }
 
+    const branchInventory = {
+      stock_quantity: Math.max(0, Number.parseInt(branchStockQuantity, 10) || 0),
+      low_stock_threshold: Math.max(0, Number.parseInt(branchLowStockThreshold, 10) || 0),
+      allow_backorder: branchAllowBackorder,
+      max_backorder_quantity: branchAllowBackorder
+        ? Math.max(0, Number.parseInt(branchMaxBackorderQuantity, 10) || 0)
+        : 0,
+    }
+
+    if (branchAllowBackorder && branchInventory.max_backorder_quantity === 0) {
+      setFormError('Set a main shop max backorder quantity greater than 0 when main shop backorder is enabled.')
+      return
+    }
+
+    const priceValue = Number(productPrice)
+    const costPriceValue = productCostPrice ? Number(productCostPrice) : undefined
+    const discountPriceValue = productDiscountPrice ? Number(productDiscountPrice) : undefined
+
+    if (discountPriceValue !== undefined && discountPriceValue >= priceValue) {
+      setFormError('Discount price must be lower than the selling price.')
+      return
+    }
+
     const features = parseFeatureLines(productFeaturesText)
     const sku = productSku.trim() || generateSku(productName)
     const slug = productSlug.trim() || generateSlug(productName)
@@ -216,8 +303,9 @@ function ProductManagement() {
       slug,
       sku,
       strength: productStrength.trim(),
-      price: Number(productPrice),
-      original_price: productOriginalPrice ? Number(productOriginalPrice) : undefined,
+      price: priceValue,
+      cost_price: costPriceValue,
+      discount_price: discountPriceValue,
       brand_id: Number(productBrandId),
       subcategory_id: Number(productSubcategoryId),
       health_concern_ids: productHealthConcernIds,
@@ -228,24 +316,18 @@ function ProductManagement() {
       directions: productDirections.trim(),
       warnings: productWarnings.trim(),
       badge: productBadge.trim(),
+      branch_inventory: branchInventory,
     }
 
     const createPayload: ProductCreatePayload = {
       ...commonPayload,
-      stock_quantity: 0,
-      low_stock_threshold: 5,
-      allow_backorder: false,
-      max_backorder_quantity: 0,
     }
 
     const updatePayload: ProductFormPayload = {
       ...commonPayload,
     }
 
-    const buildProductFormData = (
-      payload: ProductFormPayload,
-      options?: { includeInventory?: boolean },
-    ) => {
+    const buildProductFormData = (payload: ProductFormPayload) => {
       const formData = new FormData()
       formData.append('name', payload.name)
       formData.append('slug', payload.slug)
@@ -259,16 +341,10 @@ function ProductManagement() {
       formData.append('directions', payload.directions ?? '')
       formData.append('warnings', payload.warnings ?? '')
       formData.append('badge', payload.badge ?? '')
+      formData.append('branch_inventory', JSON.stringify(payload.branch_inventory ?? {}))
 
-      if (options?.includeInventory) {
-        formData.append('stock_quantity', String(payload.stock_quantity ?? 0))
-        formData.append('low_stock_threshold', String(payload.low_stock_threshold ?? 5))
-        if (payload.stock_source) formData.append('stock_source', payload.stock_source)
-        formData.append('allow_backorder', String(payload.allow_backorder ?? false))
-        formData.append('max_backorder_quantity', String(payload.max_backorder_quantity ?? 0))
-      }
-
-      if (payload.original_price !== undefined) formData.append('original_price', String(payload.original_price))
+      if (payload.cost_price !== undefined) formData.append('cost_price', String(payload.cost_price))
+      if (payload.discount_price !== undefined) formData.append('discount_price', String(payload.discount_price))
       if (payload.brand_id !== null && payload.brand_id !== undefined) formData.append('brand_id', String(payload.brand_id))
       if (payload.subcategory_id !== null && payload.subcategory_id !== undefined) formData.append('subcategory_id', String(payload.subcategory_id))
       productHealthConcernIds.forEach((id) => formData.append('health_concern_ids', String(id)))
@@ -284,7 +360,7 @@ function ProductManagement() {
         const updated = await adminProductService.updateProduct(editingProduct.id, requestPayload)
         setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? updated : p)))
       } else {
-        const requestPayload = buildProductFormData(createPayload, { includeInventory: true })
+        const requestPayload = buildProductFormData(createPayload)
         const created = await adminProductService.createProduct(requestPayload)
         setProducts((prev) => [created, ...prev])
       }
@@ -613,15 +689,22 @@ function ProductManagement() {
               <tr>
                 <th>Product</th>
                 <th>Subcategory</th>
-                <th>Price</th>
+                <th>Selling</th>
+                <th>Discount</th>
+                <th>Margin</th>
                 <th>Stock</th>
                 <th>Prescription</th>
                 <th>Status</th>
+                <th>Created At</th>
+                <th>Created By</th>
+                <th>Updated By</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {pagedProducts.map((product) => (
+              {pagedProducts.map((product) => {
+                const margin = getMarginData(product)
+                return (
                 <tr key={product.id}>
                   <td>
                     <div className="product-info">
@@ -661,9 +744,30 @@ function ProductManagement() {
                       <span className="product-table-catalog__category">{getProductCatalog(product).categoryName}</span>
                     </div>
                   </td>
-                  <td>KSh {Number(product.price).toLocaleString()}</td>
+                  <td>{formatCurrency(product.price)}</td>
                   <td>
-                    <span className={`stock ${product.stock_quantity <= product.low_stock_threshold ? 'stock--low' : ''}`}>{product.stock_quantity}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                      <span>{formatCurrency(product.discount_price)}</span>
+                      <span className="td--muted" style={{ fontSize: '0.75rem' }}>
+                        {product.discount_price ? 'Current deal price' : 'No discount'}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                      <span className={margin && margin.amount < 0 ? 'stock stock--low' : ''}>
+                        {margin ? formatCurrency(margin.amount) : '—'}
+                      </span>
+                      <span className="td--muted" style={{ fontSize: '0.75rem' }}>
+                        {margin ? `${margin.percent.toFixed(1)}%` : 'No bought price'}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                      <span className={`stock ${product.stock_quantity <= product.low_stock_threshold ? 'stock--low' : ''}`}>{product.stock_quantity}</span>
+                      <span className="td--muted" style={{ fontSize: '0.75rem' }}>{formatInventoryBreakdown(product)}</span>
+                    </div>
                   </td>
                   <td className="td--muted">{product.requires_prescription ? <span className="rx-badge">Required</span> : '-'}</td>
                   <td>
@@ -671,6 +775,9 @@ function ProductManagement() {
                       {product.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
+                  <td style={{ fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(product.created_at)}</td>
+                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{product.created_by_name || '—'}</td>
+                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
                   <td>
                     <div className="action-buttons">
                       <button className="btn-icon" title="Edit" onClick={() => openEditModal(product)}>
@@ -702,9 +809,9 @@ function ProductManagement() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
               {pagedProducts.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>No products found.</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>No products found.</td></tr>
               )}
             </tbody>
           </table>
@@ -787,7 +894,6 @@ function ProductManagement() {
                             <option key={brand.id} value={brand.id}>{brand.name}</option>
                           ))}
                         </select>
-                        <button type="button" className="btn btn--secondary btn--sm" onClick={openBrandModal}>+ Brand</button>
                       </div>
                     </div>
                     <div className="pf-field">
@@ -922,14 +1028,50 @@ function ProductManagement() {
                       </div>
                     </div>
                     <div className="pf-field">
-                      <label className="pf-label">Compare-at Price <span className="pf-optional">optional</span></label>
+                      <label className="pf-label">Bought At Price <span className="pf-optional">optional</span></label>
                       <div className="pf-prefix-wrap">
                         <span className="pf-prefix">KSh</span>
-                        <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" placeholder="0.00" value={productOriginalPrice} onChange={(e) => setProductOriginalPrice(e.target.value)} />
+                        <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" placeholder="0.00" value={productCostPrice} onChange={(e) => setProductCostPrice(e.target.value)} />
                       </div>
-                      <span className="pf-hint">Shown as strikethrough when higher than selling price</span>
+                      <span className="pf-hint">Internal cost price for margin tracking. This is not shown to customers.</span>
                     </div>
                   </div>
+                  <div className="pf-row">
+                    <div className="pf-field">
+                      <label className="pf-label">Discount Price <span className="pf-optional">optional</span></label>
+                      <div className="pf-prefix-wrap">
+                        <span className="pf-prefix">KSh</span>
+                        <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" placeholder="0.00" value={productDiscountPrice} onChange={(e) => setProductDiscountPrice(e.target.value)} />
+                      </div>
+                      <span className="pf-hint">Must be lower than the selling price. Customers will see this as the discounted price.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pf-section">
+                  <div className="pf-section__label">Inventory</div>
+                  <div className="pf-row">
+                    <div className="pf-field">
+                      <label className="pf-label">Main Shop Stock</label>
+                      <input className="pf-input" type="number" min="0" value={branchStockQuantity} onChange={(e) => setBranchStockQuantity(e.target.value)} />
+                    </div>
+                    <div className="pf-field">
+                      <label className="pf-label">Main Shop Low Stock Threshold</label>
+                      <input className="pf-input" type="number" min="0" value={branchLowStockThreshold} onChange={(e) => setBranchLowStockThreshold(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="pf-row">
+                    <div className="pf-field">
+                      <label className="pf-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <input type="checkbox" checked={branchAllowBackorder} onChange={(e) => setBranchAllowBackorder(e.target.checked)} />
+                        Allow Main Shop Backorder
+                      </label>
+                      {branchAllowBackorder && (
+                        <input className="pf-input" type="number" min="0" value={branchMaxBackorderQuantity} onChange={(e) => setBranchMaxBackorderQuantity(e.target.value)} />
+                      )}
+                    </div>
+                  </div>
+                  <span className="pf-hint">Only main shop stock is entered here. POS store stock is synced from the external POS API.</span>
                 </div>
 
                 <div className="pf-section">

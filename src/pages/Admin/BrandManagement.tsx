@@ -7,6 +7,12 @@ import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import './BrandManagement.css'
 
+function formatDate(value?: string): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 function sortBrands(items: ApiBrand[]) {
   return [...items].sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -143,6 +149,7 @@ function BrandManagement() {
 
       resetForm()
       setShowModal(false)
+      window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
       setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save. Please try again.')
@@ -156,6 +163,7 @@ function BrandManagement() {
     try {
       const updated = await adminProductService.updateBrand(brand.id, { is_active: !brand.is_active })
       setBrands((prev) => sortBrands(prev.map((item) => (item.id === brand.id ? updated : item))))
+      window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch {
       // silent
     } finally {
@@ -176,6 +184,7 @@ function BrandManagement() {
       await adminProductService.deleteBrand(deleteTarget.id)
       setBrands((prev) => prev.filter((brand) => brand.id !== deleteTarget.id))
       setDeleteTarget(null)
+      window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
       setDeleteError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to delete. Please try again.')
@@ -316,6 +325,9 @@ function BrandManagement() {
                     <th>Brand</th>
                     <th>Description</th>
                     <th>Status</th>
+                    <th>Created At</th>
+                    <th>Created By</th>
+                    <th>Updated By</th>
                     <th className="cm-th-actions"></th>
                   </tr>
                 </thead>
@@ -362,6 +374,9 @@ function BrandManagement() {
                           <span className="cm-toggle__knob" />
                         </button>
                       </td>
+                      <td style={{ fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(brand.created_at)}</td>
+                      <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{brand.created_by_name || '—'}</td>
+                      <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
                       <td>
                         <div className="cm-row-actions">
                           <button

@@ -153,11 +153,13 @@ function OrderManagement() {
             <tr>
               <th>Order ID</th>
               <th>Customer</th>
-              <th>Date</th>
+              <th>Created At</th>
               <th>Items</th>
               <th>Total</th>
               <th>Payment</th>
               <th>Status</th>
+              <th>Created By</th>
+              <th>Updated By</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -184,6 +186,8 @@ function OrderManagement() {
                     {order.status}
                   </span>
                 </td>
+                <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
+                <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
                 <td>
                   <div className="action-buttons">
                     <Link className="btn-sm btn--outline" to={`/admin/orders/${order.id}`}>
@@ -214,7 +218,7 @@ function OrderManagement() {
             ))}
             {filteredOrders.length === 0 && (
               <tr>
-                <td colSpan={8} className="order-empty">No orders match your search.</td>
+                <td colSpan={10} className="order-empty">No orders match your search.</td>
               </tr>
             )}
           </tbody>

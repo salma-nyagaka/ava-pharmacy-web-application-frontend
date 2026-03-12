@@ -50,7 +50,9 @@ export interface ProductListResponse {
 
 export interface ProductFilters {
   category?: string
+  subcategory?: string
   brand?: string
+  health_concern?: string
   search?: string
   ordering?: string
   page?: number
@@ -59,6 +61,20 @@ export interface ProductFilters {
   max_price?: number
   requires_prescription?: boolean
   is_featured?: boolean
+}
+
+export interface NavBrand {
+  id: number
+  name: string
+  slug: string
+  logo: string | null
+}
+
+export interface NavHealthConcern {
+  id: number
+  name: string
+  slug: string
+  icon: string
 }
 
 export async function fetchProducts(filters: ProductFilters = {}): Promise<{ data: Product[]; meta: Record<string, unknown> }> {
@@ -105,17 +121,21 @@ export interface NavCategory {
   id: number
   name: string
   slug: string
+  image: string | null
+  description: string
   path: string
   subcategories: NavSubcategory[]
 }
 
 export async function fetchNavCategories(): Promise<NavCategory[]> {
   try {
-    const res = await apiClient.get('/admin/product-categories/')
+    const res = await apiClient.get('/product-categories/')
     const raw: Array<{
       id: number
       name: string
       slug: string
+      image: string | null
+      description: string
       is_active: boolean
       subcategories?: Array<{ id: number; name: string; slug: string; is_active: boolean }>
     }> = Array.isArray(res.data?.data)
@@ -132,11 +152,41 @@ export async function fetchNavCategories(): Promise<NavCategory[]> {
         id: c.id,
         name: c.name,
         slug: c.slug,
+        image: c.image,
+        description: c.description ?? '',
         path: `/products?category=${c.slug}`,
         subcategories: (c.subcategories ?? [])
           .filter((s) => s.is_active)
           .map((s) => ({ name: s.name, slug: s.slug })),
       }))
+  } catch {
+    return []
+  }
+}
+
+export async function fetchNavBrands(): Promise<NavBrand[]> {
+  try {
+    const res = await apiClient.get('/brands/')
+    const raw: Array<{ id: number; name: string; slug: string; logo: string | null; is_active: boolean }> =
+      Array.isArray(res.data?.data) ? res.data.data
+      : Array.isArray(res.data?.results) ? res.data.results
+      : Array.isArray(res.data) ? res.data
+      : []
+    return raw.filter((b) => b.is_active).map((b) => ({ id: b.id, name: b.name, slug: b.slug, logo: b.logo }))
+  } catch {
+    return []
+  }
+}
+
+export async function fetchNavHealthConcerns(): Promise<NavHealthConcern[]> {
+  try {
+    const res = await apiClient.get('/health-concerns/')
+    const raw: Array<{ id: number; name: string; slug: string; icon: string; is_active: boolean }> =
+      Array.isArray(res.data?.data) ? res.data.data
+      : Array.isArray(res.data?.results) ? res.data.results
+      : Array.isArray(res.data) ? res.data
+      : []
+    return raw.filter((c) => c.is_active).map((c) => ({ id: c.id, name: c.name, slug: c.slug, icon: c.icon ?? '' }))
   } catch {
     return []
   }

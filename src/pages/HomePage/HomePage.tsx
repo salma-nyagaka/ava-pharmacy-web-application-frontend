@@ -1,31 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import {
-  categoryHealth,
-  categoryBeauty,
-  categoryBaby,
-  categoryPersonal,
-  categoryMedicines,
-  categoryDevices,
-} from '../../assets/images/remote'
 import backgroundBanner from '../../assets/images/banner/background.jpg'
-// import niveaBanner from '../../assets/images/banner/nivea.png'
-// import larocheBanner from '../../assets/images/banner/laroche-pink.png'
 import { cartService } from '../../services/cartService'
-import { loadCategories } from '../../data/categories'
 import { useProducts } from '../../hooks/useProducts'
+import { useCatalog } from '../../context/CatalogContext'
 import './HomePage.css'
-
-const CATEGORY_IMAGE_MAP: Record<string, string> = {
-  'health-wellness': categoryHealth,
-  'beauty-skincare': categoryBeauty,
-  'mother-baby-care': categoryBaby,
-  'self-care-lifestyle': categoryPersonal,
-  'medicines': categoryMedicines,
-  'medical-devices': categoryDevices,
-  'devices': categoryDevices,
-}
 
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)
@@ -36,13 +16,7 @@ function HomePage() {
   const [newsletterError, setNewsletterError] = useState('')
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
-
-  const categories = loadCategories().map((cat) => ({
-    id: cat.slug,
-    name: cat.name,
-    image: CATEGORY_IMAGE_MAP[cat.slug] ?? categoryMedicines,
-    link: cat.path,
-  }))
+  const { categories, brands, healthConcerns } = useCatalog()
 
   const valueBannerItems = [
     { key: 'delivery', title: 'Free Delivery',       subtitle: 'On orders over KSh 3,000',      link: '/help',                color: 'green'  },
@@ -269,52 +243,88 @@ function HomePage() {
       </section>
 
       {/* Categories - browse the store */}
-      <section className="section categories">
-        <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">Shop by Category</h2>
-            <p className="section__subtitle">
-              Browse our wide range of healthcare products and find what you need
-            </p>
+      {categories.length > 0 && (
+        <section className="section categories">
+          <div className="container">
+            <div className="section__header">
+              <h2 className="section__title">Shop by Category</h2>
+              <p className="section__subtitle">Browse our wide range of healthcare products and find what you need</p>
+            </div>
+            <div className="categories__carousel">
+              <button
+                className="carousel__btn carousel__btn--prev"
+                type="button"
+                aria-label="Scroll categories left"
+                onClick={() => scrollCategories('prev')}
+                onKeyDown={(e) => handleCategoryKeyDown(e, 'prev')}
+                disabled={!canScrollLeft}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <div className="categories__track" ref={categoryTrackRef}>
+                {categories.map((cat) => (
+                  <Link key={cat.id} to={cat.path} className="category-card">
+                    <div className={`category-card__image ${cat.image ? 'category-card__image--photo' : 'category-card__image--icon'}`}>
+                      {cat.image ? (
+                        <ImageWithFallback src={cat.image} alt={cat.name} className="category-card__image-media" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+                          <path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/>
+                        </svg>
+                      )}
+                    </div>
+                    <div className="category-card__body">
+                      <h3 className="category-card__name">{cat.name}</h3>
+                      <p className="category-card__description">
+                        {cat.description || `Explore trusted ${cat.name.toLowerCase()} picks curated for everyday care.`}
+                      </p>
+                      <span className="category-card__eyebrow">
+                        {cat.subcategories.length > 0
+                          ? `${cat.subcategories.length} ${cat.subcategories.length === 1 ? 'collection' : 'collections'}`
+                          : 'Coming soon'}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <button
+                className="carousel__btn carousel__btn--next"
+                type="button"
+                aria-label="Scroll categories right"
+                onClick={() => scrollCategories('next')}
+                onKeyDown={(e) => handleCategoryKeyDown(e, 'next')}
+                disabled={!canScrollRight}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
           </div>
-          <div className="categories__carousel">
-            <button
-              className="carousel__btn carousel__btn--prev"
-              type="button"
-              aria-label="Scroll categories left"
-              onClick={() => scrollCategories('prev')}
-              onKeyDown={(e) => handleCategoryKeyDown(e, 'prev')}
-              disabled={!canScrollLeft}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6"/>
-              </svg>
-            </button>
-            <div className="categories__track" ref={categoryTrackRef}>
-              {categories.map((category) => (
-                <Link key={category.id} to={category.link} className="category-card">
-                  <div className="category-card__image">
-                    <ImageWithFallback src={category.image} alt={category.name} />
-                  </div>
-                  <h3 className="category-card__name">{category.name}</h3>
+        </section>
+      )}
+
+
+      {/* Top Brands */}
+      {brands.length > 0 && (
+        <section className="section section--alt hp-brands">
+          <div className="container">
+            <div className="section__header">
+              <h2 className="section__title">Top Brands</h2>
+              <p className="section__subtitle">Shop from the most trusted names in healthcare</p>
+            </div>
+            <div className="hp-brands__grid">
+              {brands.slice(0, 10).map((brand) => (
+                <Link key={brand.id} to={`/products?brand=${brand.slug}`} className="hp-brand-card">
+                  {brand.logo
+                    ? <ImageWithFallback src={brand.logo} alt={brand.name} className="hp-brand-card__logo" />
+                    : <span className="hp-brand-card__name-fallback">{brand.name}</span>
+                  }
+                  <span className="hp-brand-card__name">{brand.name}</span>
                 </Link>
               ))}
             </div>
-            <button
-              className="carousel__btn carousel__btn--next"
-              type="button"
-              aria-label="Scroll categories right"
-              onClick={() => scrollCategories('next')}
-              onKeyDown={(e) => handleCategoryKeyDown(e, 'next')}
-              disabled={!canScrollRight}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18l6-6-6-6"/>
-              </svg>
-            </button>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Hot Offers - urgency / savings */}
       <section className="section offers-preview">

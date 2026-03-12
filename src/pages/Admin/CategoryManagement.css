@@ -2,9 +2,11 @@
    Category Management — Layout
 ───────────────────────────────────────── */
 .category-management {
-  padding: 1.5rem 2rem 4rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1.5rem 3rem 4rem;
+  max-width: none;
+  margin: 0;
 }
 
 /* ── Header ── */
@@ -57,10 +59,6 @@
   border: 2px solid transparent;
 }
 
-.category-management__actions .btn--ghost {
-  border-width: 2px;
-}
-
 .category-management .pm-back-btn {
   margin: 0;
 }
@@ -91,48 +89,64 @@
   cursor: not-allowed;
 }
 
-/* ── Stat Strip ── */
-.cm-stat-strip {
+/* ── KPI Cards ── */
+.cm-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.cm-kpi-card {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 0.875rem;
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 1rem 1.125rem;
+}
+
+.cm-kpi-card__icon {
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
-  margin-bottom: 1rem;
-  overflow: hidden;
-}
-
-.cm-stat-item {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  padding: 0.75rem 1.5rem;
-  flex: 1;
-}
-
-.cm-stat-divider {
-  width: 1px;
-  height: 36px;
-  background: #e5e7eb;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.cm-stat-item__value {
+.cm-kpi-card__icon--blue  { background: #eff6ff; color: #3b82f6; }
+.cm-kpi-card__icon--purple { background: #f5f3ff; color: #7c3aed; }
+.cm-kpi-card__icon--green  { background: #f0fdf4; color: #16a34a; }
+.cm-kpi-card__icon--teal   { background: #f0fdfa; color: #0d9488; }
+
+.cm-kpi-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.cm-kpi-card__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+
+.cm-kpi-card__value {
   font-size: 1.375rem;
   font-weight: 700;
-  color: #111827;
+  color: #0f172a;
   line-height: 1;
 }
 
-.cm-stat-item__value--green {
-  color: #059669;
-}
-
-.cm-stat-item__label {
-  font-size: 0.75rem;
-  color: #9ca3af;
-  font-weight: 400;
+.cm-kpi-card__value--green {
+  color: #16a34a;
 }
 
 /* ── Toolbar ── */
@@ -887,8 +901,8 @@
    Responsive
 ───────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .cm-stat-item {
-    padding: 0.75rem 1rem;
+  .cm-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -902,13 +916,6 @@
     align-items: flex-start;
   }
 
-  .cm-stat-strip {
-    flex-wrap: wrap;
-  }
-
-  .cm-stat-item {
-    flex: 1 1 40%;
-  }
 
   .cm-toolbar {
     flex-direction: column;
@@ -940,12 +947,8 @@
 }
 
 @media (max-width: 480px) {
-  .cm-stat-item {
-    flex: 1 1 100%;
-  }
-
-  .cm-stat-divider {
-    display: none;
+  .cm-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .cm-brand-preview {

@@ -7,6 +7,12 @@ import {
 } from '../../services/adminProductService'
 import './CategoryManagement.css'
 
+function formatDate(value?: string): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 type ViewMode = 'categories' | 'subcategories'
 type ModalMode = 'create-category' | 'create-subcategory' | 'edit-category' | 'edit-subcategory'
 
@@ -31,6 +37,8 @@ function CategoryManagement() {
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
   const [formParentId, setFormParentId] = useState<number | ''>('')
+  const [formImageFile, setFormImageFile] = useState<File | null>(null)
+  const [formImagePreview, setFormImagePreview] = useState('')
   const [formSaving, setFormSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
@@ -70,6 +78,8 @@ function CategoryManagement() {
     setFormName('')
     setFormDescription('')
     setFormParentId(type === 'subcategory' && categories.length > 0 ? categories[0].id : '')
+    setFormImageFile(null)
+    setFormImagePreview('')
     setFormError('')
     setShowModal(true)
   }
@@ -81,6 +91,13 @@ function CategoryManagement() {
     setFormDescription(item.description || '')
     if (type === 'subcategory') setFormParentId((item as ApiProductSubcategory).category)
     else setFormParentId('')
+    if (type === 'category') {
+      setFormImageFile(null)
+      setFormImagePreview((item as ApiProductCategory).image || '')
+    } else {
+      setFormImageFile(null)
+      setFormImagePreview('')
+    }
     setFormError('')
     setShowModal(true)
   }
@@ -92,15 +109,19 @@ function CategoryManagement() {
     if (!formName.trim()) { setFormError('Name is required.'); return }
     const isSubcategoryModal = modalMode === 'create-subcategory' || modalMode === 'edit-subcategory'
     if (isSubcategoryModal && formParentId === '') { setFormError('Select a parent category.'); return }
+    const isCategoryModal = modalMode === 'create-category' || modalMode === 'edit-category'
+    if (isCategoryModal && !formDescription.trim()) { setFormError('Category description is required.'); return }
+    if (isCategoryModal && modalMode === 'create-category' && !formImageFile) { setFormError('Category image is required.'); return }
 
     setFormSaving(true)
     setFormError('')
     try {
       if (modalMode === 'create-category') {
-        const created = await adminProductService.createProductCategory({
-          name: formName.trim(),
-          description: formDescription.trim() || undefined,
-        })
+        const payload = new FormData()
+        payload.append('name', formName.trim())
+        if (formDescription.trim()) payload.append('description', formDescription.trim())
+        if (formImageFile) payload.append('image', formImageFile)
+        const created = await adminProductService.createProductCategory(payload)
         setCategories((prev) => [...prev, { ...created, subcategories: [] }].sort((a, b) => a.name.localeCompare(b.name)))
       } else if (modalMode === 'create-subcategory') {
         const created = await adminProductService.createProductSubcategory({
@@ -117,10 +138,11 @@ function CategoryManagement() {
           )
         )
       } else if (modalMode === 'edit-category' && editingId !== null) {
-        const updated = await adminProductService.updateProductCategory(editingId, {
-          name: formName.trim(),
-          description: formDescription.trim(),
-        })
+        const payload = new FormData()
+        payload.append('name', formName.trim())
+        payload.append('description', formDescription.trim())
+        if (formImageFile) payload.append('image', formImageFile)
+        const updated = await adminProductService.updateProductCategory(editingId, payload)
         setCategories((prev) => prev.map((c) => c.id === editingId ? { ...c, ...updated } : c))
       } else if (modalMode === 'edit-subcategory' && editingId !== null) {
         const updated = await adminProductService.updateProductSubcategory(editingId, {
@@ -137,6 +159,7 @@ function CategoryManagement() {
         )
       }
       setShowModal(false)
+      window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
       setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save. Please try again.')
@@ -162,6 +185,7 @@ function CategoryManagement() {
           }))
         )
       }
+      window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch {
       // ignore
     } finally {
@@ -191,6 +215,7 @@ function CategoryManagement() {
         )
       }
       setDeleteTarget(null)
+      window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
       setDeleteError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to delete. Please try again.')
@@ -256,25 +281,50 @@ function CategoryManagement() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="cm-stat-strip">
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value">{loading ? '—' : categories.length}</strong>
-          <span className="cm-stat-item__label">Categories</span>
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
+              <path d="M3 7l9-4 9 4v10l-9 4-9-4V7z" />
+            </svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Total Categories</span>
+            <strong className="cm-kpi-card__value">{loading ? '—' : categories.length}</strong>
+          </div>
         </div>
-        <div className="cm-stat-divider" />
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value">{loading ? '—' : subcategories.length}</strong>
-          <span className="cm-stat-item__label">Subcategories</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
+              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+            </svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Total Subcategories</span>
+            <strong className="cm-kpi-card__value">{loading ? '—' : subcategories.length}</strong>
+          </div>
         </div>
-        <div className="cm-stat-divider" />
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value cm-stat-item__value--green">{loading ? '—' : activeCategories}</strong>
-          <span className="cm-stat-item__label">Active Categories</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Active Categories</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeCategories}</strong>
+          </div>
         </div>
-        <div className="cm-stat-divider" />
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value cm-stat-item__value--green">{loading ? '—' : activeSubcategories}</strong>
-          <span className="cm-stat-item__label">Active Subcategories</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
+              <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+            </svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Active Subcategories</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeSubcategories}</strong>
+          </div>
         </div>
       </div>
 
@@ -377,8 +427,13 @@ function CategoryManagement() {
                 <thead>
                   <tr>
                     <th>Category</th>
+                    <th>Description</th>
+                    <th>Image</th>
                     <th>Status</th>
                     <th>Subcategories</th>
+                    <th>Created At</th>
+                    <th>Created By</th>
+                    <th>Updated By</th>
                     <th className="cm-th-actions"></th>
                   </tr>
                 </thead>
@@ -397,6 +452,25 @@ function CategoryManagement() {
                             )}
                             <span className="cm-name-cell__id">#{cat.id}</span>
                           </div>
+                        </td>
+                        <td>
+                          <span style={{ color: '#4b5563', fontSize: '0.875rem', lineHeight: 1.5 }}>
+                            {cat.description || '—'}
+                          </span>
+                        </td>
+                        <td>
+                          {cat.image ? (
+                            <a
+                              href={cat.image}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: '#2563eb', fontSize: '0.875rem', textDecoration: 'underline' }}
+                            >
+                              View image
+                            </a>
+                          ) : (
+                            <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>—</span>
+                          )}
                         </td>
                         <td>
                           <button
@@ -427,6 +501,9 @@ function CategoryManagement() {
                             )}
                           </div>
                         </td>
+                        <td style={{ fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(cat.created_at)}</td>
+                        <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
+                        <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
                         <td>
                           <div className="cm-row-actions">
                             <button
@@ -499,6 +576,9 @@ function CategoryManagement() {
                     <th>Subcategory</th>
                     <th>Parent Category</th>
                     <th>Status</th>
+                    <th>Created At</th>
+                    <th>Created By</th>
+                    <th>Updated By</th>
                     <th className="cm-th-actions"></th>
                   </tr>
                 </thead>
@@ -530,6 +610,9 @@ function CategoryManagement() {
                             <span className="cm-toggle__knob" />
                           </button>
                         </td>
+                        <td style={{ fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(sub.created_at)}</td>
+                        <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
+                        <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
                         <td>
                           <div className="cm-row-actions">
                             <button
@@ -622,19 +705,48 @@ function CategoryManagement() {
                   placeholder={isSubcategoryModal ? 'e.g. Pain Relief' : 'e.g. Medicines'}
                   disabled={formSaving}
                   autoFocus
+                  required
                 />
               </label>
 
               <label className="cm-field">
-                <span>Description <em className="cm-field__optional">optional</em></span>
+                <span>Description</span>
                 <textarea
                   value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
+                  onChange={(e) => { setFormDescription(e.target.value); setFormError('') }}
                   placeholder="Brief description visible to shoppers"
                   disabled={formSaving}
                   rows={2}
+                  required={!isSubcategoryModal}
                 />
               </label>
+
+              {!isSubcategoryModal && (
+                <label className="cm-field">
+                  <span>Category Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null
+                      setFormImageFile(file)
+                      setFormImagePreview(file ? URL.createObjectURL(file) : (modalMode === 'edit-category'
+                        ? categories.find((category) => category.id === editingId)?.image || ''
+                        : ''))
+                      setFormError('')
+                    }}
+                    disabled={formSaving}
+                    required={modalMode === 'create-category'}
+                  />
+                  {formImagePreview && (
+                    <img
+                      src={formImagePreview}
+                      alt="Category preview"
+                      style={{ width: '96px', height: '96px', objectFit: 'cover', borderRadius: '0.75rem', marginTop: '0.75rem', border: '1px solid #e5e7eb' }}
+                    />
+                  )}
+                </label>
+              )}
 
               {formError && (
                 <p className="cm-form__error">
