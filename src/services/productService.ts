@@ -63,6 +63,21 @@ export interface ProductFilters {
   is_featured?: boolean
 }
 
+export interface SearchSuggestion {
+  text: string
+  type: 'product' | 'category'
+  id?: number
+  slug: string
+}
+
+export interface ProductAvailability {
+  product_id: number
+  is_available: boolean
+  stock_source: string
+  quantity: number
+  is_low_stock: boolean
+}
+
 export interface NavBrand {
   id: number
   name: string
@@ -81,8 +96,16 @@ export async function fetchProducts(filters: ProductFilters = {}): Promise<{ dat
   const params = Object.fromEntries(
     Object.entries(filters).filter(([, v]) => v !== undefined && v !== '' && v !== null)
   )
-  const res = await apiClient.get('/products/', { params })
-  return { data: res.data?.data ?? [], meta: res.data?.meta ?? {} }
+  const endpoint = filters.search ? '/products/search/' : '/products/'
+  if (filters.search) {
+    delete params.search
+    params.q = filters.search
+  }
+  const res = await apiClient.get(endpoint, { params })
+  const payload = res.data?.data ?? res.data
+  if (Array.isArray(payload)) return { data: payload, meta: res.data?.meta ?? {} }
+  if (Array.isArray(payload?.products)) return { data: payload.products, meta: res.data?.meta ?? {} }
+  return { data: [], meta: res.data?.meta ?? {} }
 }
 
 export async function fetchProductBySlug(slug: string): Promise<ProductDetail> {
@@ -101,10 +124,20 @@ export async function searchProducts(query: string, filters: ProductFilters = {}
   return { data: res.data?.data ?? [], meta: res.data?.meta ?? {}, facets: res.data?.facets ?? {} }
 }
 
-export async function fetchSuggestions(query: string): Promise<string[]> {
+export async function fetchSuggestions(query: string): Promise<SearchSuggestion[]> {
   if (query.length < 2) return []
   const res = await apiClient.get('/products/search/suggestions/', { params: { q: query } })
-  return res.data?.data ?? []
+  const payload = res.data?.data ?? res.data
+  return payload?.suggestions ?? payload ?? []
+}
+
+export async function fetchAvailability(productIds: number[]): Promise<ProductAvailability[]> {
+  if (!productIds.length) return []
+  const res = await apiClient.get('/products/availability/', {
+    params: { product_ids: productIds.join(',') },
+  })
+  const payload = res.data?.data ?? res.data
+  return payload?.availability ?? payload ?? []
 }
 
 export async function fetchCategories(): Promise<unknown[]> {

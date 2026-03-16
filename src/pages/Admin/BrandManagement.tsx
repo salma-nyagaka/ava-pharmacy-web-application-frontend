@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { adminProductService, ApiBrand } from '../../services/adminProductService'
+import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
 import './AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
@@ -98,6 +99,24 @@ function BrandManagement() {
     if (saving) return
     resetForm()
     setShowModal(false)
+  }
+
+  const handleLogoFileChange = async (file: File | null) => {
+    if (!file) {
+      setFormLogoFile(null)
+      setFormError('')
+      return
+    }
+
+    const validationError = await validateImageFile(file, 'brand')
+    if (validationError) {
+      setFormLogoFile(null)
+      setFormError(validationError)
+      return
+    }
+
+    setFormLogoFile(file)
+    setFormError('')
   }
 
   const handleSave = async (e: FormEvent) => {
@@ -461,7 +480,7 @@ function BrandManagement() {
                   className="cm-file-input__native"
                   type="file"
                   accept="image/*"
-                  onChange={(e) => { setFormLogoFile(e.currentTarget.files?.[0] ?? null); setFormError('') }}
+                  onChange={(e) => { void handleLogoFileChange(e.currentTarget.files?.[0] ?? null) }}
                   disabled={saving}
                   required={!editing}
                 />
@@ -474,7 +493,7 @@ function BrandManagement() {
                   </span>
                 </label>
                 <p className="cm-upload-note">
-                  {editing ? 'Upload a new image only if you want to replace the current logo.' : 'Upload the main logo used across the storefront.'}
+                  {editing ? 'Upload a new image only if you want to replace the current logo.' : 'Upload the main logo used across the storefront.'} {getImageUploadHint('brand')}
                 </p>
               </div>
 

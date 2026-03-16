@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { apiClient, extractAuthTokens, refreshAccessToken, saveTokens, clearTokens } from '../lib/apiClient'
+import { cartService } from '../services/cartService'
 
 export type UserRole = 'patient' | 'doctor' | 'pediatrician' | 'pharmacist' | 'admin' | 'lab_technician'
 
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const mapped = mapApiUser(data.user ?? data)
       setUser(mapped)
       localStorage.setItem('ava_user', JSON.stringify(mapped))
+      await cartService.mergeLocalCart()
       return mapped
     } finally {
       setIsLoading(false)

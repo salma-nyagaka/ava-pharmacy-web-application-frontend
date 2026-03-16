@@ -336,6 +336,19 @@
   margin-bottom: 0.05rem;
 }
 
+.dm-readonly-note {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
 /* ── Scope pills ───────────────────────── */
 .dm-scope-pills {
   display: flex;
@@ -399,26 +412,6 @@
   color: var(--color-primary);
   font-weight: 600;
   margin: 0.2rem 0 0;
-}
-
-/* ── Badge preview ─────────────────────── */
-.dm-badge-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.dm-badge-row input { flex: 1; }
-
-.dm-badge-preview {
-  padding: 0.25rem 0.65rem;
-  background: var(--color-primary);
-  color: #fff;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 /* ── Status toggle (create only) ────────── */

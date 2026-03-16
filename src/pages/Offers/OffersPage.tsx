@@ -7,6 +7,12 @@ import './OffersPage.css'
 import '../ProductListing/ProductListingPage.css'
 
 const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
+const hasDeal = (price: number, originalPrice: number | null) => (originalPrice ?? price) > price
+const getSavings = (price: number, originalPrice: number | null) => (originalPrice ?? price) - price
+const getSavingsPercent = (price: number, originalPrice: number | null) => {
+  if (!originalPrice || originalPrice <= price) return 0
+  return Math.round(((originalPrice - price) / originalPrice) * 100)
+}
 
 const renderStars = (rating: number) => {
   const full = Math.min(5, Math.max(0, Math.round(rating)))
@@ -20,7 +26,7 @@ const renderStars = (rating: number) => {
 function OffersPage() {
   const { products } = useProducts({ page_size: 200 })
   const allDeals = useMemo(
-    () => products.filter((product) => product.stockSource !== 'out' && (product.originalPrice ?? product.price) > product.price),
+    () => products.filter((product) => product.stockSource !== 'out' && hasDeal(product.price, product.originalPrice)),
     [products],
   )
 
@@ -45,7 +51,7 @@ function OffersPage() {
       const brandMatch = selectedBrands.length === 0 || selectedBrands.includes(product.brand)
       return queryMatch && priceMatch && brandMatch
     })
-    if (sortBy === 'savings') list = [...list].sort((a, b) => ((b.originalPrice ?? b.price) - b.price) - ((a.originalPrice ?? a.price) - a.price))
+    if (sortBy === 'savings') list = [...list].sort((a, b) => getSavings(b.price, b.originalPrice) - getSavings(a.price, a.originalPrice))
     if (sortBy === 'price-low') list = [...list].sort((a, b) => a.price - b.price)
     if (sortBy === 'price-high') list = [...list].sort((a, b) => b.price - a.price)
     return list
@@ -168,7 +174,7 @@ function OffersPage() {
                       <span className={`product-card__badge ${deal.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>{deal.badge}</span>
                     )}
                     <span className="product-card__badge product-card__badge--sale offers-saving-badge">
-                      Save {formatPrice((deal.originalPrice ?? deal.price) - deal.price)}
+                      Save {getSavingsPercent(deal.price, deal.originalPrice)}%
                     </span>
                     <ImageWithFallback src={deal.image} alt={deal.name} />
                   </Link>
@@ -187,6 +193,7 @@ function OffersPage() {
                         <span className="product-card__original-price">{formatPrice(deal.originalPrice)}</span>
                       )}
                     </div>
+                    <p className="product-card__deal-copy">Save {formatPrice(getSavings(deal.price, deal.originalPrice))} today</p>
                     <button
                       className={`product-card__add-to-cart ${addedId === deal.id ? 'product-card__add-to-cart--added' : ''}`}
                       type="button"

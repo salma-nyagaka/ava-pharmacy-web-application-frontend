@@ -18,15 +18,16 @@ function isAuthenticated() {
 
 function mapApiItem(item: Record<string, unknown>): CartItem {
   const product = (item.product ?? {}) as Record<string, unknown>
-  const variant = (item.variant ?? {}) as Record<string, unknown>
+  const variant = (item.product_variant ?? {}) as Record<string, unknown>
   return {
-    id: (item.id ?? item.product_id) as number,
+    id: (product.id ?? item.product_id ?? item.id) as number,
+    serverItemId: item.id as number,
     name: (product.name ?? variant.name ?? '') as string,
-    brand: (product.brand_name ?? '') as string,
+    brand: (product.brand_name ?? (product.brand as Record<string, unknown> | undefined)?.name ?? '') as string,
     price: parseFloat((item.unit_price ?? item.price ?? '0') as string),
     quantity: (item.quantity ?? 1) as number,
     image: (product.image ?? '') as string,
-    stockSource: 'branch',
+    stockSource: ((product.inventory_status ?? '') === 'out_of_stock' ? undefined : 'branch'),
     prescriptionId: item.prescription_id as string | undefined,
   }
 }
@@ -36,6 +37,21 @@ function dispatchCartEvent() {
 }
 
 export const cartService = {
+  mergeLocalCart: async () => {
+    if (!isAuthenticated()) return { data: loadCartItems() }
+    const localItems = loadCartItems()
+    if (!localItems.length) return cartService.list()
+    await apiClient.post('/cart/merge/', {
+      items: localItems.map((item) => ({
+        product_id: item.id,
+        quantity: item.quantity,
+      })),
+    })
+    clearCartItems()
+    dispatchCartEvent()
+    return cartService.list()
+  },
+
   list: async () => {
     if (!isAuthenticated()) {
       return { data: loadCartItems() }
@@ -78,7 +94,7 @@ export const cartService = {
       return { data: updated }
     }
     try {
-      await apiClient.put(`/cart/items/${itemId}/`, { quantity })
+      await apiClient.patch(`/cart/items/${itemId}/`, { quantity })
       const res = await apiClient.get('/cart/')
       const items: CartItem[] = ((res.data?.data?.items ?? res.data?.items ?? []) as Record<string, unknown>[]).map(mapApiItem)
       dispatchCartEvent()
@@ -116,7 +132,7 @@ export const cartService = {
       return { data: [] }
     }
     try {
-      await apiClient.post('/cart/clear/')
+      await apiClient.delete('/cart/clear/')
       dispatchCartEvent()
       return { data: [] }
     } catch {

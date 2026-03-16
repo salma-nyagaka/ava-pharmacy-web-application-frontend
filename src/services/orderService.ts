@@ -3,35 +3,73 @@ import { apiClient } from '../lib/apiClient'
 export interface OrderItem {
   id: number
   product_name: string
-  product_image: string | null
+  product_sku: string
   quantity: number
   unit_price: string
+  discount_total: string
   subtotal: string
+}
+
+export interface ShippingMethod {
+  id: number
+  code: string
+  name: string
+  description: string
+  fee: string
+  free_shipping_threshold: string | null
+  estimated_delivery_window: string
+}
+
+export interface PaymentIntent {
+  id: number
+  provider: 'mpesa' | 'card' | 'manual'
+  status: 'pending' | 'requires_action' | 'succeeded' | 'failed' | 'cancelled'
+  reference: string
+  provider_reference: string
+  checkout_request_id: string
+  amount: string
+  currency: string
+  client_secret?: string
+  next_action_url: string
+  payload: Record<string, unknown>
+  last_error: string
 }
 
 export interface Order {
   id: number
   order_number: string
   status: string
+  payment_method: string
   payment_status: string
+  payment_reference: string
   subtotal: string
-  shipping_cost: string
-  discount: string
+  discount_total: string
+  shipping_fee: string
   total: string
+  shipping_address: string | null
+  shipping_method: ShippingMethod | null
   items: OrderItem[]
-  shipping_address: Record<string, unknown> | null
-  shipping_method: string | null
-  notes: string
+  payment_intents: PaymentIntent[]
   created_at: string
   updated_at: string
 }
 
-export interface CreateOrderPayload {
-  shipping_address_id?: number
-  shipping_method_id?: number
-  payment_method?: string
-  notes?: string
-  coupon_code?: string
+export interface CheckoutDraftPayload {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  street: string
+  city: string
+  county: string
+  address_id?: number | null
+  save_address?: boolean
+  address_label?: string
+  set_default_address?: boolean
+  payment_method: 'mpesa_stk' | 'mpesa_paybill' | 'card' | 'cash_on_delivery'
+  delivery_method?: string
+  shipping_method_id?: number | null
+  delivery_notes?: string
 }
 
 export async function fetchOrders(params: Record<string, unknown> = {}): Promise<{ data: Order[]; meta: Record<string, unknown> }> {
@@ -41,11 +79,6 @@ export async function fetchOrders(params: Record<string, unknown> = {}): Promise
 
 export async function fetchOrder(id: number): Promise<Order> {
   const res = await apiClient.get(`/orders/${id}/`)
-  return res.data?.data ?? res.data
-}
-
-export async function createOrder(payload: CreateOrderPayload): Promise<Order> {
-  const res = await apiClient.post('/orders/create/', payload)
   return res.data?.data ?? res.data
 }
 
@@ -59,18 +92,33 @@ export async function fetchOrderTracking(id: number): Promise<unknown> {
   return res.data?.data ?? res.data
 }
 
-export async function fetchShippingMethods(): Promise<unknown[]> {
+export async function fetchShippingMethods(): Promise<ShippingMethod[]> {
   const res = await apiClient.get('/shipping-methods/')
-  return res.data?.data ?? []
+  return res.data?.data ?? res.data ?? []
 }
 
-export async function initiateMpesa(payload: { order_id: number; phone: string; amount?: number }): Promise<unknown> {
-  const res = await apiClient.post('/payments/mpesa/initiate/', payload)
+export async function createCheckoutDraft(payload: CheckoutDraftPayload): Promise<Order> {
+  const res = await apiClient.post('/checkout/draft/', payload)
   return res.data?.data ?? res.data
 }
 
-export async function getMpesaStatus(checkoutRequestId: string): Promise<unknown> {
-  const res = await apiClient.get(`/payments/mpesa/status/${checkoutRequestId}/`)
+export async function createPaymentIntent(payload: {
+  order_id: number
+  provider: 'mpesa' | 'card' | 'manual'
+  phone?: string
+  return_url?: string
+}): Promise<PaymentIntent> {
+  const res = await apiClient.post('/payments/intents/', payload)
+  return res.data?.data ?? res.data
+}
+
+export async function syncPaymentIntent(id: number, payload: { transaction_id?: string } = {}): Promise<PaymentIntent> {
+  const res = await apiClient.post(`/payments/intents/${id}/sync/`, payload)
+  return res.data?.data ?? res.data
+}
+
+export async function finalizeCheckout(orderId: number): Promise<Order> {
+  const res = await apiClient.post(`/checkout/${orderId}/finalize/`)
   return res.data?.data ?? res.data
 }
 

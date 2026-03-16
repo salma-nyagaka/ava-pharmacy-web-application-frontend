@@ -31,6 +31,31 @@ export interface ApiHealthConcern {
   created_at: string
 }
 
+export type PromotionScope = 'all' | 'category' | 'brand' | 'product'
+export type PromotionType = 'percentage' | 'amount'
+export type PromotionStatus = 'active' | 'draft'
+
+export interface ApiPromotion {
+  id: number
+  title: string
+  code: string | null
+  description: string
+  type: PromotionType
+  value: string
+  scope: PromotionScope
+  targets: string[]
+  badge: string
+  priority: number
+  is_stackable: boolean
+  minimum_order_amount: string
+  start_date: string
+  end_date: string
+  status: PromotionStatus
+  is_currently_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface ApiBrand {
   id: number
   name: string
@@ -354,5 +379,48 @@ export const adminProductService = {
 
   async deleteHealthConcern(id: number) {
     await apiClient.delete(`/admin/health-concerns/${id}/`)
+  },
+
+  async listPromotions(params?: Record<string, string>) {
+    const res = await apiClient.get('/admin/promotions/', { params })
+    return unwrapList<ApiPromotion>(res)
+  },
+
+  async createPromotion(payload: {
+    title: string
+    type: PromotionType
+    value: number
+    scope: PromotionScope
+    targets: string[]
+    start_date: string
+    end_date: string
+    status: PromotionStatus
+    code?: string
+    description?: string
+    minimum_order_amount?: number
+  }) {
+    const res = await apiClient.post('/admin/promotions/', payload)
+    return unwrap<ApiPromotion>(res)
+  },
+
+  async updatePromotion(id: number, payload: Partial<{
+    title: string
+    type: PromotionType
+    value: number
+    scope: PromotionScope
+    targets: string[]
+    start_date: string
+    end_date: string
+    status: PromotionStatus
+    code: string
+    description: string
+    minimum_order_amount: number
+  }>) {
+    const res = await apiClient.patch(`/admin/promotions/${id}/`, payload)
+    return unwrap<ApiPromotion>(res)
+  },
+
+  async deletePromotion(id: number) {
+    await apiClient.delete(`/admin/promotions/${id}/`)
   },
 }

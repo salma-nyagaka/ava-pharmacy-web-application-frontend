@@ -27,10 +27,10 @@ function CartPage() {
   const fmt = (n: number) => `KSh ${n.toLocaleString()}`
 
   const changeQty = (item: CartItem, next: number) =>
-    void cartService.updateQuantity(item.id, next, item.prescriptionId).then((r) => setCartItems(r.data))
+    void cartService.updateQuantity(item.serverItemId ?? item.id, next, item.prescriptionId).then((r) => setCartItems(r.data))
 
   const removeItem = (item: CartItem) =>
-    void cartService.remove(item.id, item.prescriptionId).then((r) => setCartItems(r.data))
+    void cartService.remove(item.serverItemId ?? item.id, item.prescriptionId).then((r) => setCartItems(r.data))
 
   return (
     <div className="cart-page">
@@ -82,7 +82,7 @@ function CartPage() {
               </div>
 
               {cartItems.map((item) => (
-                <div key={`${item.id}-${item.prescriptionId ?? 'direct'}`} className="cart-item">
+                <div key={`${item.serverItemId ?? item.id}-${item.prescriptionId ?? 'direct'}`} className="cart-item">
                   <Link to={`/product/${item.id}`} className="cart-item__img-wrap">
                     <ImageWithFallback src={item.image} alt={item.name} className="cart-item__image" />
                   </Link>

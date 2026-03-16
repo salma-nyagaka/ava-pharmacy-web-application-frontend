@@ -651,6 +651,13 @@
   text-decoration: line-through;
 }
 
+.product-card__deal-copy {
+  margin: 0 0 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #059669;
+}
+
 .product-stock-source {
   margin: 0 0 0.65rem;
   font-size: 0.7rem;

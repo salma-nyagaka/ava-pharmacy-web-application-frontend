@@ -5,6 +5,7 @@ import backgroundBanner from '../../assets/images/banner/background.jpg'
 import { cartService } from '../../services/cartService'
 import { useProducts } from '../../hooks/useProducts'
 import { useCatalog } from '../../context/CatalogContext'
+import type { CatalogProduct } from '../../data/products'
 import './HomePage.css'
 
 function HomePage() {
@@ -16,7 +17,7 @@ function HomePage() {
   const [newsletterError, setNewsletterError] = useState('')
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
-  const { categories, brands, healthConcerns } = useCatalog()
+  const { categories } = useCatalog()
 
   const valueBannerItems = [
     { key: 'delivery', title: 'Free Delivery',       subtitle: 'On orders over KSh 3,000',      link: '/help',                color: 'green'  },
@@ -25,14 +26,37 @@ function HomePage() {
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
   ]
 
-  const { products: catalogProducts } = useProducts({ page_size: 50 })
-  const featuredProducts = catalogProducts.filter((product) => product.stockSource !== 'out').slice(0, 4)
-  const curatedProducts = catalogProducts.filter((product) => product.badge === 'New' || product.badge === 'Popular')
-  const newProducts = [...curatedProducts, ...catalogProducts.filter((product) => !curatedProducts.includes(product))].slice(0, 4)
-  const featuredDeals = featuredProducts
-  const newDeals = newProducts
-  const offerDeals = catalogProducts
-    .filter((product) => product.stockSource !== 'out' && product.originalPrice !== null && product.originalPrice > product.price)
+  const { products: catalogProducts } = useProducts({ page_size: 200 })
+  const { products: featuredCatalogProducts } = useProducts({ page_size: 12, is_featured: true })
+
+  const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
+  const isDealProduct = (product: CatalogProduct) => product.originalPrice !== null && product.originalPrice > product.price
+  const getDealSavings = (product: CatalogProduct) => (product.originalPrice ?? product.price) - product.price
+  const getDealPercentage = (product: CatalogProduct) => {
+    if (!product.originalPrice || product.originalPrice <= product.price) return 0
+    return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  }
+  const getProductBadge = (product: CatalogProduct, section: 'deals' | 'featured' | 'new') => {
+    if (section === 'deals' && isDealProduct(product)) return `Save ${getDealPercentage(product)}%`
+    if (product.badge?.trim()) return product.badge.trim()
+    if (section === 'featured') return 'Featured'
+    if (section === 'new') return 'New Arrival'
+    return null
+  }
+
+  const featuredProducts = featuredCatalogProducts
+    .filter(isAvailableProduct)
+    .slice(0, 4)
+
+  const featuredProductIds = new Set(featuredProducts.map((product) => product.id))
+
+  const newProducts = catalogProducts
+    .filter((product) => isAvailableProduct(product) && !featuredProductIds.has(product.id))
+    .slice(0, 4)
+
+  const offerDeals = [...catalogProducts]
+    .filter((product) => isAvailableProduct(product) && isDealProduct(product))
+    .sort((a, b) => getDealSavings(b) - getDealSavings(a))
     .slice(0, 4)
 
   const formatPrice = (price: number) => {
@@ -199,6 +223,68 @@ function HomePage() {
     )
   }
 
+  const renderProductCard = (product: CatalogProduct, section: 'deals' | 'featured' | 'new') => {
+    const displayBadge = getProductBadge(product, section)
+
+    return (
+      <article key={product.id} className="product-card">
+        <Link to={`/product/${product.id}`} className="product-card__image">
+          {displayBadge && (
+            <span className={`product-card__badge ${section === 'deals' ? 'product-card__badge--sale' : ''}`}>
+              {displayBadge}
+            </span>
+          )}
+          <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
+          <div className="product-card__actions">
+            <button className="product-card__action" title="Add to Wishlist" onClick={(e) => e.preventDefault()}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+            </button>
+          </div>
+        </Link>
+        <div className="product-card__content">
+          {product.brand && <span className="product-card__brand">{product.brand}</span>}
+          <h3 className="product-card__name">
+            <Link to={`/product/${product.id}`}>{product.name}</Link>
+          </h3>
+          {product.rating > 0 && (
+            <div className="product-card__rating">
+              <div className="product-card__stars">{renderStars(product.rating)}</div>
+              {product.reviews > 0 && <span className="product-card__reviews">({product.reviews})</span>}
+            </div>
+          )}
+          <div className="product-card__spacer" />
+          <div className="product-card__footer">
+            <div className="product-card__pricing">
+              <span className="product-card__price">{formatPrice(product.price)}</span>
+              {product.originalPrice && (
+                <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
+              )}
+            </div>
+            <button
+              className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`}
+              type="button"
+              title="Add to cart"
+              onClick={() => handleAddToCart(product)}
+            >
+              {addedId === product.id ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      </article>
+    )
+  }
+
   return (
     <div className="home">
       <a href="#main-content" className="skip-to-content">
@@ -303,28 +389,6 @@ function HomePage() {
       )}
 
 
-      {/* Top Brands */}
-      {brands.length > 0 && (
-        <section className="section section--alt hp-brands">
-          <div className="container">
-            <div className="section__header">
-              <h2 className="section__title">Top Brands</h2>
-              <p className="section__subtitle">Shop from the most trusted names in healthcare</p>
-            </div>
-            <div className="hp-brands__grid">
-              {brands.slice(0, 10).map((brand) => (
-                <Link key={brand.id} to={`/products?brand=${brand.slug}`} className="hp-brand-card">
-                  {brand.logo
-                    ? <ImageWithFallback src={brand.logo} alt={brand.name} className="hp-brand-card__logo" />
-                    : <span className="hp-brand-card__name-fallback">{brand.name}</span>
-                  }
-                  <span className="hp-brand-card__name">{brand.name}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Hot Offers - urgency / savings */}
       <section className="section offers-preview">
@@ -332,47 +396,18 @@ function HomePage() {
           <div className="section__header">
             <h2 className="section__title">Hot Offers</h2>
             <p className="section__subtitle">
-              Discounted products handpicked for today&apos;s savings.
+              Products with active discounts or promotions created by admin.
             </p>
           </div>
-          <div className="products__grid">
-            {offerDeals.map((product) => (
-              <article key={product.id} className="product-card">
-                <div className="product-card__image">
-                  {product.badge && (
-                    <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
-                      {product.badge}
-                    </span>
-                  )}
-                  <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
-                </div>
-                <div className="product-card__content">
-                  <span className="product-card__brand">{product.brand}</span>
-                  <h3 className="product-card__name">
-                    <Link to={`/product/${product.id}`}>{product.name}</Link>
-                  </h3>
-                  <div className="product-card__rating">
-                    <div className="product-card__stars">{renderStars(product.rating)}</div>
-                    <span className="product-card__reviews">({product.reviews})</span>
-                  </div>
-                  <div className="product-card__pricing">
-                    <span className="product-card__price">{formatPrice(product.price)}</span>
-                    {product.originalPrice && (
-                      <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
-                    )}
-                  </div>
-                  <button className="product-card__add-to-cart" type="button" onClick={() => handleAddToCart(product)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="9" cy="21" r="1"/>
-                      <circle cx="20" cy="21" r="1"/>
-                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                    </svg>
-                    {addedId === product.id ? 'Added' : 'Add to Cart'}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+          {offerDeals.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-state__message">No active deals are available right now.</p>
+            </div>
+          ) : (
+            <div className="products__grid">
+              {offerDeals.map((product) => renderProductCard(product, 'deals'))}
+            </div>
+          )}
           <div className="featured-products__cta">
             <Link to="/offers" className="btn btn--outline btn--lg">View All Offers</Link>
           </div>
@@ -385,66 +420,16 @@ function HomePage() {
           <div className="section__header">
             <h2 className="section__title">Featured Products</h2>
             <p className="section__subtitle">
-              Discover our most popular health and wellness products
+              Products your team has intentionally highlighted on the storefront.
             </p>
           </div>
-          {featuredDeals.length === 0 ? (
+          {featuredProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No featured products available at the moment.</p>
             </div>
           ) : (
             <div className="products__grid">
-              {featuredDeals.map((product) => (
-              <article key={product.id} className="product-card">
-                <div className="product-card__image">
-                  {product.badge && (
-                    <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
-                      {product.badge}
-                    </span>
-                  )}
-                  <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
-                  <div className="product-card__actions">
-                    <button className="product-card__action" title="Add to Wishlist">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                      </svg>
-                    </button>
-                    <button className="product-card__action" title="Quick View">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <div className="product-card__content">
-                  <span className="product-card__brand">{product.brand}</span>
-                  <h3 className="product-card__name">
-                    <Link to={`/product/${product.id}`}>{product.name}</Link>
-                  </h3>
-                  <div className="product-card__rating">
-                    <div className="product-card__stars">
-                      {renderStars(product.rating)}
-                    </div>
-                    <span className="product-card__reviews">({product.reviews})</span>
-                  </div>
-                  <div className="product-card__pricing">
-                    <span className="product-card__price">{formatPrice(product.price)}</span>
-                    {product.originalPrice && (
-                      <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
-                    )}
-                  </div>
-                  <button className="product-card__add-to-cart" type="button" onClick={() => handleAddToCart(product)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="9" cy="21" r="1"/>
-                      <circle cx="20" cy="21" r="1"/>
-                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                    </svg>
-                    {addedId === product.id ? 'Added' : 'Add to Cart'}
-                  </button>
-                </div>
-              </article>
-              ))}
+              {featuredProducts.map((product) => renderProductCard(product, 'featured'))}
             </div>
           )}
           <div className="featured-products__cta">
@@ -594,62 +579,18 @@ function HomePage() {
           <div className="section__header">
             <h2 className="section__title">New Products</h2>
             <p className="section__subtitle">
-              Fresh arrivals curated for your daily wellness needs
+              Latest arrivals added to the catalog, separate from featured picks.
             </p>
           </div>
-          <div className="products__grid">
-            {newDeals.map((product) => (
-              <article key={product.id} className="product-card">
-                <div className="product-card__image">
-                  {product.badge && (
-                    <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
-                      {product.badge}
-                    </span>
-                  )}
-                  <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
-                  <div className="product-card__actions">
-                    <button className="product-card__action" title="Add to Wishlist">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                      </svg>
-                    </button>
-                    <button className="product-card__action" title="Quick View">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <div className="product-card__content">
-                  <span className="product-card__brand">{product.brand}</span>
-                  <h3 className="product-card__name">
-                    <Link to={`/product/${product.id}`}>{product.name}</Link>
-                  </h3>
-                  <div className="product-card__rating">
-                    <div className="product-card__stars">
-                      {renderStars(product.rating)}
-                    </div>
-                    <span className="product-card__reviews">({product.reviews})</span>
-                  </div>
-                  <div className="product-card__pricing">
-                    <span className="product-card__price">{formatPrice(product.price)}</span>
-                    {product.originalPrice && (
-                      <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
-                    )}
-                  </div>
-                  <button className="product-card__add-to-cart" type="button" onClick={() => handleAddToCart(product)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="9" cy="21" r="1"/>
-                      <circle cx="20" cy="21" r="1"/>
-                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                    </svg>
-                    {addedId === product.id ? 'Added' : 'Add to Cart'}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+          {newProducts.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-state__message">No new products have been added yet.</p>
+            </div>
+          ) : (
+            <div className="products__grid">
+              {newProducts.map((product) => renderProductCard(product, 'new'))}
+            </div>
+          )}
         </div>
       </section>
 

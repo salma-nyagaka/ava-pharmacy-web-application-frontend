@@ -5,6 +5,7 @@ import {
   ApiProductCategory,
   ApiProductSubcategory,
 } from '../../services/adminProductService'
+import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
 import './CategoryManagement.css'
 
 function formatDate(value?: string): string {
@@ -103,6 +104,30 @@ function CategoryManagement() {
   }
 
   const closeModal = () => { if (!formSaving) setShowModal(false) }
+
+  const handleCategoryImageChange = async (file: File | null) => {
+    if (!file) {
+      setFormImageFile(null)
+      setFormImagePreview(modalMode === 'edit-category'
+        ? categories.find((category) => category.id === editingId)?.image || ''
+        : '')
+      return
+    }
+
+    const validationError = await validateImageFile(file, 'category')
+    if (validationError) {
+      setFormImageFile(null)
+      setFormImagePreview(modalMode === 'edit-category'
+        ? categories.find((category) => category.id === editingId)?.image || ''
+        : '')
+      setFormError(validationError)
+      return
+    }
+
+    setFormImageFile(file)
+    setFormImagePreview(URL.createObjectURL(file))
+    setFormError('')
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -727,17 +752,11 @@ function CategoryManagement() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] ?? null
-                      setFormImageFile(file)
-                      setFormImagePreview(file ? URL.createObjectURL(file) : (modalMode === 'edit-category'
-                        ? categories.find((category) => category.id === editingId)?.image || ''
-                        : ''))
-                      setFormError('')
-                    }}
+                    onChange={(e) => { void handleCategoryImageChange(e.target.files?.[0] ?? null) }}
                     disabled={formSaving}
                     required={modalMode === 'create-category'}
                   />
+                  <span className="cm-upload-note">{getImageUploadHint('category')}</span>
                   {formImagePreview && (
                     <img
                       src={formImagePreview}

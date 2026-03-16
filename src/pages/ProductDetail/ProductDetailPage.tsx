@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
-import { fetchProductById, fetchProducts } from '../../services/productService'
+import { fetchAvailability, fetchProductById, fetchProducts } from '../../services/productService'
 import { mapApiProduct } from '../../hooks/useProducts'
 import './ProductDetailPage.css'
 
@@ -14,6 +14,7 @@ function ProductDetailPage() {
   const [cartMessage, setCartMessage] = useState('')
   const [selectedProduct, setSelectedProduct] = useState<ReturnType<typeof mapApiProduct> | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<{ id: number; name: string; price: number; image: string; rating: number }[]>([])
+  const [liveAvailability, setLiveAvailability] = useState<{ is_available: boolean; stock_source: string; quantity: number } | null>(null)
 
   const parsedId = Number.parseInt(routeId ?? '0', 10) || 0
 
@@ -37,6 +38,23 @@ function ProductDetailPage() {
     }).catch(() => {})
   }, [parsedId])
 
+  useEffect(() => {
+    if (!parsedId) return
+    let active = true
+    const loadAvailability = () => {
+      void fetchAvailability([parsedId]).then((rows) => {
+        if (!active) return
+        setLiveAvailability(rows[0] ?? null)
+      }).catch(() => {})
+    }
+    loadAvailability()
+    const intervalId = window.setInterval(loadAvailability, 30000)
+    return () => {
+      active = false
+      window.clearInterval(intervalId)
+    }
+  }, [parsedId])
+
   if (!selectedProduct) {
     return (
       <div className="pdp">
@@ -47,8 +65,12 @@ function ProductDetailPage() {
     )
   }
 
-  const stockSource = selectedProduct.stockSource
-  const inStock = stockSource !== 'out'
+  const stockSource = liveAvailability?.stock_source === 'warehouse'
+    ? 'warehouse'
+    : liveAvailability?.stock_source === 'branch'
+      ? 'branch'
+      : selectedProduct.stockSource
+  const inStock = liveAvailability ? liveAvailability.is_available : stockSource !== 'out'
 
   const product = {
     id: selectedProduct.id,

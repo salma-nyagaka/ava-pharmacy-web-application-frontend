@@ -10,6 +10,7 @@ import {
   ApiProduct,
   ProductCreatePayload,
 } from '../../services/adminProductService'
+import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
 import './AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
@@ -213,14 +214,6 @@ function ProductManagement() {
     setShowAddModal(true)
   }
 
-  const openBrandModal = () => {
-    setBrandName('')
-    setBrandDescription('')
-    setBrandLogoFile(null)
-    setBrandFormError('')
-    setShowBrandModal(true)
-  }
-
   const closeBrandModal = () => {
     if (brandSaving) return
     setBrandName('')
@@ -411,6 +404,42 @@ function ProductManagement() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleProductImageChange = async (file: File | null) => {
+    if (!file) {
+      setProductImageFile(null)
+      setFormError('')
+      return
+    }
+
+    const validationError = await validateImageFile(file, 'product')
+    if (validationError) {
+      setProductImageFile(null)
+      setFormError(validationError)
+      return
+    }
+
+    setProductImageFile(file)
+    setFormError('')
+  }
+
+  const handleQuickBrandLogoChange = async (file: File | null) => {
+    if (!file) {
+      setBrandLogoFile(null)
+      setBrandFormError('')
+      return
+    }
+
+    const validationError = await validateImageFile(file, 'brand')
+    if (validationError) {
+      setBrandLogoFile(null)
+      setBrandFormError(validationError)
+      return
+    }
+
+    setBrandLogoFile(file)
+    setBrandFormError('')
   }
 
   const handleCreateBrand = async (e: FormEvent) => {
@@ -1008,10 +1037,10 @@ function ProductManagement() {
                       type="file"
                       accept="image/*"
                       required={!editingProduct}
-                      onChange={(e) => setProductImageFile(e.currentTarget.files?.[0] ?? null)}
+                      onChange={(e) => { void handleProductImageChange(e.currentTarget.files?.[0] ?? null) }}
                     />
                     <span className="pf-hint">
-                      {editingProduct ? 'Leave empty to keep the current image.' : 'Upload the main product image.'}
+                      {editingProduct ? 'Leave empty to keep the current image.' : 'Upload the main product image.'} {getImageUploadHint('product')}
                     </span>
                     {productImageFile && <span className="pf-hint">Selected: {productImageFile.name}</span>}
                   </div>
@@ -1151,10 +1180,11 @@ function ProductManagement() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => { setBrandLogoFile(e.target.files?.[0] ?? null); setBrandFormError('') }}
+                  onChange={(e) => { void handleQuickBrandLogoChange(e.target.files?.[0] ?? null) }}
                   disabled={brandSaving}
                   required
                 />
+                <span className="cm-upload-note">{getImageUploadHint('brand')}</span>
               </label>
 
               {brandFormError && (
