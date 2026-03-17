@@ -22,9 +22,18 @@ type DoctorTab = 'queue' | 'messages' | 'prescriptions' | 'patients' | 'earnings
 
 const STATUS_COLORS: Record<string, string> = {
   Waiting: '#f59e0b',
-  'In progress': '#3b82f6',
-  Completed: '#10b981',
+  'In progress': '#10b981',
+  Completed: '#64748b',
   Cancelled: '#ef4444',
+}
+
+const STATUS_PILL_STYLES: Record<string, { background: string; color: string }> = {
+  Waiting:      { background: 'rgba(245,158,11,0.12)',  color: '#92400e' },
+  'In progress':{ background: 'rgba(16,185,129,0.12)',  color: '#065f46' },
+  Completed:    { background: 'rgba(100,116,139,0.12)', color: '#1e293b' },
+  Cancelled:    { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
+  urgent:       { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
+  critical:     { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
 }
 
 const RX_STATUS_COLORS: Record<string, string> = {
@@ -52,6 +61,42 @@ function consultStep(status: Consultation['status']) {
 }
 
 const CONSULT_STEPS = ['Waiting', 'In progress', 'Completed']
+
+function WaitTimer({ since }: { since: string | Date | undefined }) {
+  const [mins, setMins] = useState(0)
+  useEffect(() => {
+    const calc = () => {
+      if (!since) return
+      const diff = Math.floor((Date.now() - new Date(since).getTime()) / 60000)
+      setMins(Math.max(0, diff))
+    }
+    calc()
+    const id = setInterval(calc, 30000)
+    return () => clearInterval(id)
+  }, [since])
+  const color = mins < 10 ? '#10b981' : mins < 20 ? '#f59e0b' : '#ef4444'
+  return (
+    <span className="doc-wait-timer" style={{ color, '--wait-color': color } as React.CSSProperties}>
+      Waiting {mins} min
+    </span>
+  )
+}
+
+function PatientTimeline({ items }: { items: Array<{ type: string; date: string; summary: string }> }) {
+  return (
+    <div className="doc-timeline">
+      {items.map((item, i) => (
+        <div key={i} className="doc-timeline__item">
+          <div className="doc-timeline__dot" data-type={item.type} />
+          <div className="doc-timeline__content">
+            <p className="doc-timeline__date">{new Date(item.date).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+            <p className="doc-timeline__summary">{item.summary}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function DoctorDashboardPage() {
   const { user, logout } = useAuth()
@@ -86,6 +131,7 @@ function DoctorDashboardPage() {
   const [rxItems, setRxItems] = useState<DoctorPrescriptionItem[]>([{ name: '', dosage: '', quantity: 1 }])
 
   const [patientSearch, setPatientSearch] = useState('')
+  const [selectedPatient, setSelectedPatient] = useState<string | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -384,7 +430,7 @@ function DoctorDashboardPage() {
         {/* ── QUEUE TAB ── */}
         {activeTab === 'queue' && (
           <>
-            <div className="dd-welcome">
+            <div className="dd-welcome" style={{ gridColumn: '1 / -1' }}>
               <div>
                 <h1 className="dd-welcome__title">{greeting()}, Dr. {doctorFirstName}</h1>
                 <p className="dd-welcome__sub">{doctor?.specialty} · {new Date().toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -429,109 +475,187 @@ function DoctorDashboardPage() {
               </div>
             </div>
 
-            <div className="dd-table-card">
-              <div className="dd-toolbar">
-                <div className="dd-search-wrap">
-                  <svg className="dd-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  <input
-                    className="dd-search-input"
-                    type="text"
-                    placeholder="Search by patient, issue, ID…"
-                    value={queueSearch}
-                    onChange={(e) => setQueueSearch(e.target.value)}
-                  />
-                  {queueSearch && <button className="dd-search-clear" onClick={() => setQueueSearch('')}>×</button>}
+            <div className="doc-split-layout" style={{ gridColumn: '1 / -1' }}>
+              <div className="dd-table-card">
+                <div className="dd-toolbar">
+                  <div className="dd-search-wrap">
+                    <svg className="dd-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <input
+                      className="dd-search-input"
+                      type="text"
+                      placeholder="Search by patient, issue, ID…"
+                      value={queueSearch}
+                      onChange={(e) => setQueueSearch(e.target.value)}
+                    />
+                    {queueSearch && <button className="dd-search-clear" onClick={() => setQueueSearch('')}>×</button>}
+                  </div>
+                  <span className="dd-count">{queueItems.length} consultation{queueItems.length !== 1 ? 's' : ''}</span>
                 </div>
-                <span className="dd-count">{queueItems.length} consultation{queueItems.length !== 1 ? 's' : ''}</span>
+
+                <div className="dd-table-wrap">
+                  <table className="dd-table">
+                    <thead>
+                      <tr>
+                        <th>Patient</th>
+                        <th>Issue</th>
+                        <th>Wait</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {queueItems.map((item) => (
+                        <tr
+                          key={item.id}
+                          className={selectedConsult?.id === item.id ? 'dd-row--active' : ''}
+                          onClick={() => { setSelectedConsult(item); setShowConsultChat(false) }}
+                        >
+                          <td>
+                            <div className="dd-td-patient">
+                              <div className="dd-td-patient__avatar">{initials(item.patientName)}</div>
+                              <div>
+                                <p className="dd-td-patient__name">{item.patientName}</p>
+                                <p className="dd-td-patient__id">{item.id}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="dd-td-issue">{item.issue}</td>
+                          <td>
+                            {item.status === 'Waiting' || item.status === 'In progress'
+                              ? <WaitTimer since={item.scheduledAt} />
+                              : <span className="dd-td-meta">{item.scheduledAt}</span>}
+                          </td>
+                          <td>
+                            <span className={`dd-priority ${item.priority === 'Priority' ? 'dd-priority--high' : ''}`}>
+                              {item.priority === 'Priority'
+                                ? <><span className="dd-priority-dot" /> {item.priority}</>
+                                : item.priority}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className="dd-status-pill"
+                              style={STATUS_PILL_STYLES[item.status] ?? { background: 'rgba(100,116,139,0.12)', color: '#1e293b' }}
+                            >
+                              {item.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="dd-actions-cell" onClick={(e) => e.stopPropagation()}>
+                              {item.status === 'Waiting' && (
+                                <button
+                                  className="dd-action-btn dd-action-btn--start"
+                                  type="button"
+                                  onClick={() => handleStartConsultation(item)}
+                                >
+                                  Start
+                                </button>
+                              )}
+                              {item.status === 'In progress' && (
+                                <button
+                                  className="dd-action-btn dd-action-btn--chat"
+                                  type="button"
+                                  onClick={() => {
+                                    const thread = findOrCreateThread(item)
+                                    setSelectedConsult(item)
+                                    setConsultThread(thread)
+                                    setShowConsultChat(true)
+                                  }}
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                  Chat
+                                </button>
+                              )}
+                              <button
+                                className="dd-action-btn"
+                                type="button"
+                                disabled={item.status === 'Completed' || item.status === 'Cancelled'}
+                                onClick={() => updateConsultationStatus(item.id, 'Completed')}
+                              >
+                                Done
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {queueItems.length === 0 && (
+                    <div className="dd-empty">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                      <p>No consultations found.</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="dd-table-wrap">
-                <table className="dd-table">
-                  <thead>
-                    <tr>
-                      <th>Patient</th>
-                      <th>Issue</th>
-                      <th>Scheduled</th>
-                      <th>Priority</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {queueItems.map((item) => (
-                      <tr
-                        key={item.id}
-                        className={selectedConsult?.id === item.id ? 'dd-row--active' : ''}
-                        onClick={() => { setSelectedConsult(item); setShowConsultChat(false) }}
+              {/* Right workspace panel */}
+              <div className="dd-queue-workspace">
+                {selectedConsult ? (
+                  <div className="dd-workspace-card">
+                    <div className="dd-workspace-card__header">
+                      <div className="dd-td-patient">
+                        <div className="dd-td-patient__avatar">{initials(selectedConsult.patientName)}</div>
+                        <div>
+                          <p className="dd-td-patient__name">{selectedConsult.patientName}</p>
+                          <p className="dd-td-patient__id">{selectedConsult.id}</p>
+                        </div>
+                      </div>
+                      <span
+                        className="dd-status-pill"
+                        style={STATUS_PILL_STYLES[selectedConsult.status] ?? { background: 'rgba(100,116,139,0.12)', color: '#1e293b' }}
                       >
-                        <td>
-                          <div className="dd-td-patient">
-                            <div className="dd-td-patient__avatar">{initials(item.patientName)}</div>
-                            <div>
-                              <p className="dd-td-patient__name">{item.patientName}</p>
-                              <p className="dd-td-patient__id">{item.id}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="dd-td-issue">{item.issue}</td>
-                        <td className="dd-td-meta">{item.scheduledAt}</td>
-                        <td>
-                          <span className={`dd-priority ${item.priority === 'Priority' ? 'dd-priority--high' : ''}`}>
-                            {item.priority === 'Priority'
-                              ? <><span className="dd-priority-dot" /> {item.priority}</>
-                              : item.priority}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="dd-status-cell">
-                            <span className="dd-status-dot" style={{ background: STATUS_COLORS[item.status] ?? '#9ca3af' }} />
-                            <span className="dd-status-text">{item.status}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="dd-actions-cell" onClick={(e) => e.stopPropagation()}>
-                            {item.status === 'Waiting' && (
-                              <button
-                                className="dd-action-btn dd-action-btn--start"
-                                type="button"
-                                onClick={() => handleStartConsultation(item)}
-                              >
-                                Start
-                              </button>
-                            )}
-                            {item.status === 'In progress' && (
-                              <button
-                                className="dd-action-btn dd-action-btn--chat"
-                                type="button"
-                                onClick={() => {
-                                  const thread = findOrCreateThread(item)
-                                  setSelectedConsult(item)
-                                  setConsultThread(thread)
-                                  setShowConsultChat(true)
-                                }}
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                                Chat
-                              </button>
-                            )}
-                            <button
-                              className="dd-action-btn"
-                              type="button"
-                              disabled={item.status === 'Completed' || item.status === 'Cancelled'}
-                              onClick={() => updateConsultationStatus(item.id, 'Completed')}
-                            >
-                              Done
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {queueItems.length === 0 && (
-                  <div className="dd-empty">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <p>No consultations found.</p>
+                        {selectedConsult.status}
+                      </span>
+                    </div>
+                    <div className="dd-workspace-card__body">
+                      <p className="dd-sp-section-title">Chief Complaint</p>
+                      <p className="dd-sp-value" style={{ marginBottom: '1rem' }}>{selectedConsult.issue}</p>
+                      <div className="dd-sp-grid">
+                        <div className="dd-sp-field">
+                          <p className="dd-sp-field-label">Scheduled</p>
+                          <p className="dd-sp-field-value">{selectedConsult.scheduledAt}</p>
+                        </div>
+                        <div className="dd-sp-field">
+                          <p className="dd-sp-field-label">Priority</p>
+                          <p className="dd-sp-field-value">{selectedConsult.priority}</p>
+                        </div>
+                        <div className="dd-sp-field">
+                          <p className="dd-sp-field-label">Age</p>
+                          <p className="dd-sp-field-value">{selectedConsult.patientAge} yrs</p>
+                        </div>
+                        <div className="dd-sp-field">
+                          <p className="dd-sp-field-label">Channel</p>
+                          <p className="dd-sp-field-value">{selectedConsult.channel}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="dd-workspace-card__footer">
+                      {selectedConsult.status === 'Waiting' && (
+                        <button className="dd-sp-btn dd-sp-btn--primary" type="button" onClick={() => handleStartConsultation(selectedConsult)}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                          Start conversation
+                        </button>
+                      )}
+                      {selectedConsult.status === 'In progress' && (
+                        <button className="dd-sp-btn dd-sp-btn--primary" type="button" onClick={() => { const t = findOrCreateThread(selectedConsult); setConsultThread(t); setShowConsultChat(true) }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                          Continue conversation
+                        </button>
+                      )}
+                      <button className="dd-sp-btn dd-sp-btn--success" type="button" disabled={selectedConsult.status === 'Completed'} onClick={() => updateConsultationStatus(selectedConsult.id, 'Completed')}>
+                        Mark completed
+                      </button>
+                      <button className="dd-sp-btn dd-sp-btn--danger" type="button" disabled={selectedConsult.status === 'Cancelled'} onClick={() => { updateConsultationStatus(selectedConsult.id, 'Cancelled'); setSelectedConsult(null) }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="dd-workspace-empty">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <p>Select a consultation to view details</p>
                   </div>
                 )}
               </div>
@@ -683,10 +807,15 @@ function DoctorDashboardPage() {
                       <td className="dd-td-meta">{rx.createdAt}</td>
                       <td className="dd-td-meta">{rx.items.length} item{rx.items.length !== 1 ? 's' : ''}</td>
                       <td>
-                        <div className="dd-status-cell">
-                          <span className="dd-status-dot" style={{ background: RX_STATUS_COLORS[rx.status] ?? '#9ca3af' }} />
-                          <span className="dd-status-text">{rx.status}</span>
-                        </div>
+                        <span className="dd-status-pill" style={
+                          rx.status === 'Dispensed'
+                            ? { background: 'rgba(16,185,129,0.12)', color: '#065f46' }
+                            : rx.status === 'Sent'
+                            ? { background: 'rgba(37,99,235,0.12)', color: '#1e3a8a' }
+                            : { background: 'rgba(245,158,11,0.12)', color: '#92400e' }
+                        }>
+                          {rx.status}
+                        </span>
                       </td>
                       <td>
                         <div className="dd-actions-cell">
@@ -739,19 +868,30 @@ function DoctorDashboardPage() {
               <span className="dd-count">{filteredPatients.length} patient{filteredPatients.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="dd-patient-grid">
-              {filteredPatients.map((p) => (
-                <div key={p.name} className="dd-patient-card">
+              {filteredPatients.map((p) => {
+                const patientConsults = doctorConsultations.filter((c) => c.patientName === p.name)
+                const patientRx = doctorPrescriptions.filter((rx) => rx.patientName === p.name)
+                const timelineItems = [
+                  ...patientConsults.map((c) => ({ type: 'consultation', date: c.scheduledAt, summary: `Consultation: ${c.issue} (${c.status})` })),
+                  ...patientRx.map((rx) => ({ type: 'prescription', date: rx.createdAt, summary: `Prescription #${rx.id} – ${rx.items.length} item${rx.items.length !== 1 ? 's' : ''}` })),
+                ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                return (
+                <div key={p.name} className={`dd-patient-card ${selectedPatient === p.name ? 'dd-patient-card--selected' : ''}`} onClick={() => setSelectedPatient(selectedPatient === p.name ? null : p.name)} style={{ cursor: 'pointer' }}>
                   <div className="dd-patient-card__avatar">{initials(p.name)}</div>
                   <div className="dd-patient-card__body">
                     <p className="dd-patient-card__name">{p.name}</p>
                     <p className="dd-patient-card__meta">Last visit: {p.lastVisit}</p>
+                    {selectedPatient === p.name && timelineItems.length > 0 && (
+                      <PatientTimeline items={timelineItems} />
+                    )}
                   </div>
                   <div className="dd-patient-card__stat">
                     <span className="dd-patient-card__count">{p.total}</span>
                     <span className="dd-patient-card__count-label">visit{p.total !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
-              ))}
+                )
+              })}
               {filteredPatients.length === 0 && (
                 <div className="dd-empty dd-empty--full">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
@@ -765,30 +905,47 @@ function DoctorDashboardPage() {
         {/* ── EARNINGS TAB ── */}
         {activeTab === 'earnings' && (
           <>
-            <div className="dd-earnings-summary">
-              <div className="dd-earnings-summary__item dd-earnings-summary__item--main">
-                <p className="dd-earnings-summary__label">Total earned</p>
-                <p className="dd-earnings-summary__value">KSh {stats.totalRevenue.toLocaleString()}</p>
-              </div>
-              <div className="dd-earnings-summary__item">
-                <p className="dd-earnings-summary__label">Consultations</p>
-                <p className="dd-earnings-summary__num">{earnings.reduce((s, e) => s + e.consults, 0)}</p>
-              </div>
-              <div className="dd-earnings-summary__item">
-                <p className="dd-earnings-summary__label">Avg. per consult</p>
-                <p className="dd-earnings-summary__num">
-                  KSh {earnings.reduce((s, e) => s + e.consults, 0) > 0
-                    ? Math.round(stats.totalRevenue / earnings.reduce((s, e) => s + e.consults, 0)).toLocaleString()
-                    : '-'}
-                </p>
-              </div>
-              <div className="dd-earnings-summary__item">
-                <p className="dd-earnings-summary__label">Pending payout</p>
-                <p className="dd-earnings-summary__num">
-                  KSh {earnings.filter((e) => e.status === 'Scheduled').reduce((s, e) => s + e.revenue, 0).toLocaleString()}
-                </p>
-              </div>
-            </div>
+            {(() => {
+              const now = new Date()
+              const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+              const prevMonthLabel = prevMonthDate.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' })
+              const thisMonthEntry = earnings.find((e) => e.period.toLowerCase().includes(now.toLocaleDateString('en-KE', { month: 'long' }).toLowerCase()))
+              const prevMonthEntry = earnings.find((e) => e.period.toLowerCase().includes(prevMonthDate.toLocaleDateString('en-KE', { month: 'long' }).toLowerCase()))
+              const thisMonthRevenue = thisMonthEntry?.revenue ?? 0
+              const prevMonthRevenue = prevMonthEntry?.revenue ?? 0
+              const momDiff = thisMonthRevenue - prevMonthRevenue
+              const momPct = prevMonthRevenue > 0 ? Math.round((momDiff / prevMonthRevenue) * 100) : null
+              const pendingPayout = earnings.filter((e) => e.status === 'Scheduled').reduce((s, e) => s + e.revenue, 0)
+              return (
+                <div className="dd-earnings-summary">
+                  <div className="dd-earnings-summary__item dd-earnings-summary__item--main">
+                    <p className="dd-earnings-summary__label">Total earned</p>
+                    <p className="dd-earnings-summary__value">KSh {stats.totalRevenue.toLocaleString()}</p>
+                  </div>
+                  <div className="dd-earnings-summary__item">
+                    <p className="dd-earnings-summary__label">This month</p>
+                    <p className="dd-earnings-summary__num">KSh {thisMonthRevenue.toLocaleString()}</p>
+                    {momPct !== null && (
+                      <p className="dd-earnings-trend" style={{ color: momDiff >= 0 ? '#10b981' : '#ef4444' }}>
+                        {momDiff >= 0 ? '▲' : '▼'} {Math.abs(momPct)}% vs {prevMonthLabel}
+                      </p>
+                    )}
+                  </div>
+                  <div className="dd-earnings-summary__item">
+                    <p className="dd-earnings-summary__label">Pending payout</p>
+                    <p className="dd-earnings-summary__num">KSh {pendingPayout.toLocaleString()}</p>
+                  </div>
+                  <div className="dd-earnings-summary__item">
+                    <p className="dd-earnings-summary__label">Avg. per consult</p>
+                    <p className="dd-earnings-summary__num">
+                      KSh {earnings.reduce((s, e) => s + e.consults, 0) > 0
+                        ? Math.round(stats.totalRevenue / earnings.reduce((s, e) => s + e.consults, 0)).toLocaleString()
+                        : '-'}
+                    </p>
+                  </div>
+                </div>
+              )
+            })()}
 
             <div className="dd-table-card">
               <div className="dd-toolbar">
@@ -812,12 +969,15 @@ function DoctorDashboardPage() {
                         <td className="dd-td-meta">{entry.consults}</td>
                         <td><strong>KSh {entry.revenue.toLocaleString()}</strong></td>
                         <td>
-                          <div className="dd-status-cell">
-                            <span className="dd-status-dot" style={{
-                              background: entry.status === 'Paid' ? '#10b981' : entry.status === 'Scheduled' ? '#f59e0b' : '#ef4444'
-                            }} />
-                            <span className="dd-status-text">{entry.status}</span>
-                          </div>
+                          <span className="dd-status-pill" style={
+                            entry.status === 'Paid'
+                              ? { background: 'rgba(16,185,129,0.12)', color: '#065f46' }
+                              : entry.status === 'Scheduled'
+                              ? { background: 'rgba(245,158,11,0.12)', color: '#92400e' }
+                              : { background: 'rgba(239,68,68,0.12)', color: '#991b1b' }
+                          }>
+                            {entry.status}
+                          </span>
                         </td>
                         <td className="dd-td-meta">{entry.payoutDate}</td>
                       </tr>
@@ -983,10 +1143,9 @@ function DoctorDashboardPage() {
                     </div>
                     <div className="dd-sp-field">
                       <p className="dd-sp-field-label">Status</p>
-                      <div className="dd-status-cell">
-                        <span className="dd-status-dot" style={{ background: STATUS_COLORS[selectedConsult.status] ?? '#9ca3af' }} />
-                        <span className="dd-status-text">{selectedConsult.status}</span>
-                      </div>
+                      <span className="dd-status-pill" style={STATUS_PILL_STYLES[selectedConsult.status] ?? { background: 'rgba(100,116,139,0.12)', color: '#1e293b' }}>
+                        {selectedConsult.status}
+                      </span>
                     </div>
                   </div>
                 </div>

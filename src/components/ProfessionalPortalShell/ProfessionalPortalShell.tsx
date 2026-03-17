@@ -1,6 +1,6 @@
 import { CSSProperties, ReactNode, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import logo from '../../assets/images/logos/avalogo.jpg'
+import favicon from '../../assets/images/logos/favicon.png'
 import './ProfessionalPortalShell.css'
 
 export type ProfessionalPortalNavItem = {
@@ -91,7 +91,7 @@ function ProfessionalPortalShell({
           <div className="portal-shell__brand-row">
             <Link className="portal-shell__brand" to="/">
               <div className="portal-shell__brand-mark">
-                <img src={logo} alt="AVA Pharmacy" />
+                <img src={favicon} alt="Ava Pharmacy" />
               </div>
               <div className="portal-shell__brand-copy">
                 <strong>Ava Pharmacy</strong>

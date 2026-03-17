@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { type AdminOrder, getOrderTotals, loadAdminOrders, saveAdminOrders } from '../../data/adminOrders'
 import { logAdminAction } from '../../data/adminAudit'
 import './OrderManagement.css'
@@ -7,7 +7,6 @@ import './OrderManagement.css'
 const formatCurrency = (value: number) => `KSh ${value.toLocaleString()}`
 
 function OrderManagement() {
-  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -38,15 +37,6 @@ function OrderManagement() {
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedOrders = filteredOrders.slice(startIndex, startIndex + PAGE_SIZE)
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-
-    navigate('/admin')
-  }
 
   const [confirmPending, setConfirmPending] = useState<{ orderId: string; status: AdminOrder['status']; label: string } | null>(null)
   const [refundTarget, setRefundTarget] = useState<AdminOrder | null>(null)
@@ -106,9 +96,6 @@ function OrderManagement() {
     <div className="order-management">
       <div className="order-management__header">
         <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
-            Back
-          </button>
           <h1>Order Management</h1>
         </div>
         <div className="stats-mini">

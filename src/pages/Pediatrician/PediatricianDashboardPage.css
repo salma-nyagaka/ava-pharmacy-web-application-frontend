@@ -5,9 +5,9 @@
 
 /* Override indigo with purple within the pediatric portal */
 .dd-module {
-  --dd-indigo: #7c3aed;
-  --dd-indigo-light: #ede9fe;
-  --dd-indigo-bg: #f5f3ff;
+  --dd-indigo: #0f766e;
+  --dd-indigo-light: #ccfbf1;
+  --dd-indigo-bg: #f0fdfa;
 }
 
 /* ── Pediatric-specific queue table ─────────────────── */
@@ -72,11 +72,14 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
-  transition: box-shadow 0.15s;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.03);
+  transition: box-shadow 0.15s, border-color 0.15s;
 }
 
-.pd-consent-card:hover { box-shadow: 0 4px 12px rgb(0 0 0 / 0.08); }
+.pd-consent-card:hover {
+  box-shadow: 0 4px 16px rgba(15,23,42,0.08);
+  border-color: #d1d5db;
+}
 
 .pd-consent-card__top {
   display: flex;
@@ -190,11 +193,14 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
-  transition: box-shadow 0.15s;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.04), 0 2px 8px rgba(15,23,42,0.03);
+  transition: box-shadow 0.15s, border-color 0.15s;
 }
 
-.pd-profile-card:hover { box-shadow: 0 4px 12px rgb(0 0 0 / 0.08); }
+.pd-profile-card:hover {
+  box-shadow: 0 4px 16px rgba(15,23,42,0.08);
+  border-color: #d1d5db;
+}
 
 .pd-profile-card__avatar {
   width: 52px;
@@ -218,6 +224,47 @@
   font-weight: 700;
   color: #0f172a;
   margin: 0 0 0.15rem;
+}
+
+/* Pediatric refresh overrides */
+.portal-shell__main .pd-consent-card,
+.portal-shell__main .pd-profile-card {
+  border-radius: var(--dashboard-radius-md);
+  border-color: var(--dashboard-border);
+  box-shadow: var(--dashboard-shadow-sm);
+}
+
+.portal-shell__main .pd-consent-card__issue {
+  border-color: var(--dashboard-border);
+  border-radius: var(--dashboard-radius-sm);
+  background: var(--dashboard-surface-muted);
+}
+
+.portal-shell__main .pd-consent,
+.portal-shell__main .pd-consent--ok,
+.portal-shell__main .pd-consent--pending {
+  font-size: 0.72rem;
+  font-weight: var(--dashboard-weight-bold);
+}
+
+.portal-shell__main .pd-consent--ok {
+  background: #e6f6f5;
+  color: #0f766e;
+}
+
+.portal-shell__main .pd-consent--pending {
+  background: #fff4db;
+  color: #9a6700;
+}
+
+.portal-shell__main .pd-alerts-banner {
+  border-radius: var(--dashboard-radius-lg);
+  padding: 1.1rem 1.25rem;
+}
+
+.portal-shell__main .pd-alert-item {
+  border-radius: var(--dashboard-radius-sm);
+  border-color: #f8c7c7;
 }
 
 .pd-profile-card__age {
@@ -313,3 +360,91 @@
   .pd-consent-grid { grid-template-columns: 1fr; }
   .pd-profile-grid { grid-template-columns: 1fr; }
 }
+
+.ped-age-band {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.ped-consent-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #fcd34d;
+}
+
+.ped-growth-chart {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+.ped-growth-chart__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0369a1;
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ped-growth-chart__meta {
+  font-size: 0.78rem;
+  color: #374151;
+  margin: 0.5rem 0 0;
+}
+
+.ped-dosing-calc {
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+.ped-dosing-calc__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6d28d9;
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ped-dosing-calc__row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.ped-dosing-calc__input {
+  flex: 1;
+  min-width: 100px;
+  height: 36px;
+  padding: 0 0.75rem;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: #0f172a;
+}
+.ped-dosing-calc__result {
+  font-size: 0.875rem;
+  color: #4c1d95;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: #ede9fe;
+  border-radius: 8px;
+}
+.ped-dosing-calc__result strong { color: #6d28d9; }
+.ped-dosing-calc__result span { color: #7c3aed; font-size: 0.78rem; }

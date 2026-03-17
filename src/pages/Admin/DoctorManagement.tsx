@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import './AdminShared.css'
 import './DoctorManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
@@ -119,7 +119,6 @@ const mapDoctor = (api: AdminDoctorApi): DoctorProfile => {
 }
 
 function DoctorManagement() {
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [doctors, setDoctors] = useState<DoctorProfile[]>([])
   const [loading, setLoading] = useState(true)
@@ -200,11 +199,6 @@ function DoctorManagement() {
       setSelectedType('Pediatrician')
     }
   }, [searchParams])
-
-  const handleBack = () => {
-    if (window.history.length > 1) { navigate(-1); return }
-    navigate('/admin')
-  }
 
   const specialties = useMemo(
     () => Array.from(new Set(doctors.map((d) => d.specialty).filter(Boolean))),
@@ -322,7 +316,6 @@ function DoctorManagement() {
       {/* Header */}
       <div className="admin-page__header">
         <div>
-          <button className="pm-back-btn" type="button" onClick={handleBack}>← Back</button>
           <h1>Doctors & Specialists</h1>
           <p className="dm-subtitle">Manage registered doctors, pediatricians, and their verifications.</p>
         </div>

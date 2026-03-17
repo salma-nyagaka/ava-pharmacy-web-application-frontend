@@ -94,13 +94,9 @@
   margin: 0;
 }
 
-/* Filters */
+/* Filters — superseded by cm-toolbar; kept for reference only */
 .product-management__filters {
-  display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
+  display: none;
 }
 
 .product-management .search-box {
@@ -200,12 +196,9 @@
   font-weight: 600;
 }
 
-/* Table */
+/* Table — superseded by cm-panel; kept for reference only */
 .product-management__table {
-  background: white;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  overflow: hidden;
+  display: none;
 }
 
 .product-management__table table {
@@ -411,7 +404,7 @@
 .btn-icon--play { color: #10b981; }
 .btn-icon--play:hover { background: #ecfdf5; border-color: #6ee7b7; color: #059669; }
 
-/* Pagination */
+/* Pagination — superseded by cm-pagination; kept for shared pagination__button/page styles */
 .pagination {
   display: flex;
   align-items: center;
@@ -419,6 +412,11 @@
   gap: 1rem;
   margin-top: 1rem;
   flex-wrap: wrap;
+}
+
+/* Override product-management header to match cm pattern */
+.product-management .product-management__header {
+  display: none;
 }
 
 .pagination__pages {

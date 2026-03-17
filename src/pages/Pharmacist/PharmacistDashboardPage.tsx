@@ -21,6 +21,68 @@ const isImageFile = (f: string) =>
 const isPdfFile = (f: string) =>
   f.startsWith('data:application/pdf') || /\.pdf$/i.test(f)
 
+function TimeElapsed({ since }: { since: string | undefined }) {
+  const hours = since ? Math.floor((Date.now() - new Date(since).getTime()) / 3600000) : 0
+  const mins = since ? Math.floor((Date.now() - new Date(since).getTime()) / 60000) % 60 : 0
+  const isOverdue = hours >= 2
+  return (
+    <span className={`pharm-age ${isOverdue ? 'pharm-age--overdue' : ''}`}>
+      {hours > 0 ? `${hours}h ${mins}m` : `${mins}m`} ago
+    </span>
+  )
+}
+
+function DonutChart({ segments }: { segments: Array<{ value: number; color: string; label: string }> }) {
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1
+  let offset = 0
+  const r = 36
+  const circ = 2 * Math.PI * r
+  return (
+    <div className="pharm-donut">
+      <svg viewBox="0 0 100 100" width="100" height="100">
+        {segments.map((seg, i) => {
+          const pct = seg.value / total
+          const dash = pct * circ
+          const gap = circ - dash
+          const el = (
+            <circle
+              key={i}
+              cx="50" cy="50" r={r}
+              fill="none"
+              stroke={seg.color}
+              strokeWidth="14"
+              strokeDasharray={`${dash} ${gap}`}
+              strokeDashoffset={-offset * circ}
+              style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+            />
+          )
+          offset += pct
+          return el
+        })}
+        <text x="50" y="54" textAnchor="middle" fontSize="16" fontWeight="700" fill="#0f172a">{total}</text>
+      </svg>
+      <div className="pharm-donut__legend">
+        {segments.map((seg) => (
+          <div key={seg.label} className="pharm-donut__item">
+            <span className="pharm-donut__dot" style={{ background: seg.color }} />
+            <span>{seg.label}: {seg.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const REJECTION_REASONS = [
+  'Illegible prescription',
+  'Controlled substance — requires in-person verification',
+  'Missing doctor information',
+  'Expired prescription',
+  'Incorrect dosage instructions',
+  'Prescription not valid in this jurisdiction',
+  'Other',
+]
+
 function PharmacistDashboardPage() {
   const { user, logout } = useAuth()
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
@@ -35,6 +97,9 @@ function PharmacistDashboardPage() {
   const [manualItems, setManualItems] = useState<Array<{ product: CatalogProduct; qty: number }>>([])
   const [productSearch, setProductSearch] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
+  const [showRejectInput, setShowRejectInput] = useState(false)
+  const [rejectionTemplate, setRejectionTemplate] = useState('')
+  const [rejectionCustom, setRejectionCustom] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -57,10 +122,28 @@ function PharmacistDashboardPage() {
     setManualItems([])
     setProductSearch('')
     setShowDropdown(false)
+    setShowRejectInput(false)
+    setRejectionTemplate('')
+    setRejectionCustom('')
     const initial: Record<string, boolean> = {}
     activeRx.items.forEach((item) => { initial[item.name] = true })
     setItemSelections(initial)
   }, [activeRx?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!activeRx) return
+    const handleKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.code === 'KeyA') { void handleApprove() }
+      if (e.code === 'KeyR') { setShowRejectInput((p) => !p) }
+      if (e.code === 'KeyC') { setShowClarificationInput((p) => !p) }
+      if (e.code === 'Escape') { setActiveRx(null) }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [activeRx]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const actor = user?.name ?? 'Pharmacist'
 
@@ -124,7 +207,11 @@ function PharmacistDashboardPage() {
 
   const handleReject = () => {
     if (!activeRx) return
-    void updateRx(activeRx.id, { status: 'Rejected', dispatchStatus: 'Not started', pharmacist: actor }, `Rejected by ${actor}`)
+    const reason = rejectionTemplate === 'Other' ? rejectionCustom : rejectionTemplate
+    void updateRx(activeRx.id, { status: 'Rejected', dispatchStatus: 'Not started', pharmacist: actor }, `Rejected by ${actor}${reason ? ': ' + reason : ''}`)
+    setShowRejectInput(false)
+    setRejectionTemplate('')
+    setRejectionCustom('')
   }
 
   const filtered = useMemo(() => {
@@ -146,6 +233,14 @@ function PharmacistDashboardPage() {
     clarification: prescriptions.filter((p) => p.status === 'Clarification').length,
     rejected: prescriptions.filter((p) => p.status === 'Rejected').length,
   }), [prescriptions])
+
+  const donutSegments = [
+    { value: stats.pending, color: '#f59e0b', label: 'Pending' },
+    { value: stats.approved, color: '#10b981', label: 'Approved' },
+    { value: stats.clarification, color: '#3b82f6', label: 'Clarification' },
+    { value: stats.rejected, color: '#ef4444', label: 'Rejected' },
+  ]
+
   const navigationItems = [
     {
       id: 'all',
@@ -210,7 +305,7 @@ function PharmacistDashboardPage() {
 
   return (
     <ProfessionalPortalShell
-      accentColor="#e81750"
+      accentColor="#be3455"
       activeItemId={selectedStatus === 'all' ? 'all' : selectedStatus}
       navItems={navigationItems}
       onNavChange={(itemId) => {
@@ -238,23 +333,26 @@ function PharmacistDashboardPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="px-stats">
-        <div className="px-stat px-stat--pending" onClick={() => setSelectedStatus('Pending')} role="button" tabIndex={0}>
-          <span className="px-stat__value">{stats.pending}</span>
-          <span className="px-stat__label">Pending</span>
-        </div>
-        <div className="px-stat px-stat--approved" onClick={() => setSelectedStatus('Approved')} role="button" tabIndex={0}>
-          <span className="px-stat__value">{stats.approved}</span>
-          <span className="px-stat__label">Approved</span>
-        </div>
-        <div className="px-stat px-stat--clarification" onClick={() => setSelectedStatus('Clarification')} role="button" tabIndex={0}>
-          <span className="px-stat__value">{stats.clarification}</span>
-          <span className="px-stat__label">Clarification</span>
-        </div>
-        <div className="px-stat px-stat--rejected" onClick={() => setSelectedStatus('Rejected')} role="button" tabIndex={0}>
-          <span className="px-stat__value">{stats.rejected}</span>
-          <span className="px-stat__label">Rejected</span>
+      {/* Stats — donut chart + clickable stat cards */}
+      <div className="px-stats-area">
+        <DonutChart segments={donutSegments} />
+        <div className="px-stats">
+          <div className="px-stat px-stat--pending" onClick={() => setSelectedStatus('Pending')} role="button" tabIndex={0}>
+            <span className="px-stat__value">{stats.pending}</span>
+            <span className="px-stat__label">Pending</span>
+          </div>
+          <div className="px-stat px-stat--approved" onClick={() => setSelectedStatus('Approved')} role="button" tabIndex={0}>
+            <span className="px-stat__value">{stats.approved}</span>
+            <span className="px-stat__label">Approved</span>
+          </div>
+          <div className="px-stat px-stat--clarification" onClick={() => setSelectedStatus('Clarification')} role="button" tabIndex={0}>
+            <span className="px-stat__value">{stats.clarification}</span>
+            <span className="px-stat__label">Clarification</span>
+          </div>
+          <div className="px-stat px-stat--rejected" onClick={() => setSelectedStatus('Rejected')} role="button" tabIndex={0}>
+            <span className="px-stat__value">{stats.rejected}</span>
+            <span className="px-stat__label">Rejected</span>
+          </div>
         </div>
       </div>
 
@@ -315,7 +413,10 @@ function PharmacistDashboardPage() {
                 </td>
                 <td><span className={`admin-status ${statusClass(rx.status)}`}>{rx.status}</span></td>
                 <td><span className="admin-status admin-status--info">{rx.dispatchStatus}</span></td>
-                <td className="px-date">{rx.submitted}</td>
+                <td className="px-date">
+                  {rx.submitted}
+                  {rx.status === 'Pending' && <TimeElapsed since={rx.submitted} />}
+                </td>
                 <td>
                   <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(rx)}>Review</button>
                 </td>
@@ -359,6 +460,14 @@ function PharmacistDashboardPage() {
                 <span className="px-modal__submitted">Submitted {activeRx.submitted}</span>
                 <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
               </div>
+            </div>
+
+            {/* Keyboard shortcut hint bar */}
+            <div className="pharm-shortcut-bar">
+              <span><kbd>A</kbd> Approve</span>
+              <span><kbd>R</kbd> Reject</span>
+              <span><kbd>C</kbd> Clarification</span>
+              <span><kbd>Esc</kbd> Close</span>
             </div>
 
             {/* Two-panel body */}
@@ -518,7 +627,7 @@ function PharmacistDashboardPage() {
                 )}
                 <div className="px-workflow-section">
                   <p className="px-section-label">Decision</p>
-                  <div className="px-decision-btns">
+                  <div className="pharm-action-bar">
                     <button
                       className={`px-decision-btn px-decision-btn--approve ${activeRx.status === 'Approved' ? 'px-decision-btn--active' : ''}`}
                       type="button"
@@ -538,12 +647,53 @@ function PharmacistDashboardPage() {
                     <button
                       className={`px-decision-btn px-decision-btn--reject ${activeRx.status === 'Rejected' ? 'px-decision-btn--active' : ''}`}
                       type="button"
-                      onClick={handleReject}
+                      onClick={() => setShowRejectInput((p) => !p)}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       Reject
                     </button>
                   </div>
+
+                  {/* Rejection reason template picker */}
+                  {showRejectInput && (
+                    <div className="px-clarification-box">
+                      <p className="px-section-label" style={{ marginBottom: '0.5rem' }}>Rejection reason</p>
+                      <select
+                        className="px-reject-select"
+                        value={rejectionTemplate}
+                        onChange={(e) => setRejectionTemplate(e.target.value)}
+                        autoFocus
+                      >
+                        <option value="">Select a reason…</option>
+                        {REJECTION_REASONS.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                      {rejectionTemplate === 'Other' && (
+                        <textarea
+                          className="px-clarification-textarea"
+                          placeholder="Describe the rejection reason…"
+                          value={rejectionCustom}
+                          onChange={(e) => setRejectionCustom(e.target.value)}
+                          rows={3}
+                          style={{ marginTop: '0.5rem' }}
+                        />
+                      )}
+                      <div className="px-clarification-actions">
+                        <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowRejectInput(false); setRejectionTemplate(''); setRejectionCustom('') }}>
+                          Cancel
+                        </button>
+                        <button
+                          className="btn btn--sm px-decision-btn--reject"
+                          type="button"
+                          onClick={handleReject}
+                          disabled={!rejectionTemplate || (rejectionTemplate === 'Other' && !rejectionCustom.trim())}
+                        >
+                          Confirm rejection
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {showClarificationInput && (
                     <div className="px-clarification-box">

@@ -1,7 +1,7 @@
 import { CSSProperties, ReactNode, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import logo from '../../assets/images/logos/avalogo.jpg'
+import favicon from '../../assets/images/logos/favicon.png'
 import './AdminLayout.css'
 
 type AdminNavItem = {
@@ -334,7 +334,7 @@ function AdminLayout() {
           <div className="admin-layout__brand-row">
             <NavLink className="admin-layout__brand" to="/" onClick={handleNavClick}>
               <span className="admin-layout__brand-mark">
-                <img src={logo} alt="Ava Pharmacy" />
+                <img src={favicon} alt="Ava Pharmacy" />
               </span>
               <span className="admin-layout__brand-copy">
                 <strong>Ava Pharmacy</strong>

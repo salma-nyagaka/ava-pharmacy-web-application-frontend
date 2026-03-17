@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
   addAdminOrderNote,
   fetchAdminOrder,
@@ -37,7 +37,6 @@ function getInitials(name: string) {
 }
 
 function OrderDetailsLivePage() {
-  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [order, setOrder] = useState<AdminOrder | null>(null)
   const [loading, setLoading] = useState(true)
@@ -66,14 +65,6 @@ function OrderDetailsLivePage() {
   useEffect(() => {
     void loadOrder()
   }, [id])
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin/orders')
-  }
 
   const updateOrderStatus = async (status: 'processing' | 'shipped' | 'delivered' | 'cancelled') => {
     if (!order) return
@@ -172,7 +163,6 @@ function OrderDetailsLivePage() {
           <p className="od-empty__icon">📦</p>
           <h2>Order not found</h2>
           <p>No order with ID <strong>{id}</strong>.</p>
-          <Link className="btn btn--outline btn--sm" to="/admin/orders">Back to orders</Link>
         </div>
       </div>
     )
@@ -185,7 +175,6 @@ function OrderDetailsLivePage() {
     <div className="admin-page od-page">
       <div className="od-header">
         <div className="od-header__left">
-          <button className="pm-back-btn" type="button" onClick={handleBack}>← Orders</button>
           <div className="od-header__title">
             <h1>{order.order_number}</h1>
             <span className={`od-status-badge od-status-badge--${order.status}`}>{STATUS_LABELS[order.status] ?? order.status}</span>

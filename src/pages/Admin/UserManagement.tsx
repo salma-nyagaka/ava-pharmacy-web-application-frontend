@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { AdminUserRole, PharmacistPermission, adminRoleOptions, formatAdminRole, loadAdminUsers } from '../../data/adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
 import { AdminUserError, adminUserService } from '../../services/adminUserService'
@@ -12,7 +12,6 @@ function getRoleFromSearchParams(value: string | null): AdminUserRole | 'all' {
 }
 
 function UserManagement() {
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState<AdminUserRole | 'all'>(() => getRoleFromSearchParams(searchParams.get('role')))
@@ -91,15 +90,6 @@ function UserManagement() {
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedUsers = filteredUsers.slice(startIndex, startIndex + PAGE_SIZE)
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-
-    navigate('/admin')
-  }
-
   const handleRoleChange = (nextRole: AdminUserRole | 'all') => {
     setSelectedRole(nextRole)
 
@@ -144,9 +134,6 @@ function UserManagement() {
     <div className="user-management">
       <div className="user-management__header">
         <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
-            Back
-          </button>
           <h1>User Management</h1>
         </div>
         <div className="stats-mini">

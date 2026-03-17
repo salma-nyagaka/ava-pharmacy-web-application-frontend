@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import './AdminShared.css'
 import './PayoutManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
@@ -19,7 +18,6 @@ const basePayoutRoles: PayoutRole[] = ['Doctor', 'Pediatrician', 'Lab Technician
 const formatCurrency = (value: number) => `KSh ${value.toLocaleString()}`
 
 function PayoutManagement() {
-  const navigate = useNavigate()
   const [payouts, setPayouts] = useState<AdminPayout[]>(() => loadAdminPayouts())
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState<'all' | PayoutRole>('all')
@@ -113,14 +111,6 @@ function PayoutManagement() {
       .reduce((sum, payout) => sum + payout.amount, 0)
     return { pending, paid, failed, totalAmount, pendingAmount, failedAmount }
   }, [payouts])
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin')
-  }
 
   const resetRegisterForm = () => {
     setRecipientRole('Doctor')
@@ -373,7 +363,6 @@ function PayoutManagement() {
     <div className="admin-page">
       <div className="admin-page__header">
         <div>
-          <button className="pm-back-btn" type="button" onClick={handleBack}>← Back</button>
           <div className="pm-title-row">
             <h1>Payouts</h1>
             <span className="pm-auto-pill">Auto payouts enabled</span>

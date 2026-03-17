@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -43,7 +42,6 @@ const STATUS_COLOR: Record<LabRequestStatus, string> = {
 }
 
 function LabRequestManagement() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const actor = user?.name ?? 'Admin'
 
@@ -200,18 +198,6 @@ function LabRequestManagement() {
         title="Lab requests"
         subtitle="Review and manage all patient-submitted lab test requests."
         badge="Admin"
-        actions={(
-          <button
-            className="btn btn--outline btn--sm"
-            type="button"
-            onClick={() => {
-              if (window.history.length > 1) { navigate(-1); return }
-              navigate('/admin/lab-tests')
-            }}
-          >
-            ← Back
-          </button>
-        )}
       />
 
       <section className="page">

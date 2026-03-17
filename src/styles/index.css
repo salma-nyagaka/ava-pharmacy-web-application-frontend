@@ -1,3 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:wght@600;700&display=swap');
+
+/* ===== Global Design Tokens ===== */
+:root {
+  /* Semantic status colors */
+  --color-urgent: #ef4444;
+  --color-urgent-bg: #fee2e2;
+  --color-urgent-text: #991b1b;
+
+  --color-pending: #f59e0b;
+  --color-pending-bg: #fef3c7;
+  --color-pending-text: #92400e;
+
+  --color-active: #10b981;
+  --color-active-bg: #dcfce7;
+  --color-active-text: #166534;
+
+  --color-completed: #64748b;
+  --color-completed-bg: #f1f5f9;
+  --color-completed-text: #1e293b;
+
+  --color-info: #3b82f6;
+  --color-info-bg: #dbeafe;
+  --color-info-text: #1e40af;
+
+  /* Typography */
+  --font-ui: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-clinical: 'Fraunces', 'Georgia', serif;
+
+  /* Spacing grid (8px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Border radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 4px rgba(15, 23, 42, 0.06);
+  --shadow-panel: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-modal: 0 20px 60px rgba(15, 23, 42, 0.18);
+}
+
+/* Skeleton shimmer animation (global utility) */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
 /* CSS Reset */
 *,
 *::before,
@@ -38,7 +104,7 @@
   --color-white: #ffffff;
   --color-black: #000000;
 
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -59,6 +125,51 @@
 
   --container-max: 1280px;
   --header-height: 80px;
+
+  --dashboard-page-bg: #f9fafb;
+  --dashboard-surface: #ffffff;
+  --dashboard-surface-muted: #f9fafb;
+  --dashboard-surface-soft: #f1f5f9;
+  --dashboard-surface-accent: #f8fafc;
+  --dashboard-border: #e5e7eb;
+  --dashboard-border-strong: #d1d5db;
+  --dashboard-text-title: #0f172a;
+  --dashboard-text-body: #374151;
+  --dashboard-text-muted: #6b7280;
+  --dashboard-text-faint: #9ca3af;
+
+  --dashboard-font-xs: 0.6875rem;
+  --dashboard-font-sm: 0.75rem;
+  --dashboard-font-base: 0.8125rem;
+  --dashboard-font-lg: 0.9375rem;
+  --dashboard-font-xl: 1.1875rem;
+  --dashboard-font-2xl: clamp(1.25rem, 0.95rem + 0.8vw, 1.5rem);
+
+  --dashboard-lh-tight: 1.2;
+  --dashboard-lh-base: 1.55;
+  --dashboard-lh-relaxed: 1.65;
+
+  --dashboard-weight-medium: 500;
+  --dashboard-weight-semibold: 600;
+  --dashboard-weight-bold: 700;
+  --dashboard-weight-extrabold: 800;
+
+  --dashboard-space-1: 0.25rem;
+  --dashboard-space-2: 0.5rem;
+  --dashboard-space-3: 0.75rem;
+  --dashboard-space-4: 1rem;
+  --dashboard-space-5: 1.25rem;
+  --dashboard-space-6: 1.5rem;
+  --dashboard-space-7: 2rem;
+  --dashboard-space-8: 2.5rem;
+
+  --dashboard-radius-sm: 10px;
+  --dashboard-radius-md: 12px;
+  --dashboard-radius-lg: 16px;
+
+  --dashboard-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 4px 12px rgba(15, 23, 42, 0.04);
+  --dashboard-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.05);
+  --dashboard-shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.10), 0 16px 48px rgba(15, 23, 42, 0.07);
 }
 
 /* Base styles */
@@ -73,7 +184,7 @@ html {
 
 body {
   font-family: var(--font-family);
-  line-height: 1.6;
+  line-height: 1.55;
   color: var(--color-text-primary);
   background-color: var(--color-background);
   overflow-x: hidden;
@@ -109,6 +220,65 @@ ul, ol {
 input, textarea, select {
   font-family: inherit;
   font-size: inherit;
+}
+
+:is(.admin-layout__main, .portal-shell__main) {
+  background: var(--dashboard-page-bg);
+  color: var(--dashboard-text-body);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: var(--dashboard-font-base);
+  line-height: var(--dashboard-lh-base);
+}
+
+:is(.admin-layout__main, .portal-shell__main) h1,
+:is(.admin-layout__main, .portal-shell__main) h2,
+:is(.admin-layout__main, .portal-shell__main) h3 {
+  font-family: 'Fraunces', 'Georgia', serif;
+  letter-spacing: -0.01em;
+}
+
+:is(.admin-layout__main, .portal-shell__main) .btn {
+  min-height: 40px;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--dashboard-radius-sm);
+  font-size: var(--dashboard-font-sm);
+  font-weight: var(--dashboard-weight-semibold);
+  letter-spacing: 0.01em;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+:is(.admin-layout__main, .portal-shell__main) .btn--primary {
+  box-shadow: 0 4px 14px rgba(232, 23, 80, 0.18);
+}
+
+:is(.admin-layout__main, .portal-shell__main) .btn--primary:hover {
+  transform: translateY(0);
+  box-shadow: 0 6px 18px rgba(232, 23, 80, 0.24);
+}
+
+:is(.admin-layout__main, .portal-shell__main) .btn--outline,
+:is(.admin-layout__main, .portal-shell__main) .btn--secondary {
+  border-color: var(--dashboard-border);
+  background: var(--dashboard-surface);
+  color: var(--dashboard-text-body);
+}
+
+:is(.admin-layout__main, .portal-shell__main) .btn--outline:hover,
+:is(.admin-layout__main, .portal-shell__main) .btn--secondary:hover {
+  border-color: var(--dashboard-border-strong);
+  background: var(--dashboard-surface-muted);
+  color: var(--dashboard-text-title);
+}
+
+:is(.admin-layout__main, .portal-shell__main) input,
+:is(.admin-layout__main, .portal-shell__main) textarea,
+:is(.admin-layout__main, .portal-shell__main) select {
+  line-height: 1.4;
+}
+
+:is(.admin-layout__main, .portal-shell__main) input::placeholder,
+:is(.admin-layout__main, .portal-shell__main) textarea::placeholder {
+  color: var(--dashboard-text-faint);
 }
 
 /* Utility classes */

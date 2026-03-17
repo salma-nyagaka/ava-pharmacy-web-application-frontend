@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { adminProductService, ApiHealthConcern } from '../../services/adminProductService'
 import './AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
@@ -14,7 +13,6 @@ function formatDate(value?: string): string {
 }
 
 function HealthConcernManagement() {
-  const navigate = useNavigate()
   const [concerns, setConcerns] = useState<ApiHealthConcern[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -49,11 +47,6 @@ function HealthConcernManagement() {
   }
 
   useEffect(() => { void load() }, [])
-
-  const handleBack = () => {
-    if (window.history.length > 1) { navigate(-1); return }
-    navigate('/admin')
-  }
 
   const openAddModal = () => {
     setEditing(null)
@@ -164,12 +157,6 @@ function HealthConcernManagement() {
       {/* ── Header ── */}
       <div className="category-management__header">
         <div className="category-management__title">
-          <button className="pm-back-btn" type="button" onClick={handleBack}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
-            </svg>
-            Back
-          </button>
           <div className="cm-title-group">
             <h1>Health Concerns</h1>
             <p className="cm-title-sub">Tag products with health concerns to help customers find what they need</p>
@@ -184,20 +171,42 @@ function HealthConcernManagement() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="cm-stat-strip">
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value">{loading ? '—' : concerns.length}</strong>
-          <span className="cm-stat-item__label">Total</span>
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 12h-4l-3 8-5-16-3 8H2"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Total</span>
+            <strong className="cm-kpi-card__value">{loading ? '—' : concerns.length}</strong>
+          </div>
         </div>
-        <div className="cm-stat-divider" />
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value cm-stat-item__value--green">{loading ? '—' : activeCount}</strong>
-          <span className="cm-stat-item__label">Active</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Active</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeCount}</strong>
+          </div>
         </div>
-        <div className="cm-stat-divider" />
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value">{loading ? '—' : concerns.length - activeCount}</strong>
-          <span className="cm-stat-item__label">Inactive</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Inactive</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : concerns.length - activeCount}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">With Icon</span>
+            <strong className="cm-kpi-card__value">{loading ? '—' : concerns.filter(c => Boolean(c.icon)).length}</strong>
+          </div>
         </div>
       </div>
 
@@ -333,9 +342,9 @@ function HealthConcernManagement() {
                           <span className="cm-toggle__knob" />
                         </button>
                       </td>
-                      <td style={{ fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(c.created_at)}</td>
-                      <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
-                      <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
+                      <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(c.created_at)}</td>
+                      <td style={{ color: '#6b7280' }}>—</td>
+                      <td style={{ color: '#6b7280' }}>—</td>
                       <td>
                         <div className="cm-row-actions">
                           <button

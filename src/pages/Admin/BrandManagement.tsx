@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { adminProductService, ApiBrand } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
@@ -21,7 +20,6 @@ function sortBrands(items: ApiBrand[]) {
 }
 
 function BrandManagement() {
-  const navigate = useNavigate()
   const [brands, setBrands] = useState<ApiBrand[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -70,11 +68,6 @@ function BrandManagement() {
 
     return () => URL.revokeObjectURL(objectUrl)
   }, [editing, formLogoFile])
-
-  const handleBack = () => {
-    if (window.history.length > 1) { navigate(-1); return }
-    navigate('/admin')
-  }
 
   const resetForm = () => {
     setEditing(null)
@@ -260,12 +253,6 @@ function BrandManagement() {
     <div className="category-management">
       <div className="category-management__header">
         <div className="category-management__title">
-          <button className="pm-back-btn" type="button" onClick={handleBack}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
-            </svg>
-            Back
-          </button>
           <div className="cm-title-group">
             <h1>Brand Management</h1>
             <p className="cm-title-sub">Create and manage catalog brands using the same admin workflow as the rest of the store.</p>
@@ -278,20 +265,42 @@ function BrandManagement() {
         </div>
       </div>
 
-      <div className="cm-stat-strip">
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value">{loading ? '-' : brands.length}</strong>
-          <span className="cm-stat-item__label">Total</span>
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Total Brands</span>
+            <strong className="cm-kpi-card__value">{loading ? '—' : brands.length}</strong>
+          </div>
         </div>
-        <div className="cm-stat-divider" />
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value cm-stat-item__value--green">{loading ? '-' : activeCount}</strong>
-          <span className="cm-stat-item__label">Active</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Active</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeCount}</strong>
+          </div>
         </div>
-        <div className="cm-stat-divider" />
-        <div className="cm-stat-item">
-          <strong className="cm-stat-item__value">{loading ? '-' : withLogosCount}</strong>
-          <span className="cm-stat-item__label">With Logo</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Inactive</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : brands.length - activeCount}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">With Logo</span>
+            <strong className="cm-kpi-card__value">{loading ? '—' : withLogosCount}</strong>
+          </div>
         </div>
       </div>
 
@@ -437,9 +446,9 @@ function BrandManagement() {
                           <span className="cm-toggle__knob" />
                         </button>
                       </td>
-                      <td style={{ fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(brand.created_at)}</td>
-                      <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{brand.created_by_name || '—'}</td>
-                      <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
+                      <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(brand.created_at)}</td>
+                      <td style={{ color: '#6b7280' }}>{brand.created_by_name || '—'}</td>
+                      <td style={{ color: '#6b7280' }}>—</td>
                       <td>
                         <div className="cm-row-actions">
                           <button

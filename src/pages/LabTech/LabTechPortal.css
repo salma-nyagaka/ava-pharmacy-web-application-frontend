@@ -5,9 +5,9 @@
 :root {
   --ltp-teal: #0d9488;
   --ltp-teal-light: #ccfbf1;
-  --ltp-teal-bg: #f0fdfa;
-  --ltp-border: #e5e7eb;
-  --ltp-radius: 12px;
+  --ltp-teal-bg: var(--dashboard-page-bg);
+  --ltp-border: var(--dashboard-border);
+  --ltp-radius: 18px;
 }
 
 .ltp-module {
@@ -221,20 +221,20 @@
 
 .ltp-stat {
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   padding: 1rem;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.03);
 }
 
 .ltp-stat::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 3px;
-  border-radius: 3px 3px 0 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
 }
 
 .ltp-stat--awaiting::before  { background: #f59e0b; }
@@ -1091,3 +1091,293 @@
   .ltp-content { padding: 1rem; }
   .ltp-header__name { display: none; }
 }
+
+/* Dashboard refresh overrides */
+.portal-shell__main .ltp-tabs {
+  background: var(--dashboard-surface);
+  border-bottom: 1px solid var(--dashboard-border);
+}
+
+.portal-shell__main .ltp-tabs__inner {
+  max-width: none;
+  padding: 0 2.5rem;
+}
+
+.portal-shell__main .ltp-tab {
+  font-size: var(--dashboard-font-sm);
+  color: var(--dashboard-text-muted);
+}
+
+.portal-shell__main .ltp-tab:hover {
+  color: var(--dashboard-text-title);
+}
+
+.portal-shell__main .ltp-tab--active {
+  color: var(--ltp-teal);
+  border-bottom-color: var(--ltp-teal);
+}
+
+.portal-shell__main .ltp-content {
+  max-width: none;
+  padding: 2rem 2.5rem 2.5rem;
+}
+
+.portal-shell__main .ltp-welcome {
+  margin-bottom: 1.5rem;
+}
+
+.portal-shell__main .ltp-welcome__title {
+  font-size: var(--dashboard-font-2xl);
+  line-height: var(--dashboard-lh-tight);
+  letter-spacing: -0.02em;
+  font-weight: var(--dashboard-weight-extrabold);
+  color: var(--dashboard-text-title);
+}
+
+.portal-shell__main .ltp-welcome__sub,
+.portal-shell__main .ltp-welcome__date,
+.portal-shell__main .ltp-panel__sub,
+.portal-shell__main .ltp-result-count,
+.portal-shell__main .ltp-pagination__info,
+.portal-shell__main .ltp-sp-meta,
+.portal-shell__main .ltp-sp-field-label,
+.portal-shell__main .ltp-sp-field-value {
+  color: var(--dashboard-text-muted);
+}
+
+.portal-shell__main .ltp-stats {
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.portal-shell__main .ltp-stat,
+.portal-shell__main .ltp-panel,
+.portal-shell__main .ltp-side-panel,
+.portal-shell__main .ltp-result-box {
+  border-radius: var(--dashboard-radius-lg);
+  border-color: var(--dashboard-border);
+  box-shadow: var(--dashboard-shadow-sm);
+}
+
+.portal-shell__main .ltp-stat {
+  padding: 1.3rem;
+  background: var(--dashboard-surface);
+}
+
+.portal-shell__main .ltp-stat__value {
+  font-size: 1.875rem;
+  color: var(--dashboard-text-title);
+  letter-spacing: -0.02em;
+}
+
+.portal-shell__main .ltp-stat__label {
+  font-size: var(--dashboard-font-xs);
+  font-weight: var(--dashboard-weight-semibold);
+  color: var(--dashboard-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.portal-shell__main .ltp-panel__header,
+.portal-shell__main .ltp-queue-header,
+.portal-shell__main .ltp-sp-header,
+.portal-shell__main .ltp-sp-footer {
+  border-color: var(--dashboard-border);
+}
+
+.portal-shell__main .ltp-panel__title,
+.portal-shell__main .ltp-queue-item__patient,
+.portal-shell__main .ltp-sp-id,
+.portal-shell__main .ltp-sp-section-title {
+  color: var(--dashboard-text-title);
+}
+
+.portal-shell__main .ltp-queue-item,
+.portal-shell__main .ltp-table tbody tr {
+  border-color: var(--dashboard-border);
+}
+
+.portal-shell__main .ltp-queue-item:hover {
+  background: #f5fffd;
+}
+
+.portal-shell__main .ltp-search__input,
+.portal-shell__main .ltp-filter-select,
+.portal-shell__main .ltp-result-form-section input,
+.portal-shell__main .ltp-result-form-section textarea {
+  min-height: 44px;
+  border-color: var(--dashboard-border);
+  border-radius: var(--dashboard-radius-sm);
+  background: var(--dashboard-surface-muted);
+  color: var(--dashboard-text-title);
+}
+
+.portal-shell__main .ltp-result-form-section textarea {
+  min-height: 120px;
+}
+
+.portal-shell__main .ltp-search__input:focus,
+.portal-shell__main .ltp-result-form-section input:focus,
+.portal-shell__main .ltp-result-form-section textarea:focus {
+  border-color: rgba(13, 148, 136, 0.34);
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.08);
+}
+
+.portal-shell__main .ltp-table-wrap {
+  border: 1px solid var(--dashboard-border);
+  border-radius: var(--dashboard-radius-lg);
+  background: var(--dashboard-surface);
+  box-shadow: var(--dashboard-shadow-sm);
+}
+
+.portal-shell__main .ltp-table thead th {
+  padding: 0.95rem 1.1rem;
+  background: var(--dashboard-surface-muted);
+  color: var(--dashboard-text-faint);
+  border-bottom-color: var(--dashboard-border);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.portal-shell__main .ltp-table tbody tr:hover {
+  background: #f5fffd;
+}
+
+.portal-shell__main .ltp-table tbody tr.ltp-row--active {
+  background: #ebfffb;
+}
+
+.portal-shell__main .ltp-table td {
+  padding: 1rem 1.1rem;
+  color: var(--dashboard-text-body);
+  font-size: var(--dashboard-font-base);
+}
+
+.portal-shell__main .ltp-result-badge,
+.portal-shell__main .status-pill {
+  border-radius: 999px;
+  font-weight: var(--dashboard-weight-semibold);
+}
+
+.portal-shell__main .ltp-side-panel {
+  box-shadow: var(--dashboard-shadow-lg);
+}
+
+.portal-shell__main .ltp-sp-close,
+.portal-shell__main .pagination__button,
+.portal-shell__main .pagination__page {
+  border-radius: var(--dashboard-radius-sm);
+}
+
+@media (max-width: 1023px) {
+  .portal-shell__main .ltp-content {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .portal-shell__main .ltp-content {
+    padding: 1rem;
+  }
+}
+
+/* ── Lab Stepper (horizontal labeled) ── */
+.lab-stepper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin: 1rem 0;
+}
+.lab-stepper__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+.lab-stepper__circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+.lab-stepper__step--done .lab-stepper__circle { background: #10b981; color: #fff; }
+.lab-stepper__step--active .lab-stepper__circle { background: #3b82f6; color: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
+.lab-stepper__line {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: #e5e7eb;
+  z-index: 0;
+}
+.lab-stepper__step--done .lab-stepper__line { background: #10b981; }
+.lab-stepper__label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-top: 0.4rem;
+  text-align: center;
+  white-space: nowrap;
+}
+.lab-stepper__step--active .lab-stepper__label { color: #3b82f6; font-weight: 700; }
+.lab-stepper__step--done .lab-stepper__label { color: #10b981; }
+
+/* ── Abnormal result highlighting ── */
+.lab-result--abnormal { color: #ef4444 !important; font-weight: 700 !important; }
+.lab-abnormal-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #991b1b;
+  background: #fee2e2;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+}
+
+/* ── Critical value alert ── */
+.lab-critical-alert {
+  background: #fef2f2;
+  border: 2px solid #ef4444;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 0.75rem 0;
+}
+.lab-critical-alert strong { color: #b91c1c; font-size: 0.9rem; display: block; margin-bottom: 0.35rem; }
+.lab-critical-alert p { color: #374151; font-size: 0.85rem; margin: 0 0 0.5rem; }
+.lab-critical-alert label { font-size: 0.82rem; color: #374151; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+
+/* ── Productivity stats (mine tab) ── */
+.lab-productivity {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.lab-productivity__stat {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+.lab-productivity__num { font-size: 1.75rem; font-weight: 800; color: #0f172a; line-height: 1; }
+.lab-productivity__label { font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; text-align: center; }
+.lab-productivity__ratio { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.78rem; color: #64748b; }
+.lab-productivity__ratio-bar { height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+.lab-productivity__ratio-fill { height: 100%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 999px; transition: width 600ms ease; }

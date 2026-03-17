@@ -226,3 +226,13 @@
     align-items: flex-start;
   }
 }
+
+/* Match category-management design */
+.inventory-management,
+.im-page {
+  background: var(--dashboard-page-bg, #f1f5f9);
+  padding: 1.75rem 2.75rem 3rem;
+}
+@media (max-width: 1023px) { .inventory-management, .im-page { padding: 1.5rem; } }
+@media (max-width: 640px) { .inventory-management, .im-page { padding: 1rem; } }
+

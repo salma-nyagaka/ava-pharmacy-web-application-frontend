@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { addAdminOrderNote, listAdminOrders, refundAdminOrder, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
 import './OrderManagement.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const formatCurrency = (value: string | number) => `KSh ${Number(value || 0).toLocaleString()}`
 const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'
@@ -19,6 +20,8 @@ function OrderManagementLive() {
   const [refundTarget, setRefundTarget] = useState<AdminOrder | null>(null)
   const [refundNote, setRefundNote] = useState('')
   const [refundReasonError, setRefundReasonError] = useState(false)
+
+  const handleBack = () => navigate(-1)
 
   const loadOrders = async () => {
     setLoading(true)
@@ -54,14 +57,6 @@ function OrderManagementLive() {
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, selectedStatus])
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin')
-  }
 
   const syncOrderInState = (updatedOrder: AdminOrder) => {
     setOrders((prev) => prev.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)))
@@ -113,146 +108,206 @@ function OrderManagementLive() {
   const pagedOrders = filteredOrders.slice(startIndex, startIndex + PAGE_SIZE)
 
   return (
-    <div className="order-management">
-      <div className="order-management__header">
-        <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
-            Back
-          </button>
-          <h1>Order Management</h1>
+    <div className="category-management order-management">
+      <div className="category-management__header">
+        <div className="cm-title-group">
+          <h1>Orders</h1>
+          <p className="cm-title-sub">Manage and track all customer orders</p>
         </div>
-        <div className="stats-mini">
-          <div className="stat-mini">
-            <span className="stat-mini__value">{orders.filter((order) => order.status === 'pending').length}</span>
-            <span className="stat-mini__label">Pending</span>
+      </div>
+
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
           </div>
-          <div className="stat-mini">
-            <span className="stat-mini__value">{orders.filter((order) => order.status === 'processing').length}</span>
-            <span className="stat-mini__label">Processing</span>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Total Orders</span>
+            <strong className="cm-kpi-card__value">{orders.length}</strong>
           </div>
-          <div className="stat-mini">
-            <span className="stat-mini__value">{orders.filter((order) => order.status === 'shipped').length}</span>
-            <span className="stat-mini__label">Shipped</span>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Pending</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{orders.filter(o => o.status === 'pending').length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Shipped</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{orders.filter(o => o.status === 'shipped').length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Delivered</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{orders.filter(o => o.status === 'delivered').length}</strong>
           </div>
         </div>
       </div>
 
-      <div className="order-management__filters">
-        <div className="search-box">
+      <div className="cm-toolbar">
+        <div className="cm-search-box">
+          <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+            <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
+          </svg>
           <input
-            type="text"
-            placeholder="Search by order number, customer, email, or payment reference..."
+            type="search"
+            placeholder="Search by order number, customer, email, or payment reference…"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
           />
+          {searchTerm && (
+            <button className="cm-search-box__clear" type="button" onClick={() => setSearchTerm('')} aria-label="Clear search">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+            </button>
+          )}
         </div>
-        <select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
-          <option value="all">All Status</option>
-          <option value="draft">Draft</option>
-          <option value="pending">Pending</option>
-          <option value="paid">Paid</option>
-          <option value="processing">Processing</option>
-          <option value="shipped">Shipped</option>
-          <option value="delivered">Delivered</option>
-          <option value="refunded">Refunded</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        <div className="cm-toolbar__right">
+          <select className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
+            <option value="all">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="pending">Pending</option>
+            <option value="paid">Paid</option>
+            <option value="processing">Processing</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="refunded">Refunded</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
       </div>
 
-      {error && <p className="order-empty" style={{ background: '#fff', borderRadius: '12px', border: '1px solid rgba(220,38,38,0.15)', color: '#b91c1c' }}>{error}</p>}
-
-      <div className="order-management__table">
-        <table>
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Customer</th>
-              <th>Created At</th>
-              <th>Items</th>
-              <th>Total</th>
-              <th>Payment</th>
-              <th>Payment Status</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={9} className="order-empty">Loading orders…</td>
-              </tr>
-            )}
-            {!loading && pagedOrders.map((order) => (
-              <tr key={order.id}>
-                <td>
-                  <span className="order-id">{order.order_number}</span>
-                </td>
-                <td>
-                  <div className="customer-info">
-                    <div className="customer-name">{order.customer_name || '—'}</div>
-                    <div className="customer-email">{order.customer_email || '—'}</div>
-                  </div>
-                </td>
-                <td>{formatDate(order.created_at)}</td>
-                <td>{order.items.reduce((sum, item) => sum + item.quantity, 0)}</td>
-                <td><span className="order-total">{formatCurrency(order.total)}</span></td>
-                <td>{order.payment_method.replace(/_/g, ' ')}</td>
-                <td><span className={`status status--${order.payment_status}`}>{order.payment_status.replace(/_/g, ' ')}</span></td>
-                <td><span className={`status status--${order.status}`}>{order.status}</span></td>
-                <td>
-                  <div className="action-buttons">
-                    <Link className="btn-sm btn--outline" to={`/admin/orders/${order.id}`}>View</Link>
-                    {order.status === 'pending' && <button className="btn-sm btn--primary" type="button" disabled={actionLoading === order.id} onClick={() => void updateStatus(order, 'processing')}>Process</button>}
-                    {order.status === 'processing' && <button className="btn-sm btn--primary" type="button" disabled={actionLoading === order.id} onClick={() => void updateStatus(order, 'shipped')}>Ship</button>}
-                    {order.status === 'shipped' && <button className="btn-sm btn--primary" type="button" disabled={actionLoading === order.id} onClick={() => void updateStatus(order, 'delivered')}>Deliver</button>}
-                    {!['cancelled', 'refunded', 'delivered'].includes(order.status) && (
-                      <button className="btn-sm btn--danger" type="button" disabled={actionLoading === order.id} onClick={() => setConfirmPending({ order, status: 'cancelled', label: 'Cancel Order' })}>
-                        Cancel
-                      </button>
-                    )}
-                    {order.payment_status === 'paid' && order.status !== 'refunded' && (
-                      <button className="btn-sm btn--outline" type="button" disabled={actionLoading === order.id} onClick={() => setRefundTarget(order)}>
-                        Issue refund
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!loading && filteredOrders.length === 0 && (
-              <tr>
-                <td colSpan={9} className="order-empty">No orders match your search.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {filteredOrders.length > PAGE_SIZE && (
-        <div className="order-pagination">
-          <button className="pagination__button" type="button" onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1}>
-            Prev
-          </button>
-          <div className="pagination__pages">
-            {Array.from({ length: totalPages }, (_, index) => {
-              const page = index + 1
-              return (
-                <button
-                  key={page}
-                  type="button"
-                  className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
-                  onClick={() => setCurrentPage(page)}
-                >
-                  {page}
-                </button>
-              )
-            })}
+      <div className="cm-panel">
+        {error && (
+          <div className="cm-error-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{error}</span>
+            <button className="cm-error-banner__retry" type="button" onClick={() => void loadOrders()}>Retry</button>
           </div>
-          <button className="pagination__button" type="button" onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages}>
-            Next
-          </button>
-        </div>
-      )}
+        )}
+
+        {loading && (
+          <div className="cm-skeletons">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="cm-skeleton-row">
+                <div className="cm-skeleton" style={{ width: '15%' }} />
+                <div className="cm-skeleton" style={{ width: '22%' }} />
+                <div className="cm-skeleton" style={{ width: '12%', borderRadius: '999px' }} />
+                <div className="cm-skeleton" style={{ width: '28%' }} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && (
+          <div className="cm-table-wrap">
+            <table className="cm-table">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Customer</th>
+                  <th>Created At</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Payment</th>
+                  <th>Payment Status</th>
+                  <th>Status</th>
+                  <th className="cm-th-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td>
+                      <span className="order-id">{order.order_number}</span>
+                    </td>
+                    <td>
+                      <div className="customer-info">
+                        <div className="customer-name">{order.customer_name || '—'}</div>
+                        <div className="customer-email">{order.customer_email || '—'}</div>
+                      </div>
+                    </td>
+                    <td>{formatDate(order.created_at)}</td>
+                    <td>{order.items.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                    <td><span className="order-total">{formatCurrency(order.total)}</span></td>
+                    <td>{order.payment_method.replace(/_/g, ' ')}</td>
+                    <td><span className={`status status--${order.payment_status}`}>{order.payment_status.replace(/_/g, ' ')}</span></td>
+                    <td><span className={`status status--${order.status}`}>{order.status}</span></td>
+                    <td>
+                      <div className="action-buttons">
+                        <Link className="btn-sm btn--outline" to={`/admin/orders/${order.id}`}>View</Link>
+                        {order.status === 'pending' && <button className="btn-sm btn--primary" type="button" disabled={actionLoading === order.id} onClick={() => void updateStatus(order, 'processing')}>Process</button>}
+                        {order.status === 'processing' && <button className="btn-sm btn--primary" type="button" disabled={actionLoading === order.id} onClick={() => void updateStatus(order, 'shipped')}>Ship</button>}
+                        {order.status === 'shipped' && <button className="btn-sm btn--primary" type="button" disabled={actionLoading === order.id} onClick={() => void updateStatus(order, 'delivered')}>Deliver</button>}
+                        {!['cancelled', 'refunded', 'delivered'].includes(order.status) && (
+                          <button className="btn-sm btn--danger" type="button" disabled={actionLoading === order.id} onClick={() => setConfirmPending({ order, status: 'cancelled', label: 'Cancel Order' })}>
+                            Cancel
+                          </button>
+                        )}
+                        {order.payment_status === 'paid' && order.status !== 'refunded' && (
+                          <button className="btn-sm btn--outline" type="button" disabled={actionLoading === order.id} onClick={() => setRefundTarget(order)}>
+                            Issue refund
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredOrders.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="order-empty">No orders match your search.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {filteredOrders.length > PAGE_SIZE && (
+          <div className="cm-pagination">
+            <span className="cm-pagination__info">
+              Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, filteredOrders.length)} of {filteredOrders.length}
+            </span>
+            <div className="cm-pagination__controls">
+              <button className="pagination__button" type="button" onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1}>
+                Prev
+              </button>
+              <div className="pagination__pages">
+                {Array.from({ length: totalPages }, (_, index) => {
+                  const page = index + 1
+                  return (
+                    <button
+                      key={page}
+                      type="button"
+                      className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  )
+                })}
+              </div>
+              <button className="pagination__button" type="button" onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages}>
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {confirmPending && (
         <div className="modal-overlay" onClick={() => setConfirmPending(null)}>

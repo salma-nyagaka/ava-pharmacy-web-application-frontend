@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import './AdminShared.css'
 import './LabPartnerManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
@@ -27,7 +26,6 @@ const blankPartner = (): Omit<LabPartner, 'id' | 'status' | 'submittedAt' | 'tec
 })
 
 function LabPartnerManagement() {
-  const navigate = useNavigate()
   const [partners, setPartners] = useState<LabPartner[]>(() => loadLabPartners())
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | LabPartnerStatus>('all')
@@ -50,14 +48,6 @@ function LabPartnerManagement() {
       setManagePartner(refreshed)
     }
   }, [partners]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin')
-  }
 
   const stats = useMemo(() => ({
     pending: partners.filter((p) => p.status === 'Pending').length,
@@ -162,7 +152,6 @@ function LabPartnerManagement() {
     <div className="admin-page lp-page">
       <div className="admin-page__header">
         <div>
-          <button className="pm-back-btn" type="button" onClick={handleBack}>← Back</button>
           <h1>Lab Partners</h1>
           <p className="lp-subtitle">Register lab partners, verify onboarding, and manage lab technicians.</p>
         </div>

@@ -46,14 +46,6 @@ function UserCreatePage() {
     }
   }, [isPharmacistCreate, role])
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin/users')
-  }
-
   const togglePharmacistPermission = (permission: PharmacistPermission) => {
     setPharmacistPermissions((prev) =>
       prev.includes(permission)
@@ -145,9 +137,6 @@ function UserCreatePage() {
     <div className="admin-page uc-page">
       <div className="admin-page__header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button className="pm-back-btn" type="button" onClick={handleBack}>
-            ← Back
-          </button>
           <h1>{isPharmacistCreate ? 'Add Pharmacist' : 'Add User'}</h1>
         </div>
       </div>
@@ -295,9 +284,6 @@ function UserCreatePage() {
         {formError && <p className="form-error">{formError}</p>}
 
         <div className="uc-actions">
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
-            Cancel
-          </button>
           <button className="btn btn--primary btn--sm" type="submit" disabled={submitting}>
             {submitting ? 'Creating account...' : isPharmacistCreate ? 'Create pharmacist' : 'Create user'}
           </button>

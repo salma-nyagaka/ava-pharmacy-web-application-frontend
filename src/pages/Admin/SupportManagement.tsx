@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { logAdminAction } from '../../data/adminAudit'
 import { SupportPriority, SupportStatus, SupportTicket } from '../../data/support'
 import { supportService } from '../../services/supportService'
@@ -16,7 +16,6 @@ const priorityOrder: Record<SupportPriority, number> = {
 }
 
 function SupportManagement() {
-  const navigate = useNavigate()
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | SupportStatus>('all')
@@ -106,14 +105,6 @@ function SupportManagement() {
     setSelectedPriority('all')
   }
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin')
-  }
-
   const updateTicket = (ticketId: string, updates: Partial<SupportTicket>, detail: string) => {
     void supportService.update(ticketId, updates).then((response) => setTickets(response.data))
     logAdminAction({
@@ -146,10 +137,6 @@ function SupportManagement() {
     <div className="admin-page support-management">
       <div className="admin-page__header">
         <div className="admin-page__title">
-          <button className="pm-back-btn" type="button" onClick={handleBack}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-            Back
-          </button>
           <div>
             <h1>Support & Escalations</h1>
             <p className="support-management__subtitle">Prioritize tickets, assign owners, and keep resolution on track.</p>

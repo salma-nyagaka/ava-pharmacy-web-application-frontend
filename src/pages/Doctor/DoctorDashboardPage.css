@@ -4,12 +4,12 @@
    ====================================================== */
 
 :root {
-  --dd-indigo: #4f46e5;
-  --dd-indigo-light: #e0e7ff;
-  --dd-indigo-bg: #f5f3ff;
-  --dd-border: #e5e7eb;
-  --dd-radius: 12px;
-  --dd-bg: #f8fafc;
+  --dd-indigo: #2563eb;
+  --dd-indigo-light: #dbeafe;
+  --dd-indigo-bg: #eff6ff;
+  --dd-border: var(--dashboard-border);
+  --dd-radius: 18px;
+  --dd-bg: var(--dashboard-page-bg);
 }
 
 .dd-module {
@@ -138,53 +138,66 @@
 
 /* ── Tab nav ─────────────────────────────────── */
 .dd-tabs {
-  background: transparent;
-  padding: 1rem 1.5rem 0;
+  background: #fff;
+  border-bottom: 1px solid var(--dd-border);
+  padding: 0 1.5rem;
 }
 
 .dd-tabs__inner {
   max-width: 1300px;
   margin: 0 auto;
-  display: inline-flex;
-  background: #e2e8f0;
-  border-radius: 8px;
-  padding: 3px;
-  gap: 2px;
+  display: flex;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+
+.dd-tabs__inner::-webkit-scrollbar { display: none; }
 
 .dd-tab {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.5rem 1rem;
+  padding: 0.9rem 1rem;
   font-size: 0.84rem;
   font-weight: 500;
-  color: #64748b;
+  color: #6b7280;
   cursor: pointer;
   border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: none;
-  border-radius: 6px;
-  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+  border-radius: 0;
+  transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
 }
 
-.dd-tab:hover { color: #0f172a; }
+.dd-tab:hover { color: #111827; }
 
 .dd-tab--active {
-  background: #fff;
-  color: #0f172a;
+  background: transparent;
+  color: var(--dd-indigo);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-bottom-color: var(--dd-indigo);
+  box-shadow: none;
 }
 
 .dd-tab__badge {
   font-size: 0.65rem;
-  font-weight: 800;
+  font-weight: 700;
+  background: var(--dd-indigo-light);
+  color: var(--dd-indigo);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  line-height: 1.4;
+}
+
+.dd-tab--active .dd-tab__badge {
   background: var(--dd-indigo);
   color: #fff;
-  border-radius: 999px;
-  padding: 0.05rem 0.4rem;
-  line-height: 1.4;
 }
 
 /* ── Main content ────────────────────────────── */
@@ -229,20 +242,20 @@
 
 .dd-stat {
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   padding: 1.25rem;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.03);
 }
 
 .dd-stat::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 3px;
-  border-radius: 3px 3px 0 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
 }
 
 .dd-stat--total::before   { background: var(--dd-indigo); }
@@ -1562,4 +1575,445 @@
   .dd-tabs__inner { overflow-x: auto; }
   .dd-stats { grid-template-columns: repeat(2, 1fr); }
   .dd-rx-item { grid-template-columns: 1fr; }
+}
+
+/* Dashboard refresh overrides */
+.portal-shell__main .dd-tabs {
+  background: var(--dashboard-surface);
+  border-bottom: 1px solid var(--dashboard-border);
+  padding: 0;
+}
+
+.portal-shell__main .dd-tabs__inner {
+  max-width: none;
+  padding: 0 2.5rem;
+}
+
+.portal-shell__main .dd-tab {
+  font-size: var(--dashboard-font-sm);
+  color: var(--dashboard-text-muted);
+}
+
+.portal-shell__main .dd-tab:hover {
+  color: var(--dashboard-text-title);
+}
+
+.portal-shell__main .dd-tab--active {
+  color: var(--dd-indigo);
+}
+
+.portal-shell__main .dd-content {
+  max-width: none;
+  padding: 2rem 2.5rem 2.5rem;
+  gap: 1.5rem;
+}
+
+.portal-shell__main .dd-welcome {
+  margin-bottom: 0.25rem;
+}
+
+.portal-shell__main .dd-welcome__title {
+  font-size: var(--dashboard-font-2xl);
+  line-height: var(--dashboard-lh-tight);
+  letter-spacing: -0.02em;
+  font-weight: var(--dashboard-weight-extrabold);
+  color: var(--dashboard-text-title);
+}
+
+.portal-shell__main .dd-welcome__sub {
+  margin-top: 0.35rem;
+  font-size: var(--dashboard-font-base);
+  color: var(--dashboard-text-muted);
+  line-height: var(--dashboard-lh-base);
+}
+
+.portal-shell__main .dd-stats {
+  gap: 1rem;
+}
+
+.portal-shell__main .dd-stat,
+.portal-shell__main .dd-table-card,
+.portal-shell__main .dd-messages-layout,
+.portal-shell__main .dd-thread-list,
+.portal-shell__main .dd-chat-pane,
+.portal-shell__main .dd-sp-chat {
+  background: var(--dashboard-surface);
+  border-radius: var(--dashboard-radius-lg);
+  border: 1px solid var(--dashboard-border);
+  box-shadow: var(--dashboard-shadow-sm);
+}
+
+.portal-shell__main .dd-stat {
+  padding: 1.35rem;
+}
+
+.portal-shell__main .dd-stat__value {
+  font-size: 1.875rem;
+  color: var(--dashboard-text-title);
+  letter-spacing: -0.02em;
+}
+
+.portal-shell__main .dd-stat__label {
+  font-size: var(--dashboard-font-xs);
+  font-weight: var(--dashboard-weight-semibold);
+  color: var(--dashboard-text-faint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.portal-shell__main .dd-stat__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.portal-shell__main .dd-toolbar {
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom-color: var(--dashboard-border);
+  background: var(--dashboard-surface);
+}
+
+.portal-shell__main .dd-search-wrap {
+  max-width: 380px;
+}
+
+.portal-shell__main .dd-search-input {
+  height: 42px;
+  padding-left: 2.15rem;
+  border-color: var(--dashboard-border);
+  border-radius: var(--dashboard-radius-sm);
+  background: var(--dashboard-surface-muted);
+  font-size: var(--dashboard-font-base);
+  color: var(--dashboard-text-title);
+}
+
+.portal-shell__main .dd-search-input:focus {
+  border-color: rgba(37, 99, 235, 0.38);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.portal-shell__main .dd-count {
+  font-size: var(--dashboard-font-sm);
+  color: var(--dashboard-text-faint);
+}
+
+.portal-shell__main .dd-table thead th {
+  padding: 0.95rem 1.1rem;
+  background: var(--dashboard-surface-muted);
+  color: var(--dashboard-text-faint);
+  border-bottom-color: var(--dashboard-border);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.portal-shell__main .dd-table tbody tr {
+  border-bottom-color: var(--dashboard-border);
+}
+
+.portal-shell__main .dd-table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.portal-shell__main .dd-row--active {
+  background: #eef5ff !important;
+}
+
+.portal-shell__main .dd-table td {
+  padding: 1rem 1.1rem;
+  color: var(--dashboard-text-body);
+  font-size: var(--dashboard-font-base);
+}
+
+.portal-shell__main .dd-status-text,
+.portal-shell__main .dd-td-patient__id,
+.portal-shell__main .dd-td-issue,
+.portal-shell__main .dd-msg__time,
+.portal-shell__main .dd-thread-item__preview,
+.portal-shell__main .dd-sp-meta,
+.portal-shell__main .dd-sp-field-label,
+.portal-shell__main .dd-sp-field-value,
+.portal-shell__main .dd-sp-value {
+  color: var(--dashboard-text-muted);
+}
+
+.portal-shell__main .dd-action-btn,
+.portal-shell__main .dd-primary-btn,
+.portal-shell__main .dd-send-btn,
+.portal-shell__main .dd-sp-btn,
+.portal-shell__main .dd-sp-back {
+  min-height: 40px;
+  border-radius: var(--dashboard-radius-sm);
+  font-size: var(--dashboard-font-sm);
+  font-weight: var(--dashboard-weight-semibold);
+}
+
+.portal-shell__main .dd-action-btn,
+.portal-shell__main .dd-sp-btn,
+.portal-shell__main .dd-sp-back {
+  border-color: var(--dashboard-border);
+  background: var(--dashboard-surface);
+  color: var(--dashboard-text-body);
+}
+
+.portal-shell__main .dd-action-btn:hover:not(:disabled),
+.portal-shell__main .dd-sp-btn:hover:not(:disabled),
+.portal-shell__main .dd-sp-back:hover {
+  background: var(--dashboard-surface-muted);
+  border-color: var(--dashboard-border-strong);
+  color: var(--dashboard-text-title);
+}
+
+.portal-shell__main .dd-action-btn--start,
+.portal-shell__main .dd-primary-btn,
+.portal-shell__main .dd-send-btn,
+.portal-shell__main .dd-sp-btn--primary {
+  background: var(--dd-indigo);
+  border-color: var(--dd-indigo);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.14);
+}
+
+.portal-shell__main .dd-action-btn--chat {
+  background: var(--dd-indigo-light);
+  color: var(--dd-indigo);
+  border-color: transparent;
+}
+
+.portal-shell__main .dd-thread-search,
+.portal-shell__main .dd-chat-header,
+.portal-shell__main .dd-chat-input,
+.portal-shell__main .dd-sp-header,
+.portal-shell__main .dd-sp-footer,
+.portal-shell__main .dd-sp-body {
+  border-color: var(--dashboard-border);
+}
+
+.portal-shell__main .dd-thread-item:hover {
+  background: #f8fbff;
+}
+
+.portal-shell__main .dd-thread-item--active {
+  background: #eef5ff;
+}
+
+.portal-shell__main .dd-chat-messages,
+.portal-shell__main .dd-sp-chat-messages {
+  background: linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%);
+}
+
+.portal-shell__main .dd-chat-input input,
+.portal-shell__main .dd-sp-chat-input input,
+.portal-shell__main .dd-sp-field input,
+.portal-shell__main .dd-sp-field textarea,
+.portal-shell__main .dd-sp-field select,
+.portal-shell__main .dd-sp-form input,
+.portal-shell__main .dd-sp-form textarea,
+.portal-shell__main .dd-sp-form select {
+  border-color: var(--dashboard-border);
+  border-radius: var(--dashboard-radius-sm);
+  background: var(--dashboard-surface-muted);
+  color: var(--dashboard-text-title);
+}
+
+.portal-shell__main .dd-chat-input input:focus,
+.portal-shell__main .dd-sp-chat-input input:focus,
+.portal-shell__main .dd-sp-field input:focus,
+.portal-shell__main .dd-sp-field textarea:focus,
+.portal-shell__main .dd-sp-field select:focus,
+.portal-shell__main .dd-sp-form input:focus,
+.portal-shell__main .dd-sp-form textarea:focus,
+.portal-shell__main .dd-sp-form select:focus {
+  border-color: rgba(37, 99, 235, 0.38);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.portal-shell__main .dd-sp-id,
+.portal-shell__main .dd-sp-section-title,
+.portal-shell__main .dd-chat-header__name,
+.portal-shell__main .dd-thread-item__name,
+.portal-shell__main .dd-sp-patient__name {
+  color: var(--dashboard-text-title);
+}
+
+@media (max-width: 1023px) {
+  .portal-shell__main .dd-content {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .portal-shell__main .dd-content {
+    padding: 1rem;
+  }
+}
+
+/* ── Status pills ────────────────────────────── */
+.dd-status-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+/* ── Wait timer ──────────────────────────────── */
+.doc-wait-timer {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--wait-color, #10b981) 12%, white);
+  white-space: nowrap;
+}
+
+/* ── Split layout (queue tab) ────────────────── */
+.doc-split-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .doc-split-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Queue workspace panel ───────────────────── */
+.dd-queue-workspace {
+  position: sticky;
+  top: 1rem;
+}
+
+.dd-workspace-card {
+  background: #fff;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dd-workspace-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--dd-border);
+  background: #fafbff;
+}
+
+.dd-workspace-card__body {
+  padding: 1.25rem;
+}
+
+.dd-workspace-card__footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--dd-border);
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dd-workspace-empty {
+  background: #fff;
+  border: 1px dashed var(--dd-border);
+  border-radius: var(--dd-radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  color: #9ca3af;
+  min-height: 200px;
+}
+
+.dd-workspace-empty p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* ── Earnings trend ──────────────────────────── */
+.dd-earnings-trend {
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin: 0.35rem 0 0;
+}
+
+/* ── Timeline ────────────────────────────────── */
+.doc-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0.5rem 0;
+}
+
+.doc-timeline__item {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  position: relative;
+}
+
+.doc-timeline__item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 28px;
+  bottom: -8px;
+  width: 2px;
+  background: #e5e7eb;
+}
+
+.doc-timeline__dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+  margin-top: 2px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #10b981;
+}
+
+.doc-timeline__dot[data-type="prescription"] { background: #8b5cf6; box-shadow: 0 0 0 2px #8b5cf6; }
+.doc-timeline__dot[data-type="lab"] { background: #3b82f6; box-shadow: 0 0 0 2px #3b82f6; }
+.doc-timeline__dot[data-type="consultation"] { background: #10b981; }
+
+.doc-timeline__content { flex: 1; min-width: 0; }
+.doc-timeline__date { font-size: 0.75rem; color: #94a3b8; margin: 0 0 0.2rem; }
+.doc-timeline__summary { font-size: 0.875rem; color: #374151; margin: 0; font-weight: 500; }
+
+/* ── Patient card selected state ─────────────── */
+.dd-patient-card--selected {
+  border-color: var(--dd-indigo);
+  box-shadow: 0 2px 8px rgb(37 99 235 / 0.1);
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.dd-patient-card--selected .dd-patient-card__body {
+  width: 100%;
+}
+
+.portal-shell__main .dd-workspace-card,
+.portal-shell__main .dd-queue-workspace .dd-workspace-empty {
+  background: var(--dashboard-surface);
+  border-color: var(--dashboard-border);
+  box-shadow: var(--dashboard-shadow-sm);
+}
+
+.portal-shell__main .dd-workspace-card__header {
+  background: var(--dashboard-surface-muted);
+  border-color: var(--dashboard-border);
+}
+
+.portal-shell__main .dd-workspace-card__footer {
+  border-color: var(--dashboard-border);
 }

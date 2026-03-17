@@ -56,6 +56,114 @@ function consultStep(status: Consultation['status']) {
 
 const CONSULT_STEPS = ['Waiting', 'In progress', 'Completed']
 
+function getAgeBandInfo(ageYears: number | undefined, ageMonths?: number): { label: string; color: string; bg: string } {
+  const totalMonths = ageYears !== undefined ? ageYears * 12 + (ageMonths || 0) : 0
+  if (totalMonths < 24) return { label: 'Infant', color: '#f97316', bg: '#fff7ed' }
+  if (totalMonths < 60) return { label: 'Toddler', color: '#f59e0b', bg: '#fffbeb' }
+  if (totalMonths < 144) return { label: 'Child', color: '#3b82f6', bg: '#eff6ff' }
+  return { label: 'Teen', color: '#8b5cf6', bg: '#f5f3ff' }
+}
+
+function AgeBand({ ageYears, ageMonths }: { ageYears?: number; ageMonths?: number }) {
+  const band = getAgeBandInfo(ageYears, ageMonths)
+  return (
+    <span className="ped-age-band" style={{ color: band.color, background: band.bg }}>
+      {band.label}
+    </span>
+  )
+}
+
+function formatPediatricAge(ageYears?: number, ageMonths?: number): string {
+  const totalMonths = (ageYears || 0) * 12 + (ageMonths || 0)
+  if (totalMonths < 24) return `${totalMonths} months`
+  if (totalMonths < 36) return `${ageYears}y ${ageMonths || 0}m`
+  return `${ageYears} years`
+}
+
+const WHO_WEIGHT_PERCENTILES = {
+  p3:  [3.4,4.4,5.1,5.7,6.2,6.7,7.1,7.4,7.7,8.0,8.2,8.4,8.6,8.9,9.2,9.5,9.7,9.9,10.1,10.3,10.5,10.7,10.9,11.1,11.3],
+  p50: [3.3,4.5,5.6,6.4,7.0,7.5,7.9,8.3,8.6,8.9,9.2,9.4,9.6,9.9,10.1,10.3,10.5,10.7,10.9,11.1,11.3,11.5,11.8,12.0,12.2],
+  p97: [4.2,5.7,6.9,7.7,8.4,9.0,9.5,9.9,10.3,10.7,11.0,11.3,11.6,12.0,12.3,12.6,12.9,13.2,13.5,13.8,14.1,14.4,14.7,15.0,15.3],
+}
+
+function GrowthChart({ weightKg, ageMonths }: { weightKg?: number; ageMonths?: number }) {
+  if (!weightKg || ageMonths === undefined) return null
+  const months = Math.min(ageMonths, 24)
+  const maxIdx = WHO_WEIGHT_PERCENTILES.p3.length - 1
+  const idx = Math.min(months, maxIdx)
+  const p3 = WHO_WEIGHT_PERCENTILES.p3[idx]
+  const p50 = WHO_WEIGHT_PERCENTILES.p50[idx]
+  const p97 = WHO_WEIGHT_PERCENTILES.p97[idx]
+  const minW = 2.5, maxW = 16
+  const toY = (w: number) => 120 - ((w - minW) / (maxW - minW)) * 100
+  const patientY = toY(Math.min(maxW, Math.max(minW, weightKg)))
+  const allMonths = Array.from({ length: maxIdx + 1 }, (_, i) => i)
+  void allMonths
+  const toX = (m: number) => (m / maxIdx) * 220 + 20
+  const path = (arr: number[]) => arr.map((w, i) => `${i === 0 ? 'M' : 'L'}${toX(i)},${toY(w)}`).join(' ')
+  return (
+    <div className="ped-growth-chart">
+      <p className="ped-growth-chart__title">Weight-for-Age (WHO 0–24 months)</p>
+      <svg viewBox="0 0 260 140" width="100%" style={{ maxWidth: 320 }}>
+        <path d={path(WHO_WEIGHT_PERCENTILES.p97)} fill="none" stroke="#bfdbfe" strokeWidth="1.5" />
+        <path d={path(WHO_WEIGHT_PERCENTILES.p50)} fill="none" stroke="#93c5fd" strokeWidth="2" />
+        <path d={path(WHO_WEIGHT_PERCENTILES.p3)} fill="none" stroke="#bfdbfe" strokeWidth="1.5" />
+        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p97[maxIdx])} fontSize="7" fill="#93c5fd">P97</text>
+        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p50[maxIdx])} fontSize="7" fill="#3b82f6">P50</text>
+        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p3[maxIdx])} fontSize="7" fill="#93c5fd">P3</text>
+        {ageMonths <= 24 && (
+          <circle cx={toX(months)} cy={patientY} r="5" fill="#ef4444" stroke="#fff" strokeWidth="2" />
+        )}
+        <text x={toX(0)} y="138" fontSize="7" fill="#94a3b8">0m</text>
+        <text x={toX(12)} y="138" fontSize="7" fill="#94a3b8">12m</text>
+        <text x={toX(24)} y="138" fontSize="7" fill="#94a3b8">24m</text>
+      </svg>
+      <p className="ped-growth-chart__meta">
+        {weightKg}kg at {ageMonths}m — {
+          weightKg < p3 ? 'Below P3 (underweight)' :
+          weightKg > p97 ? 'Above P97 (overweight)' :
+          weightKg >= p50 ? `Above median (P50: ${p50}kg)` :
+          `Below median (P50: ${p50}kg)`
+        }
+      </p>
+    </div>
+  )
+}
+
+function DosingCalculator({ weightKg }: { weightKg?: number }) {
+  const [drug, setDrug] = useState('')
+  const [mgPerKg, setMgPerKg] = useState('')
+  const dose = weightKg && mgPerKg ? (weightKg * parseFloat(mgPerKg)).toFixed(1) : null
+  return (
+    <div className="ped-dosing-calc">
+      <p className="ped-dosing-calc__title">Dosing Calculator</p>
+      <div className="ped-dosing-calc__row">
+        <input
+          placeholder="Drug name"
+          value={drug}
+          onChange={e => setDrug(e.target.value)}
+          className="ped-dosing-calc__input"
+        />
+        <input
+          type="number"
+          placeholder="mg/kg"
+          value={mgPerKg}
+          onChange={e => setMgPerKg(e.target.value)}
+          className="ped-dosing-calc__input"
+          min="0"
+          step="0.1"
+        />
+      </div>
+      {dose && (
+        <p className="ped-dosing-calc__result">
+          {drug || 'Dose'}: <strong>{dose} mg</strong>
+          {weightKg && <span> ({weightKg}kg × {mgPerKg} mg/kg)</span>}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── Data seeding ─────────────────────────────────────────────────────────────
 
 const createInitialPediatricThreads = (): DoctorMessageThread[] => {
@@ -501,7 +609,7 @@ function PediatricianDashboardPage() {
 
   return (
     <ProfessionalPortalShell
-      accentColor="#4f46e5"
+      accentColor="#0ea5e9"
       activeItemId={activeTab}
       navItems={navigationItems}
       onNavChange={(itemId) => setActiveTab(itemId as PediatricTab)}
@@ -613,9 +721,15 @@ function PediatricianDashboardPage() {
                             <div>
                               <p className="dd-td-patient__name">
                                 {item.childName ?? '-'}
-                                {item.childAge ? <span className="pd-age-tag">, {item.childAge}y</span> : null}
+                                {item.childAge ? <span className="pd-age-tag">, {formatPediatricAge(item.childAge)}</span> : null}
                                 {item.dosageAlert && <span className="pd-alert-dot" title="Dosage alert" />}
                               </p>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
+                                <AgeBand ageYears={item.childAge} />
+                                {!item.guardian_consent && item.consentStatus !== 'Granted' && (
+                                  <span className="ped-consent-warn">⚠ Consent pending</span>
+                                )}
+                              </div>
                               <p className="dd-td-patient__id">Guardian: {item.guardianName ?? '-'}</p>
                             </div>
                           </div>
@@ -948,7 +1062,7 @@ function PediatricianDashboardPage() {
                     <div className="pd-profile-card__avatar">{initials(p.child)}</div>
                     <div className="pd-profile-card__body">
                       <p className="pd-profile-card__name">{p.child}</p>
-                      <p className="pd-profile-card__age">Age {p.age}</p>
+                      <p className="pd-profile-card__age">{formatPediatricAge(p.age)} <AgeBand ageYears={p.age} /></p>
                     </div>
                     <div className="pd-profile-card__meta">
                       <div className="pd-profile-card__row">
@@ -1169,9 +1283,14 @@ function PediatricianDashboardPage() {
                       <div className="dd-sp-patient__avatar">{initials(selectedConsult.childName ?? selectedConsult.patientName)}</div>
                       <div>
                         <p className="dd-sp-patient__name">{selectedConsult.childName ?? '-'}</p>
-                        <p className="dd-sp-patient__meta">Age {selectedConsult.childAge} · {selectedConsult.weightKg} kg</p>
+                        <p className="dd-sp-patient__meta">{formatPediatricAge(selectedConsult.childAge)} · {selectedConsult.weightKg} kg</p>
+                        <div style={{ marginTop: '0.3rem' }}>
+                          <AgeBand ageYears={selectedConsult.childAge} />
+                        </div>
                       </div>
                     </div>
+                    <GrowthChart weightKg={selectedConsult.weightKg} ageMonths={selectedConsult.childAge !== undefined ? selectedConsult.childAge * 12 : undefined} />
+                    <DosingCalculator weightKg={selectedConsult.weightKg} />
                   </div>
 
                   <div className="dd-sp-section">

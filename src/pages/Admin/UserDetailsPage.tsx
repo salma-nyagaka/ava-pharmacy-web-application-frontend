@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { formatAdminRole, formatPharmacistPermission, loadAdminUsers } from '../../data/adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
@@ -10,7 +10,6 @@ function getInitials(name: string) {
 }
 
 function UserDetailsPage() {
-  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const userId = Number(id)
   const user = loadAdminUsers().find((entry) => entry.id === userId)
@@ -19,21 +18,12 @@ function UserDetailsPage() {
   const [escalateReason, setEscalateReason] = useState('')
   const [escalatePriority, setEscalatePriority] = useState('Medium')
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin/users')
-  }
-
   if (!user) {
     return (
       <div className="admin-page">
         <div className="ud-empty">
           <h1>User not found</h1>
           <p>We could not find a user with ID {id}.</p>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>Back</button>
         </div>
       </div>
     )
@@ -53,12 +43,6 @@ function UserDetailsPage() {
     <div className="admin-page">
       <div className="admin-page__header">
         <div className="admin-page__title">
-          <button className="pm-back-btn" type="button" onClick={handleBack}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
-            </svg>
-            Back
-          </button>
           <h1>User Profile</h1>
         </div>
         <div className="ud-header-actions">

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { adminProductService, ApiInventoryProduct } from '../../services/adminProductService'
 import './AdminShared.css'
 import './InventoryManagement.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const PAGE_SIZE = 10
 
@@ -69,7 +70,6 @@ function formatPosSync(product: ApiInventoryProduct): string {
 }
 
 function InventoryManagement() {
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
   const [inventory, setInventory] = useState<ApiInventoryProduct[]>([])
@@ -110,14 +110,6 @@ function InventoryManagement() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin')
   }
 
   const closeAdjustModal = () => {
@@ -233,131 +225,217 @@ function InventoryManagement() {
   const posInventory = adjustItem ? getInventoryItem(adjustItem, 'warehouse') : null
 
   return (
-    <div className="admin-page">
-      <div className="admin-page__header">
-        <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>Back</button>
+    <div className="category-management admin-page">
+      <div className="category-management__header">
+        <div className="cm-title-group">
           <h1>Inventory Management</h1>
+          <p className="cm-title-sub">Track stock levels across Main Shop and POS Store</p>
         </div>
-        <button className="btn btn--primary btn--sm" type="button" onClick={handleAddOpen} disabled={inventory.length === 0}>+ Add Inventory</button>
+        <div className="category-management__actions">
+          <button className="btn btn--primary btn--sm" type="button" onClick={handleAddOpen} disabled={inventory.length === 0}>+ Add Inventory</button>
+        </div>
       </div>
 
-      {error && <p style={{ color: 'red', margin: '0.5rem 0 1rem' }}>{error}</p>}
-
-      <div className="admin-page__filters">
-        <input
-          type="text"
-          placeholder="Search products or SKU"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
-          <option value="all">All statuses</option>
-          <option value="In Stock">In Stock</option>
-          <option value="Low">Low</option>
-          <option value="Backorder">Backorder</option>
-          <option value="Out">Out</option>
-        </select>
-      </div>
-
-      <div className="admin-page__table">
-        {loading ? (
-          <p style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>Loading inventory…</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>SKU</th>
-                <th>
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('branch_stock')}>
-                    Main Shop {getSortIndicator('branch_stock')}
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('warehouse_stock')}>
-                    POS Store {getSortIndicator('warehouse_stock')}
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('total_stock')}>
-                    Total {getSortIndicator('total_stock')}
-                  </button>
-                </th>
-                <th>Source</th>
-                <th>POS Sync</th>
-                <th>Backorder</th>
-                <th>
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('created_at')}>
-                    Created At {getSortIndicator('created_at')}
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('created_by_name')}>
-                    Created By {getSortIndicator('created_by_name')}
-                  </button>
-                </th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedInventory.map((item) => {
-                const status = getStockStatus(item)
-                return (
-                  <tr key={item.id}>
-                    <td>{item.name}</td>
-                    <td style={{ color: '#6b7280', fontSize: '0.85rem' }}>{item.sku}</td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                        <span>{getInventoryQuantity(item, 'branch')}</span>
-                        <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>Threshold {getInventoryThreshold(item, 'branch')}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                        <span>{getInventoryQuantity(item, 'warehouse')}</span>
-                        <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>Threshold {getInventoryThreshold(item, 'warehouse')}</span>
-                      </div>
-                    </td>
-                    <td>{item.stock_quantity}</td>
-                    <td>{formatStockSource(item.stock_source)}</td>
-                    <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{formatPosSync(item)}</td>
-                    <td>{formatBackorderSummary(item)}</td>
-                    <td>{formatDateTime(item.created_at)}</td>
-                    <td>{item.created_by_name || 'system'}</td>
-                    <td>
-                      <span className={`admin-status ${status === 'In Stock' ? 'admin-status--success' : status === 'Low' ? 'admin-status--warning' : status === 'Backorder' ? 'admin-status--warning' : 'admin-status--danger'}`}>
-                        {status}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="btn btn--outline btn--sm" type="button" onClick={() => handleAdjustOpen(item)}>
-                        Adjust
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-              {sortedInventory.length === 0 && (
-                <tr><td colSpan={12} className="inventory-empty">No items match your filters.</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {filteredInventory.length > PAGE_SIZE && (
-        <div className="inventory-pagination">
-          <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>Prev</button>
-          <div className="pagination__pages">
-            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-              <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>{page}</button>
-            ))}
-          </div>
-          <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>Next</button>
+      {error && (
+        <div className="cm-error-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{error}</span>
         </div>
       )}
+
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Total Products</span>
+            <strong className="cm-kpi-card__value">{loading ? '—' : inventory.length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">In Stock</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : inventory.filter(i => getStockStatus(i) === 'In Stock').length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Low Stock</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{loading ? '—' : inventory.filter(i => getStockStatus(i) === 'Low').length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Out of Stock</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : inventory.filter(i => getStockStatus(i) === 'Out').length}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="cm-toolbar">
+        <div className="cm-search-box">
+          <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+            <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search products or SKU…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button className="cm-search-box__clear" type="button" onClick={() => setSearchTerm('')} aria-label="Clear search">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <div className="cm-toolbar__right">
+          <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+            <option value="all">All statuses</option>
+            <option value="In Stock">In Stock</option>
+            <option value="Low">Low</option>
+            <option value="Backorder">Backorder</option>
+            <option value="Out">Out</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="cm-panel">
+        {loading && (
+          <div className="cm-skeletons">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="cm-skeleton-row">
+                <div className="cm-skeleton" style={{ width: '30%' }} />
+                <div className="cm-skeleton" style={{ width: '18%' }} />
+                <div className="cm-skeleton" style={{ width: '10%', borderRadius: '999px' }} />
+                <div className="cm-skeleton" style={{ width: '28%' }} />
+              </div>
+            ))}
+          </div>
+        )}
+        {!loading && sortedInventory.length === 0 && (
+          <div className="cm-empty-state">
+            <div className="cm-empty-state__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="36" height="36">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              </svg>
+            </div>
+            <p className="cm-empty-state__title">No items match your filters.</p>
+          </div>
+        )}
+        {!loading && sortedInventory.length > 0 && (
+          <div className="cm-table-wrap">
+            <table className="cm-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>SKU</th>
+                  <th>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('branch_stock')}>
+                      Main Shop {getSortIndicator('branch_stock')}
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('warehouse_stock')}>
+                      POS Store {getSortIndicator('warehouse_stock')}
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('total_stock')}>
+                      Total {getSortIndicator('total_stock')}
+                    </button>
+                  </th>
+                  <th>Source</th>
+                  <th>POS Sync</th>
+                  <th>Backorder</th>
+                  <th>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('created_at')}>
+                      Created At {getSortIndicator('created_at')}
+                    </button>
+                  </th>
+                  <th>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('created_by_name')}>
+                      Created By {getSortIndicator('created_by_name')}
+                    </button>
+                  </th>
+                  <th>Status</th>
+                  <th className="cm-th-actions">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedInventory.map((item) => {
+                  const status = getStockStatus(item)
+                  return (
+                    <tr key={item.id}>
+                      <td>{item.name}</td>
+                      <td style={{ color: '#6b7280' }}>{item.sku}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <span>{getInventoryQuantity(item, 'branch')}</span>
+                          <span className="cm-name-cell__id">Threshold {getInventoryThreshold(item, 'branch')}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <span>{getInventoryQuantity(item, 'warehouse')}</span>
+                          <span className="cm-name-cell__id">Threshold {getInventoryThreshold(item, 'warehouse')}</span>
+                        </div>
+                      </td>
+                      <td>{item.stock_quantity}</td>
+                      <td>{formatStockSource(item.stock_source)}</td>
+                      <td style={{ color: '#6b7280' }}>{formatPosSync(item)}</td>
+                      <td>{formatBackorderSummary(item)}</td>
+                      <td>{formatDateTime(item.created_at)}</td>
+                      <td>{item.created_by_name || 'system'}</td>
+                      <td>
+                        <span className={`admin-status ${status === 'In Stock' ? 'admin-status--success' : status === 'Low' ? 'admin-status--warning' : status === 'Backorder' ? 'admin-status--warning' : 'admin-status--danger'}`}>
+                          {status}
+                        </span>
+                      </td>
+                      <td>
+                        <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => handleAdjustOpen(item)}>
+                          Adjust
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {filteredInventory.length > PAGE_SIZE && (
+          <div className="cm-pagination">
+            <span className="cm-pagination__info">
+              Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, sortedInventory.length)} of {sortedInventory.length}
+            </span>
+            <div className="cm-pagination__controls">
+              <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>Prev</button>
+              <div className="pagination__pages">
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                  <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>{page}</button>
+                ))}
+              </div>
+              <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>Next</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {adjustItem && (
         <div className="modal-overlay" onClick={closeAdjustModal}>

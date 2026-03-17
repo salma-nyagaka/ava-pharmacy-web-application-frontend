@@ -9,18 +9,9 @@
   margin: 0;
 }
 
-/* ── Header card ────────────────────────────────────────────── */
+/* ── Header card — superseded by category-management__header ── */
 .order-management__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1rem;
+  display: none;
 }
 
 .order-management__header > div:first-child {
@@ -74,16 +65,9 @@
   white-space: nowrap;
 }
 
-/* ── Filter bar ─────────────────────────────────────────────── */
+/* ── Filter bar — superseded by cm-toolbar ───────────────────── */
 .order-management__filters {
-  display: flex;
-  gap: 0.625rem;
-  flex-wrap: wrap;
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 10px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
+  display: none;
 }
 
 .search-box {
@@ -131,12 +115,9 @@
   box-shadow: 0 0 0 3px rgba(232, 23, 80, 0.08);
 }
 
-/* ── Table card ─────────────────────────────────────────────── */
+/* ── Table card — superseded by cm-panel ────────────────────── */
 .order-management__table {
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
-  overflow: hidden;
+  display: none;
 }
 
 .order-management__table table {
@@ -299,18 +280,9 @@
   pointer-events: none;
 }
 
-/* ── Pagination ─────────────────────────────────────────────── */
+/* ── Pagination — superseded by cm-pagination ───────────────── */
 .order-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 1rem;
-  padding: 0.875rem 1.25rem;
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 10px;
-  flex-wrap: wrap;
+  display: none;
 }
 
 .pagination__pages {
@@ -611,3 +583,12 @@
 
   .order-pagination { flex-direction: column; align-items: flex-start; }
 }
+
+/* Match category-management design */
+.order-management,
+.om-page {
+  background: var(--dashboard-page-bg, #f1f5f9);
+  padding: 1.75rem 2.75rem 3rem;
+}
+@media (max-width: 1023px) { .order-management, .om-page { padding: 1.5rem; } }
+@media (max-width: 640px) { .order-management, .om-page { padding: 1rem; } }

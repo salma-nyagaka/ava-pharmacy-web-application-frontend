@@ -1,20 +1,9 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import './AdminShared.css'
 import './Reports.css'
 
 function Reports() {
-  const navigate = useNavigate()
   const [timeRange, setTimeRange] = useState('7days')
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-
-    navigate('/admin')
-  }
 
   const revenueData = [
     { day: 'Mon', value: 12500 },
@@ -75,10 +64,6 @@ function Reports() {
     <div className="reports">
       <div className="reports__header">
         <div className="admin-page__title">
-          <button className="pm-back-btn" type="button" onClick={handleBack}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-            Back
-          </button>
           <div className="reports__title">
             <h1>Reports</h1>
             <p>Operational insights for orders, prescriptions, lab tasks, and payouts.</p>

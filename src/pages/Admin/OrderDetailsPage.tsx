@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { getOrderTotals, loadAdminOrders, saveAdminOrders } from '../../data/adminOrders'
 import { logAdminAction } from '../../data/adminAudit'
 import './AdminShared.css'
@@ -26,7 +26,6 @@ function getInitials(name: string) {
 }
 
 function OrderDetailsPage() {
-  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [orders, setOrders] = useState(loadAdminOrders())
   const [showInvoice, setShowInvoice] = useState(false)
@@ -47,21 +46,12 @@ function OrderDetailsPage() {
           <p className="od-empty__icon">📦</p>
           <h2>Order not found</h2>
           <p>No order with ID <strong>{id}</strong>.</p>
-          <Link className="btn btn--outline btn--sm" to="/admin/orders">Back to orders</Link>
         </div>
       </div>
     )
   }
 
   const { subtotal, total } = getOrderTotals(order)
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin/orders')
-  }
 
   const updateOrderStatus = (status: 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded', refundReason?: string) => {
     setOrders((prev) =>
@@ -98,9 +88,6 @@ function OrderDetailsPage() {
       {/* Header */}
       <div className="od-header">
         <div className="od-header__left">
-          <button className="pm-back-btn" type="button" onClick={handleBack}>
-            ← Orders
-          </button>
           <div className="od-header__title">
             <h1>{order.id}</h1>
             <span className={`od-status-badge od-status-badge--${order.status}`}>

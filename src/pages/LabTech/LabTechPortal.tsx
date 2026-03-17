@@ -39,6 +39,114 @@ const STATUS_DOT: Record<LabRequestStatus, string> = {
   Cancelled: 'dot--cancelled',
 }
 
+const LAB_STEPS = ['Received', 'Processing', 'Resulted', 'Released']
+const LAB_STEP_STATUS_MAP: Record<string, number> = {
+  'awaiting sample': 0,
+  'sample collected': 0,
+  processing: 1,
+  'result ready': 2,
+  completed: 3,
+  released: 3,
+}
+
+function LabStepper({ currentStatus }: { currentStatus: string }) {
+  const activeStep = LAB_STEP_STATUS_MAP[currentStatus.toLowerCase()] ?? 0
+  return (
+    <div className="lab-stepper">
+      {LAB_STEPS.map((step, i) => (
+        <div
+          key={step}
+          className={`lab-stepper__step ${i < activeStep ? 'lab-stepper__step--done' : ''} ${i === activeStep ? 'lab-stepper__step--active' : ''}`}
+        >
+          <div className="lab-stepper__circle">
+            {i < activeStep ? (
+              <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
+                <path d="M3 8l3.5 3.5L13 5" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            ) : <span>{i + 1}</span>}
+          </div>
+          {i < LAB_STEPS.length - 1 && <div className="lab-stepper__line" />}
+          <span className="lab-stepper__label">{step}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function triageSort(requests: LabRequest[]) {
+  return [...requests].sort((a, b) => {
+    const urgencyScore = (r: LabRequest) => {
+      if (r.priority === 'Priority') return 3
+      return 1
+    }
+    const ageScore = (r: LabRequest) => {
+      const created = r.scheduledAt
+      if (!created) return 0
+      return Date.now() - new Date(created).getTime()
+    }
+    const urgencyDiff = urgencyScore(b) - urgencyScore(a)
+    if (urgencyDiff !== 0) return urgencyDiff
+    return ageScore(b) - ageScore(a)
+  })
+}
+
+const CRITICAL_THRESHOLDS: Record<string, { low: number; high: number; unit: string }> = {
+  potassium: { low: 3.0, high: 6.0, unit: 'mmol/L' },
+  sodium: { low: 125, high: 155, unit: 'mmol/L' },
+  glucose: { low: 2.5, high: 25, unit: 'mmol/L' },
+  hemoglobin: { low: 6, high: 20, unit: 'g/dL' },
+  creatinine: { low: 0, high: 500, unit: 'μmol/L' },
+}
+
+function isCriticalValue(testName: string, value: number): boolean {
+  const key = testName.toLowerCase()
+  const threshold = Object.entries(CRITICAL_THRESHOLDS).find(([k]) => key.includes(k))?.[1]
+  if (!threshold) return false
+  return value < threshold.low || value > threshold.high
+}
+
+function ProductivityStats({ myRequests }: { myRequests: LabRequest[] }) {
+  const today = new Date().toDateString()
+  const completedToday = myRequests.filter(r =>
+    (r.status === 'Completed') &&
+    r.scheduledAt && new Date(r.scheduledAt).toDateString() === today
+  ).length
+  const pending = myRequests.filter(r => !['Completed', 'Cancelled'].includes(r.status)).length
+  const completed = myRequests.filter(r => ['Completed'].includes(r.status)).length
+  const total = pending + completed || 1
+  const avgHours = (() => {
+    const timed = myRequests.filter(r => r.status === 'Completed' && r.scheduledAt)
+    if (!timed.length) return null
+    const avg = timed.reduce((s, r) => {
+      const base = new Date(r.scheduledAt).getTime()
+      return s + (Date.now() - base)
+    }, 0) / timed.length
+    return (avg / 3600000).toFixed(1)
+  })()
+  return (
+    <div className="lab-productivity">
+      <div className="lab-productivity__stat">
+        <span className="lab-productivity__num">{completedToday}</span>
+        <span className="lab-productivity__label">Completed Today</span>
+      </div>
+      <div className="lab-productivity__stat">
+        <span className="lab-productivity__num">{avgHours ?? '—'}</span>
+        <span className="lab-productivity__label">Avg Turnaround (hrs)</span>
+      </div>
+      <div className="lab-productivity__stat">
+        <span className="lab-productivity__num">{pending}</span>
+        <span className="lab-productivity__label">Pending</span>
+      </div>
+      <div className="lab-productivity__ratio">
+        <div className="lab-productivity__ratio-bar">
+          <div className="lab-productivity__ratio-fill" style={{ width: `${(completed / total) * 100}%` }} />
+        </div>
+        <span>{completed} done / {total} total</span>
+      </div>
+    </div>
+  )
+}
+
 const PAGE_SIZE = 10
 
 function initials(name: string) {
@@ -91,6 +199,8 @@ function LabTechPortal() {
   const [resultRec, setResultRec] = useState('')
   const [resultAbnormal, setResultAbnormal] = useState(false)
   const [resultError, setResultError] = useState('')
+  const [criticalWarning, setCriticalWarning] = useState(false)
+  const [criticalAcknowledged, setCriticalAcknowledged] = useState(false)
 
   useEffect(() => { saveLabRequests(requests) }, [requests])
   useEffect(() => { saveLabResults(results) }, [results])
@@ -125,6 +235,8 @@ function LabTechPortal() {
     setResultRec(existing?.recommendation ?? '')
     setResultAbnormal(existing?.abnormal ?? false)
     setResultError('')
+    setCriticalWarning(false)
+    setCriticalAcknowledged(false)
   }, [panelRequest, resultMap])
 
   const stats = useMemo(() => ({
@@ -174,7 +286,7 @@ function LabTechPortal() {
     [filteredBase, actorName]
   )
 
-  const activeList = tab === 'mine' ? mineFiltered : filteredBase
+  const activeList = tab === 'mine' ? triageSort(mineFiltered) : tab === 'queue' ? triageSort(filteredBase) : filteredBase
   const totalPages = Math.max(1, Math.ceil(activeList.length / PAGE_SIZE))
   const paged = activeList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -199,6 +311,10 @@ function LabTechPortal() {
   const handlePublishResult = () => {
     if (!panelRequest || !resultSummary.trim()) {
       setResultError('Result summary is required.')
+      return
+    }
+    if (criticalWarning && !criticalAcknowledged) {
+      setResultError('You must acknowledge the critical value before publishing.')
       return
     }
     const flags = resultFlags.split(',').map((f) => f.trim()).filter(Boolean)
@@ -580,6 +696,7 @@ function LabTechPortal() {
         {/* ── QUEUE / MINE ── */}
         {(tab === 'queue' || tab === 'mine') && (
           <>
+            {tab === 'mine' && <ProductivityStats myRequests={mineFiltered} />}
             <div className="ltp-queue-header">
               <div className="ltp-search">
                 <svg className="ltp-search__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -687,6 +804,9 @@ function LabTechPortal() {
                 <span className="ltp-cancelled-badge">Cancelled</span>
               )}
             </div>
+            <div style={{ padding: '0 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+              <LabStepper currentStatus={panelRequest.status} />
+            </div>
 
             <div className="ltp-sp-body">
               {/* Patient */}
@@ -789,10 +909,15 @@ function LabTechPortal() {
                 <div className="ltp-sp-section">
                   <p className="ltp-sp-section-title">Current result</p>
                   <div className="ltp-result-box">
-                    <p className="ltp-sp-field-value">
+                    <p className={`ltp-sp-field-value${resultMap[panelRequest.id].abnormal ? ' lab-result--abnormal' : ''}`}>
                       {resultMap[panelRequest.id].summary}
                       {resultMap[panelRequest.id].abnormal && (
-                        <span className="ltp-abnormal-tag">Abnormal</span>
+                        <span className="lab-abnormal-flag" style={{ marginLeft: '0.5rem' }}>
+                          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                            <path d="M8 1L1 14h14L8 1zm0 4v4m0 2v1" stroke="currentColor" fill="none" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                          Abnormal
+                        </span>
                       )}
                     </p>
                     <p className="ltp-sp-field-label" style={{ marginTop: '0.4rem' }}>
@@ -815,8 +940,38 @@ function LabTechPortal() {
                     <h4>{resultMap[panelRequest.id] ? 'Update result' : 'Publish result'}</h4>
                     <div className="form-group">
                       <label>Result summary *</label>
-                      <textarea rows={3} value={resultSummary} onChange={(e) => setResultSummary(e.target.value)} />
+                      <textarea
+                        rows={3}
+                        value={resultSummary}
+                        onChange={(e) => {
+                          setResultSummary(e.target.value)
+                          const testName = testMap[panelRequest.testId]?.name ?? ''
+                          const numMatch = e.target.value.match(/[\d.]+/)
+                          if (numMatch) {
+                            const val = parseFloat(numMatch[0])
+                            if (!isNaN(val) && isCriticalValue(testName, val)) {
+                              setCriticalWarning(true)
+                            } else {
+                              setCriticalWarning(false)
+                              setCriticalAcknowledged(false)
+                            }
+                          } else {
+                            setCriticalWarning(false)
+                            setCriticalAcknowledged(false)
+                          }
+                        }}
+                      />
                     </div>
+                    {criticalWarning && (
+                      <div className="lab-critical-alert" role="alert">
+                        <strong>⚠ Critical Value</strong>
+                        <p>This result is outside critical range. Notify the ordering doctor immediately before releasing.</p>
+                        <label>
+                          <input type="checkbox" onChange={e => setCriticalAcknowledged(e.target.checked)} />
+                          {' '}I acknowledge this critical value and will notify the ordering doctor
+                        </label>
+                      </div>
+                    )}
                     <div className="form-group">
                       <label>File name</label>
                       <input

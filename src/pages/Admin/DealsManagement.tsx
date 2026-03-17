@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   adminProductService,
   type ApiBrand,
@@ -12,6 +11,7 @@ import {
 } from '../../services/adminProductService'
 import './AdminShared.css'
 import './DealsManagement.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const PAGE_SIZE = 6
 
@@ -110,7 +110,6 @@ function toDraft(promotion: ApiPromotion): PromotionDraft {
 }
 
 function DealsManagement() {
-  const navigate = useNavigate()
   const [promotions, setPromotions] = useState<ApiPromotion[]>([])
   const [categories, setCategories] = useState<ApiProductCategory[]>([])
   const [brands, setBrands] = useState<ApiBrand[]>([])
@@ -212,11 +211,6 @@ function DealsManagement() {
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedPromotions = filteredPromotions.slice(startIndex, startIndex + PAGE_SIZE)
   const discountPreview = getDiscountPreview(draft.type, draft.value)
-
-  const handleBack = () => {
-    if (window.history.length > 1) { navigate(-1); return }
-    navigate('/admin')
-  }
 
   const openCreate = () => {
     setDraft(createBlankDraft())
@@ -330,139 +324,235 @@ function DealsManagement() {
   }
 
   return (
-    <div className="admin-page deals-management">
-      <div className="admin-page__header">
-        <div>
-          <button className="pm-back-btn" type="button" onClick={handleBack}>← Back</button>
+    <div className="category-management admin-page deals-management">
+      <div className="category-management__header">
+        <div className="cm-title-group">
           <h1>Deals & Discounts</h1>
-          <p className="deals__subtitle">Create promotions that apply to products, brands, or categories.</p>
+          <p className="cm-title-sub">Create promotions that apply to products, brands, or categories.</p>
         </div>
-        <button className="btn btn--primary btn--sm" type="button" onClick={openCreate}>
-          + Create deal
-        </button>
+        <div className="category-management__actions">
+          <button className="btn btn--primary btn--sm" type="button" onClick={openCreate}>
+            + Create deal
+          </button>
+        </div>
       </div>
 
       {error && (
-        <div className="cm-error-banner" style={{ marginBottom: '1rem' }}>
+        <div className="cm-error-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
           <span>{error}</span>
           <button className="cm-error-banner__retry" type="button" onClick={() => void loadAll()}>Retry</button>
         </div>
       )}
 
-      <div className="admin-page__filters">
-        <input
-          type="text"
-          placeholder="Search deals..."
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-        />
-        <select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value as PromotionScope | 'all' | 'all-products')}>
-          <option value="all">All scopes</option>
-          <option value="all-products">All products</option>
-          <option value="category">Category</option>
-          <option value="brand">Brand</option>
-          <option value="product">Product</option>
-        </select>
-        <select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as typeof selectedStatus)}>
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="expired">Expired</option>
-          <option value="draft">Draft</option>
-        </select>
-      </div>
-
-      <div className="admin-page__table">
-        <table>
-          <thead>
-            <tr>
-              <th>Deal</th>
-              <th>Scope</th>
-              <th>Discount</th>
-              <th>Schedule</th>
-              <th>Status</th>
-              <th>Created At</th>
-              <th>Created By</th>
-              <th>Updated By</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!loading && pagedPromotions.map((promotion) => {
-              const status = getPromotionStatus(promotion)
-              const badge = getPromotionBadge(promotion)
-              const targetLabels = promotion.targets.map((target) => lookupTargetLabel(promotion.scope, target))
-              return (
-                <tr key={promotion.id}>
-                  <td>
-                    <div className="deal-title">{promotion.title}</div>
-                    {targetLabels.length > 0 && (
-                      <div className="deal-subtitle">
-                        {targetLabels.length <= 2
-                          ? targetLabels.join(', ')
-                          : `${targetLabels.slice(0, 2).join(', ')} +${targetLabels.length - 2} more`}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <span className="deal-scope-tag">{SCOPE_LABELS[promotion.scope] ?? promotion.scope}</span>
-                  </td>
-                  <td>
-                    <span className="deal-discount-badge">{badge}</span>
-                  </td>
-                  <td className="deal-schedule">
-                    <span>{promotion.start_date}</span>
-                    <span className="deal-schedule__arrow">→</span>
-                    <span>{promotion.end_date}</span>
-                  </td>
-                  <td>
-                    <span className={`deal-status deal-status--${status}`}>{status}</span>
-                  </td>
-                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{formatDisplayDate(promotion.created_at)}</td>
-                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
-                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
-                  <td>
-                    <div className="action-buttons">
-                      <button className="btn-sm btn--outline" type="button" onClick={() => openEdit(promotion)}>Edit</button>
-                      <button className="btn-sm btn--outline" type="button" onClick={() => void toggleStatus(promotion)}>
-                        {promotion.status === 'active' ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <button className="btn-sm btn--danger-soft" type="button" onClick={() => setConfirmDeleteId(promotion.id)}>Delete</button>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-            {!loading && filteredPromotions.length === 0 && (
-              <tr>
-                <td colSpan={9} className="deals-empty">No deals match your filters.</td>
-              </tr>
-            )}
-            {loading && (
-              <tr>
-                <td colSpan={9} className="deals-empty">Loading deals…</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {filteredPromotions.length > 0 && (
-        <div className="deals-pagination">
-          <button className="pagination__button" type="button" onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1}>Prev</button>
-          <div className="pagination__pages">
-            {Array.from({ length: totalPages }, (_, index) => {
-              const page = index + 1
-              return (
-                <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>
-                  {page}
-                </button>
-              )
-            })}
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="m21 12-9 9-9-9V3h9l9 9Z"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none"/></svg>
           </div>
-          <button className="pagination__button" type="button" onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages}>Next</button>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Total Deals</span>
+            <strong className="cm-kpi-card__value">{promotions.length}</strong>
+          </div>
         </div>
-      )}
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Active</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{promotions.filter(p => getPromotionStatus(p) === 'active').length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Scheduled</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{promotions.filter(p => getPromotionStatus(p) === 'scheduled').length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Expired</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{promotions.filter(p => getPromotionStatus(p) === 'expired').length}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="cm-toolbar">
+        <div className="cm-search-box">
+          <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+            <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search deals…"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+          {searchTerm && (
+            <button className="cm-search-box__clear" type="button" onClick={() => setSearchTerm('')} aria-label="Clear search">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <div className="cm-toolbar__right">
+          <select className="cm-filter-select" value={selectedScope} onChange={(event) => setSelectedScope(event.target.value as PromotionScope | 'all' | 'all-products')}>
+            <option value="all">All scopes</option>
+            <option value="all-products">All products</option>
+            <option value="category">Category</option>
+            <option value="brand">Brand</option>
+            <option value="product">Product</option>
+          </select>
+          <select className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as typeof selectedStatus)}>
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="expired">Expired</option>
+            <option value="draft">Draft</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="cm-panel">
+        {loading && (
+          <div className="cm-skeletons">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="cm-skeleton-row">
+                <div className="cm-skeleton" style={{ width: '28%' }} />
+                <div className="cm-skeleton" style={{ width: '12%', borderRadius: '999px' }} />
+                <div className="cm-skeleton" style={{ width: '18%' }} />
+                <div className="cm-skeleton" style={{ width: '22%' }} />
+              </div>
+            ))}
+          </div>
+        )}
+        {!loading && filteredPromotions.length === 0 && (
+          <div className="cm-empty-state">
+            <div className="cm-empty-state__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="36" height="36">
+                <path d="m21 12-9 9-9-9V3h9l9 9Z" /><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            <p className="cm-empty-state__title">No deals match your filters.</p>
+            <p className="cm-empty-state__sub">Try adjusting your search or create a new deal.</p>
+          </div>
+        )}
+        {!loading && filteredPromotions.length > 0 && (
+          <div className="cm-table-wrap">
+            <table className="cm-table">
+              <thead>
+                <tr>
+                  <th>Deal</th>
+                  <th>Scope</th>
+                  <th>Discount</th>
+                  <th>Schedule</th>
+                  <th>Status</th>
+                  <th>Created At</th>
+                  <th>Created By</th>
+                  <th>Updated By</th>
+                  <th className="cm-th-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedPromotions.map((promotion) => {
+                  const status = getPromotionStatus(promotion)
+                  const badge = getPromotionBadge(promotion)
+                  const targetLabels = promotion.targets.map((target) => lookupTargetLabel(promotion.scope, target))
+                  return (
+                    <tr key={promotion.id}>
+                      <td>
+                        <div className="cm-name-cell">
+                          <span className="cm-name-cell__name">{promotion.title}</span>
+                          {promotion.code && <span className="cm-name-cell__id">Code: {promotion.code}</span>}
+                          {targetLabels.length > 0 && (
+                            <span className="cm-name-cell__id">
+                              {targetLabels.length <= 2
+                                ? targetLabels.join(', ')
+                                : `${targetLabels.slice(0, 2).join(', ')} +${targetLabels.length - 2} more`}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="cm-chip">{SCOPE_LABELS[promotion.scope] ?? promotion.scope}</span>
+                      </td>
+                      <td>{badge}</td>
+                      <td>
+                        <div className="cm-name-cell">
+                          <span className="cm-name-cell__name">{formatDisplayDate(promotion.start_date)}</span>
+                          <span className="cm-name-cell__id">to {formatDisplayDate(promotion.end_date)}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`cm-status ${status === 'active' ? 'cm-status--active' : status === 'scheduled' ? 'cm-status--scheduled' : 'cm-status--inactive'}`}>
+                          {status}
+                        </span>
+                      </td>
+                      <td style={{ color: '#6b7280' }}>{formatDisplayDate(promotion.created_at)}</td>
+                      <td style={{ color: '#6b7280' }}>—</td>
+                      <td style={{ color: '#6b7280' }}>—</td>
+                      <td>
+                        <div className="cm-row-actions">
+                          <button type="button" className="cm-row-btn cm-row-btn--edit" onClick={() => openEdit(promotion)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            Edit
+                          </button>
+                          <button type="button" className="cm-row-btn" onClick={() => void toggleStatus(promotion)}>
+                            {promotion.status === 'active' ? 'Deactivate' : 'Activate'}
+                          </button>
+                          <button type="button" className="cm-row-btn cm-row-btn--delete" onClick={() => setConfirmDeleteId(promotion.id)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                              <path d="M10 11v6M14 11v6M9 6V4h6v2" />
+                            </svg>
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {filteredPromotions.length > PAGE_SIZE && (
+          <div className="cm-pagination">
+            <span className="cm-pagination__info">
+              Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, filteredPromotions.length)} of {filteredPromotions.length}
+            </span>
+            <div className="cm-pagination__controls">
+              <button className="pagination__button" type="button" onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} disabled={currentPage === 1}>Prev</button>
+              <div className="pagination__pages">
+                {Array.from({ length: totalPages }, (_, index) => {
+                  const page = index + 1
+                  return (
+                    <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>
+                      {page}
+                    </button>
+                  )
+                })}
+              </div>
+              <button className="pagination__button" type="button" onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages}>Next</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {isModalOpen && (
         <div className="modal-overlay" onClick={closeModal}>

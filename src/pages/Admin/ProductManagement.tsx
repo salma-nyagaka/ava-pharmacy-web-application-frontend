@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import {
   adminProductService,
@@ -105,7 +105,6 @@ type ProductFormPayload =
   & Partial<ProductCreatePayload>
 
 function ProductManagement() {
-  const navigate = useNavigate()
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [brands, setBrands] = useState<ApiBrand[]>([])
   const [categories, setCategories] = useState<ApiProductCategory[]>([])
@@ -495,11 +494,6 @@ function ProductManagement() {
     }
   }
 
-  const handleBack = () => {
-    if (window.history.length > 1) { navigate(-1); return }
-    navigate('/admin')
-  }
-
   useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedCategory, selectedSubcat, selectedConcern])
 
   const visibleSubcategories =
@@ -621,22 +615,13 @@ function ProductManagement() {
   ].filter((value): value is { key: string; label: string } => value !== null)
 
   return (
-    <div className="product-management">
-      <div className="product-management__header">
-        <div className="product-management__title">
-          <button className="pm-back-btn" type="button" onClick={handleBack}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
-            Back
-          </button>
-          <div className="pm-title-group">
-            <div className="pm-title-row">
-              <h1>Products</h1>
-              <span className="pm-count">{filteredProducts.length} items</span>
-            </div>
-          </div>
+    <div className="category-management product-management">
+      <div className="category-management__header">
+        <div className="cm-title-group">
+          <h1>Products</h1>
+          <p className="cm-title-sub">Manage your product catalog</p>
         </div>
-        <div className="product-management__actions">
-        
+        <div className="category-management__actions">
           <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
           <Link className="btn btn--secondary btn--sm" to="/admin/inventory">
             Add Inventory
@@ -644,196 +629,254 @@ function ProductManagement() {
         </div>
       </div>
 
-      {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
-
-      <div className="product-management__filters">
-        <div className="search-box">
-          <svg className="search-box__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input
-            type="text"
-            placeholder="Search products"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <select
-          value={selectedCategory}
-          onChange={(e) => {
-            setSelectedCategory(e.target.value)
-            setSelectedSubcat('all')
-          }}
-        >
-          <option value="all">All Categories</option>
-          {categories.map((category) => (
-            <option key={category.id} value={String(category.id)}>{category.name}</option>
-          ))}
-        </select>
-        <select value={selectedSubcat} onChange={(e) => setSelectedSubcat(e.target.value)}>
-          <option value="all">All Subcategories</option>
-          {visibleSubcategories.map((s) => (
-            <option key={s.id} value={String(s.id)}>{s.category_name} / {s.name}</option>
-          ))}
-        </select>
-        <select value={selectedConcern} onChange={(e) => setSelectedConcern(e.target.value)}>
-          <option value="all">All Health Concerns</option>
-          {allConcerns.map((concern) => (
-            <option key={concern.id} value={String(concern.id)}>{concern.name}</option>
-          ))}
-        </select>
-        {hasActiveFilters && (
-          <button
-            type="button"
-            className="btn btn--secondary btn--sm product-management__clear-filters"
-            onClick={clearFilters}
-          >
-            Clear Filters
-          </button>
-        )}
-      </div>
-
-      {hasActiveFilters && (
-        <div className="product-management__filter-summary">
-          <div className="product-management__filter-summary-copy">
-            <span className="product-management__filter-summary-label">Active filters</span>
-            <span className="product-management__filter-summary-count">
-              {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-          <div className="product-management__filter-chips">
-            {activeFilterChips.map((chip) => (
-              <span key={chip.key} className="product-filter-chip">
-                {chip.label}
-              </span>
-            ))}
-          </div>
+      {error && (
+        <div className="cm-error-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{error}</span>
         </div>
       )}
 
-      <div className="product-management__table">
-        {loading ? (
-          <p style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>Loading products…</p>
-        ) : (
-          <table>
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Total Products</span>
+            <strong className="cm-kpi-card__value">{products.length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Active</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{products.filter(p => p.is_active).length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Low Stock</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{products.filter(p => (p.stock_quantity ?? 0) <= (p.low_stock_threshold ?? 5) && (p.stock_quantity ?? 0) > 0).length}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Inactive</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{products.filter(p => !p.is_active).length}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="cm-toolbar">
+        <div className="cm-search-box">
+          <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+            <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search products…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button className="cm-search-box__clear" type="button" onClick={() => setSearchTerm('')} aria-label="Clear search">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <div className="cm-toolbar__right">
+          <select
+            className="cm-filter-select"
+            value={selectedCategory}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value)
+              setSelectedSubcat('all')
+            }}
+          >
+            <option value="all">All Categories</option>
+            {categories.map((category) => (
+              <option key={category.id} value={String(category.id)}>{category.name}</option>
+            ))}
+          </select>
+          <select className="cm-filter-select" value={selectedSubcat} onChange={(e) => setSelectedSubcat(e.target.value)}>
+            <option value="all">All Subcategories</option>
+            {visibleSubcategories.map((s) => (
+              <option key={s.id} value={String(s.id)}>{s.category_name} / {s.name}</option>
+            ))}
+          </select>
+          <select className="cm-filter-select" value={selectedConcern} onChange={(e) => setSelectedConcern(e.target.value)}>
+            <option value="all">All Health Concerns</option>
+            {allConcerns.map((concern) => (
+              <option key={concern.id} value={String(concern.id)}>{concern.name}</option>
+            ))}
+          </select>
+          {hasActiveFilters && (
+            <button type="button" className="cm-clear-filter" onClick={clearFilters}>
+              Clear Filters
+            </button>
+          )}
+          {hasActiveFilters && (
+            <span className="cm-result-count">{filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''}</span>
+          )}
+        </div>
+      </div>
+
+      <div className="cm-panel">
+        {loading && (
+          <div className="cm-skeletons">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="cm-skeleton-row">
+                <div className="cm-skeleton" style={{ width: '30%' }} />
+                <div className="cm-skeleton" style={{ width: '18%' }} />
+                <div className="cm-skeleton" style={{ width: '10%', borderRadius: '999px' }} />
+                <div className="cm-skeleton" style={{ width: '28%' }} />
+              </div>
+            ))}
+          </div>
+        )}
+        {!loading && (
+        <div className="cm-table-wrap">
+          <table className="cm-table">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Subcategory</th>
-                <th>Selling</th>
-                <th>Discount</th>
-                <th>Margin</th>
-                <th>Stock</th>
-                <th>Prescription</th>
-                <th>Status</th>
-                <th>Created At</th>
-                <th>Created By</th>
-                <th>Updated By</th>
-                <th></th>
+                <th style={{ minWidth: 220 }}>Product</th>
+                <th style={{ minWidth: 130 }}>Subcategory</th>
+                <th style={{ minWidth: 90 }}>Selling</th>
+                <th style={{ minWidth: 100 }}>Discount</th>
+                <th style={{ minWidth: 90 }}>Margin</th>
+                <th style={{ minWidth: 80 }}>Stock</th>
+                <th style={{ minWidth: 110 }}>Prescription</th>
+                <th style={{ minWidth: 90 }}>Status</th>
+                <th style={{ minWidth: 100, whiteSpace: 'nowrap' }}>Created At</th>
+                <th style={{ minWidth: 100 }}>Created By</th>
+                <th style={{ minWidth: 100 }}>Updated By</th>
+                <th className="cm-th-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
               {pagedProducts.map((product) => {
                 const margin = getMarginData(product)
+                const stockQty = product.stock_quantity ?? 0
+                const lowThreshold = product.low_stock_threshold ?? 5
+                const stockClass = stockQty === 0 ? 'cm-status--inactive' : stockQty <= lowThreshold ? 'cm-status--scheduled' : 'cm-status--active'
                 return (
                 <tr key={product.id}>
                   <td>
-                    <div className="product-info">
-                      <ImageWithFallback src={product.image ?? ''} alt={product.name} />
-                      <div>
-                        <span className="product-info__name">{product.name}</span>
-                        <span className="product-info__concerns">{product.sku}</span>
+                    <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
+                      <ImageWithFallback src={product.image ?? ''} alt={product.name} style={{ width: 36, height: 36, borderRadius: '0.375rem', objectFit: 'cover', flexShrink: 0 }} />
+                      <div className="cm-name-cell">
+                        <span className="cm-name-cell__name">{product.name}</span>
+                        <span className="cm-name-cell__id">{product.sku}</span>
                         {getProductBrandLabel(product) !== 'No brand' && (
-                          <span className="product-info__concerns">Brand: {getProductBrandLabel(product)}</span>
+                          <span className="cm-name-cell__id">Brand: {getProductBrandLabel(product)}</span>
                         )}
-                        <div className="product-info__catalog-tags">
-                          <span className="product-catalog-chip">{getCategoryLabel(product)}</span>
-                          <span className="product-catalog-chip product-catalog-chip--sub">
-                            {getProductCatalog(product).subcategoryName}
-                          </span>
-                        </div>
                         {product.health_concerns.length > 0 && (
-                          <div className="product-info__health-concerns">
+                          <div className="cm-chips" style={{ marginTop: '0.25rem' }}>
                             {product.health_concerns.slice(0, 3).map((concern) => (
-                              <span key={concern.id} className="product-health-chip">
-                                {concern.name}
-                              </span>
+                              <span key={concern.id} className="cm-chip">{concern.name}</span>
                             ))}
                             {product.health_concerns.length > 3 && (
-                              <span className="product-health-chip product-health-chip--more">
-                                +{product.health_concerns.length - 3} more
-                              </span>
+                              <span className="cm-chip cm-chip--more">+{product.health_concerns.length - 3} more</span>
                             )}
                           </div>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="td--muted">
-                    <div className="product-table-catalog">
-                      <span className="product-table-catalog__sub">{getProductCatalog(product).subcategoryName}</span>
-                      <span className="product-table-catalog__category">{getProductCatalog(product).categoryName}</span>
+                  <td>
+                    <div className="cm-name-cell">
+                      <span className="cm-name-cell__name">{getProductCatalog(product).subcategoryName}</span>
+                      <span className="cm-name-cell__id">{getProductCatalog(product).categoryName}</span>
                     </div>
                   </td>
                   <td>{formatCurrency(product.price)}</td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                       <span>{formatCurrency(product.discount_price)}</span>
-                      <span className="td--muted" style={{ fontSize: '0.75rem' }}>
-                        {product.discount_price ? 'Current deal price' : 'No discount'}
+                      <span className="cm-name-cell__id">
+                        {product.discount_price ? 'Deal price' : 'No discount'}
                       </span>
                     </div>
                   </td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <span className={margin && margin.amount < 0 ? 'stock stock--low' : ''}>
+                      <span style={{ color: margin && margin.amount < 0 ? '#dc2626' : undefined }}>
                         {margin ? formatCurrency(margin.amount) : '—'}
                       </span>
-                      <span className="td--muted" style={{ fontSize: '0.75rem' }}>
-                        {margin ? `${margin.percent.toFixed(1)}%` : 'No bought price'}
+                      <span className="cm-name-cell__id">
+                        {margin ? `${margin.percent.toFixed(1)}%` : 'No cost price'}
                       </span>
                     </div>
                   </td>
                   <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <span className={`stock ${product.stock_quantity <= product.low_stock_threshold ? 'stock--low' : ''}`}>{product.stock_quantity}</span>
-                      <span className="td--muted" style={{ fontSize: '0.75rem' }}>{formatInventoryBreakdown(product)}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <span className={`cm-status ${stockClass}`}>{stockQty}</span>
+                      <span className="cm-name-cell__id">{formatInventoryBreakdown(product)}</span>
                     </div>
                   </td>
-                  <td className="td--muted">{product.requires_prescription ? <span className="rx-badge">Required</span> : '-'}</td>
                   <td>
-                    <span className={`status status--${product.is_active ? 'active' : 'inactive'}`}>
+                    {product.requires_prescription
+                      ? <span className="cm-status cm-status--scheduled">Required</span>
+                      : <span className="cm-name-cell__id">—</span>}
+                  </td>
+                  <td>
+                    <span className={`cm-status ${product.is_active ? 'cm-status--active' : 'cm-status--inactive'}`}>
                       {product.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td style={{ fontSize: '0.8125rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(product.created_at)}</td>
-                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>{product.created_by_name || '—'}</td>
-                  <td style={{ fontSize: '0.8125rem', color: '#6b7280' }}>—</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{formatDate(product.created_at)}</td>
+                  <td>{product.created_by_name || '—'}</td>
+                  <td>—</td>
                   <td>
-                    <div className="action-buttons">
-                      <button className="btn-icon" title="Edit" onClick={() => openEditModal(product)}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    <div className="cm-row-actions">
+                      <button
+                        type="button"
+                        className="cm-row-btn cm-row-btn--edit"
+                        title="Edit"
+                        onClick={() => openEditModal(product)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Edit
                       </button>
-                      <Link className="btn-icon" title="View inventory" to={`/admin/inventory?product=${product.id}`}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                      <Link
+                        className="cm-row-btn"
+                        title="View inventory"
+                        to={`/admin/inventory?product=${product.id}`}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                        Inventory
                       </Link>
                       <button
-                        className={`btn-icon ${product.is_active ? 'btn-icon--pause' : 'btn-icon--play'}`}
+                        type="button"
+                        className="cm-row-btn"
                         title={product.is_active ? 'Deactivate' : 'Activate'}
                         onClick={() => handleToggleProduct(product)}
                       >
-                        {product.is_active
-                          ? <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                          : <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        }
+                        {product.is_active ? 'Deactivate' : 'Activate'}
                       </button>
                       <button
-                        className="btn-icon btn-icon--danger"
+                        type="button"
+                        className="cm-row-btn cm-row-btn--delete"
                         title="Delete product"
                         onClick={() => { setDeleteTarget(product); setDeleteError('') }}
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
                           <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
                         </svg>
+                        Delete
                       </button>
                     </div>
                   </td>
@@ -844,17 +887,24 @@ function ProductManagement() {
               )}
             </tbody>
           </table>
-        )}
-      </div>
-
-      <div className="pagination">
-        <button className="pagination__button" type="button" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
-        <div className="pagination__pages">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>{page}</button>
-          ))}
         </div>
-        <button className="pagination__button" type="button" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
+        )}
+        {!loading && filteredProducts.length > PAGE_SIZE && (
+          <div className="cm-pagination">
+            <span className="cm-pagination__info">
+              Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, filteredProducts.length)} of {filteredProducts.length}
+            </span>
+            <div className="cm-pagination__controls">
+              <button className="pagination__button" type="button" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
+              <div className="pagination__pages">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>{page}</button>
+                ))}
+              </div>
+              <button className="pagination__button" type="button" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showAddModal && (

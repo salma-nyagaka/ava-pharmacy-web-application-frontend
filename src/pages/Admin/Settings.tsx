@@ -1,17 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import './AdminShared.css'
 import './Settings.css'
 import { logAdminAction } from '../../data/adminAudit'
 
 function Settings() {
-  const navigate = useNavigate()
   const [supportEmail, setSupportEmail] = useState('support@avapharmacy.co.ke')
-
-  const handleBack = () => {
-    if (window.history.length > 1) { navigate(-1); return }
-    navigate('/admin')
-  }
 
   const handleSaveSettings = () => {
     logAdminAction({ action: 'Save system settings', entity: 'Settings' })
@@ -21,10 +15,6 @@ function Settings() {
     <div className="admin-page">
       <div className="admin-page__header">
         <div className="admin-page__title">
-          <button className="pm-back-btn" type="button" onClick={handleBack}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-            Back
-          </button>
           <h1>Settings</h1>
         </div>
         <button className="btn btn--primary btn--sm" onClick={handleSaveSettings}>Save changes</button>

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { logAdminAction } from '../../data/adminAudit'
 import { DispatchStatus, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
@@ -10,7 +9,6 @@ import './PrescriptionManagement.css'
 const DISPATCH_STEPS: DispatchStatus[] = ['Not started', 'Queued', 'Packed', 'Dispatched', 'Delivered']
 
 function PrescriptionManagement() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -44,11 +42,6 @@ function PrescriptionManagement() {
     setShowClarificationInput(false)
     setClarificationNote('')
   }, [activeRx?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleBack = () => {
-    if (window.history.length > 1) { navigate(-1); return }
-    navigate('/admin')
-  }
 
   const updateRx = async (id: string, updates: Partial<PrescriptionRecord>, auditAction: string) => {
     const r = await prescriptionService.update(id, updates, auditAction)
@@ -132,7 +125,6 @@ function PrescriptionManagement() {
     <div className="admin-page">
       <div className="admin-page__header">
         <div>
-          <button className="pm-back-btn" type="button" onClick={handleBack}>← Back</button>
           <h1>Prescription Management</h1>
           <p className="px-subtitle">Review, approve, and track prescription fulfilment.</p>
         </div>

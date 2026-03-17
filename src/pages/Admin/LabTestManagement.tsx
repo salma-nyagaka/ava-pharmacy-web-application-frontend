@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   LabCategoryDef,
   LabTest,
@@ -50,7 +50,6 @@ const nextId = (tests: LabTest[]) => {
 }
 
 function LabTestManagement() {
-  const navigate = useNavigate()
   const [tests, setTests] = useState<LabTest[]>(() => loadLabTests())
   const [categories, setCategories] = useState<LabCategoryDef[]>(() => loadLabCategoryDefs())
   const [sampleTypes, setSampleTypes] = useState<string[]>(() => loadSampleTypes())
@@ -177,9 +176,6 @@ function LabTestManagement() {
       {/* Header */}
       <div className="admin-page__header">
         <div>
-          <button className="pm-back-btn" type="button" onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/admin')}>
-            ← Back
-          </button>
           <h1>Lab Tests</h1>
           <p className="lt-subtitle">Manage the catalogue of available diagnostic tests.</p>
         </div>
