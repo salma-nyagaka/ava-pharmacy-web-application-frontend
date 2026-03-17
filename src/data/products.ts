@@ -34,6 +34,7 @@ export type CatalogProduct = {
   features: string[]
   directions: string
   warnings: string
+  requiresPrescription?: boolean
 }
 
 const baseProductCatalog: CatalogProduct[] = [

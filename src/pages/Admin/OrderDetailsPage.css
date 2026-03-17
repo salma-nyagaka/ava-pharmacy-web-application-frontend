@@ -353,6 +353,78 @@
   color: #1a1a1a;
 }
 
+.od-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.od-log-item,
+.od-payment-log {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.85rem 0.95rem;
+  background: #f8fafc;
+}
+
+.od-log-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.od-log-item strong,
+.od-payment-log strong {
+  color: #0f172a;
+}
+
+.od-log-item p,
+.od-payment-log p {
+  margin: 0.3rem 0 0;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
+.od-log-item span {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.od-payment-log__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.od-payment-log__error {
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+
+.od-payment-log details {
+  margin-top: 0.5rem;
+}
+
+.od-payment-log summary {
+  cursor: pointer;
+  color: #1d4ed8;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.od-payment-log pre {
+  margin: 0.5rem 0 0;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
 /* ── Notes ─────────────────────────────── */
 .od-notes {
   margin: 0;

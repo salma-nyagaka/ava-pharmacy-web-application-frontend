@@ -126,6 +126,46 @@
   overflow: hidden;
 }
 
+.cart-rx-banner {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  background: linear-gradient(180deg, #fff7ed, #fffbeb);
+}
+
+.cart-rx-banner__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(234, 88, 12, 0.12);
+  color: #c2410c;
+  flex-shrink: 0;
+}
+
+.cart-rx-banner__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cart-rx-banner__title {
+  margin: 0 0 0.2rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #9a3412;
+}
+
+.cart-rx-banner__text {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #7c2d12;
+  line-height: 1.55;
+}
+
 .cart-items__head {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -301,6 +341,37 @@
   color: #ef4444;
 }
 
+.cart-item__action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cart-item__move {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #fff;
+  color: #475569;
+  padding: 0.32rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.cart-item__move:hover {
+  border-color: rgba(232, 23, 80, 0.25);
+  color: var(--color-primary);
+  background: rgba(232, 23, 80, 0.05);
+}
+
+.cart-item__move--done {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.18);
+  color: #15803d;
+}
+
 /* ── Summary panel ──────────────────────────────────────────── */
 .cart-summary {
   background: #fff;
@@ -398,6 +469,33 @@
   margin-top: 1.25rem;
 }
 
+.cart-auth-gate {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.cart-auth-gate__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cart-auth-gate__text {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.cart-auth-gate__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .cart-summary__note {
   display: flex;
   align-items: center;
@@ -406,6 +504,11 @@
   color: #94a3b8;
   margin: 0.75rem 0 0;
   justify-content: center;
+}
+
+.cart-summary__note--rx {
+  color: #7c2d12;
+  justify-content: flex-start;
 }
 
 /* ── Responsive ─────────────────────────────────────────────── */

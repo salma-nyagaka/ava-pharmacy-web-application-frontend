@@ -1,8 +1,14 @@
+
 export type PrescriptionStatus = 'Pending' | 'Approved' | 'Clarification' | 'Rejected'
 export type DispatchStatus = 'Not started' | 'Queued' | 'Packed' | 'Dispatched' | 'Delivered'
 
 export interface PrescriptionItem {
+  backendId?: number
   name: string
+  productId?: number | null
+  productName?: string
+  productSlug?: string
+  productImage?: string | null
   dose: string
   frequency: string
   qty: number
@@ -14,6 +20,7 @@ export interface PrescriptionAuditEntry {
 }
 
 export interface PrescriptionRecord {
+  backendId?: number
   id: string
   patient: string
   pharmacist: string

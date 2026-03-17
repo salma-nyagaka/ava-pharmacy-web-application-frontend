@@ -214,7 +214,7 @@ function OrderHistoryPage() {
   const [activeFilter, setActiveFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null)
-  const { orders: ORDERS } = useOrders()
+  const { orders: ORDERS, loading, error } = useOrders()
 
   const formatPrice = (n: number) => `KSh ${n.toLocaleString()}`
 
@@ -266,7 +266,14 @@ function OrderHistoryPage() {
 
       {/* ── Orders list ── */}
       <div className="ohp-card">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="ohp-loading">
+            <div className="ohp-loading__spinner" />
+            Loading your orders…
+          </div>
+        ) : error ? (
+          <p className="ohp-error">{error}</p>
+        ) : filtered.length === 0 ? (
           <div className="ohp-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
@@ -307,6 +314,15 @@ function OrderHistoryPage() {
                     <span className="ohp-row__total">{formatPrice(order.total)}</span>
                     <div className="ohp-row__actions">
                       <Link to={`/account/orders/${order.id}`} className="ohp-row__view">View</Link>
+                      {(order.status === 'Processing' || order.status === 'In Transit') && (
+                        <Link to={`/track-order?order=${order.id}`} className="ohp-row__track">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                            <rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v4h-7V8z"/>
+                            <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                          </svg>
+                          Track
+                        </Link>
+                      )}
                       <button
                         className="ohp-row__receipt"
                         type="button"

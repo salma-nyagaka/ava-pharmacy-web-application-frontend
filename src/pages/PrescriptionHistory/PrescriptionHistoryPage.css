@@ -66,3 +66,39 @@
     justify-content: flex-end;
   }
 }
+
+
+.rx-approved-items {
+  margin-top: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.rx-approved-items__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.rx-approved-items__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.rx-approved-items__name {
+  margin: 0;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.rx-approved-items__meta {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}

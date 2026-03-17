@@ -6,9 +6,8 @@
 .track-card {
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.07);
   margin-bottom: 1.5rem;
 }
 
@@ -88,10 +87,9 @@
 .track-how {
   display: flex;
   align-items: center;
-  gap: 0;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
+  border-radius: 10px;
   padding: 1rem 1.25rem;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -116,7 +114,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #0f766e;
+  background: var(--color-primary);
   color: #fff;
   font-weight: 800;
   font-size: 0.8rem;
@@ -138,31 +136,54 @@
   display: flex;
   align-items: center;
   gap: 1.25rem;
-  padding: 1.5rem;
-  border-radius: 18px;
+  padding: 1.5rem 1.75rem;
+  border-radius: 14px;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
+  border: 1px solid;
 }
 
 .track-banner--transit {
-  background: linear-gradient(135deg, #0f766e 0%, #0891b2 100%);
-  color: #fff;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e3a8a;
 }
 
 .track-banner--delivered {
-  background: linear-gradient(135deg, #16a34a 0%, #059669 100%);
-  color: #fff;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #14532d;
 }
 
 .track-banner--processing {
-  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-  color: #fff;
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #78350f;
 }
 
 .track-banner__icon {
-  font-size: 3rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  line-height: 1;
+}
+
+.track-banner--transit .track-banner__icon {
+  background: #2563eb;
+  color: #fff;
+}
+
+.track-banner--delivered .track-banner__icon {
+  background: #16a34a;
+  color: #fff;
+}
+
+.track-banner--processing .track-banner__icon {
+  background: #d97706;
+  color: #fff;
 }
 
 .track-banner__info {
@@ -171,22 +192,20 @@
 }
 
 .track-banner__status {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 800;
-  margin: 0 0 0.25rem;
-  opacity: 1;
+  margin: 0 0 0.2rem;
 }
 
 .track-banner__eta {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
-  margin: 0 0 0.25rem;
-  opacity: 0.9;
+  margin: 0 0 0.2rem;
 }
 
 .track-banner__meta {
   font-size: 0.8rem;
-  opacity: 0.75;
+  opacity: 0.7;
   margin: 0;
 }
 
@@ -202,23 +221,23 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  opacity: 0.75;
+  opacity: 0.6;
   margin: 0;
   font-weight: 700;
 }
 
 .track-banner__courier-name {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
   margin: 0 0 0.35rem;
 }
 
 .track-banner__call {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1.5px solid rgba(255, 255, 255, 0.5);
-  color: #fff;
-  border-radius: 10px;
-  padding: 0.55rem 1rem;
+  background: rgba(15, 23, 42, 0.07);
+  border: 1.5px solid rgba(15, 23, 42, 0.15);
+  color: inherit;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
   font-weight: 700;
   font-size: 0.875rem;
   text-decoration: none;
@@ -226,11 +245,11 @@
   align-items: center;
   gap: 0.4rem;
   transition: background 0.15s ease;
-  min-height: 44px;
+  min-height: 40px;
 }
 
 .track-banner__call:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(15, 23, 42, 0.12);
 }
 
 /* ── Progress strip ──────────────────────────────────── */
@@ -241,10 +260,9 @@
   gap: 1rem;
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 1.2rem 1.2rem 2.2rem;
   margin-bottom: 2rem;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.07);
 }
 
 .track-progress__bar {
@@ -261,7 +279,7 @@
 .track-progress__bar span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #0f766e, #38bdf8);
+  background: var(--color-primary);
   border-radius: 999px;
   transition: width 0.5s ease;
 }
@@ -309,10 +327,10 @@
 .track-progress__step--done p { color: #0f172a; }
 
 .track-progress__step--current .track-progress__dot {
-  border-color: #0f766e;
-  background: #0f766e;
+  border-color: var(--color-primary);
+  background: var(--color-primary);
   color: #fff;
-  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.2);
+  box-shadow: 0 0 0 4px rgba(232, 23, 80, 0.15);
 }
 
 .track-progress__step--current p { color: #0f172a; font-weight: 700; }
@@ -336,7 +354,57 @@
   margin-bottom: 0;
 }
 
-/* ── Card header ─────────────────────────────────────── */
+/* ── Card section head ───────────────────────────────── */
+.track-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.track-card__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(232, 23, 80, 0.08);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.track-card__icon--green {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+}
+
+.track-card__icon--blue {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+}
+
+.track-card__icon--amber {
+  background: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+}
+
+.track-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  flex: 1;
+}
+
+.track-card__subtitle {
+  font-size: 0.8375rem;
+  color: #64748b;
+  margin: 0 0 1rem;
+}
+
 .track-card__header {
   display: flex;
   align-items: center;
@@ -348,7 +416,7 @@
 
 .track-toast {
   font-size: 0.8rem;
-  color: #0f766e;
+  color: #16a34a;
   font-weight: 700;
 }
 
@@ -357,7 +425,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  margin-top: 0.75rem;
 }
 
 .timeline__item {
@@ -367,7 +434,7 @@
   text-align: left;
   background: #f8fafc;
   border: 1.5px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 0.9rem 1rem;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -375,14 +442,13 @@
 }
 
 .timeline__item:hover {
-  border-color: #0f766e;
-  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.12);
+  border-color: var(--color-primary);
   background: #fff;
 }
 
 .timeline__item--current {
-  border-color: #0f766e;
-  background: #ecfeff;
+  border-color: var(--color-primary);
+  background: rgba(232, 23, 80, 0.03);
 }
 
 .timeline__item--done {
@@ -395,9 +461,22 @@
 }
 
 .timeline__icon {
-  font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  margin-top: 0.05rem;
+  color: #94a3b8;
+}
+
+.timeline__item--done .timeline__icon {
+  color: #16a34a;
+}
+
+.timeline__item--current .timeline__icon {
+  color: var(--color-primary);
 }
 
 .timeline__content {
@@ -418,17 +497,21 @@
   margin-bottom: 0.25rem;
 }
 
+.timeline__time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
 .timeline__detail {
   margin-top: 0.5rem;
   font-size: 0.78rem;
-  color: #0f766e;
-  background: rgba(15, 118, 110, 0.08);
+  color: var(--color-primary);
+  background: rgba(232, 23, 80, 0.06);
   border-radius: 6px;
   padding: 0.4rem 0.6rem;
 }
 
 .timeline__chevron {
-  font-size: 0.65rem;
   color: #94a3b8;
   flex-shrink: 0;
   margin-top: 0.25rem;
@@ -450,7 +533,7 @@
 
 .track-note:focus {
   outline: none;
-  border-color: #0f766e;
+  border-color: var(--color-primary);
 }
 
 /* ── Order summary ───────────────────────────────────── */
@@ -495,6 +578,13 @@
   gap: 0.5rem;
 }
 
+.track-item__name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #334155;
+}
+
 /* ── Notification toggles ────────────────────────────── */
 .track-toggles {
   display: flex;
@@ -521,7 +611,14 @@
 }
 
 .track-toggle-row__icon {
-  font-size: 1.35rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(232, 23, 80, 0.07);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
@@ -551,7 +648,7 @@
   padding: 0;
 }
 
-.track-toggle-switch--on { background: #0f766e; }
+.track-toggle-switch--on { background: var(--color-primary); }
 
 .track-toggle-switch__thumb {
   position: absolute;
@@ -573,7 +670,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-top: 0.5rem;
 }
 
 .track-help-link {
@@ -581,7 +677,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.85rem 1rem;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   text-decoration: none;
@@ -591,11 +687,21 @@
 }
 
 .track-help-link:hover {
-  border-color: #0f766e;
-  background: #ecfeff;
+  border-color: var(--color-primary);
+  background: rgba(232, 23, 80, 0.03);
 }
 
-.track-help-link__icon { font-size: 1.35rem; flex-shrink: 0; }
+.track-help-link__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(232, 23, 80, 0.08);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
 
 .track-help-link__label {
   font-size: 0.78rem;
@@ -614,6 +720,42 @@
   margin-left: auto;
   color: #94a3b8;
   font-size: 1rem;
+}
+
+/* ── Breadcrumbs ─────────────────────────────────────── */
+.track-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.25rem 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin-bottom: 1.25rem;
+}
+
+.track-breadcrumbs a {
+  color: #64748b;
+  text-decoration: none;
+}
+
+.track-breadcrumbs a:hover { color: var(--color-primary); }
+
+/* ── Page header ─────────────────────────────────────── */
+.track-page-header {
+  margin-bottom: 1.75rem;
+}
+
+.track-page-header h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.35rem;
+}
+
+.track-page-header p {
+  font-size: 0.9375rem;
+  color: #64748b;
+  margin: 0;
 }
 
 /* ── Misc ────────────────────────────────────────────── */

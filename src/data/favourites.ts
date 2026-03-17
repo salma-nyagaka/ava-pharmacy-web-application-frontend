@@ -2,6 +2,7 @@ import type { StockSource } from './cart'
 
 export interface FavouriteItem {
   id: number
+  serverWishlistId?: number
   name: string
   brand: string
   price: number
@@ -10,54 +11,58 @@ export interface FavouriteItem {
   stockSource?: StockSource
 }
 
-const STORAGE_KEY = 'ava_favourites'
 const FAV_EVENT = 'ava-favourites-updated'
 
-const safeLoad = (): FavouriteItem[] => {
+const FAV_STORAGE_KEY = 'ava-favourites'
+
+function readFavourites(): FavouriteItem[] {
   if (typeof window === 'undefined') return []
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const raw = window.localStorage.getItem(FAV_STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as FavouriteItem[]) : []
+    return Array.isArray(parsed) ? parsed as FavouriteItem[] : []
   } catch {
     return []
   }
 }
 
-const emit = () => {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(FAV_EVENT))
-}
-
-const save = (items: FavouriteItem[]) => {
+function writeFavourites(items: FavouriteItem[]) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  emit()
+  window.localStorage.setItem(FAV_STORAGE_KEY, JSON.stringify(items))
+  window.dispatchEvent(new Event(FAV_EVENT))
 }
 
-export const loadFavourites = () => safeLoad()
-
-export const isFavourite = (id: number) => safeLoad().some((item) => item.id === id)
-
-export const addFavourite = (item: FavouriteItem) => {
-  const current = safeLoad()
-  if (current.some((f) => f.id === item.id)) return current
-  const updated = [item, ...current]
-  save(updated)
-  return updated
+export function loadFavourites(): FavouriteItem[] {
+  return readFavourites()
 }
 
-export const removeFavourite = (id: number) => {
-  const updated = safeLoad().filter((f) => f.id !== id)
-  save(updated)
-  return updated
+export function addFavourite(item: FavouriteItem): FavouriteItem[] {
+  const items = readFavourites()
+  const existing = items.findIndex((entry) => entry.id === item.id)
+  if (existing >= 0) {
+    items[existing] = { ...items[existing], ...item }
+  } else {
+    items.unshift(item)
+  }
+  writeFavourites(items)
+  return items
 }
 
-export const toggleFavourite = (item: FavouriteItem) => {
-  return isFavourite(item.id) ? removeFavourite(item.id) : addFavourite(item)
+export function removeFavourite(productId: number): FavouriteItem[] {
+  const items = readFavourites().filter((item) => item.id !== productId)
+  writeFavourites(items)
+  return items
 }
 
-export const getFavouriteCount = () => safeLoad().length
+export function isFavourite(productId: number): boolean {
+  return readFavourites().some((item) => item.id === productId)
+}
+
+export function getFavouriteCount(): number {
+  return readFavourites().length
+}
+
 
 export const subscribeFavourites = (listener: () => void) => {
   if (typeof window === 'undefined') return () => {}

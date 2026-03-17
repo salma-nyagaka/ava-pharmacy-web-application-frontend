@@ -6,7 +6,6 @@ import { useCatalog } from '../../context/CatalogContext'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
-import { getFavouriteCount } from '../../data/favourites'
 import { useAuth } from '../../context/AuthContext'
 
 function Header() {
@@ -58,8 +57,11 @@ function Header() {
   }, [])
 
   useEffect(() => {
-    setFavCount(getFavouriteCount())
-    return favouritesService.subscribe(() => setFavCount(getFavouriteCount()))
+    const refresh = () => {
+      void favouritesService.count().then((response) => setFavCount(response.data))
+    }
+    refresh()
+    return favouritesService.subscribe(refresh)
   }, [])
 
   const { categories, brands, healthConcerns } = useCatalog()

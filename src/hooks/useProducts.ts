@@ -33,6 +33,7 @@ export function mapApiProduct(p: Product): CatalogProduct {
     features: [],
     directions: '',
     warnings: '',
+    requiresPrescription: p.requires_prescription ?? false,
   }
 }
 

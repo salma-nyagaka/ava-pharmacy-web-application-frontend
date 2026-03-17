@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PrescriptionRecord } from '../../data/prescriptions'
-import { cartService } from '../../services/cartService'
 import { prescriptionService } from '../../services/prescriptionService'
 import './PrescriptionUploadPage.css'
 
@@ -10,6 +9,7 @@ const DISPATCH_STEPS = ['Not started', 'Queued', 'Packed', 'Dispatched', 'Delive
 
 function PrescriptionUploadPage() {
   const { user, isLoggedIn } = useAuth()
+  const [searchParams] = useSearchParams()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
@@ -18,9 +18,9 @@ function PrescriptionUploadPage() {
   const [allPrescriptions, setAllPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activePrescription, setActivePrescription] = useState<PrescriptionRecord | null>(null)
   const [uploadError, setUploadError] = useState('')
-  const [cartMessage, setCartMessage] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [submittedId, setSubmittedId] = useState('')
+  const requestedProductName = searchParams.get('product_name')?.trim() ?? ''
 
   const patientName = user?.name ?? 'Guest'
 
@@ -71,8 +71,8 @@ function PrescriptionUploadPage() {
     void prescriptionService.upload({
       patient: patientName,
       doctor: doctorName.trim(),
-      notes: uploadNotes.trim(),
-      files: uploadedFiles.map((f) => f.name),
+      notes: [uploadNotes.trim(), requestedProductName ? `Requested product: ${requestedProductName}` : ''].filter(Boolean).join('\n'),
+      files: uploadedFiles,
     }).then((r) => {
       setAllPrescriptions(r.data)
       const newest = r.data.find((rx) => rx.patient.toLowerCase() === patientName.toLowerCase() && rx.status === 'Pending')
@@ -82,30 +82,15 @@ function PrescriptionUploadPage() {
       setDoctorName('')
       setUploadNotes('')
       setUploadError('')
+    }).catch((error) => {
+      type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string | Record<string, string> } } }
+      const detail = (error as ApiErr)?.response?.data?.error?.message
+        ?? (error as ApiErr)?.response?.data?.detail
+      setUploadError(typeof detail === 'string' ? detail : 'Failed to submit prescription.')
     })
   }
 
   const resetForm = () => setSubmitted(false)
-
-  const addToCart = (prescription: PrescriptionRecord) => {
-    const validItems = prescription.items.filter((item) => item.qty > 0 && item.name !== 'Pending pharmacist review')
-    if (prescription.status !== 'Approved' || validItems.length === 0) {
-      setCartMessage('Only approved prescriptions with verified items can be added to cart.')
-      return
-    }
-    validItems.forEach((item, index) => {
-      void cartService.add({
-        id: Number(`${prescription.id.replace('RX-', '')}${index + 1}`),
-        name: item.name,
-        brand: 'Prescription item',
-        price: 350,
-        prescriptionId: prescription.id,
-        stockSource: 'warehouse',
-      }, item.qty)
-    })
-    setCartMessage(`Added ${validItems.length} item(s) from ${prescription.id} to cart.`)
-    setTimeout(() => setCartMessage(''), 4000)
-  }
 
   const dispatchIndex = (rx: PrescriptionRecord) => DISPATCH_STEPS.indexOf(rx.dispatchStatus)
 
@@ -129,6 +114,11 @@ function PrescriptionUploadPage() {
           </nav>
           <h1 className="svc-hero__title">Upload Prescription</h1>
           <p className="svc-hero__sub">Submit your prescription securely. We'll review it within 24 hours.</p>
+          {requestedProductName && (
+            <p className="rup-request-note">
+              Requesting: <strong>{requestedProductName}</strong>
+            </p>
+          )}
           <div className="page-hero__pills">
             <span className="page-hero__pill">Secure upload</span>
             <span className="page-hero__pill">24hr review</span>
@@ -153,6 +143,11 @@ function PrescriptionUploadPage() {
                 <h2>Prescription submitted!</h2>
                 <p>Reference: <strong>{submittedId}</strong></p>
                 <p className="rup-success__note">Our pharmacists will review your prescription and notify you once it's approved. Typical review time is under 24 hours.</p>
+                {requestedProductName && (
+                  <p className="rup-success__context">
+                    We attached <strong>{requestedProductName}</strong> to this prescription request for pharmacist review.
+                  </p>
+                )}
                 <div className="rup-success__steps">
                   <div className="rup-success__step rup-success__step--done">
                     <span className="rup-success__step-dot">✓</span>
@@ -176,6 +171,13 @@ function PrescriptionUploadPage() {
             ) : (
               <>
                 <h2 className="rup-form-title">New prescription</h2>
+                {requestedProductName && (
+                  <div className="rup-request-context">
+                    <p>
+                      Upload this prescription to request <strong>{requestedProductName}</strong>. Our pharmacists will verify the document before dispensing.
+                    </p>
+                  </div>
+                )}
 
                 {/* Drop zone */}
                 <div
@@ -291,9 +293,6 @@ function PrescriptionUploadPage() {
               <span className="rup-history__count">{myPrescriptions.length} total</span>
             )}
           </div>
-
-          {cartMessage && <p className="rup-cart-msg">{cartMessage}</p>}
-
           {myPrescriptions.length === 0 ? (
             <div className="rup-empty">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -337,7 +336,7 @@ function PrescriptionUploadPage() {
                     <div className="rup-card__actions">
                       <button className="btn btn--outline btn--sm" type="button" onClick={() => setActivePrescription(rx)}>View details</button>
                       {rx.status === 'Approved' && rx.dispatchStatus !== 'Delivered' && (
-                        <button className="btn btn--primary btn--sm" type="button" onClick={() => addToCart(rx)}>Add meds to cart</button>
+                        <span className="rup-delivered-badge">Approved for fulfilment</span>
                       )}
                       {rx.dispatchStatus === 'Delivered' && (
                         <span className="rup-delivered-badge">✓ Delivered</span>
@@ -403,9 +402,7 @@ function PrescriptionUploadPage() {
             </div>
             <div className="rup-modal__footer">
               {activePrescription.status === 'Approved' && activePrescription.dispatchStatus !== 'Delivered' && (
-                <button className="btn btn--primary btn--sm" type="button" onClick={() => { addToCart(activePrescription); setActivePrescription(null) }}>
-                  Add meds to cart
-                </button>
+                <span className="rup-delivered-badge">Approved for fulfilment</span>
               )}
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActivePrescription(null)}>Close</button>
             </div>

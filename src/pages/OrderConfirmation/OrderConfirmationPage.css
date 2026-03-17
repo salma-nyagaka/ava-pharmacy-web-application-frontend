@@ -1,0 +1,408 @@
+/* ── Page shell ─────────────────────────────────────────────── */
+.oc-page {
+  background: #f8fafc;
+  min-height: 80vh;
+  padding-bottom: 4rem;
+}
+
+/* ── Breadcrumbs ────────────────────────────────────────────── */
+.oc-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.25rem 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.oc-breadcrumbs a {
+  color: #64748b;
+  text-decoration: none;
+}
+
+.oc-breadcrumbs a:hover { color: var(--color-primary); }
+
+/* ── Success banner ─────────────────────────────────────────── */
+.oc-banner {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  padding: 1.5rem 1.75rem;
+  margin: 1.5rem 0 1.75rem;
+}
+
+.oc-banner__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.oc-banner__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.oc-banner__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #14532d;
+  margin: 0;
+}
+
+.oc-banner__sub {
+  font-size: 0.875rem;
+  color: #166534;
+  margin: 0;
+}
+
+.oc-banner__order-no {
+  margin-left: auto;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.oc-banner__order-no span {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #4ade80;
+  margin-bottom: 0.15rem;
+}
+
+.oc-banner__order-no strong {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #14532d;
+  letter-spacing: 0.02em;
+}
+
+/* ── Two-column layout ──────────────────────────────────────── */
+.oc-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* ── Section card ───────────────────────────────────────────── */
+.oc-section {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.oc-section:last-child { margin-bottom: 0; }
+
+.oc-section__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.oc-section__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(232, 23, 80, 0.08);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.oc-section__icon--green {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+}
+
+.oc-section__icon--blue {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+}
+
+.oc-section__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+/* ── Order items table ──────────────────────────────────────── */
+.oc-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.oc-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.oc-item:last-child { border-bottom: none; padding-bottom: 0; }
+.oc-item:first-child { padding-top: 0; }
+
+.oc-item__qty {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.oc-item__name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #0f172a;
+  flex: 1;
+}
+
+.oc-item__sku {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  display: block;
+  margin-top: 0.1rem;
+}
+
+.oc-item__price {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+/* ── Totals ─────────────────────────────────────────────────── */
+.oc-totals {
+  margin-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.oc-totals__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8375rem;
+  color: #475569;
+}
+
+.oc-totals__row--total {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 0.35rem;
+  padding-top: 0.75rem;
+}
+
+/* ── Delivery info rows ─────────────────────────────────────── */
+.oc-info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.oc-info-row {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.oc-info-row__label {
+  min-width: 110px;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 0.15rem;
+}
+
+.oc-info-row__value {
+  color: #0f172a;
+  font-weight: 500;
+}
+
+/* ── Timeline (what's next) ─────────────────────────────────── */
+.oc-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+.oc-timeline::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 20px;
+  bottom: 20px;
+  width: 2px;
+  background: #e2e8f0;
+}
+
+.oc-step {
+  display: flex;
+  gap: 0.875rem;
+  align-items: flex-start;
+  padding: 0 0 1.1rem;
+  position: relative;
+}
+
+.oc-step:last-child { padding-bottom: 0; }
+
+.oc-step__dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  color: #94a3b8;
+}
+
+.oc-step__dot--done {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+.oc-step__dot--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.oc-step__text {
+  padding-top: 0.35rem;
+}
+
+.oc-step__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 0.1rem;
+}
+
+.oc-step__sub {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* ── CTA buttons ────────────────────────────────────────────── */
+.oc-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-top: 1.5rem;
+}
+
+.oc-cta .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Badge chip ─────────────────────────────────────────────── */
+.oc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.oc-chip--green  { background: #dcfce7; color: #15803d; }
+.oc-chip--blue   { background: #dbeafe; color: #1d4ed8; }
+.oc-chip--amber  { background: #fef9c3; color: #92400e; }
+.oc-chip--slate  { background: #f1f5f9; color: #475569; }
+
+/* ── Loading / error ────────────────────────────────────────── */
+.oc-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  gap: 1rem;
+  color: #64748b;
+  font-size: 0.9375rem;
+}
+
+.oc-loading__spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e2e8f0;
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: oc-spin 0.7s linear infinite;
+}
+
+@keyframes oc-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .oc-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .oc-banner {
+    flex-wrap: wrap;
+  }
+
+  .oc-banner__order-no {
+    margin-left: 0;
+    text-align: left;
+  }
+}
+
+@media (max-width: 600px) {
+  .oc-banner {
+    padding: 1.25rem;
+    gap: 1rem;
+  }
+
+  .oc-section {
+    padding: 1.25rem;
+  }
+}

@@ -216,6 +216,53 @@
   flex-shrink: 0;
 }
 
+.pdp__rx-gate {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(234, 88, 12, 0.18);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255, 247, 237, 0.95), rgba(255, 255, 255, 1));
+}
+
+.pdp__rx-gate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(234, 88, 12, 0.12);
+  color: #c2410c;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.pdp__rx-gate-badge svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pdp__rx-gate-text {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.pdp__rx-gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.pdp__rx-gate-note {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #92400e;
+}
+
 .pdp__wishlist-btn {
   width: 48px;
   min-width: 48px;
@@ -511,6 +558,10 @@
     flex-direction: column;
   }
 
+  .pdp__rx-gate-actions {
+    flex-direction: column;
+  }
+
   .quantity-selector {
     width: 100%;
     justify-content: space-between;
@@ -550,4 +601,14 @@
   .tab-content {
     padding: 1rem;
   }
+}
+
+.pdp__wishlist-btn--active {
+  background: rgba(232, 23, 80, 0.12);
+  border-color: rgba(232, 23, 80, 0.18);
+  color: var(--color-primary);
+}
+
+.pdp__wishlist-btn--active svg {
+  color: var(--color-primary);
 }

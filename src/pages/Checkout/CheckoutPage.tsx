@@ -8,9 +8,11 @@ import { fetchSavedAddresses, type SavedAddress } from '../../services/addressSe
 import {
   createCheckoutDraft,
   createPaymentIntent,
+  fetchFlutterwaveStatus,
   fetchOrder,
   fetchShippingMethods,
   finalizeCheckout,
+  initiateFlutterwavePayment,
   syncPaymentIntent,
   type Order,
   type PaymentIntent,
@@ -21,6 +23,8 @@ import './CheckoutPage.css'
 
 type PaymentStatus = 'idle' | 'waiting' | 'confirmed' | 'failed'
 type DeliveryMethodOption = 'store_pickup' | 'doorstep_delivery'
+type MpesaFlow = 'stk' | 'paybill'
+const CHECKOUT_ORDER_STORAGE_KEY = 'ava_checkout_order_id'
 
 const deliveryMethodLabels: Record<DeliveryMethodOption, string> = {
   store_pickup: 'Store Pickup',
@@ -63,12 +67,20 @@ const CheckIcon = () => (
   </svg>
 )
 
+const CopyIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="14" height="14">
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
+  </svg>
+)
+
 function CheckoutPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [currentStep, setCurrentStep] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card' | 'cash'>('mpesa')
+  const [mpesaFlow, setMpesaFlow] = useState<MpesaFlow>('stk')
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle')
   const [paymentNotice, setPaymentNotice] = useState('')
   const [mpesaPhone, setMpesaPhone] = useState('')
@@ -93,6 +105,38 @@ function CheckoutPage() {
   const [saveAddress, setSaveAddress] = useState(false)
   const [setDefaultAddress, setSetDefaultAddress] = useState(false)
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true)
+  const [copiedField, setCopiedField] = useState<'paybill-number' | 'paybill-account' | null>(null)
+  const isPaymentLocked = paymentStatus === 'confirmed'
+
+  const applyRestoredPaymentState = (order: Order, latestIntent: PaymentIntent | null) => {
+    setPaymentIntent(latestIntent)
+    if (latestIntent?.provider === 'paybill' || order.payment_method === 'mpesa_paybill') {
+      setMpesaFlow('paybill')
+    } else if (order.payment_method === 'mpesa_stk' || latestIntent?.provider === 'mpesa') {
+      setMpesaFlow('stk')
+    }
+
+    if (latestIntent?.status === 'succeeded' || order.payment_status === 'paid') {
+      setPaymentStatus('confirmed')
+      setPaymentNotice('Payment made successfully.')
+      setCurrentStep(3)
+      return
+    }
+    if (latestIntent?.status === 'requires_action' || order.payment_status === 'requires_action') {
+      setPaymentStatus('waiting')
+      setPaymentNotice('Waiting for payment confirmation.')
+      setCurrentStep(3)
+      return
+    }
+    if (latestIntent?.status === 'failed' || latestIntent?.status === 'cancelled' || order.payment_status === 'failed') {
+      setPaymentStatus('failed')
+      setPaymentNotice('Payment failed. Try again.')
+      setCurrentStep(3)
+      return
+    }
+    setPaymentStatus('idle')
+    setPaymentNotice('')
+  }
 
   useEffect(() => {
     const refresh = () => {
@@ -104,6 +148,38 @@ function CheckoutPage() {
     }).catch(() => {})
     const unsubscribe = cartService.subscribe(refresh)
     return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    const storedOrderId = window.localStorage.getItem(CHECKOUT_ORDER_STORAGE_KEY)
+    if (!storedOrderId) return
+    let active = true
+    void fetchOrder(Number(storedOrderId))
+      .then((order) => {
+        if (!active) return
+        setDraftOrder(order)
+        setFirstName(order.shipping_first_name ?? '')
+        setLastName(order.shipping_last_name ?? '')
+        setEmail(order.shipping_email ?? '')
+        setPhone(order.shipping_phone ?? '')
+        setMpesaPhone(order.shipping_phone ?? '')
+        setStreet(order.shipping_street ?? '')
+        setCity(order.shipping_city ?? '')
+        setCounty(order.shipping_county ?? '')
+        if (order.payment_method === 'card') setPaymentMethod('card')
+        else if (order.payment_method === 'cash_on_delivery') setPaymentMethod('cash')
+        else setPaymentMethod('mpesa')
+
+        const latestIntent = order.payment_intents?.[0] ?? null
+        applyRestoredPaymentState(order, latestIntent)
+      })
+      .catch(() => {
+        if (!active) return
+        window.localStorage.removeItem(CHECKOUT_ORDER_STORAGE_KEY)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   useEffect(() => {
@@ -156,7 +232,7 @@ function CheckoutPage() {
   }, [])
 
   useEffect(() => {
-    const hasCardCallback = !!searchParams.get('intent_id') && !!searchParams.get('transaction_id')
+    const hasCardCallback = !!searchParams.get('tx_ref') && !!searchParams.get('transaction_id')
     if (hasCardCallback) return
     if (paymentMethod === 'cash') {
       setPaymentStatus('confirmed')
@@ -173,48 +249,97 @@ function CheckoutPage() {
   }, [deliveryMethod, paymentMethod, searchParams])
 
   useEffect(() => {
-    const hasCardCallback = !!searchParams.get('intent_id') && !!searchParams.get('transaction_id')
+    const hasCardCallback = !!searchParams.get('tx_ref') && !!searchParams.get('transaction_id')
     if (hasCardCallback) return
     if (paymentMethod !== 'mpesa') return
     setPaymentStatus('idle')
     setPaymentNotice('')
     setValidationError('')
-  }, [paymentMethod, searchParams])
+  }, [paymentMethod, mpesaFlow, searchParams])
 
   useEffect(() => {
     let cancelled = false
     const intentId = searchParams.get('intent_id')
     const orderId = searchParams.get('order_id')
     const transactionId = searchParams.get('transaction_id')
+    const txRef = searchParams.get('tx_ref')
     const status = searchParams.get('status')
-    if (!intentId || !transactionId || status !== 'successful') return
+    if (!txRef || !status) return
 
     setCurrentStep(3)
     setPaymentMethod('card')
+
+    if (status === 'cancelled' || status === 'failed') {
+      setPaymentStatus('failed')
+      setPaymentNotice('Payment failed. Try again.')
+      setValidationError('')
+      setSearchParams({}, { replace: true })
+      return
+    }
+
+    if (!transactionId) {
+      setPaymentStatus('failed')
+      setPaymentNotice('Payment failed. Try again.')
+      setValidationError('')
+      setSearchParams({}, { replace: true })
+      return
+    }
+
     setPaymentStatus('waiting')
     setPaymentNotice('Verifying card payment…')
 
-    void syncPaymentIntent(Number(intentId), { transaction_id: transactionId })
+    void fetchFlutterwaveStatus(txRef, transactionId)
       .then(async (intent) => {
         if (cancelled) return
         setPaymentIntent(intent)
         if (intent.status === 'succeeded') {
           setPaymentStatus('confirmed')
-          setPaymentNotice('Card payment confirmed. You can now place your order.')
+          setPaymentNotice('Payment made successfully.')
+          setValidationError('')
           if (orderId) {
             const order = await fetchOrder(Number(orderId))
             if (!cancelled) setDraftOrder(order)
           }
+        } else if (intent.status === 'requires_action' || intent.status === 'pending') {
+          setPaymentStatus('waiting')
+          setPaymentNotice('Waiting for payment confirmation.')
         } else {
           setPaymentStatus('failed')
-          setValidationError(intent.last_error || 'Card payment could not be confirmed.')
+          setPaymentNotice('Payment failed. Try again.')
+          setValidationError('')
         }
         setSearchParams({}, { replace: true })
       })
-      .catch(() => {
+      .catch(async () => {
         if (cancelled) return
-        setPaymentStatus('failed')
-        setValidationError('Card payment verification failed. Please try again.')
+        if (intentId && transactionId) {
+          try {
+            const intent = await syncPaymentIntent(Number(intentId), { transaction_id: transactionId })
+            if (cancelled) return
+            setPaymentIntent(intent)
+            if (intent.status === 'succeeded') {
+              setPaymentStatus('confirmed')
+              setPaymentNotice('Payment made successfully.')
+              setValidationError('')
+            } else if (intent.status === 'requires_action' || intent.status === 'pending') {
+              setPaymentStatus('waiting')
+              setPaymentNotice('Waiting for payment confirmation.')
+            } else {
+              setPaymentStatus('failed')
+              setPaymentNotice('Payment failed. Try again.')
+              setValidationError('')
+            }
+          } catch {
+            if (cancelled) return
+            setPaymentStatus('failed')
+            setPaymentNotice('Payment failed. Try again.')
+            setValidationError('')
+          }
+        } else {
+          setPaymentStatus('failed')
+          setPaymentNotice('Payment failed. Try again.')
+          setValidationError('')
+        }
         setSearchParams({}, { replace: true })
       })
 
@@ -229,18 +354,35 @@ function CheckoutPage() {
           setPaymentIntent(intent)
           if (intent.status === 'succeeded') {
             setPaymentStatus('confirmed')
-            setPaymentNotice('M-Pesa payment confirmed. You can now place your order.')
+            setPaymentNotice('Payment made successfully.')
+            setValidationError('')
             window.clearInterval(intervalId)
           } else if (intent.status === 'failed' || intent.status === 'cancelled') {
             setPaymentStatus('failed')
-            setValidationError(intent.last_error || 'M-Pesa payment failed.')
+            setPaymentNotice('Payment failed. Try again.')
+            setValidationError('')
             window.clearInterval(intervalId)
+          } else {
+            setPaymentNotice('Waiting for payment confirmation.')
           }
         })
         .catch(() => {})
     }, 5000)
     return () => window.clearInterval(intervalId)
   }, [paymentIntent, paymentStatus])
+
+  useEffect(() => {
+    if (!draftOrder || paymentMethod !== 'mpesa' || mpesaFlow !== 'paybill' || paymentStatus !== 'waiting') return
+    const intervalId = window.setInterval(() => {
+      void fetchOrder(draftOrder.id)
+        .then((order) => {
+          setDraftOrder(order)
+          applyRestoredPaymentState(order, order.payment_intents?.[0] ?? null)
+        })
+        .catch(() => {})
+    }, 10000)
+    return () => window.clearInterval(intervalId)
+  }, [draftOrder, paymentMethod, mpesaFlow, paymentStatus])
 
   useEffect(() => {
     if (!cartItems.length) {
@@ -296,6 +438,21 @@ function CheckoutPage() {
       : (subtotal >= 3000 || cartItems.length === 0 ? 0 : 300)
   const total = subtotal + delivery
   const itemCount = cartItems.reduce((s, i) => s + i.quantity, 0)
+  const paymentNoticeTone = paymentStatus === 'confirmed' || paymentNotice.toLowerCase().includes('initiated') || paymentNotice.toLowerCase().includes('success')
+    ? 'success'
+    : paymentStatus === 'failed'
+      ? 'error'
+      : 'info'
+  const paymentStatusMessage =
+    paymentStatus === 'confirmed'
+      ? 'Payment made successfully.'
+      : paymentStatus === 'failed'
+        ? 'Payment failed. Try again.'
+        : paymentStatus === 'waiting'
+          ? 'Waiting for payment confirmation.'
+          : 'Payment not started'
+
+  const selectedMethodTone = paymentMethod === 'card' ? 'card' : paymentMethod === 'cash' ? 'cash' : 'mpesa'
 
   const fmt = (price: number) => `KSh ${price.toLocaleString()}`
 
@@ -306,6 +463,28 @@ function CheckoutPage() {
   }, [city, cityOptions])
 
   const validateCardDetails = () => {
+    setValidationError('')
+    return true
+  }
+
+  const handleCopyValue = async (value: string, field: 'paybill-number' | 'paybill-account') => {
+    if (!value.trim()) return
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopiedField(field)
+      window.setTimeout(() => {
+        setCopiedField((current) => (current === field ? null : current))
+      }, 1600)
+    } catch {
+      setValidationError('Copy failed. Please copy the value manually.')
+    }
+  }
+
+  const validatePaybillDetails = (order: Order | null) => {
+    if (!order?.paybill_number) {
+      setValidationError('M-Pesa paybill is not configured yet.')
+      return false
+    }
     setValidationError('')
     return true
   }
@@ -349,6 +528,7 @@ function CheckoutPage() {
   }, [saveAddress, savedAddresses.length, selectedAddressId])
 
   const handleContinueToPayment = () => {
+    if (isPaymentLocked) return
     if (!validateStepOne()) return
     if (!mpesaPhone.trim() && phone.trim()) setMpesaPhone(phone.trim())
     setCurrentStep(2)
@@ -367,7 +547,9 @@ function CheckoutPage() {
     address_label: selectedAddressId === 'new' ? addressLabel.trim() : '',
     set_default_address: selectedAddressId === 'new' ? (savedAddresses.length === 0 || setDefaultAddress) : false,
     payment_method:
-      paymentMethod === 'card'
+      paymentMethod === 'mpesa'
+        ? (mpesaFlow === 'paybill' ? 'mpesa_paybill' : 'mpesa_stk')
+        : paymentMethod === 'card'
         ? 'card'
         : paymentMethod === 'cash'
           ? 'cash_on_delivery'
@@ -376,21 +558,55 @@ function CheckoutPage() {
     delivery_method: deliveryMethod,
   } as const)
 
+  const doesDraftMatchCheckoutPayload = (order: Order) => {
+    const payload = buildCheckoutPayload()
+    return (
+      order.payment_method === payload.payment_method &&
+      order.delivery_method === payload.delivery_method &&
+      (order.shipping_first_name ?? '') === payload.first_name &&
+      (order.shipping_last_name ?? '') === payload.last_name &&
+      (order.shipping_email ?? '') === payload.email &&
+      (order.shipping_phone ?? '') === payload.phone &&
+      (order.shipping_street ?? '') === payload.street &&
+      (order.shipping_city ?? '') === payload.city &&
+      (order.shipping_county ?? '') === payload.county &&
+      String(order.shipping_method?.id ?? '') === String(payload.shipping_method_id ?? '')
+    )
+  }
+
   const ensureDraftOrder = async () => {
+    if (
+      draftOrder &&
+      [ 'draft', 'pending', 'paid' ].includes(String(draftOrder.status).toLowerCase()) &&
+      doesDraftMatchCheckoutPayload(draftOrder)
+    ) {
+      return draftOrder
+    }
     const order = await createCheckoutDraft(buildCheckoutPayload())
     setDraftOrder(order)
+    window.localStorage.setItem(CHECKOUT_ORDER_STORAGE_KEY, String(order.id))
     return order
   }
 
+  useEffect(() => {
+    if (currentStep !== 2 || paymentMethod !== 'mpesa' || mpesaFlow !== 'paybill' || isSubmitting) return
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !phone.trim() || !street.trim() || !city.trim() || !county.trim()) return
+    if (draftOrder && doesDraftMatchCheckoutPayload(draftOrder)) return
+    void ensureDraftOrder().catch(() => {})
+  }, [currentStep, paymentMethod, mpesaFlow, draftOrder, isSubmitting, firstName, lastName, email, phone, street, city, county])
+
   const handleInitiatePayment = async () => {
+    if (isPaymentLocked) return false
     if (paymentMethod === 'cash') return false
     if (paymentStatus === 'waiting' || isSubmitting) return false
     if (!validateStepOne()) return false
     if (paymentMethod === 'mpesa') {
-      const normalized = mpesaPhone.trim().replace(/\s+/g, '')
-      if (!/^(\+254|254|0)7\d{8}$/.test(normalized)) {
-        setValidationError('Enter a valid M-Pesa number (e.g. 07XXXXXXXX or +2547XXXXXXXX).')
-        return false
+      if (mpesaFlow === 'stk') {
+        const normalized = mpesaPhone.trim().replace(/\s+/g, '')
+        if (!/^(\+254|254|0)7\d{8}$/.test(normalized)) {
+          setValidationError('Enter a valid M-Pesa number (e.g. 07XXXXXXXX or +2547XXXXXXXX).')
+          return false
+        }
       }
     }
     if (paymentMethod === 'card' && !validateCardDetails()) return false
@@ -399,36 +615,77 @@ function CheckoutPage() {
     try {
       const order = await ensureDraftOrder()
       if (paymentMethod === 'mpesa') {
+        if (mpesaFlow === 'paybill') {
+          if (!validatePaybillDetails(order)) return false
+          const intent = await createPaymentIntent({
+            order_id: order.id,
+            provider: 'paybill',
+            metadata: {
+              account_reference: order.paybill_account_reference ?? draftOrder?.paybill_account_reference ?? '',
+              paybill_number: order.paybill_number ?? draftOrder?.paybill_number ?? '',
+            },
+          })
+          setPaymentIntent(intent)
+          setDraftOrder(order)
+          if (intent.status === 'succeeded') {
+            setPaymentNotice('Payment made successfully.')
+            setPaymentStatus('confirmed')
+          } else if (intent.status === 'failed' || intent.status === 'cancelled') {
+            setPaymentNotice('Payment failed. Try again.')
+            setPaymentStatus('failed')
+          } else {
+            setPaymentNotice('Waiting for payment confirmation.')
+            setPaymentStatus('waiting')
+          }
+          setCurrentStep(3)
+          return true
+        }
         const intent = await createPaymentIntent({
           order_id: order.id,
           provider: 'mpesa',
           phone: mpesaPhone.trim(),
         })
         setPaymentIntent(intent)
-        setPaymentNotice(intent.client_secret || `STK push sent to ${mpesaPhone.trim()}.`)
+        setPaymentNotice('Payment request initiated.')
         setPaymentStatus('waiting')
+        setCurrentStep(3)
         return true
       }
-      const intent = await createPaymentIntent({
+      const intent = await initiateFlutterwavePayment({
         order_id: order.id,
-        provider: 'card',
         return_url: `${window.location.origin}/checkout`,
       })
       setPaymentIntent(intent)
+      setPaymentStatus('waiting')
+      setPaymentNotice('Redirecting to secure card payment…')
       if (intent.next_action_url) {
         window.location.assign(intent.next_action_url)
         return true
       }
-      setValidationError('Card checkout link was not returned.')
       setPaymentStatus('failed')
+      setPaymentNotice('Payment failed. Try again.')
+      setValidationError('')
       return false
     } catch (error) {
       type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string } } }
       const message = (error as ApiErr)?.response?.data?.error?.message
         ?? (error as ApiErr)?.response?.data?.detail
-        ?? 'Unable to initiate payment.'
-      setValidationError(message)
+        ?? 'Payment failed. Try again.'
+      const paidOrderMessage = 'This order is no longer awaiting payment.'
+      if (message.includes(paidOrderMessage) && draftOrder) {
+        try {
+          const refreshedOrder = await fetchOrder(draftOrder.id)
+          setDraftOrder(refreshedOrder)
+          applyRestoredPaymentState(refreshedOrder, refreshedOrder.payment_intents?.[0] ?? null)
+          setValidationError('')
+          return true
+        } catch {
+          // fall through to the generic failure state below if refresh fails
+        }
+      }
       setPaymentStatus('failed')
+      setPaymentNotice('Payment failed. Try again.')
+      setValidationError(message)
       return false
     } finally {
       setIsSubmitting(false)
@@ -436,11 +693,13 @@ function CheckoutPage() {
   }
 
   const handleStkFromPaymentStep = async () => { if (await handleInitiatePayment()) setCurrentStep(3) }
+  const handlePaybillContinueToReview = async () => { if (await handleInitiatePayment()) setCurrentStep(3) }
   const handleCardContinueToConfirm = async () => { if (await handleInitiatePayment()) setCurrentStep(3) }
 
   const handlePlaceOrder = async () => {
     if ((paymentMethod === 'mpesa' || paymentMethod === 'card') && paymentStatus !== 'confirmed') {
-      setValidationError('Complete payment confirmation before placing the order.')
+      setValidationError('')
+      setPaymentNotice(paymentStatus === 'failed' ? 'Payment failed. Try again.' : 'Waiting for payment confirmation.')
       return
     }
     if (!validateStepOne()) return
@@ -449,6 +708,7 @@ function CheckoutPage() {
       const order = draftOrder ?? await ensureDraftOrder()
       const finalized = await finalizeCheckout(order.id)
       setDraftOrder(finalized)
+      window.localStorage.removeItem(CHECKOUT_ORDER_STORAGE_KEY)
       navigate('/order-confirmation', { state: { orderId: finalized.id } })
     } catch (error) {
       type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string | string[] } } }
@@ -711,17 +971,17 @@ function CheckoutPage() {
                 </div>
 
                 <div className="co-payment-methods">
-                  <label className={`co-pm ${paymentMethod === 'mpesa' ? 'co-pm--selected' : ''}`}>
+                  <label className={`co-pm ${paymentMethod === 'mpesa' ? 'co-pm--selected co-pm--selected-mpesa' : ''}`}>
                     <input type="radio" name="payment" checked={paymentMethod === 'mpesa'} onChange={() => setPaymentMethod('mpesa')} />
                     <div className="co-pm__icon co-pm__icon--mpesa"><MpesaIcon /></div>
                     <div className="co-pm__text">
                       <strong>M-Pesa</strong>
-                      <span>Pay via M-Pesa mobile money</span>
+                      <span>{mpesaFlow === 'paybill' ? 'Choose STK Push or pay via paybill number' : 'Choose STK Push or pay via paybill number'}</span>
                     </div>
                     <div className="co-pm__radio" />
                   </label>
 
-                  <label className={`co-pm ${paymentMethod === 'card' ? 'co-pm--selected' : ''}`}>
+                  <label className={`co-pm ${paymentMethod === 'card' ? 'co-pm--selected co-pm--selected-card' : ''}`}>
                     <input type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
                     <div className="co-pm__icon co-pm__icon--card"><CardIcon /></div>
                     <div className="co-pm__text">
@@ -731,7 +991,7 @@ function CheckoutPage() {
                     <div className="co-pm__radio" />
                   </label>
 
-                  <label className={`co-pm ${paymentMethod === 'cash' ? 'co-pm--selected' : ''}`}>
+                  <label className={`co-pm ${paymentMethod === 'cash' ? 'co-pm--selected co-pm--selected-cash' : ''}`}>
                     <input type="radio" name="payment" checked={paymentMethod === 'cash'} onChange={() => setPaymentMethod('cash')} />
                     <div className="co-pm__icon co-pm__icon--cash"><CashIcon /></div>
                     <div className="co-pm__text">
@@ -743,14 +1003,36 @@ function CheckoutPage() {
                 </div>
 
                 {paymentMethod === 'mpesa' && (
+                  <div className="co-mpesa-flow">
+                    <div className="co-mpesa-flow__label">Choose how to pay</div>
+                    <div className="co-mpesa-opts">
+                    <label className={`co-mpesa-opt ${mpesaFlow === 'stk' ? 'co-mpesa-opt--active' : ''}`}>
+                      <input type="radio" name="mpesa-flow" checked={mpesaFlow === 'stk'} onChange={() => setMpesaFlow('stk')} />
+                      <div>
+                        <strong>STK Push</strong>
+                        <p>Prompt sent to your phone</p>
+                      </div>
+                    </label>
+                    <label className={`co-mpesa-opt ${mpesaFlow === 'paybill' ? 'co-mpesa-opt--active' : ''}`}>
+                      <input type="radio" name="mpesa-flow" checked={mpesaFlow === 'paybill'} onChange={() => setMpesaFlow('paybill')} />
+                      <div>
+                        <strong>Paybill Number</strong>
+                        <p>Pay manually and submit code</p>
+                      </div>
+                    </label>
+                  </div>
+                  </div>
+                )}
+
+                {paymentMethod === 'mpesa' && mpesaFlow === 'stk' && (
                   <div className="co-field co-payment-extra">
                     <label className="co-field__label">M-Pesa Number *</label>
                     <input className="co-field__input" type="tel" placeholder="e.g. 0712345678 or +254712345678" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} />
                   </div>
                 )}
 
-                {paymentMethod === 'mpesa' && (
-                  <div className="co-paybill-box" aria-live="polite">
+                {paymentMethod === 'mpesa' && mpesaFlow === 'stk' && (
+                  <div className={`co-paybill-box co-paybill-box--${selectedMethodTone}`} aria-live="polite">
                     <p className="co-paybill-box__label">M-Pesa STK Push</p>
                     <div className="co-paybill-box__rows">
                       <div className="co-paybill-box__row"><span>Flow</span><strong>Prompt sent to your phone</strong></div>
@@ -760,8 +1042,54 @@ function CheckoutPage() {
                   </div>
                 )}
 
+                {paymentMethod === 'mpesa' && mpesaFlow === 'paybill' && (
+                  <>
+                    <div className={`co-paybill-box co-paybill-box--${selectedMethodTone}`} aria-live="polite">
+                      <p className="co-paybill-box__label">M-Pesa Paybill</p>
+                      <div className="co-paybill-box__rows">
+                        <div className="co-paybill-box__row">
+                          <span>Paybill Number</span>
+                          <strong>
+                            {draftOrder?.paybill_number || 'Not configured'}
+                            {!!draftOrder?.paybill_number && (
+                              <button
+                                type="button"
+                                className="co-copy-btn"
+                                onClick={() => void handleCopyValue(draftOrder.paybill_number || '', 'paybill-number')}
+                                aria-label="Copy M-Pesa paybill number"
+                              >
+                                {copiedField === 'paybill-number' ? <CheckIcon /> : <CopyIcon />}
+                              </button>
+                            )}
+                          </strong>
+                        </div>
+                        <div className="co-paybill-box__row">
+                          <span>{draftOrder?.paybill_account_label || 'Account Number'}</span>
+                          <strong>
+                            {draftOrder?.paybill_account_reference || 'Generating order reference…'}
+                            {!!draftOrder?.paybill_account_reference && (
+                              <button
+                                type="button"
+                                className="co-copy-btn"
+                                onClick={() => void handleCopyValue(draftOrder.paybill_account_reference || '', 'paybill-account')}
+                                aria-label="Copy M-Pesa account number"
+                              >
+                                {copiedField === 'paybill-account' ? <CheckIcon /> : <CopyIcon />}
+                              </button>
+                            )}
+                          </strong>
+                        </div>
+                        <div className="co-paybill-box__row"><span>Amount</span><strong>{fmt(total)}</strong></div>
+                      </div>
+                      <p className="co-note" style={{ marginTop: '0.75rem' }}>
+                        {draftOrder?.paybill_instructions || 'Pay using the details above. We confirm the payment automatically once it is reconciled.'}
+                      </p>
+                    </div>
+                  </>
+                )}
+
                 {paymentMethod === 'card' && (
-                  <div className="co-paybill-box" aria-live="polite">
+                  <div className={`co-paybill-box co-paybill-box--${selectedMethodTone}`} aria-live="polite">
                     <p className="co-paybill-box__label">Secure Card Checkout</p>
                     <div className="co-paybill-box__rows">
                       <div className="co-paybill-box__row"><span>Provider</span><strong>Flutterwave</strong></div>
@@ -774,12 +1102,17 @@ function CheckoutPage() {
                 {validationError && <p className="co-error">{validationError}</p>}
 
                 <div className="co-actions">
-                  <button onClick={() => setCurrentStep(1)} className="btn btn--outline" type="button">Back</button>
-                  {paymentMethod === 'mpesa' && (
-                    <button onClick={handleStkFromPaymentStep} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting}>{isSubmitting ? 'Starting…' : 'Initiate STK Push'}</button>
+                  <button onClick={() => setCurrentStep(1)} className="btn btn--outline" type="button" disabled={isPaymentLocked}>Back</button>
+                  {paymentMethod === 'mpesa' && mpesaFlow === 'stk' && (
+                    <button onClick={handleStkFromPaymentStep} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting || isPaymentLocked}>{isSubmitting ? 'Starting…' : 'Initiate STK Push'}</button>
+                  )}
+                  {paymentMethod === 'mpesa' && mpesaFlow === 'paybill' && (
+                    <button onClick={handlePaybillContinueToReview} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting || isPaymentLocked}>
+                      {isSubmitting ? 'Checking…' : 'Continue to Review'}
+                    </button>
                   )}
                   {paymentMethod === 'card' && (
-                    <button onClick={handleCardContinueToConfirm} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting}>{isSubmitting ? 'Redirecting…' : 'Continue to Secure Card Payment'}</button>
+                    <button onClick={handleCardContinueToConfirm} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting || isPaymentLocked}>{isSubmitting ? 'Redirecting…' : 'Continue to Secure Card Payment'}</button>
                   )}
                   {paymentMethod === 'cash' && (
                     <button onClick={() => setCurrentStep(3)} className="btn btn--primary btn--lg" type="button">Proceed to Review</button>
@@ -821,11 +1154,16 @@ function CheckoutPage() {
                       Payment
                     </h3>
                     <p className="co-review-block__text">
-                      {paymentMethod === 'mpesa' ? 'M-Pesa' : paymentMethod === 'card' ? 'Credit/Debit Card' : 'Cash on Delivery'}
+                      {paymentMethod === 'mpesa' ? `M-Pesa ${mpesaFlow === 'paybill' ? 'Paybill' : 'STK Push'}` : paymentMethod === 'card' ? 'Credit/Debit Card' : 'Cash on Delivery'}
                     </p>
-                    {paymentMethod === 'mpesa' && (
+                    {paymentMethod === 'mpesa' && mpesaFlow === 'stk' && (
                       <p className="co-review-block__meta">
                         {mpesaPhone || 'No number provided'} · STK Push
+                      </p>
+                    )}
+                    {paymentMethod === 'mpesa' && mpesaFlow === 'paybill' && (
+                      <p className="co-review-block__meta">
+                        {draftOrder?.paybill_number || 'Paybill'} · {draftOrder?.paybill_account_reference || 'Reference pending'}
                       </p>
                     )}
                     {paymentMethod === 'card' && (
@@ -842,15 +1180,65 @@ function CheckoutPage() {
                       <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Payment not started</>
                     )}
                     {paymentStatus === 'waiting' && (
-                      <><span className="co-payment-status__spinner" />Waiting for confirmation…</>
+                      <>
+                        <span className="co-payment-status__spinner" />
+                        {paymentStatusMessage}
+                      </>
                     )}
                     {paymentStatus === 'confirmed' && (
-                      <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> Payment confirmed</>
+                      <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg> {paymentStatusMessage}</>
+                    )}
+                    {paymentStatus === 'failed' && (
+                      <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg> {paymentStatusMessage}</>
                     )}
                   </div>
                 )}
 
-                {paymentNotice && <p className="co-payment-notice">{paymentNotice}</p>}
+                {paymentNotice && <p className={`co-payment-notice co-payment-notice--${paymentNoticeTone}`}>{paymentNotice}</p>}
+
+                {paymentMethod === 'mpesa' && mpesaFlow === 'paybill' && (
+                  <div className={`co-paybill-box co-paybill-box--${selectedMethodTone}`} aria-live="polite">
+                    <p className="co-paybill-box__label">Paybill Confirmation</p>
+                    <div className="co-paybill-box__rows">
+                      <div className="co-paybill-box__row">
+                        <span>Paybill Number</span>
+                        <strong>
+                          {draftOrder?.paybill_number || 'Not configured'}
+                          {!!draftOrder?.paybill_number && (
+                            <button
+                              type="button"
+                              className="co-copy-btn"
+                              onClick={() => void handleCopyValue(draftOrder.paybill_number || '', 'paybill-number')}
+                              aria-label="Copy M-Pesa paybill number"
+                            >
+                              {copiedField === 'paybill-number' ? <CheckIcon /> : <CopyIcon />}
+                            </button>
+                          )}
+                        </strong>
+                      </div>
+                      <div className="co-paybill-box__row">
+                        <span>{draftOrder?.paybill_account_label || 'Account Number'}</span>
+                        <strong>
+                          {draftOrder?.paybill_account_reference || 'Generating order reference…'}
+                          {!!draftOrder?.paybill_account_reference && (
+                            <button
+                              type="button"
+                              className="co-copy-btn"
+                              onClick={() => void handleCopyValue(draftOrder.paybill_account_reference || '', 'paybill-account')}
+                              aria-label="Copy M-Pesa account number"
+                            >
+                              {copiedField === 'paybill-account' ? <CheckIcon /> : <CopyIcon />}
+                            </button>
+                          )}
+                        </strong>
+                      </div>
+                      <div className="co-paybill-box__row"><span>Status</span><strong>{paymentStatus === 'confirmed' ? 'Confirmed' : 'Awaiting reconciliation'}</strong></div>
+                    </div>
+                    <p className="co-note" style={{ marginTop: '0.75rem' }}>
+                      Payment confirmation is handled automatically after the paybill transaction is reconciled.
+                    </p>
+                  </div>
+                )}
 
                 <div className="co-review-items">
                   <h3 className="co-review-items__title">Order Items</h3>
@@ -865,10 +1253,12 @@ function CheckoutPage() {
                 {validationError && <p className="co-error">{validationError}</p>}
 
                 <div className="co-actions">
-                  <button onClick={() => setCurrentStep(2)} className="btn btn--outline" type="button">Back</button>
-                  {(paymentMethod === 'mpesa' || paymentMethod === 'card') && paymentStatus === 'idle' && (
+                  {!isPaymentLocked && <button onClick={() => setCurrentStep(2)} className="btn btn--outline" type="button">Back</button>}
+                  {((paymentMethod === 'card') || (paymentMethod === 'mpesa' && mpesaFlow === 'stk')) && (paymentStatus === 'idle' || paymentStatus === 'failed') && !isPaymentLocked && (
                     <button className="btn btn--outline btn--lg" type="button" onClick={() => void handleInitiatePayment()} disabled={isSubmitting}>
-                      {paymentMethod === 'card' ? (isSubmitting ? 'Redirecting…' : 'Continue to Secure Card Payment') : (isSubmitting ? 'Starting…' : 'Initiate STK Push')}
+                      {paymentMethod === 'card'
+                        ? (isSubmitting ? 'Redirecting…' : 'Continue to Secure Card Payment')
+                        : (isSubmitting ? 'Starting…' : 'Initiate STK Push')}
                     </button>
                   )}
                   <button

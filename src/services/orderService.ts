@@ -22,17 +22,29 @@ export interface ShippingMethod {
 
 export interface PaymentIntent {
   id: number
-  provider: 'mpesa' | 'card' | 'manual'
+  provider: 'mpesa' | 'paybill' | 'card' | 'manual'
   status: 'pending' | 'requires_action' | 'succeeded' | 'failed' | 'cancelled'
   reference: string
   provider_reference: string
+  external_reference?: string
   checkout_request_id: string
   amount: string
   currency: string
   client_secret?: string
   next_action_url: string
   payload: Record<string, unknown>
+  callback_payload?: Record<string, unknown>
   last_error: string
+  error_logs?: Array<Record<string, unknown>>
+  paybill_number?: string
+  paybill_account_reference?: string
+  paybill_account_label?: string
+  paybill_instructions?: string
+  submitted_reference?: string
+  phone_number?: string
+  processed_at?: string | null
+  created_at?: string
+  updated_at?: string
 }
 
 export interface Order {
@@ -42,11 +54,25 @@ export interface Order {
   payment_method: string
   payment_status: string
   payment_reference: string
+  flutterwave_tx_ref?: string
+  flutterwave_tx_id?: string
+  delivery_method?: string
+  shipping_first_name?: string
+  shipping_last_name?: string
+  shipping_email?: string
+  shipping_phone?: string
+  shipping_street?: string
+  shipping_city?: string
+  shipping_county?: string
   subtotal: string
   discount_total: string
   shipping_fee: string
   total: string
   shipping_address: string | null
+  paybill_number?: string
+  paybill_account_reference?: string
+  paybill_account_label?: string
+  paybill_instructions?: string
   shipping_method: ShippingMethod | null
   items: OrderItem[]
   payment_intents: PaymentIntent[]
@@ -104,9 +130,11 @@ export async function createCheckoutDraft(payload: CheckoutDraftPayload): Promis
 
 export async function createPaymentIntent(payload: {
   order_id: number
-  provider: 'mpesa' | 'card' | 'manual'
+  provider: 'mpesa' | 'paybill' | 'card' | 'manual'
   phone?: string
   return_url?: string
+  reference_code?: string
+  metadata?: Record<string, unknown>
 }): Promise<PaymentIntent> {
   const res = await apiClient.post('/payments/intents/', payload)
   return res.data?.data ?? res.data
@@ -114,6 +142,21 @@ export async function createPaymentIntent(payload: {
 
 export async function syncPaymentIntent(id: number, payload: { transaction_id?: string } = {}): Promise<PaymentIntent> {
   const res = await apiClient.post(`/payments/intents/${id}/sync/`, payload)
+  return res.data?.data ?? res.data
+}
+
+export async function initiateFlutterwavePayment(payload: {
+  order_id: number
+  return_url?: string
+}): Promise<PaymentIntent> {
+  const res = await apiClient.post('/orders/payments/flutterwave/initiate/', payload)
+  return res.data?.data ?? res.data
+}
+
+export async function fetchFlutterwaveStatus(txRef: string, transactionId?: string): Promise<PaymentIntent> {
+  const res = await apiClient.get(`/orders/payments/flutterwave/status/${encodeURIComponent(txRef)}/`, {
+    params: transactionId ? { transaction_id: transactionId } : undefined,
+  })
   return res.data?.data ?? res.data
 }
 

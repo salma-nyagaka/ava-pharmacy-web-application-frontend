@@ -9,6 +9,7 @@ import {
   subscribeCartUpdates,
   updateCartItemQuantity,
 } from '../data/cart'
+import { addFavourite } from '../data/favourites'
 
 type CartAddPayload = Omit<CartItem, 'quantity'>
 
@@ -27,13 +28,17 @@ function mapApiItem(item: Record<string, unknown>): CartItem {
     price: parseFloat((item.unit_price ?? item.price ?? '0') as string),
     quantity: (item.quantity ?? 1) as number,
     image: (product.image ?? '') as string,
-    stockSource: ((product.inventory_status ?? '') === 'out_of_stock' ? undefined : 'branch'),
+    stockSource: ((product.inventory_status ?? '') === 'out_of_stock' ? undefined : ((product.stock_source ?? 'branch') as 'branch' | 'warehouse')),
     prescriptionId: item.prescription_id as string | undefined,
   }
 }
 
 function dispatchCartEvent() {
   window.dispatchEvent(new Event('ava-cart-updated'))
+}
+
+function dispatchFavouritesEvent() {
+  window.dispatchEvent(new Event('ava-favourites-service-updated'))
 }
 
 export const cartService = {
@@ -45,6 +50,7 @@ export const cartService = {
       items: localItems.map((item) => ({
         product_id: item.id,
         quantity: item.quantity,
+        prescription_id: item.prescriptionId,
       })),
     })
     clearCartItems()
@@ -75,6 +81,7 @@ export const cartService = {
       await apiClient.post('/cart/items/', {
         product_id: item.id,
         quantity,
+        prescription_id: item.prescriptionId,
       })
       const res = await apiClient.get('/cart/')
       const items: CartItem[] = ((res.data?.data?.items ?? res.data?.items ?? []) as Record<string, unknown>[]).map(mapApiItem)
@@ -125,6 +132,42 @@ export const cartService = {
     }
   },
 
+  moveToWishlist: async (item: CartItem) => {
+    if (!isAuthenticated()) {
+      addFavourite({
+        id: item.id,
+        name: item.name,
+        brand: item.brand,
+        price: item.price,
+        image: item.image,
+        stockSource: item.stockSource ?? 'out',
+      })
+      const updated = removeCartItem(item.id, item.prescriptionId)
+      dispatchCartEvent()
+      return { data: updated }
+    }
+    try {
+      await apiClient.post(`/products/cart/items/${item.serverItemId ?? item.id}/move-to-wishlist/`, {})
+      const res = await apiClient.get('/cart/')
+      const items: CartItem[] = ((res.data?.data?.items ?? res.data?.items ?? []) as Record<string, unknown>[]).map(mapApiItem)
+      dispatchCartEvent()
+      dispatchFavouritesEvent()
+      return { data: items }
+    } catch {
+      addFavourite({
+        id: item.id,
+        name: item.name,
+        brand: item.brand,
+        price: item.price,
+        image: item.image,
+        stockSource: item.stockSource ?? 'out',
+      })
+      const updated = removeCartItem(item.id, item.prescriptionId)
+      dispatchCartEvent()
+      return { data: updated }
+    }
+  },
+
   clear: async () => {
     if (!isAuthenticated()) {
       clearCartItems()
@@ -149,7 +192,7 @@ export const cartService = {
     try {
       const res = await apiClient.get('/cart/')
       const items = (res.data?.data?.items ?? res.data?.items ?? []) as unknown[]
-      const count = items.reduce((acc: number, i: unknown) => acc + ((i as Record<string, unknown>).quantity as number ?? 1), 0)
+      const count = items.reduce((acc: number, i: unknown) => acc + (((i as Record<string, unknown>).quantity as number) ?? 1), 0)
       return { data: count }
     } catch {
       return { data: getCartItemCount() }

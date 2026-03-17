@@ -1,13 +1,13 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { useCategories } from '../../hooks/useCategories'
 import { StockSource } from '../../data/cart'
 import { CatalogProduct } from '../../data/products'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
-import { loadFavourites } from '../../data/favourites'
 import { useProducts } from '../../hooks/useProducts'
+import { useAuth } from '../../context/AuthContext'
 import './ProductListingPage.css'
 
 type ListingProduct = CatalogProduct
@@ -21,6 +21,8 @@ const getStockLabel = (stockSource: StockSource) => {
 }
 
 function ProductListingPage() {
+  const navigate = useNavigate()
+  const { isLoggedIn } = useAuth()
   const [searchParams] = useSearchParams()
   const { category: categoryParam } = useParams()
   const categories = useCategories()
@@ -56,12 +58,17 @@ function ProductListingPage() {
   const [addedProductId, setAddedProductId] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const buildWishlistMap = () => {
-    const map: Record<number, boolean> = {}
-    loadFavourites().forEach((f) => { map[f.id] = true })
-    return map
+  const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
+
+  const refreshWishlist = () => {
+    void favouritesService.list().then((response) => {
+      const map: Record<number, boolean> = {}
+      response.data.forEach((item) => {
+        map[item.id] = true
+      })
+      setWishlist(map)
+    })
   }
-  const [wishlist, setWishlist] = useState<Record<number, boolean>>(buildWishlistMap)
 
   const { products } = useProducts({
     category: categorySlug !== 'all' ? categorySlug : undefined,
@@ -106,11 +113,15 @@ function ProductListingPage() {
   }
 
   useEffect(() => {
-    return favouritesService.subscribe(() => setWishlist(buildWishlistMap()))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    refreshWishlist()
+    return favouritesService.subscribe(refreshWishlist)
   }, [])
 
   const toggleWishlist = (product: ListingProduct) => {
+    if (!isLoggedIn) {
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+      return
+    }
     void favouritesService.toggle({
       id: product.id,
       name: product.name,

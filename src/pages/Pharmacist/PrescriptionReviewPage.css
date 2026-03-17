@@ -530,3 +530,43 @@
   .prx-body { grid-template-columns: 1fr; }
   .prx-meta-grid { grid-template-columns: 1fr; }
 }
+
+
+.prx-item-editor {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.prx-item-editor__row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 96px 1.5fr auto;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.prx-item-editor__input,
+.prx-item-editor__select,
+.prx-item-editor__qty {
+  min-height: 48px;
+}
+
+.prx-item-editor__remove {
+  border: 0;
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.prx-item-editor__remove:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1200px) {
+  .prx-item-editor__row {
+    grid-template-columns: 1fr 1fr;
+  }
+}

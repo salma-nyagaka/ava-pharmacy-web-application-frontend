@@ -1,13 +1,16 @@
+
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PrescriptionRecord } from '../../data/prescriptions'
-import { cartService } from '../../services/cartService'
 import { prescriptionService } from '../../services/prescriptionService'
 import './PrescriptionHistoryPage.css'
 
 function PrescriptionHistoryPage() {
+  const navigate = useNavigate()
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
   const [message, setMessage] = useState('')
+  const [isAddingItemId, setIsAddingItemId] = useState<number | null>(null)
 
   useEffect(() => {
     void prescriptionService.list().then((response) => setPrescriptions(response.data))
@@ -17,27 +20,21 @@ function PrescriptionHistoryPage() {
     return [...prescriptions].sort((a, b) => b.id.localeCompare(a.id))
   }, [prescriptions])
 
-  const addPrescriptionItemsToCart = (prescription: PrescriptionRecord) => {
-    const validItems = prescription.items.filter((item) => item.qty > 0 && item.name !== 'Pending pharmacist review')
-    if (prescription.status !== 'Approved' || validItems.length === 0) {
-      setMessage('Only approved prescriptions can be added to cart.')
+  const handleAddApprovedItem = async (prescriptionId: string, itemId?: number, name?: string) => {
+    if (!itemId) {
+      setMessage('This approved item is not mapped to a product yet.')
       return
     }
-
-    validItems.forEach((item, index) => {
-      void cartService.add(
-        {
-          id: Number(`${prescription.id.replace('RX-', '')}${index + 1}`),
-          name: item.name,
-          brand: 'Prescription item',
-          price: 350,
-          prescriptionId: prescription.id,
-          stockSource: 'warehouse',
-        },
-        item.qty
-      )
-    })
-    setMessage(`Added ${validItems.length} item(s) from ${prescription.id} to cart.`)
+    setIsAddingItemId(itemId)
+    try {
+      await prescriptionService.addApprovedItemToCart(prescriptionId, itemId)
+      setMessage(`${name || 'Item'} added to cart.`)
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Unable to add approved item to cart.'
+      setMessage(detail)
+    } finally {
+      setIsAddingItemId(null)
+    }
   }
 
   return (
@@ -89,13 +86,7 @@ function PrescriptionHistoryPage() {
                         View
                       </button>
                       {rx.status === 'Approved' && (
-                        <button
-                          className="btn btn--primary btn--sm"
-                          type="button"
-                          onClick={() => addPrescriptionItemsToCart(rx)}
-                        >
-                          Add to cart
-                        </button>
+                        <span className="status-pill status-pill--success">Approved for fulfilment</span>
                       )}
                     </div>
                   </td>
@@ -121,11 +112,38 @@ function PrescriptionHistoryPage() {
               <p className="card__meta"><strong>Dispatch:</strong> {activeRx.dispatchStatus}</p>
               <p className="card__meta"><strong>Files:</strong> {activeRx.files.join(', ')}</p>
               <p className="card__meta"><strong>Notes:</strong> {activeRx.notes}</p>
+              <div className="rx-approved-items">
+                <h3 className="rx-approved-items__title">Approved items</h3>
+                {activeRx.items.length === 0 ? (
+                  <p className="card__meta">No fulfilment items have been set yet.</p>
+                ) : (
+                  activeRx.items.map((item) => (
+                    <div key={`${item.backendId || item.name}-${item.name}`} className="rx-approved-items__row">
+                      <div>
+                        <p className="rx-approved-items__name">{item.productName || item.name}</p>
+                        <p className="rx-approved-items__meta">{item.dose} · {item.frequency} · Qty {item.qty}</p>
+                      </div>
+                      {activeRx.status === 'Approved' && item.productId && item.backendId ? (
+                        <button
+                          className="btn btn--primary btn--sm"
+                          type="button"
+                          disabled={isAddingItemId === item.backendId}
+                          onClick={() => void handleAddApprovedItem(activeRx.id, item.backendId, item.productName || item.name)}
+                        >
+                          {isAddingItemId === item.backendId ? 'Adding…' : 'Add to cart'}
+                        </button>
+                      ) : (
+                        <span className="status-pill status-pill--warning">Awaiting mapping</span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
             <div className="modal__footer">
               {activeRx.status === 'Approved' && (
-                <button className="btn btn--primary btn--sm" type="button" onClick={() => addPrescriptionItemsToCart(activeRx)}>
-                  Add to cart
+                <button className="btn btn--outline btn--sm" type="button" onClick={() => navigate('/cart')}>
+                  Open cart
                 </button>
               )}
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>

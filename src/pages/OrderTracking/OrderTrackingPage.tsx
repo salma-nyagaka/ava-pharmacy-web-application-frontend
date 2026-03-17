@@ -1,19 +1,141 @@
 import { useMemo, useState } from 'react'
-import PageHeader from '../../components/PageHeader/PageHeader'
+import { Link } from 'react-router-dom'
 import './OrderTrackingPage.css'
 
-const STEP_ICONS: Record<string, string> = {
-  'Order confirmed': '✅',
-  'Prescription verified': '💊',
-  'Packed & ready': '📦',
-  'Out for delivery': '🚗',
-  'Delivered': '🏠',
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  )
 }
 
-const BANNER_CFG: Record<string, { cls: string; icon: string }> = {
-  'Out for delivery': { cls: 'track-banner--transit', icon: '🚗' },
-  'Delivered': { cls: 'track-banner--delivered', icon: '✅' },
-  'Processing': { cls: 'track-banner--processing', icon: '⚙️' },
+function TruckIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 5v4h-7V8z" />
+      <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+    </svg>
+  )
+}
+
+function PackageIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+  )
+}
+
+function CheckIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width={size} height={size}>
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
+function PillIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /><line x1="8.5" y1="8.5" x2="15.5" y2="15.5" />
+    </svg>
+  )
+}
+
+function ClipboardIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <rect x="9" y="2" width="6" height="4" rx="1" /><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" />
+    </svg>
+  )
+}
+
+function MapPinIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+    </svg>
+  )
+}
+
+function BellIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  )
+}
+
+function PhoneIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.1a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 15.92z" />
+    </svg>
+  )
+}
+
+function MessageIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+function MailIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
+    </svg>
+  )
+}
+
+function LinkIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  )
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
+function ChevronUpIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <polyline points="18 15 12 9 6 15" />
+    </svg>
+  )
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+      <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+    </svg>
+  )
+}
+
+const STEP_ICONS: Record<string, React.ReactNode> = {
+  'Order confirmed': <CheckIcon size={16} />,
+  'Prescription verified': <PillIcon size={16} />,
+  'Packed & ready': <PackageIcon size={16} />,
+  'Out for delivery': <TruckIcon size={16} />,
+  'Delivered': <MapPinIcon size={16} />,
+}
+
+const BANNER_CFG: Record<string, { cls: string; icon: React.ReactNode }> = {
+  'Out for delivery': { cls: 'track-banner--transit', icon: <TruckIcon size={22} /> },
+  'Delivered': { cls: 'track-banner--delivered', icon: <CheckIcon size={22} /> },
+  'Processing': { cls: 'track-banner--processing', icon: <PackageIcon size={22} /> },
 }
 
 function OrderTrackingPage() {
@@ -53,7 +175,7 @@ function OrderTrackingPage() {
 
   const steps = sampleOrder.steps
   const currentStepIndex = steps.findIndex((s) => s.status === 'current')
-  const bannerCfg = BANNER_CFG[sampleOrder.status] ?? { cls: 'track-banner--transit', icon: '📦' }
+  const bannerCfg = BANNER_CFG[sampleOrder.status] ?? { cls: 'track-banner--transit', icon: <TruckIcon size={22} /> }
 
   const handleTrack = () => {
     setError('')
@@ -73,8 +195,8 @@ function OrderTrackingPage() {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/track-order?order=${sampleOrder.id}`)
-      setCopyStatus('Link copied!')
-    } catch { setCopyStatus('Copy failed') }
+      setCopyStatus('Copied!')
+    } catch { setCopyStatus('Failed') }
     window.setTimeout(() => setCopyStatus(''), 2000)
   }
 
@@ -82,19 +204,33 @@ function OrderTrackingPage() {
 
   return (
     <div className="tracking-page">
-      <PageHeader
-        title="Track your order"
-        subtitle="See exactly where your medicines are — from pharmacy shelf to your door."
-        badge="Order Tracking"
-      />
       <section className="page">
         <div className="container">
+
+          {/* Breadcrumbs */}
+          <nav className="track-breadcrumbs">
+            <Link to="/">Home</Link>
+            <span>›</span>
+            <Link to="/account/orders">Orders</Link>
+            <span>›</span>
+            <span>Track order</span>
+          </nav>
+
+          <div className="track-page-header">
+            <h1>Track your order</h1>
+            <p>See exactly where your medicines are — from pharmacy shelf to your door.</p>
+          </div>
 
           {/* ── Search card ─────────────────────────────── */}
           <div className="track-card track-card--hero">
             <div>
-              <h2 className="card__title">Where is my order?</h2>
-              <p className="card__subtitle">You only need <strong>one</strong> of the fields below — your Order ID or phone number.</p>
+              <div className="track-card__head">
+                <span className="track-card__icon">
+                  <SearchIcon />
+                </span>
+                <h2 className="track-card__title">Where is my order?</h2>
+              </div>
+              <p className="track-card__subtitle">You only need <strong>one</strong> of the fields below — your Order ID or phone number.</p>
             </div>
 
             <div className="track-form">
@@ -127,10 +263,13 @@ function OrderTrackingPage() {
                   />
                 </div>
               </div>
-              {error && <p className="track-error">⚠️ {error}</p>}
+              {error && <p className="track-error">{error}</p>}
               <div className="track-actions">
                 <button className="btn btn--primary track-btn--main" type="button" onClick={handleTrack} disabled={isTracking}>
-                  {isTracking ? 'Finding your order…' : '🔍  Track my order'}
+                  {isTracking
+                    ? 'Finding your order…'
+                    : <><SearchIcon /> Track my order</>
+                  }
                 </button>
                 <button className="btn btn--ghost btn--sm" type="button" onClick={applySample}>Try a demo</button>
                 <button className="btn btn--ghost btn--sm" type="button">Need help?</button>
@@ -158,22 +297,19 @@ function OrderTrackingPage() {
 
           {resultReady && (
             <>
-              {/* ── Big status banner ────────────────────── */}
+              {/* ── Status banner ────────────────────── */}
               <div className={`track-banner ${bannerCfg.cls}`}>
                 <div className="track-banner__icon">{bannerCfg.icon}</div>
                 <div className="track-banner__info">
                   <p className="track-banner__status">{sampleOrder.status}</p>
-                  <p className="track-banner__eta">📅 {sampleOrder.eta}</p>
+                  <p className="track-banner__eta">{sampleOrder.eta}</p>
                   <p className="track-banner__meta">Updated {sampleOrder.lastUpdated} · {sampleOrder.payment}</p>
                 </div>
                 <div className="track-banner__courier">
                   <p className="track-banner__courier-label">Your courier</p>
                   <p className="track-banner__courier-name">{sampleOrder.rider.name}</p>
-                  <a
-                    href={`tel:${sampleOrder.rider.phone}`}
-                    className="btn track-banner__call"
-                  >
-                    📞 Call {sampleOrder.rider.name.split(' ')[0]}
+                  <a href={`tel:${sampleOrder.rider.phone}`} className="btn track-banner__call">
+                    <PhoneIcon size={14} /> Call {sampleOrder.rider.name.split(' ')[0]}
                   </a>
                 </div>
               </div>
@@ -202,13 +338,16 @@ function OrderTrackingPage() {
 
                   {/* Timeline */}
                   <div className="track-card">
-                    <div className="track-card__header">
-                      <h2 className="card__title">Delivery timeline</h2>
+                    <div className="track-card__head">
+                      <span className="track-card__icon">
+                        <TruckIcon />
+                      </span>
+                      <h2 className="track-card__title">Delivery timeline</h2>
                       <button className="btn btn--ghost btn--sm" type="button" onClick={handleCopy}>
-                        {copyStatus || '🔗 Share link'}
+                        <LinkIcon size={14} /> {copyStatus || 'Share link'}
                       </button>
                     </div>
-                    <p className="card__subtitle">Tap any step to see more details.</p>
+                    <p className="track-card__subtitle">Tap any step to see more details.</p>
                     <div className="timeline">
                       {steps.map((step, index) => (
                         <button
@@ -219,19 +358,21 @@ function OrderTrackingPage() {
                           aria-expanded={expandedStep === index}
                         >
                           <div className="timeline__icon">
-                            {STEP_ICONS[step.title] ?? '⭕'}
+                            {STEP_ICONS[step.title] ?? <PackageIcon />}
                           </div>
                           <div className="timeline__content">
                             <div className="timeline__title">{step.title}</div>
                             <div className="timeline__body">{step.body}</div>
-                            <div className="card__meta">{step.time}</div>
+                            <div className="timeline__time">{step.time}</div>
                             {expandedStep === index && (
                               <div className="timeline__detail">
-                                📍 Location: Nairobi CBD hub · Handler: {sampleOrder.rider.name}
+                                Location: Nairobi CBD hub · Handler: {sampleOrder.rider.name}
                               </div>
                             )}
                           </div>
-                          <span className="timeline__chevron">{expandedStep === index ? '▲' : '▼'}</span>
+                          <span className="timeline__chevron">
+                            {expandedStep === index ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -239,8 +380,13 @@ function OrderTrackingPage() {
 
                   {/* Delivery notes */}
                   <div className="track-card">
-                    <h3 className="card__title">📝 Leave a note for your courier</h3>
-                    <p className="card__subtitle">Gate locked? Prefer a specific time? Let them know here.</p>
+                    <div className="track-card__head">
+                      <span className="track-card__icon">
+                        <ClipboardIcon />
+                      </span>
+                      <h3 className="track-card__title">Leave a note for your courier</h3>
+                    </div>
+                    <p className="track-card__subtitle">Gate locked? Prefer a specific time? Let them know here.</p>
                     <textarea
                       className="track-note"
                       rows={3}
@@ -248,9 +394,9 @@ function OrderTrackingPage() {
                       onChange={(e) => setDeliveryNote(e.target.value)}
                       placeholder="e.g. Please call on arrival. Gate code is 1234. Leave with security if I'm not home."
                     />
-                    <div className="track-actions">
+                    <div className="track-actions" style={{ marginTop: '0.75rem' }}>
                       <button className="btn btn--outline btn--sm" type="button" onClick={handleSaveNote}>Save note</button>
-                      {noteSaved && <span className="track-toast">✅ Note saved!</span>}
+                      {noteSaved && <span className="track-toast">Note saved!</span>}
                     </div>
                   </div>
                 </div>
@@ -258,8 +404,13 @@ function OrderTrackingPage() {
                 <div className="track-right">
 
                   {/* Order summary */}
-                  <div className="track-card card--soft">
-                    <h3 className="card__title">🧾 What's in this order?</h3>
+                  <div className="track-card">
+                    <div className="track-card__head">
+                      <span className="track-card__icon">
+                        <PackageIcon />
+                      </span>
+                      <h3 className="track-card__title">What's in this order?</h3>
+                    </div>
                     <div className="track-detail">
                       <div><span>Order ID</span><strong>{sampleOrder.id}</strong></div>
                       <div><span>Delivery address</span><strong>{sampleOrder.address}</strong></div>
@@ -268,7 +419,7 @@ function OrderTrackingPage() {
                     <div className="track-items">
                       {sampleOrder.items.map((item) => (
                         <div key={item.name} className="track-item">
-                          <span>💊 {item.name}</span>
+                          <span className="track-item__name"><PillIcon size={13} /> {item.name}</span>
                           <span>{item.qty}× · {item.price}</span>
                         </div>
                       ))}
@@ -277,13 +428,18 @@ function OrderTrackingPage() {
 
                   {/* Notification toggles */}
                   <div className="track-card">
-                    <h3 className="card__title">🔔 Delivery alerts</h3>
-                    <p className="card__subtitle">Choose how we notify you when your order moves.</p>
+                    <div className="track-card__head">
+                      <span className="track-card__icon">
+                        <BellIcon />
+                      </span>
+                      <h3 className="track-card__title">Delivery alerts</h3>
+                    </div>
+                    <p className="track-card__subtitle">Choose how we notify you when your order moves.</p>
                     <div className="track-toggles">
                       {([
-                        { key: 'sms', icon: '📱', label: 'SMS', desc: 'Text message' },
-                        { key: 'whatsapp', icon: '💬', label: 'WhatsApp', desc: 'Chat message' },
-                        { key: 'email', icon: '📧', label: 'Email', desc: 'Email message' },
+                        { key: 'sms', icon: <PhoneIcon size={15} />, label: 'SMS', desc: 'Text message' },
+                        { key: 'whatsapp', icon: <MessageIcon size={15} />, label: 'WhatsApp', desc: 'Chat message' },
+                        { key: 'email', icon: <MailIcon size={15} />, label: 'Email', desc: 'Email message' },
                       ] as const).map(({ key, icon, label, desc }) => (
                         <div key={key} className="track-toggle-row">
                           <div className="track-toggle-row__info">
@@ -312,33 +468,38 @@ function OrderTrackingPage() {
                   </div>
 
                   {/* Help */}
-                  <div className="track-card card--soft">
-                    <h3 className="card__title">🙋 Need help?</h3>
-                    <p className="card__subtitle">Our support team is here for you — reach us any way you prefer.</p>
+                  <div className="track-card">
+                    <div className="track-card__head">
+                      <span className="track-card__icon track-card__icon--blue">
+                        <PhoneIcon />
+                      </span>
+                      <h3 className="track-card__title">Need help?</h3>
+                    </div>
+                    <p className="track-card__subtitle">Our support team is here for you.</p>
                     <div className="track-help-links">
                       <a href="tel:+254700000000" className="track-help-link">
-                        <span className="track-help-link__icon">📞</span>
+                        <span className="track-help-link__icon"><PhoneIcon /></span>
                         <div>
                           <p className="track-help-link__label">Call us</p>
                           <p className="track-help-link__value">+254 700 000 000</p>
                         </div>
-                        <span className="track-help-link__arrow">→</span>
+                        <span className="track-help-link__arrow"><ArrowRightIcon /></span>
                       </a>
                       <a href="https://wa.me/254700000000" className="track-help-link" target="_blank" rel="noreferrer">
-                        <span className="track-help-link__icon">💬</span>
+                        <span className="track-help-link__icon"><MessageIcon /></span>
                         <div>
                           <p className="track-help-link__label">WhatsApp</p>
                           <p className="track-help-link__value">Chat with us now</p>
                         </div>
-                        <span className="track-help-link__arrow">→</span>
+                        <span className="track-help-link__arrow"><ArrowRightIcon /></span>
                       </a>
                       <a href="mailto:support@avapharmacy.co.ke" className="track-help-link">
-                        <span className="track-help-link__icon">📧</span>
+                        <span className="track-help-link__icon"><MailIcon /></span>
                         <div>
                           <p className="track-help-link__label">Email us</p>
                           <p className="track-help-link__value">support@avapharmacy.co.ke</p>
                         </div>
-                        <span className="track-help-link__arrow">→</span>
+                        <span className="track-help-link__arrow"><ArrowRightIcon /></span>
                       </a>
                     </div>
                   </div>

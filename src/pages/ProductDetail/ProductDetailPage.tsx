@@ -1,17 +1,22 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { useAuth } from '../../context/AuthContext'
 import { cartService } from '../../services/cartService'
+import { favouritesService } from '../../services/favouritesService'
 import { fetchAvailability, fetchProductById, fetchProducts } from '../../services/productService'
 import { mapApiProduct } from '../../hooks/useProducts'
 import './ProductDetailPage.css'
 
 function ProductDetailPage() {
+  const navigate = useNavigate()
+  const { isLoggedIn } = useAuth()
   const { id: routeId } = useParams()
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
   const [restockEnabled, setRestockEnabled] = useState(false)
   const [cartMessage, setCartMessage] = useState('')
+  const [isFavourite, setIsFavourite] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<ReturnType<typeof mapApiProduct> | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<{ id: number; name: string; price: number; image: string; rating: number }[]>([])
   const [liveAvailability, setLiveAvailability] = useState<{ is_available: boolean; stock_source: string; quantity: number } | null>(null)
@@ -55,6 +60,17 @@ function ProductDetailPage() {
     }
   }, [parsedId])
 
+  useEffect(() => {
+    if (!parsedId) return
+    const refreshWishlist = () => {
+      void favouritesService.list().then((response) => {
+        setIsFavourite(response.data.some((item) => item.id === parsedId))
+      })
+    }
+    refreshWishlist()
+    return favouritesService.subscribe(refreshWishlist)
+  }, [parsedId])
+
   if (!selectedProduct) {
     return (
       <div className="pdp">
@@ -90,7 +106,15 @@ function ProductDetailPage() {
     features: selectedProduct.features,
     directions: selectedProduct.directions,
     warnings: selectedProduct.warnings,
+    requiresPrescription: selectedProduct.requiresPrescription ?? false,
   }
+
+  const prescriptionRedirectTarget = useMemo(
+    () => `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`,
+    [product.id, product.name],
+  )
+  const loginForPrescriptionPath = `/login?redirect=${encodeURIComponent(prescriptionRedirectTarget)}`
+  const registerForPrescriptionPath = `/register?redirect=${encodeURIComponent(prescriptionRedirectTarget)}`
 
   const reviews = [
     {
@@ -128,6 +152,10 @@ function ProductDetailPage() {
   }
 
   const handleAddToCart = () => {
+    if (product.requiresPrescription) {
+      setCartMessage('Upload a valid prescription first. Approved prescription items can then be requested from your prescription history.')
+      return
+    }
     if (!product.inStock) return
     void cartService.add(
       {
@@ -142,6 +170,22 @@ function ProductDetailPage() {
     )
     setCartMessage('Added to cart.')
     window.setTimeout(() => setCartMessage(''), 1500)
+  }
+
+  const handleToggleWishlist = () => {
+    if (!isLoggedIn) {
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+      return
+    }
+    void favouritesService.toggle({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      originalPrice: product.originalPrice ?? null,
+      image: product.images[0],
+      stockSource: product.stockSource,
+    })
   }
 
   const renderStars = (rating: number) => {
@@ -241,34 +285,77 @@ function ProductDetailPage() {
             </div>
 
             {/* Quantity & Add to Cart */}
-            <div className="pdp__actions">
-              <div className="quantity-selector">
-                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
-                <input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
-                <button onClick={() => setQuantity(quantity + 1)}>+</button>
-              </div>
-
-              {product.inStock ? (
-                <button className="btn btn--primary btn--lg pdp__add-to-cart" type="button" onClick={handleAddToCart}>
+            {product.requiresPrescription ? (
+              <div className="pdp__rx-gate">
+                <div className="pdp__rx-gate-badge">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="9" cy="21" r="1"/>
-                    <circle cx="20" cy="21" r="1"/>
-                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                    <path d="M12 2v20M7 7h6a4 4 0 0 1 0 8H7l10 7" />
                   </svg>
-                  Add to Cart
-                </button>
-              ) : (
-                <button className="btn btn--outline btn--lg pdp__add-to-cart" type="button" onClick={() => setRestockEnabled((prev) => !prev)}>
-                  {restockEnabled ? 'Restock Alert Enabled' : 'Notify on Restock'}
-                </button>
-              )}
+                  Prescription required
+                </div>
+                <p className="pdp__rx-gate-text">
+                  This medicine cannot be added directly to cart. Upload a valid prescription so our pharmacists can review it and prepare your request safely.
+                </p>
+                <div className="pdp__rx-gate-actions">
+                  {isLoggedIn ? (
+                    <>
+                      <Link to={prescriptionRedirectTarget} className="btn btn--primary btn--lg pdp__add-to-cart">
+                        Upload Prescription to Request
+                      </Link>
+                      <Link to="/prescriptions/history" className="btn btn--outline btn--lg">
+                        View Prescription History
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link to={loginForPrescriptionPath} className="btn btn--primary btn--lg pdp__add-to-cart">
+                        Sign In to Upload Prescription
+                      </Link>
+                      <Link to={registerForPrescriptionPath} className="btn btn--outline btn--lg">
+                        Create Account
+                      </Link>
+                    </>
+                  )}
+                </div>
+                <p className="pdp__rx-gate-note">
+                  Once your prescription is approved, your pharmacist will confirm the request and you can continue from your prescription history.
+                </p>
+              </div>
+            ) : (
+              <div className="pdp__actions">
+                <div className="quantity-selector">
+                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+                  <input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} />
+                  <button onClick={() => setQuantity(quantity + 1)}>+</button>
+                </div>
 
-              <button className="pdp__wishlist-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                </svg>
-              </button>
-            </div>
+                {product.inStock ? (
+                  <button className="btn btn--primary btn--lg pdp__add-to-cart" type="button" onClick={handleAddToCart}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="9" cy="21" r="1"/>
+                      <circle cx="20" cy="21" r="1"/>
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                    </svg>
+                    Add to Cart
+                  </button>
+                ) : (
+                  <button className="btn btn--outline btn--lg pdp__add-to-cart" type="button" onClick={() => setRestockEnabled((prev) => !prev)}>
+                    {restockEnabled ? 'Restock Alert Enabled' : 'Notify on Restock'}
+                  </button>
+                )}
+
+                <button
+                  className={`pdp__wishlist-btn ${isFavourite ? 'pdp__wishlist-btn--active' : ''}`}
+                  type="button"
+                  onClick={handleToggleWishlist}
+                  title={isFavourite ? 'Remove from favourites' : 'Save to favourites'}
+                >
+                  <svg viewBox="0 0 24 24" fill={isFavourite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                  </svg>
+                </button>
+              </div>
+            )}
             {cartMessage && <p className="pdp__sku">{cartMessage}</p>}
 
             {/* Trust Badges */}
