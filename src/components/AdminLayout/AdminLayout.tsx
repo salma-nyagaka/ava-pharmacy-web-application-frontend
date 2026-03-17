@@ -332,7 +332,7 @@ function AdminLayout() {
       <aside className="admin-layout__sidebar">
         <div className="admin-layout__sidebar-inner">
           <div className="admin-layout__brand-row">
-            <NavLink className="admin-layout__brand" to="/admin" onClick={handleNavClick}>
+            <NavLink className="admin-layout__brand" to="/" onClick={handleNavClick}>
               <span className="admin-layout__brand-mark">
                 <img src={logo} alt="Ava Pharmacy" />
               </span>

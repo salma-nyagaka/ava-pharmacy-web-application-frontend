@@ -12,8 +12,8 @@
   width: var(--admin-sidebar-width);
   background: #fff;
   color: #111827;
-  box-shadow: 10px 0 30px rgba(15, 23, 42, 0.06);
   border-right: 1px solid #e5e7eb;
+  box-shadow: 18px 0 44px rgba(15, 23, 42, 0.1);
   transition: width 180ms ease;
   z-index: 1200;
 }
@@ -32,6 +32,8 @@
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1.1rem;
 }
 
 .admin-layout__brand {
@@ -83,7 +85,7 @@
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   background: #ecfdf5;
-  color: var(--admin-accent);
+  color: #10b981;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -112,6 +114,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  flex: 1;
 }
 
 .admin-layout__section {
@@ -143,7 +146,9 @@
   padding: 0.75rem 0.85rem;
   border-radius: 14px;
   color: #475569;
-  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+  font-size: 0.92rem;
+  font-weight: 600;
+  transition: background 160ms ease, color 160ms ease;
 }
 
 .admin-layout__link:hover {
@@ -154,11 +159,11 @@
 .admin-layout__link--active {
   color: #065f46;
   background: #ecfdf5;
-  box-shadow: inset 3px 0 0 var(--admin-accent);
+  box-shadow: inset 3px 0 0 #10b981;
 }
 
 .admin-layout__link--active .admin-layout__link-icon {
-  color: var(--admin-accent);
+  color: #10b981;
   background: #d1fae5;
 }
 
@@ -176,9 +181,10 @@
 
 .admin-layout__link-label {
   min-width: 0;
-  font-size: 0.92rem;
-  font-weight: 600;
   line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-layout__footer {
@@ -205,7 +211,7 @@
   justify-content: center;
   border-radius: 14px;
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(16, 185, 129, 0.5));
-  color: #ecfdf5;
+  color: #fff;
   font-size: 0.88rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -216,7 +222,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.1rem;
 }
 
 .admin-layout__user-meta strong {
@@ -276,11 +282,11 @@
 
 .admin-layout__content {
   min-height: 100vh;
-  padding: 0.75rem;
+  padding: 2rem 2.5rem;
 }
 
 .admin-layout--sidebar-collapsed .admin-layout__sidebar-inner {
-  padding-inline: 0.75rem;
+  padding-inline: 0.5rem;
 }
 
 .admin-layout--sidebar-collapsed .admin-layout__brand-row {
@@ -310,14 +316,14 @@
 }
 
 .admin-layout--sidebar-collapsed .admin-layout__logout {
-  width: 44px;
-  min-width: 44px;
+  width: 40px;
+  min-width: 40px;
   padding: 0;
 }
 
 @media (max-width: 1023px) {
   .admin-layout__content {
-    padding: 0.5rem;
+    padding: 1.5rem;
   }
 }
 
@@ -327,6 +333,6 @@
   }
 
   .admin-layout__content {
-    padding: 0.35rem;
+    padding: 1rem;
   }
 }

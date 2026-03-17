@@ -1,4 +1,5 @@
 import { CSSProperties, ReactNode, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import './ProfessionalPortalShell.css'
 
@@ -88,7 +89,7 @@ function ProfessionalPortalShell({
       <aside className="portal-shell__sidebar">
         <div className="portal-shell__sidebar-inner">
           <div className="portal-shell__brand-row">
-            <div className="portal-shell__brand">
+            <Link className="portal-shell__brand" to="/">
               <div className="portal-shell__brand-mark">
                 <img src={logo} alt="AVA Pharmacy" />
               </div>
@@ -96,7 +97,7 @@ function ProfessionalPortalShell({
                 <strong>Ava Pharmacy</strong>
                 <span>{roleLabel}</span>
               </div>
-            </div>
+            </Link>
 
             <button
               className="portal-shell__toggle"

@@ -138,39 +138,43 @@
 
 /* ── Tab nav ─────────────────────────────────── */
 .dd-tabs {
-  background: #fff;
-  border-bottom: 1px solid var(--dd-border);
+  background: transparent;
+  padding: 1rem 1.5rem 0;
 }
 
 .dd-tabs__inner {
   max-width: 1300px;
   margin: 0 auto;
-  padding: 0 1.5rem;
-  display: flex;
+  display: inline-flex;
+  background: #e2e8f0;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
 }
 
 .dd-tab {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.85rem 1.1rem;
-  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.84rem;
   font-weight: 500;
-  color: #6b7280;
+  color: #64748b;
   cursor: pointer;
   border: none;
   background: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 0.15s;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
   white-space: nowrap;
 }
 
-.dd-tab:hover { color: var(--dd-indigo); }
+.dd-tab:hover { color: #0f172a; }
 
 .dd-tab--active {
-  color: var(--dd-indigo);
-  border-bottom-color: var(--dd-indigo);
+  background: #fff;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .dd-tab__badge {
@@ -187,7 +191,7 @@
 .dd-content {
   max-width: 1300px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem 1.5rem;
   width: 100%;
   box-sizing: border-box;
   flex: 1;
@@ -225,11 +229,12 @@
 
 .dd-stat {
   background: #fff;
-  border: 1px solid var(--dd-border);
-  border-radius: var(--dd-radius);
-  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.25rem;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .dd-stat::before {
@@ -263,7 +268,7 @@
 .dd-stat--revenue .dd-stat__icon { background: #d1fae5; color: #059669; }
 
 .dd-stat__value {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 800;
   color: #0f172a;
   line-height: 1;

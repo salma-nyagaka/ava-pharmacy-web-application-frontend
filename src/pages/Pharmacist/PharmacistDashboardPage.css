@@ -718,3 +718,174 @@
   .ph-stats { grid-template-columns: 1fr; }
   .ph-hero__inner { flex-direction: column; align-items: flex-start; }
 }
+
+/* ── Pharmacist Portal Overrides ────────────────────────── */
+
+/* Left-bordered stat cards replacing top border */
+.px-stat {
+  border-top: none !important;
+  border-left: 4px solid transparent;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.px-stat--pending      { border-left-color: #f59e0b; }
+.px-stat--approved     { border-left-color: #10b981; }
+.px-stat--clarification { border-left-color: #3b82f6; }
+.px-stat--rejected     { border-left-color: #ef4444; }
+
+.px-stat__value {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.px-stat--pending .px-stat__value      { color: #d97706; }
+.px-stat--approved .px-stat__value     { color: #059669; }
+.px-stat--clarification .px-stat__value { color: #2563eb; }
+.px-stat--rejected .px-stat__value     { color: #dc2626; }
+
+/* Better pending banner */
+.px-pending-banner {
+  background: #fef3c7;
+  border: none;
+  border-left: 4px solid #fbbf24;
+  border-radius: 6px;
+  padding: 0.875rem 1.25rem;
+  font-size: 0.875rem;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.px-pending-banner__btn {
+  background: #f59e0b;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+/* Rx ID as monospace purple pill */
+.px-rx-id {
+  display: inline-block;
+  background: #ede9fe;
+  color: #6d28d9;
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+}
+
+/* Decision buttons: full-width filled */
+.px-decision-btn {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  border: none;
+}
+
+.px-decision-btn--approve {
+  background: #10b981;
+  color: #fff;
+  border-color: #10b981;
+}
+
+.px-decision-btn--approve:hover,
+.px-decision-btn--approve.px-decision-btn--active {
+  background: #059669;
+  border-color: #059669;
+}
+
+.px-decision-btn--clarify {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+}
+
+.px-decision-btn--clarify:hover,
+.px-decision-btn--clarify.px-decision-btn--active {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.px-decision-btn--reject {
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
+}
+
+.px-decision-btn--reject:hover,
+.px-decision-btn--reject.px-decision-btn--active {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+/* Slide-in drawer modal */
+.modal-overlay {
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.px-modal {
+  border-radius: 0;
+  max-width: min(720px, 95vw);
+  max-height: 100vh;
+  height: 100%;
+  box-shadow: -4px 0 40px rgba(0, 0, 0, 0.15);
+  animation: pxDrawerIn 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes pxDrawerIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.px-modal__header {
+  background: #0f172a;
+  border-bottom: none;
+  padding: 1.25rem 1.5rem;
+}
+
+.px-modal__rx-id {
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.px-modal__submitted {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.78rem;
+}
+
+.px-modal__assigned-pill {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.modal__close,
+.px-modal__header button.modal__close {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.modal__close:hover,
+.px-modal__header button.modal__close:hover {
+  color: #fff;
+}
+
+/* Document viewer refinements */
+.px-doc-viewer__frame {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.px-doc-viewer__img {
+  border: none;
+  background: transparent;
+}

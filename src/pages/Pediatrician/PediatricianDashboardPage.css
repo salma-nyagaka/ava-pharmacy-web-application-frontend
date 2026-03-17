@@ -3,11 +3,11 @@
    Extends dd-* design system from DoctorDashboardPage
    ====================================================== */
 
-/* Override indigo with teal within the pediatric portal */
+/* Override indigo with purple within the pediatric portal */
 .dd-module {
-  --dd-indigo: #0d9488;
-  --dd-indigo-light: #ccfbf1;
-  --dd-indigo-bg: #f0fdfa;
+  --dd-indigo: #7c3aed;
+  --dd-indigo-light: #ede9fe;
+  --dd-indigo-bg: #f5f3ff;
 }
 
 /* ── Pediatric-specific queue table ─────────────────── */
