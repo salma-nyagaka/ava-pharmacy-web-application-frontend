@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AdminUserRole, PharmacistPermission, adminRoleOptions, formatAdminRole, loadAdminUsers } from '../../data/adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
 import { AdminUserError, adminUserService } from '../../services/adminUserService'
 import './UserManagement.css'
 
+function getRoleFromSearchParams(value: string | null): AdminUserRole | 'all' {
+  if (!value) return 'all'
+  const match = adminRoleOptions.find((role) => role.value === value)
+  return match?.value ?? 'all'
+}
+
 function UserManagement() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedRole, setSelectedRole] = useState('all')
+  const [selectedRole, setSelectedRole] = useState<AdminUserRole | 'all'>(() => getRoleFromSearchParams(searchParams.get('role')))
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -56,6 +63,10 @@ function UserManagement() {
     }
   }, [])
 
+  useEffect(() => {
+    setSelectedRole(getRoleFromSearchParams(searchParams.get('role')))
+  }, [searchParams])
+
   const filteredUsers = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
     return users.filter((user) => {
@@ -87,6 +98,19 @@ function UserManagement() {
     }
 
     navigate('/admin')
+  }
+
+  const handleRoleChange = (nextRole: AdminUserRole | 'all') => {
+    setSelectedRole(nextRole)
+
+    const nextSearchParams = new URLSearchParams(searchParams)
+    if (nextRole === 'all') {
+      nextSearchParams.delete('role')
+    } else {
+      nextSearchParams.set('role', nextRole)
+    }
+
+    setSearchParams(nextSearchParams, { replace: true })
   }
 
   const handleToggleStatus = (userId: number, nextStatus: 'active' | 'suspended') => {
@@ -149,7 +173,7 @@ function UserManagement() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}>
+        <select value={selectedRole} onChange={(e) => handleRoleChange(e.target.value as AdminUserRole | 'all')}>
           <option value="all">All Roles</option>
           {adminRoleOptions.map((role) => (
             <option key={role.value} value={role.value}>

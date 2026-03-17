@@ -17,6 +17,7 @@ import {
   saveDoctorMessages,
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
+import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import '../Doctor/DoctorDashboardPage.css'
 import './PediatricianDashboardPage.css'
 
@@ -151,7 +152,7 @@ const createInitialPediatricEarnings = (): DoctorEarning[] => {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 function PediatricianDashboardPage() {
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const [activeTab, setActiveTab] = useState<PediatricTab>('queue')
   const [doctors] = useState(loadDoctorProfiles())
   const [activeDoctorId, setActiveDoctorId] = useState(() => {
@@ -287,6 +288,76 @@ function PediatricianDashboardPage() {
   )
 
   const doctorFirstName = doctor?.name.replace(/^Dr\.\s*/i, '').split(' ')[0] ?? 'Doctor'
+  const navigationItems = [
+    {
+      id: 'queue',
+      label: 'Queue',
+      badge: stats.waiting,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        </svg>
+      ),
+    },
+    {
+      id: 'messages',
+      label: 'Family messages',
+      badge: unreadCount,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'consents',
+      label: 'Consents',
+      badge: stats.consents,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 11l3 3L22 4" />
+          <circle cx="12" cy="12" r="10" />
+        </svg>
+      ),
+    },
+    {
+      id: 'prescriptions',
+      label: 'Prescriptions',
+      badge: 0,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+      ),
+    },
+    {
+      id: 'profiles',
+      label: 'Child profiles',
+      badge: stats.alerts,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="9" cy="7" r="4" />
+          <path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2" />
+          <path d="M19 8l2 2 4-4" />
+        </svg>
+      ),
+    },
+    {
+      id: 'earnings',
+      label: 'Earnings',
+      badge: 0,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      ),
+    },
+  ] as const
 
   const greeting = () => {
     const h = new Date().getHours()
@@ -429,66 +500,28 @@ function PediatricianDashboardPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="dd-module">
-
-      {/* ── Header ── */}
-      <header className="dd-header">
-        <div className="dd-header__inner">
-          <div className="dd-header__brand">ava<span>pharmacy</span></div>
-          <span className="dd-header__role">
-            <span className="dd-header__dot" />
-            Pediatrician Portal
-          </span>
-          <div className="dd-header__spacer" />
-          <div className="dd-header__right">
-            <select
-              value={activeDoctorId}
-              onChange={(e) => setActiveDoctorId(e.target.value)}
-              className="dd-header__select"
-            >
-              {pediatricDoctors.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-            <div className="dd-header__avatar">{doctor ? initials(doctor.name) : 'PD'}</div>
-            <span className="dd-header__name">{doctor?.name ?? 'Pediatrician'}</span>
-            <button className="dd-header__logout" type="button" onClick={logout}>Sign out</button>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Tab nav ── */}
-      <div className="dd-tabs">
-        <div className="dd-tabs__inner">
-          {([
-            { id: 'queue' as PediatricTab, label: 'Queue', badge: stats.waiting,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
-            { id: 'messages' as PediatricTab, label: 'Family messages', badge: unreadCount,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-            { id: 'consents' as PediatricTab, label: 'Consents', badge: stats.consents,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><circle cx="12" cy="12" r="10"/></svg> },
-            { id: 'prescriptions' as PediatricTab, label: 'Prescriptions', badge: 0,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
-            { id: 'profiles' as PediatricTab, label: 'Child profiles', badge: stats.alerts,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M19 8l2 2 4-4"/></svg> },
-            { id: 'earnings' as PediatricTab, label: 'Earnings', badge: 0,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-          ] as const).map((tab) => (
-            <button
-              key={tab.id}
-              className={`dd-tab ${activeTab === tab.id ? 'dd-tab--active' : ''}`}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.icon}
-              {tab.label}
-              {tab.badge > 0 && <span className="dd-tab__badge">{tab.badge}</span>}
-            </button>
+    <ProfessionalPortalShell
+      accentColor="#4f46e5"
+      activeItemId={activeTab}
+      navItems={navigationItems}
+      onNavChange={(itemId) => setActiveTab(itemId as PediatricTab)}
+      onLogout={() => { void logout() }}
+      roleLabel="Pediatrician"
+      sidebarHeaderContent={(
+        <select
+          value={activeDoctorId}
+          onChange={(e) => setActiveDoctorId(e.target.value)}
+          className="portal-shell__select"
+        >
+          {pediatricDoctors.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
           ))}
-        </div>
-      </div>
-
-      {/* ── Page content ── */}
+        </select>
+      )}
+      userInitials={doctor ? initials(doctor.name) : 'PD'}
+      userMeta={doctor?.specialty || 'Pediatrician Portal'}
+      userName={user?.name || doctor?.name || 'Pediatrician'}
+    >
       <div className="dd-content">
 
         {/* ── QUEUE TAB ── */}
@@ -1273,7 +1306,7 @@ function PediatricianDashboardPage() {
           </aside>
         </>
       )}
-    </div>
+    </ProfessionalPortalShell>
   )
 }
 

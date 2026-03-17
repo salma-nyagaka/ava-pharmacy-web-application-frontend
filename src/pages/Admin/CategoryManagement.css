@@ -216,6 +216,43 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cm-filter-select {
+  min-width: 170px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #111827;
+  font-size: 0.875rem;
+}
+
+.cm-filter-select:focus {
+  outline: none;
+  border-color: var(--color-primary, #dc2626);
+  background: #fff;
+}
+
+.cm-clear-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cm-clear-filter:hover {
+  background: #f8fafc;
+  color: #111827;
 }
 
 /* ── Search Box ── */
@@ -286,6 +323,57 @@
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   overflow: hidden;
+}
+
+.cm-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+}
+
+.cm-pagination__info {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.cm-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cm-pagination .pagination__pages {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cm-pagination .pagination__button,
+.cm-pagination .pagination__page {
+  min-width: 2.3rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #111827;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.cm-pagination .pagination__button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cm-pagination .pagination__page--active {
+  background: var(--color-primary, #dc2626);
+  border-color: var(--color-primary, #dc2626);
+  color: #fff;
 }
 
 /* ── Error Banner ── */
@@ -929,6 +1017,19 @@
   }
 
   .cm-search-box {
+    width: 100%;
+  }
+
+  .cm-filter-select,
+  .cm-clear-filter {
+    width: 100%;
+  }
+
+  .cm-pagination {
+    align-items: flex-start;
+  }
+
+  .cm-pagination__controls {
     width: 100%;
   }
 

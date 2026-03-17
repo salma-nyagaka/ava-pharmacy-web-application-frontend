@@ -15,6 +15,7 @@ import {
   saveDoctorMessages,
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
+import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import './DoctorDashboardPage.css'
 
 type DoctorTab = 'queue' | 'messages' | 'prescriptions' | 'patients' | 'earnings'
@@ -53,7 +54,7 @@ function consultStep(status: Consultation['status']) {
 const CONSULT_STEPS = ['Waiting', 'In progress', 'Completed']
 
 function DoctorDashboardPage() {
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const [activeTab, setActiveTab] = useState<DoctorTab>('queue')
   const [doctors] = useState(loadDoctorProfiles())
   const [activeDoctorId, setActiveDoctorId] = useState(() => {
@@ -294,68 +295,90 @@ function DoctorDashboardPage() {
   }
 
   const doctorFirstName = doctor?.name.replace(/^Dr\.\s*/i, '').split(' ')[0] ?? 'Doctor'
+  const navigationItems = [
+    {
+      id: 'queue',
+      label: 'Queue',
+      badge: stats.waiting,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        </svg>
+      ),
+    },
+    {
+      id: 'messages',
+      label: 'Messages',
+      badge: unreadCount,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'prescriptions',
+      label: 'E-prescriptions',
+      badge: 0,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+      ),
+    },
+    {
+      id: 'patients',
+      label: 'Patients',
+      badge: 0,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+    },
+    {
+      id: 'earnings',
+      label: 'Earnings',
+      badge: 0,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      ),
+    },
+  ] as const
 
   return (
-    <div className="dd-module">
-
-      {/* ── Header ── */}
-      <header className="dd-header">
-        <div className="dd-header__inner">
-          <div className="dd-header__brand">ava<span>pharmacy</span></div>
-          <span className="dd-header__role">
-            <span className="dd-header__dot" />
-            Doctor Portal
-          </span>
-          <div className="dd-header__spacer" />
-          <div className="dd-header__right">
-            <select
-              value={activeDoctorId}
-              onChange={(e) => setActiveDoctorId(e.target.value)}
-              className="dd-header__select"
-            >
-              {doctors.filter((d) => d.type === 'Doctor').map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-            <div className="dd-header__avatar">{doctor ? initials(doctor.name) : 'DR'}</div>
-            <span className="dd-header__name">{doctor?.name ?? 'Doctor'}</span>
-            <button className="dd-header__logout" type="button" onClick={logout}>
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Tab nav ── */}
-      <div className="dd-tabs">
-        <div className="dd-tabs__inner">
-          {([
-            { id: 'queue' as DoctorTab, label: 'Queue', badge: stats.waiting > 0 ? stats.waiting : 0,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
-            { id: 'messages' as DoctorTab, label: 'Messages', badge: unreadCount,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-            { id: 'prescriptions' as DoctorTab, label: 'E-prescriptions', badge: 0,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
-            { id: 'patients' as DoctorTab, label: 'Patients', badge: 0,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-            { id: 'earnings' as DoctorTab, label: 'Earnings', badge: 0,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-          ] as const).map((tab) => (
-            <button
-              key={tab.id}
-              className={`dd-tab ${activeTab === tab.id ? 'dd-tab--active' : ''}`}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.icon}
-              {tab.label}
-              {tab.badge > 0 && <span className="dd-tab__badge">{tab.badge}</span>}
-            </button>
+    <ProfessionalPortalShell
+      accentColor="#4f46e5"
+      activeItemId={activeTab}
+      navItems={navigationItems}
+      onNavChange={(itemId) => setActiveTab(itemId as DoctorTab)}
+      onLogout={() => { void logout() }}
+      roleLabel="Doctor"
+      sidebarHeaderContent={(
+        <select
+          value={activeDoctorId}
+          onChange={(e) => setActiveDoctorId(e.target.value)}
+          className="portal-shell__select"
+        >
+          {doctors.filter((d) => d.type === 'Doctor').map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
           ))}
-        </div>
-      </div>
-
-      {/* ── Page content ── */}
+        </select>
+      )}
+      userInitials={doctor ? initials(doctor.name) : 'DR'}
+      userMeta={doctor?.specialty || 'Doctor Portal'}
+      userName={user?.name || doctor?.name || 'Doctor'}
+    >
       <div className="dd-content">
 
         {/* ── QUEUE TAB ── */}
@@ -1105,7 +1128,7 @@ function DoctorDashboardPage() {
           </aside>
         </>
       )}
-    </div>
+    </ProfessionalPortalShell>
   )
 }
 

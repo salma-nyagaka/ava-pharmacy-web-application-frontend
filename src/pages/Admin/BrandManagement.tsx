@@ -8,6 +8,8 @@ import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import './BrandManagement.css'
 
+const PAGE_SIZE = 8
+
 function formatDate(value?: string): string {
   if (!value) return '—'
   const d = new Date(value)
@@ -24,6 +26,8 @@ function BrandManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ApiBrand | null>(null)
@@ -214,17 +218,43 @@ function BrandManagement() {
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return brands
+    return brands.filter((brand) => {
+      const matchesStatus =
+        selectedStatus === 'all' ||
+        (selectedStatus === 'active' ? brand.is_active : !brand.is_active)
+      if (!matchesStatus) return false
+      if (!query) return true
 
-    return brands.filter((brand) => (
-      brand.name.toLowerCase().includes(query) ||
-      brand.slug.toLowerCase().includes(query) ||
-      brand.description?.toLowerCase().includes(query)
-    ))
-  }, [brands, search])
+      return (
+        brand.name.toLowerCase().includes(query) ||
+        brand.slug.toLowerCase().includes(query) ||
+        brand.description?.toLowerCase().includes(query)
+      )
+    })
+  }, [brands, search, selectedStatus])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, selectedStatus])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const startIndex = (currentPage - 1) * PAGE_SIZE
+  const pagedBrands = filtered.slice(startIndex, startIndex + PAGE_SIZE)
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   const activeCount = brands.filter((brand) => brand.is_active).length
   const withLogosCount = brands.filter((brand) => Boolean(brand.logo)).length
+  const hasFilters = search.trim().length > 0 || selectedStatus !== 'all'
+
+  const clearFilters = () => {
+    setSearch('')
+    setSelectedStatus('all')
+  }
 
   return (
     <div className="category-management">
@@ -285,6 +315,20 @@ function BrandManagement() {
               </button>
             )}
           </div>
+          <select
+            className="cm-filter-select"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value as 'all' | 'active' | 'inactive')}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          {hasFilters && (
+            <button className="cm-clear-filter" type="button" onClick={clearFilters}>
+              Clear filters
+            </button>
+          )}
           {!loading && (
             <span className="cm-result-count">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
           )}
@@ -351,7 +395,7 @@ function BrandManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((brand) => (
+                  {pagedBrands.map((brand) => (
                     <tr key={brand.id}>
                       <td>
                         <div className="cm-brand-identity">
@@ -431,6 +475,47 @@ function BrandManagement() {
               </table>
             </div>
           )
+        )}
+
+        {!loading && !error && filtered.length > PAGE_SIZE && (
+          <div className="cm-pagination">
+            <span className="cm-pagination__info">
+              Showing {startIndex + 1}-{Math.min(startIndex + PAGE_SIZE, filtered.length)} of {filtered.length}
+            </span>
+            <div className="cm-pagination__controls">
+              <button
+                className="pagination__button"
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+              >
+                Prev
+              </button>
+              <div className="pagination__pages">
+                {Array.from({ length: totalPages }, (_, index) => {
+                  const page = index + 1
+                  return (
+                    <button
+                      key={page}
+                      className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  )
+                })}
+              </div>
+              <button
+                className="pagination__button"
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

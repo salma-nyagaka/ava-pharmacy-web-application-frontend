@@ -14,6 +14,7 @@ import {
 } from '../../data/labPartners'
 
 const payoutMethods = ['M-Pesa', 'Bank Transfer'] as const
+const PAGE_SIZE = 6
 
 const blankPartner = (): Omit<LabPartner, 'id' | 'status' | 'submittedAt' | 'techs'> => ({
   name: '',
@@ -30,6 +31,7 @@ function LabPartnerManagement() {
   const [partners, setPartners] = useState<LabPartner[]>(() => loadLabPartners())
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | LabPartnerStatus>('all')
+  const [currentPage, setCurrentPage] = useState(1)
   const [showAdd, setShowAdd] = useState(false)
   const [showManage, setShowManage] = useState(false)
   const [draft, setDraft] = useState(blankPartner())
@@ -72,6 +74,20 @@ function LabPartnerManagement() {
         .some((value) => value.toLowerCase().includes(q))
     })
   }, [partners, searchTerm, statusFilter])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const startIndex = (currentPage - 1) * PAGE_SIZE
+  const pagedPartners = filtered.slice(startIndex, startIndex + PAGE_SIZE)
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   const openAdd = () => {
     setDraft(blankPartner())
@@ -198,7 +214,7 @@ function LabPartnerManagement() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((partner) => (
+            {pagedPartners.map((partner) => (
               <tr key={partner.id}>
                 <td>
                   <p className="lp-name">{partner.name}</p>
@@ -241,6 +257,47 @@ function LabPartnerManagement() {
           </tbody>
         </table>
       </div>
+
+      {filtered.length > PAGE_SIZE && (
+        <div className="lp-pagination">
+          <span className="lp-pagination__info">
+            Showing {startIndex + 1}-{Math.min(startIndex + PAGE_SIZE, filtered.length)} of {filtered.length}
+          </span>
+          <div className="lp-pagination__controls">
+            <button
+              className="pagination__button"
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+            >
+              Prev
+            </button>
+            <div className="pagination__pages">
+              {Array.from({ length: totalPages }, (_, index) => {
+                const page = index + 1
+                return (
+                  <button
+                    key={page}
+                    className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              className="pagination__button"
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {showAdd && (
         <div className="modal-overlay" onClick={() => setShowAdd(false)}>

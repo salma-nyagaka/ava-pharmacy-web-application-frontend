@@ -23,6 +23,8 @@ interface DeleteTarget {
   name: string
 }
 
+const PAGE_SIZE = 8
+
 function CategoryManagement() {
   const navigate = useNavigate()
   const [categories, setCategories] = useState<ApiProductCategory[]>([])
@@ -31,6 +33,9 @@ function CategoryManagement() {
   const [error, setError] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('categories')
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
   const [modalMode, setModalMode] = useState<ModalMode>('create-category')
@@ -251,26 +256,61 @@ function CategoryManagement() {
 
   const filteredCategories = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
-    if (!q) return categories
-    return categories.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.subcategories.some((s) => s.name.toLowerCase().includes(q))
-    )
-  }, [categories, searchTerm])
+    return categories.filter((c) => {
+      const matchesStatus =
+        selectedStatus === 'all' ||
+        (selectedStatus === 'active' ? c.is_active : !c.is_active)
+      if (!matchesStatus) return false
+      if (!q) return true
+      return c.name.toLowerCase().includes(q) || c.subcategories.some((s) => s.name.toLowerCase().includes(q))
+    })
+  }, [categories, searchTerm, selectedStatus])
 
   const filteredSubcategories = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
-    if (!q) return subcategories
-    return subcategories.filter(
-      (s) => s.name.toLowerCase().includes(q) || s.category_name.toLowerCase().includes(q)
-    )
-  }, [subcategories, searchTerm])
+    return subcategories.filter((s) => {
+      const matchesStatus =
+        selectedStatus === 'all' ||
+        (selectedStatus === 'active' ? s.is_active : !s.is_active)
+      const matchesParent = selectedParentCategory === 'all' || String(s.category) === selectedParentCategory
+      if (!matchesStatus || !matchesParent) return false
+      if (!q) return true
+      return s.name.toLowerCase().includes(q) || s.category_name.toLowerCase().includes(q)
+    })
+  }, [subcategories, searchTerm, selectedStatus, selectedParentCategory])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [viewMode, searchTerm, selectedStatus, selectedParentCategory])
+
+  const visibleRows = viewMode === 'categories' ? filteredCategories : filteredSubcategories
+  const totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE))
+  const startIndex = (currentPage - 1) * PAGE_SIZE
+  const pagedCategories = filteredCategories.slice(startIndex, startIndex + PAGE_SIZE)
+  const pagedSubcategories = filteredSubcategories.slice(startIndex, startIndex + PAGE_SIZE)
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   const activeCategories = categories.filter((c) => c.is_active).length
   const activeSubcategories = subcategories.filter((s) => s.is_active).length
-  const visibleCount = viewMode === 'categories' ? filteredCategories.length : filteredSubcategories.length
+  const visibleCount = visibleRows.length
+  const hasFilters =
+    searchTerm.trim().length > 0 ||
+    selectedStatus !== 'all' ||
+    (viewMode === 'subcategories' && selectedParentCategory !== 'all')
 
   const isCreateMode = modalMode === 'create-category' || modalMode === 'create-subcategory'
   const isSubcategoryModal = modalMode === 'create-subcategory' || modalMode === 'edit-subcategory'
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setSelectedStatus('all')
+    setSelectedParentCategory('all')
+  }
 
   return (
     <div className="category-management">
@@ -393,6 +433,34 @@ function CategoryManagement() {
               </button>
             )}
           </div>
+          <select
+            className="cm-filter-select"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value as 'all' | 'active' | 'inactive')}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          {viewMode === 'subcategories' && (
+            <select
+              className="cm-filter-select"
+              value={selectedParentCategory}
+              onChange={(e) => setSelectedParentCategory(e.target.value)}
+            >
+              <option value="all">All parent categories</option>
+              {categories.map((category) => (
+                <option key={category.id} value={String(category.id)}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {hasFilters && (
+            <button className="cm-clear-filter" type="button" onClick={clearFilters}>
+              Clear filters
+            </button>
+          )}
           {!loading && (
             <span className="cm-result-count">{visibleCount} result{visibleCount !== 1 ? 's' : ''}</span>
           )}
@@ -463,7 +531,7 @@ function CategoryManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCategories.map((cat) => {
+                  {pagedCategories.map((cat) => {
                     const preview = cat.subcategories.slice(0, 3)
                     const overflow = cat.subcategories.length - preview.length
                     const toggleKey = `category-${cat.id}`
@@ -608,7 +676,7 @@ function CategoryManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredSubcategories.map((sub) => {
+                  {pagedSubcategories.map((sub) => {
                     const toggleKey = `subcategory-${sub.id}`
                     return (
                       <tr key={sub.id}>
@@ -674,6 +742,47 @@ function CategoryManagement() {
               </table>
             </div>
           )
+        )}
+
+        {!loading && !error && visibleCount > PAGE_SIZE && (
+          <div className="cm-pagination">
+            <span className="cm-pagination__info">
+              Showing {startIndex + 1}-{Math.min(startIndex + PAGE_SIZE, visibleCount)} of {visibleCount}
+            </span>
+            <div className="cm-pagination__controls">
+              <button
+                className="pagination__button"
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+              >
+                Prev
+              </button>
+              <div className="pagination__pages">
+                {Array.from({ length: totalPages }, (_, index) => {
+                  const page = index + 1
+                  return (
+                    <button
+                      key={page}
+                      className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  )
+                })}
+              </div>
+              <button
+                className="pagination__button"
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

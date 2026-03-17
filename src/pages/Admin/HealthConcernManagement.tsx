@@ -5,6 +5,8 @@ import './AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 
+const PAGE_SIZE = 8
+
 function formatDate(value?: string): string {
   if (!value) return '—'
   const d = new Date(value)
@@ -17,6 +19,8 @@ function HealthConcernManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ApiHealthConcern | null>(null)
@@ -122,11 +126,37 @@ function HealthConcernManagement() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return concerns
-    return concerns.filter((c) => c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q))
-  }, [concerns, search])
+    return concerns.filter((c) => {
+      const matchesStatus =
+        selectedStatus === 'all' ||
+        (selectedStatus === 'active' ? c.is_active : !c.is_active)
+      if (!matchesStatus) return false
+      if (!q) return true
+      return c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q)
+    })
+  }, [concerns, search, selectedStatus])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, selectedStatus])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const startIndex = (currentPage - 1) * PAGE_SIZE
+  const pagedConcerns = filtered.slice(startIndex, startIndex + PAGE_SIZE)
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
 
   const activeCount = concerns.filter((c) => c.is_active).length
+  const hasFilters = search.trim().length > 0 || selectedStatus !== 'all'
+
+  const clearFilters = () => {
+    setSearch('')
+    setSelectedStatus('all')
+  }
 
   return (
     <div className="category-management">
@@ -192,6 +222,20 @@ function HealthConcernManagement() {
               </button>
             )}
           </div>
+          <select
+            className="cm-filter-select"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value as 'all' | 'active' | 'inactive')}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          {hasFilters && (
+            <button className="cm-clear-filter" type="button" onClick={clearFilters}>
+              Clear filters
+            </button>
+          )}
           {!loading && (
             <span className="cm-result-count">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
           )}
@@ -260,7 +304,7 @@ function HealthConcernManagement() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((c) => (
+                  {pagedConcerns.map((c) => (
                     <tr key={c.id}>
                       <td>
                         <div className="cm-name-cell">
@@ -327,6 +371,47 @@ function HealthConcernManagement() {
               </table>
             </div>
           )
+        )}
+
+        {!loading && !error && filtered.length > PAGE_SIZE && (
+          <div className="cm-pagination">
+            <span className="cm-pagination__info">
+              Showing {startIndex + 1}-{Math.min(startIndex + PAGE_SIZE, filtered.length)} of {filtered.length}
+            </span>
+            <div className="cm-pagination__controls">
+              <button
+                className="pagination__button"
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={currentPage === 1}
+              >
+                Prev
+              </button>
+              <div className="pagination__pages">
+                {Array.from({ length: totalPages }, (_, index) => {
+                  const page = index + 1
+                  return (
+                    <button
+                      key={page}
+                      className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  )
+                })}
+              </div>
+              <button
+                className="pagination__button"
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

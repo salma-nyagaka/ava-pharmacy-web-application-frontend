@@ -17,6 +17,7 @@ import {
   upsertLabResult,
 } from '../../data/labs'
 import { loadLabPartners } from '../../data/labPartners'
+import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import './LabTechPortal.css'
 
 type Tab = 'overview' | 'queue' | 'mine'
@@ -220,6 +221,47 @@ function LabTechPortal() {
 
   const canPublishResult = panelRequest &&
     (panelRequest.status === 'Processing' || panelRequest.status === 'Result ready')
+  const navigationItems = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      badge: 0,
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="7" height="7" />
+          <rect x="14" y="3" width="7" height="7" />
+          <rect x="3" y="14" width="7" height="7" />
+          <rect x="14" y="14" width="7" height="7" />
+        </svg>
+      ),
+    },
+    {
+      id: 'queue',
+      label: 'Request queue',
+      badge: stats.awaiting + stats.collected + stats.processing,
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <circle cx="3" cy="6" r="1" fill="currentColor" />
+          <circle cx="3" cy="12" r="1" fill="currentColor" />
+          <circle cx="3" cy="18" r="1" fill="currentColor" />
+        </svg>
+      ),
+    },
+    {
+      id: 'mine',
+      label: 'My assignments',
+      badge: stats.mine,
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      ),
+    },
+  ] as const
 
   const renderTable = (list: LabRequest[]) => (
     <div className="ltp-table-wrap">
@@ -322,89 +364,24 @@ function LabTechPortal() {
   )
 
   return (
-    <div className="ltp-module">
-      {/* Module header */}
-      <header className="ltp-header">
-        <div className="ltp-header__inner">
-          <div className="ltp-header__brand">
-            AVA <span>Pharmacy</span>
-          </div>
-          <span className="ltp-header__role">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2zm0 12c-5.33 0-8 2.67-8 4v2h16v-2c0-1.33-2.67-4-8-4z"/>
-            </svg>
-            Lab Technician
-          </span>
-          {(partnerName || user?.labTechId) && (
-            <div className="ltp-header__meta">
-              {partnerName && (
-                <span className="ltp-header__meta-item">
-                  Partner: <strong>{partnerName}</strong>
-                </span>
-              )}
-              {user?.labTechId && (
-                <span className="ltp-header__meta-item">
-                  Tech ID: <strong>{user.labTechId}</strong>
-                </span>
-              )}
-            </div>
-          )}
-          <div className="ltp-header__spacer" />
-          <div className="ltp-header__user">
-            <div className="ltp-header__avatar">{initials(actorName)}</div>
-            <span className="ltp-header__name">{actorName}</span>
-            <button className="ltp-header__logout" type="button" onClick={logout}>
-              Sign out
-            </button>
-          </div>
+    <ProfessionalPortalShell
+      accentColor="#0d9488"
+      activeItemId={tab}
+      navItems={navigationItems}
+      onNavChange={(itemId) => setTab(itemId as Tab)}
+      onLogout={() => { void logout() }}
+      roleLabel="Lab Tech"
+      sidebarHeaderContent={(
+        <div className="portal-shell__meta-card">
+          <span className="portal-shell__meta-label">Assignment</span>
+          <p className="portal-shell__meta-value">{partnerName || 'AVA Lab Network'}</p>
+          {user?.labTechId ? <p className="portal-shell__meta-value">Tech ID: {user.labTechId}</p> : null}
         </div>
-      </header>
-
-      {/* Tab navigation */}
-      <nav className="ltp-tabs">
-        <div className="ltp-tabs__inner">
-          <button
-            className={`ltp-tab ${tab === 'overview' ? 'ltp-tab--active' : ''}`}
-            type="button"
-            onClick={() => setTab('overview')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-              <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-            </svg>
-            Overview
-          </button>
-          <button
-            className={`ltp-tab ${tab === 'queue' ? 'ltp-tab--active' : ''}`}
-            type="button"
-            onClick={() => setTab('queue')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-              <line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/>
-              <circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/>
-            </svg>
-            Request queue
-            {(stats.awaiting + stats.collected + stats.processing) > 0 && (
-              <span className="ltp-tab__badge">{stats.awaiting + stats.collected + stats.processing}</span>
-            )}
-          </button>
-          <button
-            className={`ltp-tab ${tab === 'mine' ? 'ltp-tab--active' : ''}`}
-            type="button"
-            onClick={() => setTab('mine')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-            My assignments
-            {stats.mine > 0 && <span className="ltp-tab__badge">{stats.mine}</span>}
-          </button>
-        </div>
-      </nav>
-
-      {/* Content */}
+      )}
+      userInitials={initials(actorName)}
+      userMeta={partnerName || 'Laboratory Operations'}
+      userName={actorName}
+    >
       <div className="ltp-content">
 
         {/* ── OVERVIEW ── */}
@@ -897,7 +874,7 @@ function LabTechPortal() {
           </aside>
         </>
       )}
-    </div>
+    </ProfessionalPortalShell>
   )
 }
 

@@ -4,6 +4,7 @@ import { CatalogProduct, productCatalog } from '../../data/products'
 import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
 import { cartService } from '../../services/cartService'
+import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import '../Admin/AdminShared.css'
 import '../Admin/PrescriptionManagement.css'
 import './PharmacistDashboardPage.css'
@@ -21,7 +22,7 @@ const isPdfFile = (f: string) =>
   f.startsWith('data:application/pdf') || /\.pdf$/i.test(f)
 
 function PharmacistDashboardPage() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | PrescriptionStatus>('all')
@@ -145,9 +146,90 @@ function PharmacistDashboardPage() {
     clarification: prescriptions.filter((p) => p.status === 'Clarification').length,
     rejected: prescriptions.filter((p) => p.status === 'Rejected').length,
   }), [prescriptions])
+  const navigationItems = [
+    {
+      id: 'all',
+      label: 'All prescriptions',
+      badge: prescriptions.length,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="8" y1="13" x2="16" y2="13" />
+          <line x1="8" y1="17" x2="14" y2="17" />
+        </svg>
+      ),
+    },
+    {
+      id: 'Pending',
+      label: 'Pending review',
+      badge: stats.pending,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      ),
+    },
+    {
+      id: 'Approved',
+      label: 'Approved',
+      badge: stats.approved,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      ),
+    },
+    {
+      id: 'Clarification',
+      label: 'Clarifications',
+      badge: stats.clarification,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      ),
+    },
+    {
+      id: 'Rejected',
+      label: 'Rejected',
+      badge: stats.rejected,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="15" y1="9" x2="9" y2="15" />
+          <line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+      ),
+    },
+  ] as const
 
   return (
-    <div className="admin-page">
+    <ProfessionalPortalShell
+      accentColor="#e81750"
+      activeItemId={selectedStatus === 'all' ? 'all' : selectedStatus}
+      navItems={navigationItems}
+      onNavChange={(itemId) => {
+        setSelectedStatus(itemId === 'all' ? 'all' : itemId as PrescriptionStatus)
+        setCurrentPage(1)
+      }}
+      onLogout={() => { void logout() }}
+      roleLabel="Pharmacist"
+      sidebarHeaderContent={(
+        <div className="portal-shell__meta-card">
+          <span className="portal-shell__meta-label">Queue</span>
+          <p className="portal-shell__meta-value">Prescription review</p>
+          <p className="portal-shell__meta-value">{stats.pending} awaiting action</p>
+        </div>
+      )}
+      userMeta="Prescription Review"
+      userName={user?.name || 'Pharmacist'}
+    >
+      <div className="admin-page">
       {/* Header */}
       <div className="admin-page__header">
         <div>
@@ -499,7 +581,8 @@ function PharmacistDashboardPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </ProfessionalPortalShell>
   )
 }
 
