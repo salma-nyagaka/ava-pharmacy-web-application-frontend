@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import {
   adminProductService,
+  ApiBadge,
   ApiBrand,
   ApiProductCategory,
   ApiHealthConcern,
@@ -137,7 +138,7 @@ function ProductManagement() {
   const [productFeaturesText, setProductFeaturesText] = useState('')
   const [productDirections, setProductDirections] = useState('')
   const [productWarnings, setProductWarnings] = useState('')
-  const [productBadge, setProductBadge] = useState('')
+  const [productBadgeId, setProductBadgeId] = useState<number | ''>('')
   const [branchStockQuantity, setBranchStockQuantity] = useState('0')
   const [branchLowStockThreshold, setBranchLowStockThreshold] = useState('5')
   const [branchAllowBackorder, setBranchAllowBackorder] = useState(false)
@@ -153,6 +154,22 @@ function ProductManagement() {
   const [deleteTarget, setDeleteTarget] = useState<ApiProduct | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [activeTab, setActiveTab] = useState<'products' | 'brands'>('products')
+  const [editingBrand, setEditingBrand] = useState<ApiBrand | null>(null)
+
+  // Badge management state
+  const [badges, setBadges] = useState<ApiBadge[]>([])
+  const [showBadgePanel, setShowBadgePanel] = useState(false)
+  const [editingBadge, setEditingBadge] = useState<ApiBadge | null>(null)
+  const [badgeName, setBadgeName] = useState('')
+  const [badgeLabel, setBadgeLabel] = useState('')
+  const [badgeType, setBadgeType] = useState<'custom' | 'percentage' | 'amount'>('custom')
+  const [badgeValue, setBadgeValue] = useState('')
+  const [badgeColor, setBadgeColor] = useState<ApiBadge['color']>('green')
+  const [badgeExpiresAt, setBadgeExpiresAt] = useState('')
+  const [badgeSaving, setBadgeSaving] = useState(false)
+  const [badgeFormError, setBadgeFormError] = useState('')
+  const [showBadgeForm, setShowBadgeForm] = useState(false)
 
   useEffect(() => {
     loadAll()
@@ -162,18 +179,20 @@ function ProductManagement() {
     setLoading(true)
     setError('')
     try {
-      const [prods, brandList, cats, subs, concerns] = await Promise.all([
+      const [prods, brandList, cats, subs, concerns, badgeList] = await Promise.all([
         adminProductService.listProducts(),
         adminProductService.listBrands(),
         adminProductService.listProductCategories(),
         adminProductService.listProductSubcategories(),
         adminProductService.listHealthConcerns(),
+        adminProductService.listBadges(),
       ])
       setProducts(prods)
       setBrands(brandList)
       setCategories(cats)
       setSubcategories(subs)
       setAllConcerns(concerns)
+      setBadges(badgeList)
     } catch {
       setError('Failed to load products.')
     } finally {
@@ -198,7 +217,7 @@ function ProductManagement() {
     setProductFeaturesText('')
     setProductDirections('')
     setProductWarnings('')
-    setProductBadge('')
+    setProductBadgeId('')
     setBranchStockQuantity('0')
     setBranchLowStockThreshold('5')
     setBranchAllowBackorder(false)
@@ -219,7 +238,26 @@ function ProductManagement() {
     setBrandDescription('')
     setBrandLogoFile(null)
     setBrandFormError('')
+    setEditingBrand(null)
     setShowBrandModal(false)
+  }
+
+  const openAddBrand = () => {
+    setEditingBrand(null)
+    setBrandName('')
+    setBrandDescription('')
+    setBrandLogoFile(null)
+    setBrandFormError('')
+    setShowBrandModal(true)
+  }
+
+  const openEditBrand = (brand: ApiBrand) => {
+    setEditingBrand(brand)
+    setBrandName(brand.name)
+    setBrandDescription(brand.description ?? '')
+    setBrandLogoFile(null)
+    setBrandFormError('')
+    setShowBrandModal(true)
   }
 
   const openEditModal = (product: ApiProduct) => {
@@ -239,7 +277,7 @@ function ProductManagement() {
     setProductFeaturesText(formatFeatureLines(product.features))
     setProductDirections(product.directions ?? '')
     setProductWarnings(product.warnings ?? '')
-    setProductBadge(product.badge ?? '')
+    setProductBadgeId(product.badge?.id ?? '')
     setBranchStockQuantity(String(getInventoryItem(product, 'branch')?.stock_quantity ?? 0))
     setBranchLowStockThreshold(String(getInventoryItem(product, 'branch')?.low_stock_threshold ?? 5))
     setBranchAllowBackorder(getInventoryItem(product, 'branch')?.allow_backorder ?? false)
@@ -307,7 +345,7 @@ function ProductManagement() {
       features,
       directions: productDirections.trim(),
       warnings: productWarnings.trim(),
-      badge: productBadge.trim(),
+      badge_id: productBadgeId !== '' ? Number(productBadgeId) : null,
       branch_inventory: branchInventory,
     }
 
@@ -332,7 +370,7 @@ function ProductManagement() {
       formData.append('features', JSON.stringify(payload.features ?? []))
       formData.append('directions', payload.directions ?? '')
       formData.append('warnings', payload.warnings ?? '')
-      formData.append('badge', payload.badge ?? '')
+      if (payload.badge_id != null) formData.append('badge_id', String(payload.badge_id))
       formData.append('branch_inventory', JSON.stringify(payload.branch_inventory ?? {}))
 
       if (payload.cost_price !== undefined) formData.append('cost_price', String(payload.cost_price))
@@ -441,32 +479,51 @@ function ProductManagement() {
     setBrandFormError('')
   }
 
-  const handleCreateBrand = async (e: FormEvent) => {
+  const handleSaveBrand = async (e: FormEvent) => {
     e.preventDefault()
     if (!brandName.trim()) { setBrandFormError('Brand name is required.'); return }
-    if (!brandLogoFile) { setBrandFormError('Brand logo is required.'); return }
+    if (!editingBrand && !brandLogoFile) { setBrandFormError('Brand logo is required.'); return }
 
     setBrandSaving(true)
     setBrandFormError('')
     try {
-      const payload = new FormData()
-      payload.append('name', brandName.trim())
-      if (brandDescription.trim()) payload.append('description', brandDescription.trim())
-      payload.append('logo', brandLogoFile)
-
-      const created = await adminProductService.createBrand(payload)
-      setBrands((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
-      setProductBrandId(created.id)
-      setBrandName('')
-      setBrandDescription('')
-      setBrandLogoFile(null)
-      setBrandFormError('')
-      setShowBrandModal(false)
+      if (editingBrand) {
+        let payload: FormData | Partial<{ name: string; description: string; is_active: boolean }>
+        if (brandLogoFile) {
+          const fd = new FormData()
+          fd.append('name', brandName.trim())
+          if (brandDescription.trim()) fd.append('description', brandDescription.trim())
+          fd.append('logo', brandLogoFile)
+          payload = fd
+        } else {
+          payload = { name: brandName.trim(), description: brandDescription.trim() }
+        }
+        const updated = await adminProductService.updateBrand(editingBrand.id, payload)
+        setBrands((prev) => prev.map((b) => (b.id === updated.id ? updated : b)))
+      } else {
+        const fd = new FormData()
+        fd.append('name', brandName.trim())
+        if (brandDescription.trim()) fd.append('description', brandDescription.trim())
+        fd.append('logo', brandLogoFile!)
+        const created = await adminProductService.createBrand(fd)
+        setBrands((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+        if (activeTab === 'products') setProductBrandId(created.id)
+      }
+      closeBrandModal()
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setBrandFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to create brand.')
+      setBrandFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save brand.')
     } finally {
       setBrandSaving(false)
+    }
+  }
+
+  const handleToggleBrand = async (brand: ApiBrand) => {
+    try {
+      const updated = await adminProductService.updateBrand(brand.id, { is_active: !brand.is_active })
+      setBrands((prev) => prev.map((b) => (b.id === brand.id ? updated : b)))
+    } catch {
+      // silent
     }
   }
 
@@ -618,15 +675,31 @@ function ProductManagement() {
     <div className="category-management product-management">
       <div className="category-management__header">
         <div className="cm-title-group">
-          <h1>Products</h1>
-          <p className="cm-title-sub">Manage your product catalog</p>
+          <h1>{activeTab === 'brands' ? 'Brands' : 'Products'}</h1>
+          <p className="cm-title-sub">{activeTab === 'brands' ? 'Manage product brands' : 'Manage your product catalog'}</p>
         </div>
         <div className="category-management__actions">
-          <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
-          <Link className="btn btn--secondary btn--sm" to="/admin/inventory">
-            Add Inventory
-          </Link>
+          {activeTab === 'products' ? (
+            <>
+              <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
+              <button className="btn btn--secondary btn--sm" type="button" onClick={() => setShowBadgePanel(true)}>
+                Badges {badges.length > 0 && <span className="pm-badge-count">{badges.length}</span>}
+              </button>
+              <Link className="btn btn--secondary btn--sm" to="/admin/inventory">Add Inventory</Link>
+            </>
+          ) : (
+            <button className="btn btn--primary btn--sm" onClick={openAddBrand}>+ Add Brand</button>
+          )}
         </div>
+      </div>
+
+      <div className="cm-tabs" style={{ marginBottom: '1rem' }}>
+        <button className={`cm-tab${activeTab === 'products' ? ' cm-tab--active' : ''}`} onClick={() => setActiveTab('products')}>
+          Products <span className="cm-tab__count">{products.length}</span>
+        </button>
+        <button className={`cm-tab${activeTab === 'brands' ? ' cm-tab--active' : ''}`} onClick={() => setActiveTab('brands')}>
+          Brands <span className="cm-tab__count">{brands.length}</span>
+        </button>
       </div>
 
       {error && (
@@ -638,6 +711,100 @@ function ProductManagement() {
         </div>
       )}
 
+      {activeTab === 'brands' && (
+        <div className="cm-panel">
+          {loading && (
+            <div className="cm-skeletons">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="cm-skeleton-row">
+                  <div className="cm-skeleton" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
+                  <div className="cm-skeleton" style={{ width: '25%' }} />
+                  <div className="cm-skeleton" style={{ width: '35%' }} />
+                  <div className="cm-skeleton" style={{ width: '10%', borderRadius: '999px' }} />
+                </div>
+              ))}
+            </div>
+          )}
+          {!loading && brands.length === 0 && (
+            <div className="cm-empty-state">
+              <div className="cm-empty-state__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="28" height="28"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
+              </div>
+              <p className="cm-empty-state__title">No brands yet</p>
+              <p className="cm-empty-state__sub">Add your first brand to get started.</p>
+              <button className="btn btn--primary btn--sm" onClick={openAddBrand}>+ Add Brand</button>
+            </div>
+          )}
+          {!loading && brands.length > 0 && (
+            <div className="cm-table-wrap">
+              <table className="cm-table">
+                <thead>
+                  <tr>
+                    <th style={{ minWidth: 220 }}>Brand</th>
+                    <th style={{ minWidth: 200 }}>Description</th>
+                    <th style={{ minWidth: 80 }}>Products</th>
+                    <th style={{ minWidth: 90 }}>Status</th>
+                    <th style={{ minWidth: 110 }}>Created By</th>
+                    <th className="cm-th-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {brands.map((brand) => (
+                    <tr key={brand.id}>
+                      <td>
+                        <div className="cm-brand-identity">
+                          {brand.logo ? (
+                            <div className="cm-brand-logo">
+                              <img className="cm-brand-logo__img" src={brand.logo} alt={brand.name} />
+                            </div>
+                          ) : (
+                            <div className="cm-brand-logo cm-brand-logo--placeholder">
+                              {brand.name.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="cm-name-cell">
+                            <span className="cm-name-cell__name">{brand.name}</span>
+                            <span className="cm-name-cell__id">{brand.slug}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.875rem', color: brand.description ? '#374151' : '#d1d5db' }}>
+                          {brand.description || '—'}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 600 }}>
+                          {products.filter((p) => p.brand?.id === brand.id).length}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`cm-status ${brand.is_active ? 'cm-status--active' : 'cm-status--inactive'}`}>
+                          {brand.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>{brand.created_by_name || '—'}</td>
+                      <td>
+                        <div className="cm-row-actions">
+                          <button type="button" className="cm-row-btn cm-row-btn--edit" onClick={() => openEditBrand(brand)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit
+                          </button>
+                          <button type="button" className="cm-row-btn" onClick={() => { void handleToggleBrand(brand) }}>
+                            {brand.is_active ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'products' && <>
       <div className="cm-kpi-grid">
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
@@ -906,6 +1073,7 @@ function ProductManagement() {
           </div>
         )}
       </div>
+      </>}
 
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
@@ -1036,15 +1204,34 @@ function ProductManagement() {
                   </div>
                   <div className="pf-row">
                     <div className="pf-field pf-field--sm">
-                      <label className="pf-label">Badge <span className="pf-optional">optional</span></label>
-                      <input
-                        className="pf-input"
-                        type="text"
-                        placeholder="e.g. New, Best Seller"
-                        value={productBadge}
-                        onChange={(e) => setProductBadge(e.target.value)}
-                      />
-                      <span className="pf-hint">Short label shown on product cards.</span>
+                      <label className="pf-label">
+                        Badge <span className="pf-optional">optional</span>
+                        <button type="button" className="pf-badge-manage-link" onClick={() => setShowBadgePanel(true)}>
+                          Manage badges
+                        </button>
+                      </label>
+                      <div className="pf-badge-picker">
+                        <button
+                          type="button"
+                          className={`pf-badge-chip pf-badge-chip--none${productBadgeId === '' ? ' pf-badge-chip--selected' : ''}`}
+                          onClick={() => setProductBadgeId('')}
+                        >
+                          None
+                        </button>
+                        {badges.filter((b) => b.is_active && !b.is_expired).map((b) => (
+                          <button
+                            key={b.id}
+                            type="button"
+                            className={`pf-badge-chip pf-badge-chip--${b.color}${productBadgeId === b.id ? ' pf-badge-chip--selected' : ''}`}
+                            onClick={() => setProductBadgeId(b.id)}
+                          >
+                            {b.display_label}
+                          </button>
+                        ))}
+                        {badges.length === 0 && (
+                          <span className="pf-badge-picker__empty">No badges yet — create one above.</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="pf-field">
@@ -1191,8 +1378,8 @@ function ProductManagement() {
           <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="cm-modal__header">
               <div>
-                <h2>New Brand</h2>
-                <p>Create a brand and immediately assign it to this product.</p>
+                <h2>{editingBrand ? 'Edit Brand' : 'New Brand'}</h2>
+                <p>{editingBrand ? 'Update brand details.' : 'Add a new brand to your catalog.'}</p>
               </div>
               <button type="button" className="cm-modal__close" onClick={closeBrandModal} disabled={brandSaving} aria-label="Close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
@@ -1201,7 +1388,7 @@ function ProductManagement() {
               </button>
             </div>
 
-            <form className="cm-form" onSubmit={handleCreateBrand}>
+            <form className="cm-form" onSubmit={(e) => { void handleSaveBrand(e) }}>
               <label className="cm-field">
                 <span>Name</span>
                 <input
@@ -1226,13 +1413,13 @@ function ProductManagement() {
               </label>
 
               <label className="cm-field">
-                <span>Brand Logo</span>
+                <span>Brand Logo {editingBrand && <em className="cm-field__optional">leave empty to keep current</em>}</span>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => { void handleQuickBrandLogoChange(e.target.files?.[0] ?? null) }}
                   disabled={brandSaving}
-                  required
+                  required={!editingBrand}
                 />
                 <span className="cm-upload-note">{getImageUploadHint('brand')}</span>
               </label>
@@ -1251,7 +1438,7 @@ function ProductManagement() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn--primary btn--sm" disabled={brandSaving}>
-                  {brandSaving ? <><span className="cm-spinner" /> Saving…</> : 'Create Brand'}
+                  {brandSaving ? <><span className="cm-spinner" /> Saving…</> : editingBrand ? 'Save Changes' : 'Create Brand'}
                 </button>
               </div>
             </form>
@@ -1312,6 +1499,203 @@ function ProductManagement() {
               >
                 {deleting ? 'Deleting…' : 'Delete'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Badge Management Panel ── */}
+      {showBadgePanel && (
+        <div className="cm-overlay" onClick={() => { if (!badgeSaving) { setShowBadgePanel(false); setShowBadgeForm(false); setEditingBadge(null) } }}>
+          <div className="cm-modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
+            <div className="cm-modal__header">
+              <div>
+                <h2>Badges</h2>
+                <p>Labels shown on product cards (e.g. New, 20% Off)</p>
+              </div>
+              <button type="button" className="cm-modal__close" onClick={() => { setShowBadgePanel(false); setShowBadgeForm(false); setEditingBadge(null) }} aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="pm-badge-panel">
+              {/* Badge list */}
+              {badges.length === 0 && !showBadgeForm && (
+                <p className="pm-badge-panel__empty">No badges yet. Create one below.</p>
+              )}
+              {badges.length > 0 && (
+                <div className="pm-badge-list">
+                  {badges.map((b) => (
+                    <div key={b.id} className={`pm-badge-row${!b.is_active || b.is_expired ? ' pm-badge-row--dim' : ''}`}>
+                      <span className={`pm-badge-pill pm-badge-pill--${b.color}`}>{b.display_label}</span>
+                      <div className="pm-badge-row__meta">
+                        <span className="pm-badge-row__name">{b.name}</span>
+                        {b.expires_at && (
+                          <span className={`pm-badge-row__exp${b.is_expired ? ' pm-badge-row__exp--expired' : ''}`}>
+                            {b.is_expired ? 'Expired' : `Expires ${b.expires_at}`}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="pm-badge-row__edit"
+                        onClick={() => {
+                          setEditingBadge(b)
+                          setBadgeName(b.name)
+                          setBadgeLabel(b.label)
+                          setBadgeType(b.badge_type)
+                          setBadgeValue(b.value ?? '')
+                          setBadgeColor(b.color)
+                          setBadgeExpiresAt(b.expires_at ?? '')
+                          setBadgeFormError('')
+                          setShowBadgeForm(true)
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!showBadgeForm && (
+                <button
+                  type="button"
+                  className="cm-add-entry-btn"
+                  style={{ marginTop: badges.length > 0 ? '0.75rem' : 0 }}
+                  onClick={() => {
+                    setEditingBadge(null)
+                    setBadgeName('')
+                    setBadgeLabel('')
+                    setBadgeType('custom')
+                    setBadgeValue('')
+                    setBadgeColor('green')
+                    setBadgeExpiresAt('')
+                    setBadgeFormError('')
+                    setShowBadgeForm(true)
+                  }}
+                >
+                  + New badge
+                </button>
+              )}
+
+              {showBadgeForm && (
+                <form
+                  className="pm-badge-form"
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    if (!badgeName.trim()) { setBadgeFormError('Name is required.'); return }
+                    if (!badgeLabel.trim()) { setBadgeFormError('Label is required.'); return }
+                    if ((badgeType === 'percentage' || badgeType === 'amount') && !badgeValue) {
+                      setBadgeFormError('Value is required for this badge type.')
+                      return
+                    }
+                    // Uniqueness check (client-side)
+                    const conflict = badges.some(
+                      (b) => b.name.toLowerCase() === badgeName.trim().toLowerCase() && b.id !== editingBadge?.id
+                    )
+                    if (conflict) { setBadgeFormError('A badge with this name already exists.'); return }
+
+                    setBadgeSaving(true)
+                    setBadgeFormError('')
+                    try {
+                      const payload = {
+                        name: badgeName.trim(),
+                        label: badgeLabel.trim(),
+                        badge_type: badgeType,
+                        value: badgeValue || null,
+                        color: badgeColor,
+                        expires_at: badgeExpiresAt || null,
+                        is_active: true,
+                      }
+                      if (editingBadge) {
+                        const updated = await adminProductService.updateBadge(editingBadge.id, payload)
+                        setBadges((prev) => prev.map((b) => b.id === updated.id ? updated : b))
+                      } else {
+                        const created = await adminProductService.createBadge(payload)
+                        setBadges((prev) => [...prev, created])
+                      }
+                      setShowBadgeForm(false)
+                      setEditingBadge(null)
+                    } catch {
+                      setBadgeFormError('Failed to save badge.')
+                    } finally {
+                      setBadgeSaving(false)
+                    }
+                  }}
+                >
+                  <div className="pm-badge-form__title">{editingBadge ? 'Edit Badge' : 'New Badge'}</div>
+
+                  <div className="pm-badge-form__row">
+                    <div className="pf-field">
+                      <label className="pf-label">Name <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>unique identifier</span></label>
+                      <input className="pf-input" type="text" placeholder="e.g. new, hot-deal" value={badgeName}
+                        onChange={(e) => { setBadgeName(e.target.value); setBadgeFormError('') }} disabled={badgeSaving} required />
+                    </div>
+                    <div className="pf-field">
+                      <label className="pf-label">Label <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>display text</span></label>
+                      <input className="pf-input" type="text" placeholder="e.g. New, Hot Deal" value={badgeLabel}
+                        onChange={(e) => setBadgeLabel(e.target.value)} disabled={badgeSaving} required />
+                    </div>
+                  </div>
+
+                  <div className="pm-badge-form__row">
+                    <div className="pf-field">
+                      <label className="pf-label">Type</label>
+                      <select className="pf-input" value={badgeType} onChange={(e) => setBadgeType(e.target.value as ApiBadge['badge_type'])} disabled={badgeSaving}>
+                        <option value="custom">Custom</option>
+                        <option value="percentage">Percentage Off</option>
+                        <option value="amount">Amount Off</option>
+                      </select>
+                    </div>
+                    {(badgeType === 'percentage' || badgeType === 'amount') && (
+                      <div className="pf-field">
+                        <label className="pf-label">{badgeType === 'percentage' ? 'Percent (%)' : 'Amount (KSh)'}</label>
+                        <input className="pf-input" type="number" min="0" step="0.01" placeholder="e.g. 20" value={badgeValue}
+                          onChange={(e) => setBadgeValue(e.target.value)} disabled={badgeSaving} required />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pm-badge-form__row">
+                    <div className="pf-field">
+                      <label className="pf-label">Color</label>
+                      <div className="pm-badge-color-row">
+                        {(['green', 'red', 'orange', 'blue', 'purple', 'teal'] as ApiBadge['color'][]).map((c) => (
+                          <button key={c} type="button"
+                            className={`pm-badge-color-swatch pm-badge-color-swatch--${c}${badgeColor === c ? ' pm-badge-color-swatch--active' : ''}`}
+                            onClick={() => setBadgeColor(c)}
+                            title={c}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="pf-field">
+                      <label className="pf-label">Expires on <span className="pf-optional">optional</span></label>
+                      <input className="pf-input" type="date" value={badgeExpiresAt}
+                        onChange={(e) => setBadgeExpiresAt(e.target.value)} disabled={badgeSaving} />
+                    </div>
+                  </div>
+
+                  {badgeFormError && (
+                    <p className="cm-form__error" style={{ marginBottom: '0.5rem' }}>
+                      <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      {badgeFormError}
+                    </p>
+                  )}
+
+                  <div className="cm-modal__actions" style={{ paddingTop: '0.25rem' }}>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowBadgeForm(false); setEditingBadge(null) }} disabled={badgeSaving}>Cancel</button>
+                    <button type="submit" className="btn btn--primary btn--sm" disabled={badgeSaving}>
+                      {badgeSaving ? <><span className="cm-spinner" /> Saving…</> : editingBadge ? 'Save Changes' : 'Create Badge'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>

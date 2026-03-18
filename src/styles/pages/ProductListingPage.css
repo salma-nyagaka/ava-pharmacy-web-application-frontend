@@ -40,6 +40,22 @@
   gap: 1rem;
 }
 
+.plp__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.plp__brand-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  flex-shrink: 0;
+}
+
 .plp__title {
   font-size: 1.625rem;
   font-weight: 700;

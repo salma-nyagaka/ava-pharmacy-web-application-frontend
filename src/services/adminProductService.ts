@@ -104,6 +104,21 @@ export interface InventoryLocationPayload {
   max_backorder_quantity?: number
 }
 
+export interface ApiBadge {
+  id: number
+  name: string
+  label: string
+  badge_type: 'custom' | 'percentage' | 'amount'
+  value: string | null
+  color: 'green' | 'red' | 'orange' | 'blue' | 'purple' | 'teal'
+  expires_at: string | null
+  is_active: boolean
+  display_label: string
+  is_expired: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface ApiProduct {
   id: number
   name: string
@@ -127,7 +142,7 @@ export interface ApiProduct {
   features: string[]
   directions: string
   warnings: string
-  badge: string
+  badge: ApiBadge | null
   image: string | null
   category: number | null
   category_name: string | null
@@ -194,7 +209,7 @@ export interface ProductCreatePayload {
   features?: string[]
   directions?: string
   warnings?: string
-  badge?: string
+  badge_id?: number | null
   image?: File | null
 }
 
@@ -329,6 +344,25 @@ export const adminProductService = {
 
   async deleteBrand(id: number) {
     await apiClient.delete(`/admin/brands/${id}/`)
+  },
+
+  async listBadges() {
+    const res = await apiClient.get('/admin/badges/')
+    return unwrapList<ApiBadge>(res)
+  },
+
+  async createBadge(payload: Partial<Omit<ApiBadge, 'id' | 'display_label' | 'is_expired' | 'created_at' | 'updated_at'>>) {
+    const res = await apiClient.post('/admin/badges/', payload)
+    return unwrap<ApiBadge>(res)
+  },
+
+  async updateBadge(id: number, payload: Partial<Omit<ApiBadge, 'id' | 'display_label' | 'is_expired' | 'created_at' | 'updated_at'>>) {
+    const res = await apiClient.patch(`/admin/badges/${id}/`, payload)
+    return unwrap<ApiBadge>(res)
+  },
+
+  async deleteBadge(id: number) {
+    await apiClient.delete(`/admin/badges/${id}/`)
   },
 
   async listInventory(params?: Record<string, string>) {

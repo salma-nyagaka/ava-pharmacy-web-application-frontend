@@ -8,6 +8,7 @@ import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { useProducts } from '../../hooks/useProducts'
 import { useAuth } from '../../context/AuthContext'
+import { fetchBrandBySlug, type PublicBrand } from '../../services/productService'
 import '../../styles/pages/ProductListingPage.css'
 
 type ListingProduct = CatalogProduct
@@ -26,7 +27,7 @@ function ProductListingPage() {
   const [searchParams] = useSearchParams()
   const { category: categoryParam } = useParams()
   const categories = useCategories()
-  const categorySlug = categoryParam || searchParams.get('category') || 'all'
+  const categorySlug = (categoryParam || searchParams.get('category') || 'all').split(/[?&]/)[0]
   const activeCategory = categories.find((category) => category.slug === categorySlug)
   const activeSubcategorySlug = searchParams.get('subcategory')
   const activeSubcategory = activeCategory?.subcategories.find((subcategory) => subcategory.slug === activeSubcategorySlug)
@@ -46,6 +47,13 @@ function ProductListingPage() {
       : activeCategory?.name ?? (categorySlug === 'all' ? 'All Products' : formatSlug(categorySlug))
   const categoryPath = activeCategory?.path ?? '/products'
   const subcategories = activeCategory?.subcategories ?? []
+
+  const [brandData, setBrandData] = useState<PublicBrand | null>(null)
+
+  useEffect(() => {
+    if (!brandParam) { setBrandData(null); return }
+    void fetchBrandBySlug(brandParam).then(setBrandData)
+  }, [brandParam])
 
   const [searchTerm, setSearchTerm] = useState(queryFromUrl)
   const [minPrice, setMinPrice] = useState(0)
@@ -245,32 +253,22 @@ function ProductListingPage() {
       <div className="container">
         <div className="plp__header">
           <div className="plp__header-top">
-            <div>
-              <h1 className="plp__title">{categoryTitle}</h1>
-              <p className="plp__subtitle">
-                {activeSubcategory ? activeSubcategory.name : 'Explore curated picks, essentials, and best sellers.'}
-              </p>
+            <div className="plp__title-row">
+              {brandParam && brandData?.logo && (
+                <img
+                  src={brandData.logo}
+                  alt={brandData.name}
+                  className="plp__brand-logo"
+                />
+              )}
+              <div>
+                <h1 className="plp__title">{categoryTitle}</h1>
+                <p className="plp__subtitle">
+                  {activeSubcategory ? activeSubcategory.name : 'Explore curated picks, essentials, and best sellers.'}
+                </p>
+              </div>
             </div>
           </div>
-          {subcategories.length > 0 && (
-            <div className="plp__subcategories">
-              <Link
-                to={categoryPath}
-                className={`plp__subcategory ${!activeSubcategory ? 'is-active' : ''}`}
-              >
-                All {categoryTitle}
-              </Link>
-              {subcategories.map((subcategory) => (
-                <Link
-                  key={subcategory.slug}
-                  to={`${categoryPath}&subcategory=${encodeURIComponent(subcategory.slug)}`}
-                  className={`plp__subcategory ${activeSubcategorySlug === subcategory.slug ? 'is-active' : ''}`}
-                >
-                  {subcategory.name}
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
 
         {activeFilterCount > 0 && (

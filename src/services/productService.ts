@@ -225,9 +225,27 @@ export async function fetchNavHealthConcerns(): Promise<NavHealthConcern[]> {
   }
 }
 
+export interface PublicBrand {
+  id: number
+  name: string
+  slug: string
+  logo: string | null
+  description: string | null
+}
+
 export async function fetchBrands(): Promise<unknown[]> {
   const res = await apiClient.get('/products/brands/')
   return res.data?.data ?? []
+}
+
+export async function fetchBrandBySlug(slug: string): Promise<PublicBrand | null> {
+  try {
+    const res = await apiClient.get('/products/brands/', { params: { slug } })
+    const list: PublicBrand[] = res.data?.data ?? res.data ?? []
+    return list.find((b) => b.slug === slug) ?? null
+  } catch {
+    return null
+  }
 }
 
 export async function fetchFeaturedProducts(): Promise<Product[]> {

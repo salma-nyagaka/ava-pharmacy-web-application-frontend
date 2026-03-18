@@ -173,16 +173,7 @@ function HealthConcernManagement() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="cm-kpi-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 12h-4l-3 8-5-16-3 8H2"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Total</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : concerns.length}</strong>
-          </div>
-        </div>
+      <div className="cm-kpi-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -351,19 +342,6 @@ function HealthConcernManagement() {
                               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                             </svg>
                             Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="cm-row-btn cm-row-btn--delete"
-                            onClick={() => { setDeleteTarget(c); setDeleteError('') }}
-                            title="Delete"
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6l-1 14H6L5 6" />
-                              <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                            </svg>
-                            Delete
                           </button>
                         </div>
                       </td>

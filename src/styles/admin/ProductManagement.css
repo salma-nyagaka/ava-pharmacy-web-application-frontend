@@ -968,3 +968,211 @@
 .pf-concern-chip:hover {
   border-color: #6b7280;
 }
+
+/* ── Badge count bubble in header btn ── */
+.pm-badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 999px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 4px;
+  line-height: 1;
+}
+
+/* ── Badge picker in product form ── */
+.pf-badge-manage-link {
+  border: none;
+  background: transparent;
+  color: #10b981;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.5rem;
+  text-decoration: underline;
+}
+
+.pf-badge-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.pf-badge-chip {
+  border: 1.5px solid #e5e7eb;
+  background: #f9fafb;
+  color: #374151;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.pf-badge-chip--none { color: #9ca3af; }
+.pf-badge-chip--green  { color: #15803d; }
+.pf-badge-chip--red    { color: #b91c1c; }
+.pf-badge-chip--orange { color: #c2410c; }
+.pf-badge-chip--blue   { color: #1d4ed8; }
+.pf-badge-chip--purple { color: #7c3aed; }
+.pf-badge-chip--teal   { color: #0d9488; }
+
+.pf-badge-chip--selected {
+  border-width: 2px;
+  background: #f0fdf4;
+}
+.pf-badge-chip--green.pf-badge-chip--selected  { border-color: #16a34a; background: #f0fdf4; }
+.pf-badge-chip--red.pf-badge-chip--selected    { border-color: #ef4444; background: #fef2f2; }
+.pf-badge-chip--orange.pf-badge-chip--selected { border-color: #f97316; background: #fff7ed; }
+.pf-badge-chip--blue.pf-badge-chip--selected   { border-color: #3b82f6; background: #eff6ff; }
+.pf-badge-chip--purple.pf-badge-chip--selected { border-color: #a855f7; background: #faf5ff; }
+.pf-badge-chip--teal.pf-badge-chip--selected   { border-color: #14b8a6; background: #f0fdfa; }
+.pf-badge-chip--none.pf-badge-chip--selected   { border-color: #9ca3af; background: #f3f4f6; }
+
+.pf-badge-picker__empty { font-size: 0.78rem; color: #9ca3af; }
+
+/* ── Badge management panel ── */
+.pm-badge-panel {
+  padding: 0 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pm-badge-panel__empty {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  padding: 0.5rem 0;
+  margin: 0;
+}
+
+.pm-badge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.pm-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  background: #f9fafb;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  transition: background 0.12s;
+}
+
+.pm-badge-row:hover { background: #f0fdf4; }
+.pm-badge-row--dim { opacity: 0.55; }
+
+.pm-badge-pill {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pm-badge-pill--green  { background: #f0fdf4; color: #15803d; }
+.pm-badge-pill--red    { background: #fef2f2; color: #b91c1c; }
+.pm-badge-pill--orange { background: #fff7ed; color: #c2410c; }
+.pm-badge-pill--blue   { background: #eff6ff; color: #1d4ed8; }
+.pm-badge-pill--purple { background: #faf5ff; color: #7c3aed; }
+.pm-badge-pill--teal   { background: #f0fdfa; color: #0d9488; }
+
+.pm-badge-row__meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.pm-badge-row__name {
+  font-size: 0.82rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.pm-badge-row__exp {
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.pm-badge-row__exp--expired { color: #ef4444; }
+
+.pm-badge-row__edit {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+  flex-shrink: 0;
+}
+
+.pm-badge-row__edit:hover { background: #f3f4f6; }
+
+/* ── Badge form ── */
+.pm-badge-form {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem 1rem 0.75rem;
+  background: #fafafa;
+  margin-top: 0.75rem;
+}
+
+.pm-badge-form__title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+}
+
+.pm-badge-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+/* ── Badge color swatches ── */
+.pm-badge-color-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.pm-badge-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.pm-badge-color-swatch:hover { transform: scale(1.15); }
+.pm-badge-color-swatch--active { border-color: #0f172a; transform: scale(1.1); }
+
+.pm-badge-color-swatch--green  { background: #16a34a; }
+.pm-badge-color-swatch--red    { background: #ef4444; }
+.pm-badge-color-swatch--orange { background: #f97316; }
+.pm-badge-color-swatch--blue   { background: #3b82f6; }
+.pm-badge-color-swatch--purple { background: #a855f7; }
+.pm-badge-color-swatch--teal   { background: #14b8a6; }

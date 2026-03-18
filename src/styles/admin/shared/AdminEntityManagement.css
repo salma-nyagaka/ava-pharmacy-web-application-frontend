@@ -184,11 +184,13 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .cm-filter-select {
-  min-width: 170px;
+  min-width: 150px;
+  max-width: 200px;
+  width: 200px;
   padding: 0.5rem 0.75rem;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
