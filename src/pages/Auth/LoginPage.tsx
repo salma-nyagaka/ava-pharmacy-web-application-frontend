@@ -16,9 +16,10 @@ function LoginPage() {
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
 
   if (isLoggedIn && user?.role === 'admin') {
-    return <Navigate to="/admin" replace />
+    return <Navigate to="/admin/dashboard" replace />
   }
 
   const clearField = (field: string) =>
@@ -41,7 +42,7 @@ function LoginPage() {
       if (redirect) {
         navigate(redirect)
       } else if (loggedInUser.role === 'admin') {
-        navigate('/admin')
+        navigate('/admin/dashboard')
       } else if (loggedInUser.role === 'pharmacist') {
         navigate('/pharmacist/dashboard')
       } else if (loggedInUser.role === 'doctor') {
@@ -160,6 +161,7 @@ function LoginPage() {
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); clearField('email') }}
                   autoComplete="email"
+                  autoFocus
                   className={fieldErrors.email ? 'login-field__input--error' : ''}
                 />
               </div>
@@ -219,13 +221,22 @@ function LoginPage() {
               </div>
             )}
 
+            <label className="login-remember">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              Remember me
+            </label>
+
             <button type="submit" className="login-submit" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? <><span className="login-spinner" />Signing in…</> : 'Sign in'}
             </button>
 
             <div className="login-divider"><span>or</span></div>
 
-            <Link to="/account" className="login-guest">
+            <Link to="/" className="login-guest">
               Continue as guest
             </Link>
           </form>

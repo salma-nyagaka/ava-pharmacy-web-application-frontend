@@ -23,6 +23,23 @@ const COMPACT_MEDIA_QUERY = '(max-width: 1023px)'
 
 const NAV_SECTIONS: AdminNavSection[] = [
   {
+    label: 'Overview',
+    items: [
+      {
+        label: 'Dashboard',
+        to: '/admin/dashboard',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
+            <rect x="3" y="3" width="7" height="9" rx="1.5" />
+            <rect x="14" y="3" width="7" height="5" rx="1.5" />
+            <rect x="14" y="12" width="7" height="9" rx="1.5" />
+            <rect x="3" y="16" width="7" height="5" rx="1.5" />
+          </svg>
+        ),
+      },
+    ],
+  },
+  {
     label: 'Store',
     items: [
       {
@@ -204,6 +221,16 @@ const NAV_SECTIONS: AdminNavSection[] = [
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
             <path d="M4 20V8M12 20V4M20 20v-9" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Invoices',
+        to: '/admin/invoices',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
+            <path d="M9 3h11a1 1 0 0 1 1 1v17l-4-3-4 3-4-3-4 3V4a1 1 0 0 1 1-1h3" />
+            <path d="M8 12h8M8 16h5" />
           </svg>
         ),
       },

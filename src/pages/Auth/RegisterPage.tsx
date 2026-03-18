@@ -198,6 +198,7 @@ function RegisterPage() {
                     value={firstName}
                     onChange={(e) => { setFirstName(e.target.value); clearField('first_name') }}
                     className={fieldErrors.first_name ? 'login-field__input--error' : ''}
+                    autoFocus
                     required
                   />
                 </div>
@@ -350,7 +351,7 @@ function RegisterPage() {
             )}
 
             <button type="submit" className="login-submit" disabled={loading}>
-              {loading ? 'Creating account…' : 'Create account'}
+              {loading ? <><span className="login-spinner" />Creating account…</> : 'Create account'}
             </button>
 
             <p className="login-legal">

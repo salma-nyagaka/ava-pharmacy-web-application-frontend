@@ -16,9 +16,6 @@ function getTodayLabel() {
   return new Date().toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-function getTimeString() {
-  return new Date().toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-}
 
 function getOrderedQuickActions() {
   const h = new Date().getHours()
@@ -76,7 +73,6 @@ function AdminDashboard() {
   const [orderSearchTerm, setOrderSearchTerm] = useState('')
   const [selectedOrderStatus, setSelectedOrderStatus] = useState('all')
   const [currentOrderPage, setCurrentOrderPage] = useState(1)
-  const [lastUpdated, setLastUpdated] = useState<string>('')
 
   const load = useCallback(async () => {
     try {
@@ -94,7 +90,6 @@ function AdminDashboard() {
           low_stock_threshold: p.low_stock_threshold,
         }))
       )
-      setLastUpdated(getTimeString())
     } catch {
       // fail silently
     } finally {
@@ -205,16 +200,7 @@ function AdminDashboard() {
           <h1 className="ad-header__title">Dashboard Overview</h1>
           <p className="ad-header__date">{getTodayLabel()}</p>
         </div>
-        <div className="ad-header__center">
-          <span className="ad-live-indicator">
-            <span className="ad-live-indicator__dot" />
-            Live
-          </span>
-        </div>
         <div className="ad-header__right">
-          {lastUpdated && (
-            <span className="ad-last-updated">Last updated: {lastUpdated}</span>
-          )}
           <Link to="/admin/reports" className="ad-header__cta">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
               <path d="M4 20V8M12 20V4M20 20v-9"/>

@@ -32,6 +32,7 @@ import UserCreatePage from './pages/Admin/UserCreatePage'
 import OrderManagement from './pages/Admin/OrderManagementLive'
 import OrderDetailsPage from './pages/Admin/OrderDetailsLivePage'
 import Reports from './pages/Admin/Reports'
+import Invoices from './pages/Admin/Invoices'
 import DealsManagement from './pages/Admin/DealsManagement'
 import PayoutManagement from './pages/Admin/PayoutManagement'
 import LabTestManagement from './pages/Admin/LabTestManagement'
@@ -157,7 +158,8 @@ function App() {
             <Route path="labtech/dashboard" element={<LabTechPortal />} />
 
             <Route path="admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-              <Route index element={<AdminDashboard />} />
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="products" element={<ProductManagement />} />
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="health-concerns" element={<HealthConcernManagement />} />
@@ -171,6 +173,7 @@ function App() {
               <Route path="prescriptions" element={<PrescriptionManagement />} />
               <Route path="doctors" element={<DoctorManagement />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="invoices" element={<Invoices />} />
               <Route path="deals" element={<DealsManagement />} />
               <Route path="payouts" element={<PayoutManagement />} />
               <Route path="lab-tests" element={<LabTestManagement />} />
@@ -178,7 +181,7 @@ function App() {
               <Route path="lab-partners" element={<LabPartnerManagement />} />
               <Route path="support" element={<SupportManagement />} />
               <Route path="settings" element={<Settings />} />
-              <Route path="*" element={<Navigate to="/admin" replace />} />
+              <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Route>
           </Routes>
         </CatalogProvider>
