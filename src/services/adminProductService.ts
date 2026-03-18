@@ -27,6 +27,7 @@ export interface ApiHealthConcern {
   slug: string
   description: string
   icon: string
+  image: string
   is_active: boolean
   created_at: string
 }
@@ -367,13 +368,14 @@ export const adminProductService = {
     return unwrapList<ApiHealthConcern>(res)
   },
 
-  async createHealthConcern(payload: { name: string; description?: string; icon?: string }) {
-    const res = await apiClient.post('/admin/health-concerns/', payload)
+  async createHealthConcern(payload: FormData) {
+    const res = await apiClient.post('/admin/health-concerns/', payload, { headers: { 'Content-Type': 'multipart/form-data' } })
     return unwrap<ApiHealthConcern>(res)
   },
 
-  async updateHealthConcern(id: number, payload: Partial<{ name: string; description: string; icon: string; is_active: boolean }>) {
-    const res = await apiClient.patch(`/admin/health-concerns/${id}/`, payload)
+  async updateHealthConcern(id: number, payload: FormData | Partial<{ name: string; description: string; icon: string; is_active: boolean }>) {
+    const isFormData = payload instanceof FormData
+    const res = await apiClient.patch(`/admin/health-concerns/${id}/`, payload, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
     return unwrap<ApiHealthConcern>(res)
   },
 

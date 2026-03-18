@@ -24,7 +24,8 @@ function HealthConcernManagement() {
   const [editing, setEditing] = useState<ApiHealthConcern | null>(null)
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
-  const [formIcon, setFormIcon] = useState('')
+  const [formImageFile, setFormImageFile] = useState<File | null>(null)
+  const [formImagePreview, setFormImagePreview] = useState('')
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
@@ -50,13 +51,15 @@ function HealthConcernManagement() {
 
   const openAddModal = () => {
     setEditing(null)
-    setFormName(''); setFormDescription(''); setFormIcon(''); setFormError('')
+    setFormName(''); setFormDescription('')
+    setFormImageFile(null); setFormImagePreview(''); setFormError('')
     setShowModal(true)
   }
 
   const openEditModal = (c: ApiHealthConcern) => {
     setEditing(c)
-    setFormName(c.name); setFormDescription(c.description ?? ''); setFormIcon(c.icon ?? ''); setFormError('')
+    setFormName(c.name); setFormDescription(c.description ?? '')
+    setFormImageFile(null); setFormImagePreview(c.image ?? ''); setFormError('')
     setShowModal(true)
   }
 
@@ -65,19 +68,18 @@ function HealthConcernManagement() {
   const handleSave = async (e: FormEvent) => {
     e.preventDefault()
     if (!formName.trim()) { setFormError('Name is required.'); return }
+    if (!editing && !formImageFile) { setFormError('Image is required.'); return }
     setSaving(true); setFormError('')
     try {
+      const payload = new FormData()
+      payload.append('name', formName.trim())
+      payload.append('description', formDescription.trim())
+      if (formImageFile) payload.append('image', formImageFile)
       if (editing) {
-        const updated = await adminProductService.updateHealthConcern(editing.id, {
-          name: formName.trim(), description: formDescription.trim(), icon: formIcon.trim(),
-        })
+        const updated = await adminProductService.updateHealthConcern(editing.id, payload)
         setConcerns((prev) => prev.map((c) => (c.id === editing.id ? updated : c)))
       } else {
-        const created = await adminProductService.createHealthConcern({
-          name: formName.trim(),
-          description: formDescription.trim() || undefined,
-          icon: formIcon.trim() || undefined,
-        })
+        const created = await adminProductService.createHealthConcern(payload)
         setConcerns((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
       }
       setShowModal(false)
@@ -171,7 +173,7 @@ function HealthConcernManagement() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="cm-kpi-grid">
+      <div className="cm-kpi-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 12h-4l-3 8-5-16-3 8H2"/></svg>
@@ -197,15 +199,6 @@ function HealthConcernManagement() {
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Inactive</span>
             <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : concerns.length - activeCount}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">With Icon</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : concerns.filter(c => Boolean(c.icon)).length}</strong>
           </div>
         </div>
       </div>
@@ -303,7 +296,7 @@ function HealthConcernManagement() {
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Icon</th>
+                    <th>Image</th>
                     <th>Description</th>
                     <th>Status</th>
                     <th>Created At</th>
@@ -322,8 +315,8 @@ function HealthConcernManagement() {
                         </div>
                       </td>
                       <td>
-                        {c.icon
-                          ? <span style={{ fontSize: '1.25rem', lineHeight: 1 }}>{c.icon}</span>
+                        {c.image
+                          ? <a href={c.image} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontSize: '0.875rem', textDecoration: 'underline' }}>View image</a>
                           : <span className="cm-name-cell__id">—</span>}
                       </td>
                       <td>
@@ -441,30 +434,39 @@ function HealthConcernManagement() {
             </div>
 
             <form className="cm-form" onSubmit={handleSave}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.9rem' }}>
-                <label className="cm-field">
-                  <span>Name</span>
-                  <input
-                    type="text"
-                    value={formName}
-                    onChange={(e) => { setFormName(e.target.value); setFormError('') }}
-                    placeholder="e.g. Pain Relief"
-                    disabled={saving}
-                    autoFocus
+              <label className="cm-field">
+                <span>Name</span>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => { setFormName(e.target.value); setFormError('') }}
+                  placeholder="e.g. Pain Relief"
+                  disabled={saving}
+                  autoFocus
+                />
+              </label>
+
+              <label className="cm-field">
+                <span>Image</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null
+                    setFormImageFile(file)
+                    setFormImagePreview(file ? URL.createObjectURL(file) : (editing?.image ?? ''))
+                  }}
+                  disabled={saving}
+                  required={!editing}
+                />
+                {formImagePreview && (
+                  <img
+                    src={formImagePreview}
+                    alt="Preview"
+                    style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: '0.5rem', marginTop: '0.5rem', border: '1px solid #e5e7eb' }}
                   />
-                </label>
-                <label className="cm-field">
-                  <span>Icon <em className="cm-field__optional">optional</em></span>
-                  <input
-                    type="text"
-                    value={formIcon}
-                    onChange={(e) => setFormIcon(e.target.value)}
-                    placeholder="💊"
-                    disabled={saving}
-                    style={{ width: 72, textAlign: 'center', fontSize: '1.25rem' }}
-                  />
-                </label>
-              </div>
+                )}
+              </label>
 
               <label className="cm-field">
                 <span>Description <em className="cm-field__optional">optional</em></span>
