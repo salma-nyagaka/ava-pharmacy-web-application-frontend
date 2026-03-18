@@ -243,24 +243,6 @@ function ProductListingPage() {
   return (
     <div className="plp">
       <div className="container">
-        <nav className="breadcrumbs">
-          <Link to="/">Home</Link>
-          <span>/</span>
-          {activeCategory ? (
-            activeSubcategory ? (
-              <>
-                <Link to={categoryPath}>{categoryTitle}</Link>
-                <span>/</span>
-                <span>{activeSubcategory.name}</span>
-              </>
-            ) : (
-              <span>{categoryTitle}</span>
-            )
-          ) : (
-            <span>{categoryTitle}</span>
-          )}
-        </nav>
-
         <div className="plp__header">
           <div className="plp__header-top">
             <div>
@@ -281,7 +263,7 @@ function ProductListingPage() {
               {subcategories.map((subcategory) => (
                 <Link
                   key={subcategory.slug}
-                  to={`${categoryPath}?subcategory=${encodeURIComponent(subcategory.slug)}`}
+                  to={`${categoryPath}&subcategory=${encodeURIComponent(subcategory.slug)}`}
                   className={`plp__subcategory ${activeSubcategorySlug === subcategory.slug ? 'is-active' : ''}`}
                 >
                   {subcategory.name}
