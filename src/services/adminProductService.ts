@@ -104,19 +104,13 @@ export interface InventoryLocationPayload {
   max_backorder_quantity?: number
 }
 
-export interface ApiBadge {
+
+export interface ApiProductPromotion {
   id: number
-  name: string
-  label: string
-  badge_type: 'custom' | 'percentage' | 'amount'
-  value: string | null
-  color: 'green' | 'red' | 'orange' | 'blue' | 'purple' | 'teal'
-  expires_at: string | null
-  is_active: boolean
-  display_label: string
-  is_expired: boolean
-  created_at: string
-  updated_at: string
+  title: string
+  code: string | null
+  badge: string
+  discount: string
 }
 
 export interface ApiProduct {
@@ -131,22 +125,23 @@ export interface ApiProduct {
   dosage_notes: string
   price: string
   cost_price: string | null
-  discount_price: string | null
   original_price: string | null
+  final_price: string
+  discount_total: string
+  active_promotions: ApiProductPromotion[]
   stock_quantity: number
   low_stock_threshold: number
   stock_source: StockSource
   max_backorder_quantity: number
   inventories: ApiProductInventory[]
   is_active: boolean
-  is_featured: boolean
   requires_prescription: boolean
   description: string
   short_description: string
   features: string[]
   directions: string
   warnings: string
-  badge: ApiBadge | null
+  badge: string | null
   image: string | null
   category: number | null
   category_name: string | null
@@ -196,7 +191,6 @@ export interface ProductCreatePayload {
   strength?: string
   price: number
   cost_price?: number
-  discount_price?: number
   branch_inventory?: InventoryLocationPayload
   warehouse_inventory?: InventoryLocationPayload
   category_id?: number | null
@@ -204,7 +198,6 @@ export interface ProductCreatePayload {
   brand_id?: number | null
   health_concern_ids?: number[]
   is_active: boolean
-  is_featured?: boolean
   requires_prescription: boolean
   allow_backorder?: boolean
   max_backorder_quantity?: number
@@ -217,7 +210,6 @@ export interface ProductCreatePayload {
   dosage_unit?: string
   dosage_frequency?: string
   dosage_notes?: string
-  badge_id?: number | null
   image?: File | null
 }
 
@@ -352,25 +344,6 @@ export const adminProductService = {
 
   async deleteBrand(id: number) {
     await apiClient.delete(`/admin/brands/${id}/`)
-  },
-
-  async listBadges() {
-    const res = await apiClient.get('/admin/badges/')
-    return unwrapList<ApiBadge>(res)
-  },
-
-  async createBadge(payload: Partial<Omit<ApiBadge, 'id' | 'display_label' | 'is_expired' | 'created_at' | 'updated_at'>>) {
-    const res = await apiClient.post('/admin/badges/', payload)
-    return unwrap<ApiBadge>(res)
-  },
-
-  async updateBadge(id: number, payload: Partial<Omit<ApiBadge, 'id' | 'display_label' | 'is_expired' | 'created_at' | 'updated_at'>>) {
-    const res = await apiClient.patch(`/admin/badges/${id}/`, payload)
-    return unwrap<ApiBadge>(res)
-  },
-
-  async deleteBadge(id: number) {
-    await apiClient.delete(`/admin/badges/${id}/`)
   },
 
   async listInventory(params?: Record<string, string>) {

@@ -4,7 +4,6 @@ import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallb
 import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
 import {
   adminProductService,
-  ApiBadge,
   ApiBrand,
   ApiProductCategory,
   ApiHealthConcern,
@@ -33,14 +32,9 @@ function formatCurrency(value?: string | number | null): string {
 }
 
 function getEffectiveSellingPrice(product: ApiProduct): number {
-  const sellingPrice = Number(product.price)
-  const discountPrice = Number(product.discount_price)
-
-  if (Number.isFinite(discountPrice) && discountPrice > 0 && discountPrice < sellingPrice) {
-    return discountPrice
-  }
-
-  return sellingPrice
+  const effectivePrice = Number(product.final_price ?? product.price)
+  if (Number.isFinite(effectivePrice) && effectivePrice > 0) return effectivePrice
+  return Number(product.price)
 }
 
 function getMarginData(product: ApiProduct): { amount: number; percent: number } | null {
@@ -129,7 +123,6 @@ function ProductManagement() {
   const [productStrength, setProductStrength] = useState('')
   const [productPrice, setProductPrice] = useState('')
   const [productCostPrice, setProductCostPrice] = useState('')
-  const [productDiscountPrice, setProductDiscountPrice] = useState('')
   const [productSubcategoryId, setProductSubcategoryId] = useState<number | ''>('')
   const [productBrandId, setProductBrandId] = useState<number | ''>('')
   const [productHealthConcernIds, setProductHealthConcernIds] = useState<number[]>([])
@@ -139,7 +132,6 @@ function ProductManagement() {
   const [productFeaturesText, setProductFeaturesText] = useState('')
   const [productDirections, setProductDirections] = useState('')
   const [productWarnings, setProductWarnings] = useState('')
-  const [productBadgeId, setProductBadgeId] = useState<number | ''>('')
   const [dosageQuantity, setDosageQuantity] = useState('')
   const [dosageUnit, setDosageUnit] = useState('')
   const [dosageFrequency, setDosageFrequency] = useState('')
@@ -163,19 +155,6 @@ function ProductManagement() {
   const [activeTab, setActiveTab] = useState<'products' | 'brands'>('products')
   const [editingBrand, setEditingBrand] = useState<ApiBrand | null>(null)
 
-  // Badge management state
-  const [badges, setBadges] = useState<ApiBadge[]>([])
-  const [showBadgePanel, setShowBadgePanel] = useState(false)
-  const [editingBadge, setEditingBadge] = useState<ApiBadge | null>(null)
-  const [badgeName, setBadgeName] = useState('')
-  const [badgeLabel, setBadgeLabel] = useState('')
-  const [badgeType, setBadgeType] = useState<'custom' | 'percentage' | 'amount'>('custom')
-  const [badgeValue, setBadgeValue] = useState('')
-  const [badgeColor, setBadgeColor] = useState<ApiBadge['color']>('green')
-  const [badgeExpiresAt, setBadgeExpiresAt] = useState('')
-  const [badgeSaving, setBadgeSaving] = useState(false)
-  const [badgeFormError, setBadgeFormError] = useState('')
-  const [showBadgeForm, setShowBadgeForm] = useState(false)
 
   useEffect(() => {
     loadAll()
@@ -185,20 +164,18 @@ function ProductManagement() {
     setLoading(true)
     setError('')
     try {
-      const [prods, brandList, cats, subs, concerns, badgeList] = await Promise.all([
+      const [prods, brandList, cats, subs, concerns] = await Promise.all([
         adminProductService.listProducts(),
         adminProductService.listBrands(),
         adminProductService.listProductCategories(),
         adminProductService.listProductSubcategories(),
         adminProductService.listHealthConcerns(),
-        adminProductService.listBadges(),
       ])
       setProducts(prods)
       setBrands(brandList)
       setCategories(cats)
       setSubcategories(subs)
       setAllConcerns(concerns)
-      setBadges(badgeList)
     } catch {
       setError('Failed to load products.')
     } finally {
@@ -213,7 +190,6 @@ function ProductManagement() {
     setProductStrength('')
     setProductPrice('')
     setProductCostPrice('')
-    setProductDiscountPrice('')
     setProductSubcategoryId(subcategories[0]?.id ?? '')
     setProductBrandId(brands[0]?.id ?? '')
     setProductHealthConcernIds([])
@@ -223,7 +199,6 @@ function ProductManagement() {
     setProductFeaturesText('')
     setProductDirections('')
     setProductWarnings('')
-    setProductBadgeId('')
     setDosageQuantity('')
     setDosageUnit('')
     setDosageFrequency('')
@@ -277,7 +252,6 @@ function ProductManagement() {
     setProductStrength(product.strength ?? '')
     setProductPrice(product.price)
     setProductCostPrice(product.cost_price ?? '')
-    setProductDiscountPrice(product.discount_price ?? '')
     setProductSubcategoryId(product.subcategory_id ?? (subcategories[0]?.id ?? ''))
     setProductBrandId(product.brand?.id ?? (brands[0]?.id ?? ''))
     setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
@@ -287,7 +261,6 @@ function ProductManagement() {
     setProductFeaturesText(formatFeatureLines(product.features))
     setProductDirections(product.directions ?? '')
     setProductWarnings(product.warnings ?? '')
-    setProductBadgeId(product.badge?.id ?? '')
     setDosageQuantity(product.dosage_quantity ?? '')
     setDosageUnit(product.dosage_unit ?? '')
     setDosageFrequency(product.dosage_frequency ?? '')
@@ -332,13 +305,6 @@ function ProductManagement() {
 
     const priceValue = Number(productPrice)
     const costPriceValue = productCostPrice ? Number(productCostPrice) : undefined
-    const discountPriceValue = productDiscountPrice ? Number(productDiscountPrice) : undefined
-
-    if (discountPriceValue !== undefined && discountPriceValue >= priceValue) {
-      setFormError('Discount price must be lower than the selling price.')
-      return
-    }
-
     const features = parseFeatureLines(productFeaturesText)
     const sku = productSku.trim() || generateSku(productName)
     const slug = productSlug.trim() || generateSlug(productName)
@@ -349,7 +315,6 @@ function ProductManagement() {
       strength: productStrength.trim(),
       price: priceValue,
       cost_price: costPriceValue,
-      discount_price: discountPriceValue,
       brand_id: Number(productBrandId),
       subcategory_id: Number(productSubcategoryId),
       health_concern_ids: productHealthConcernIds,
@@ -359,7 +324,6 @@ function ProductManagement() {
       features,
       directions: productDirections.trim(),
       warnings: productWarnings.trim(),
-      badge_id: productBadgeId !== '' ? Number(productBadgeId) : null,
       dosage_quantity: dosageQuantity.trim(),
       dosage_unit: dosageUnit.trim(),
       dosage_frequency: dosageFrequency,
@@ -388,7 +352,6 @@ function ProductManagement() {
       formData.append('features', JSON.stringify(payload.features ?? []))
       formData.append('directions', payload.directions ?? '')
       formData.append('warnings', payload.warnings ?? '')
-      if (payload.badge_id != null) formData.append('badge_id', String(payload.badge_id))
       formData.append('dosage_quantity', payload.dosage_quantity ?? '')
       formData.append('dosage_unit', payload.dosage_unit ?? '')
       formData.append('dosage_frequency', payload.dosage_frequency ?? '')
@@ -396,7 +359,6 @@ function ProductManagement() {
       formData.append('branch_inventory', JSON.stringify(payload.branch_inventory ?? {}))
 
       if (payload.cost_price !== undefined) formData.append('cost_price', String(payload.cost_price))
-      if (payload.discount_price !== undefined) formData.append('discount_price', String(payload.discount_price))
       if (payload.brand_id !== null && payload.brand_id !== undefined) formData.append('brand_id', String(payload.brand_id))
       if (payload.subcategory_id !== null && payload.subcategory_id !== undefined) formData.append('subcategory_id', String(payload.subcategory_id))
       productHealthConcernIds.forEach((id) => formData.append('health_concern_ids', String(id)))
@@ -697,9 +659,6 @@ function ProductManagement() {
           {activeTab === 'products' ? (
             <>
               <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
-              <button className="btn btn--secondary btn--sm" type="button" onClick={() => setShowBadgePanel(true)}>
-                Badges {badges.length > 0 && <span className="pm-badge-count">{badges.length}</span>}
-              </button>
               <Link className="btn btn--secondary btn--sm" to="/admin/inventory">Add Inventory</Link>
             </>
           ) : (
@@ -937,7 +896,7 @@ function ProductManagement() {
                 <th style={{ minWidth: 120 }}>Brand</th>
                 <th style={{ minWidth: 130 }}>Subcategory</th>
                 <th style={{ minWidth: 90 }}>Selling</th>
-                <th style={{ minWidth: 100 }}>Discount</th>
+                <th style={{ minWidth: 140 }}>Active Deal</th>
                 <th style={{ minWidth: 90 }}>Margin</th>
                 <th style={{ minWidth: 80 }}>Stock</th>
                 <th style={{ minWidth: 110 }}>Prescription</th>
@@ -992,9 +951,9 @@ function ProductManagement() {
                   <td>{formatCurrency(product.price)}</td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <span>{formatCurrency(product.discount_price)}</span>
+                      <span>{product.badge || 'No active deal'}</span>
                       <span className="cm-name-cell__id">
-                        {product.discount_price ? 'Deal price' : 'No discount'}
+                        {product.badge ? formatCurrency(product.final_price) : 'Manage in Deals'}
                       </span>
                     </div>
                   </td>
@@ -1217,35 +1176,9 @@ function ProductManagement() {
                       onChange={(e) => setProductDescription(e.target.value)}
                     />
                   </div>
-                  <div className="pf-row">
-                    <div className="pf-field pf-field--sm">
-                      <label className="pf-label">
-                        Badge <span className="pf-optional">optional</span>
-                      
-                      </label>
-                      <div className="pf-badge-picker">
-                        <button
-                          type="button"
-                          className={`pf-badge-chip pf-badge-chip--none${productBadgeId === '' ? ' pf-badge-chip--selected' : ''}`}
-                          onClick={() => setProductBadgeId('')}
-                        >
-                          None
-                        </button>
-                        {badges.filter((b) => b.is_active && !b.is_expired).map((b) => (
-                          <button
-                            key={b.id}
-                            type="button"
-                            className={`pf-badge-chip pf-badge-chip--${b.color}${productBadgeId === b.id ? ' pf-badge-chip--selected' : ''}`}
-                            onClick={() => setProductBadgeId(b.id)}
-                          >
-                            {b.display_label}
-                          </button>
-                        ))}
-                        {badges.length === 0 && (
-                          <span className="pf-badge-picker__empty">No badges yet — create one above.</span>
-                        )}
-                      </div>
-                    </div>
+                  <div className="pf-field">
+                    <label className="pf-label">Promotions & Deals</label>
+                    <span className="pf-hint">Discount pricing and deal badges are managed from the Deals screen.</span>
                   </div>
                   <div className="pf-field">
                     <label className="pf-label">Features <span className="pf-optional">optional</span></label>
@@ -1392,12 +1325,7 @@ function ProductManagement() {
                   </div>
                   <div className="pf-row">
                     <div className="pf-field">
-                      <label className="pf-label">Discount Price <span className="pf-optional">optional</span></label>
-                      <div className="pf-prefix-wrap">
-                        <span className="pf-prefix">KSh</span>
-                        <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" placeholder="0.00" value={productDiscountPrice} onChange={(e) => setProductDiscountPrice(e.target.value)} />
-                      </div>
-                      <span className="pf-hint">Must be lower than the selling price. Customers will see this as the discounted price.</span>
+                      <span className="pf-hint">Customer-facing discounts and deal badges are created from Deals, not on the product record.</span>
                     </div>
                   </div>
                 </div>
@@ -1587,203 +1515,6 @@ function ProductManagement() {
               >
                 {deleting ? 'Deleting…' : 'Delete'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Badge Management Panel ── */}
-      {showBadgePanel && (
-        <div className="cm-overlay" onClick={() => { if (!badgeSaving) { setShowBadgePanel(false); setShowBadgeForm(false); setEditingBadge(null) } }}>
-          <div className="cm-modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
-            <div className="cm-modal__header">
-              <div>
-                <h2>Badges</h2>
-                <p>Labels shown on product cards (e.g. New, 20% Off)</p>
-              </div>
-              <button type="button" className="cm-modal__close" onClick={() => { setShowBadgePanel(false); setShowBadgeForm(false); setEditingBadge(null) }} aria-label="Close">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-
-            <div className="pm-badge-panel">
-              {/* Badge list */}
-              {badges.length === 0 && !showBadgeForm && (
-                <p className="pm-badge-panel__empty">No badges yet. Create one below.</p>
-              )}
-              {badges.length > 0 && (
-                <div className="pm-badge-list">
-                  {badges.map((b) => (
-                    <div key={b.id} className={`pm-badge-row${!b.is_active || b.is_expired ? ' pm-badge-row--dim' : ''}`}>
-                      <span className={`pm-badge-pill pm-badge-pill--${b.color}`}>{b.display_label}</span>
-                      <div className="pm-badge-row__meta">
-                        <span className="pm-badge-row__name">{b.name}</span>
-                        {b.expires_at && (
-                          <span className={`pm-badge-row__exp${b.is_expired ? ' pm-badge-row__exp--expired' : ''}`}>
-                            {b.is_expired ? 'Expired' : `Expires ${b.expires_at}`}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        className="pm-badge-row__edit"
-                        onClick={() => {
-                          setEditingBadge(b)
-                          setBadgeName(b.name)
-                          setBadgeLabel(b.label)
-                          setBadgeType(b.badge_type)
-                          setBadgeValue(b.value ?? '')
-                          setBadgeColor(b.color)
-                          setBadgeExpiresAt(b.expires_at ?? '')
-                          setBadgeFormError('')
-                          setShowBadgeForm(true)
-                        }}
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {!showBadgeForm && (
-                <button
-                  type="button"
-                  className="cm-add-entry-btn"
-                  style={{ marginTop: badges.length > 0 ? '0.75rem' : 0 }}
-                  onClick={() => {
-                    setEditingBadge(null)
-                    setBadgeName('')
-                    setBadgeLabel('')
-                    setBadgeType('custom')
-                    setBadgeValue('')
-                    setBadgeColor('green')
-                    setBadgeExpiresAt('')
-                    setBadgeFormError('')
-                    setShowBadgeForm(true)
-                  }}
-                >
-                  + New badge
-                </button>
-              )}
-
-              {showBadgeForm && (
-                <form
-                  className="pm-badge-form"
-                  onSubmit={async (e) => {
-                    e.preventDefault()
-                    if (!badgeName.trim()) { setBadgeFormError('Name is required.'); return }
-                    if (!badgeLabel.trim()) { setBadgeFormError('Label is required.'); return }
-                    if ((badgeType === 'percentage' || badgeType === 'amount') && !badgeValue) {
-                      setBadgeFormError('Value is required for this badge type.')
-                      return
-                    }
-                    // Uniqueness check (client-side)
-                    const conflict = badges.some(
-                      (b) => b.name.toLowerCase() === badgeName.trim().toLowerCase() && b.id !== editingBadge?.id
-                    )
-                    if (conflict) { setBadgeFormError('A badge with this name already exists.'); return }
-
-                    setBadgeSaving(true)
-                    setBadgeFormError('')
-                    try {
-                      const payload = {
-                        name: badgeName.trim(),
-                        label: badgeLabel.trim(),
-                        badge_type: badgeType,
-                        value: badgeValue || null,
-                        color: badgeColor,
-                        expires_at: badgeExpiresAt || null,
-                        is_active: true,
-                      }
-                      if (editingBadge) {
-                        const updated = await adminProductService.updateBadge(editingBadge.id, payload)
-                        setBadges((prev) => prev.map((b) => b.id === updated.id ? updated : b))
-                      } else {
-                        const created = await adminProductService.createBadge(payload)
-                        setBadges((prev) => [...prev, created])
-                      }
-                      setShowBadgeForm(false)
-                      setEditingBadge(null)
-                    } catch {
-                      setBadgeFormError('Failed to save badge.')
-                    } finally {
-                      setBadgeSaving(false)
-                    }
-                  }}
-                >
-                  <div className="pm-badge-form__title">{editingBadge ? 'Edit Badge' : 'New Badge'}</div>
-
-                  <div className="pm-badge-form__row">
-                    <div className="pf-field">
-                      <label className="pf-label">Name <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>unique identifier</span></label>
-                      <input className="pf-input" type="text" placeholder="e.g. new, hot-deal" value={badgeName}
-                        onChange={(e) => { setBadgeName(e.target.value); setBadgeFormError('') }} disabled={badgeSaving} required />
-                    </div>
-                    <div className="pf-field">
-                      <label className="pf-label">Label <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>display text</span></label>
-                      <input className="pf-input" type="text" placeholder="e.g. New, Hot Deal" value={badgeLabel}
-                        onChange={(e) => setBadgeLabel(e.target.value)} disabled={badgeSaving} required />
-                    </div>
-                  </div>
-
-                  <div className="pm-badge-form__row">
-                    <div className="pf-field">
-                      <label className="pf-label">Type</label>
-                      <select className="pf-input" value={badgeType} onChange={(e) => setBadgeType(e.target.value as ApiBadge['badge_type'])} disabled={badgeSaving}>
-                        <option value="custom">Custom</option>
-                        <option value="percentage">Percentage Off</option>
-                        <option value="amount">Amount Off</option>
-                      </select>
-                    </div>
-                    {(badgeType === 'percentage' || badgeType === 'amount') && (
-                      <div className="pf-field">
-                        <label className="pf-label">{badgeType === 'percentage' ? 'Percent (%)' : 'Amount (KSh)'}</label>
-                        <input className="pf-input" type="number" min="0" step="0.01" placeholder="e.g. 20" value={badgeValue}
-                          onChange={(e) => setBadgeValue(e.target.value)} disabled={badgeSaving} required />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pm-badge-form__row">
-                    <div className="pf-field">
-                      <label className="pf-label">Color</label>
-                      <div className="pm-badge-color-row">
-                        {(['green', 'red', 'orange', 'blue', 'purple', 'teal'] as ApiBadge['color'][]).map((c) => (
-                          <button key={c} type="button"
-                            className={`pm-badge-color-swatch pm-badge-color-swatch--${c}${badgeColor === c ? ' pm-badge-color-swatch--active' : ''}`}
-                            onClick={() => setBadgeColor(c)}
-                            title={c}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="pf-field">
-                      <label className="pf-label">Expires on <span className="pf-optional">optional</span></label>
-                      <input className="pf-input" type="date" value={badgeExpiresAt}
-                        onChange={(e) => setBadgeExpiresAt(e.target.value)} disabled={badgeSaving} />
-                    </div>
-                  </div>
-
-                  {badgeFormError && (
-                    <p className="cm-form__error" style={{ marginBottom: '0.5rem' }}>
-                      <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                      {badgeFormError}
-                    </p>
-                  )}
-
-                  <div className="cm-modal__actions" style={{ paddingTop: '0.25rem' }}>
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => { setShowBadgeForm(false); setEditingBadge(null) }} disabled={badgeSaving}>Cancel</button>
-                    <button type="submit" className="btn btn--primary btn--sm" disabled={badgeSaving}>
-                      {badgeSaving ? <><span className="cm-spinner" /> Saving…</> : editingBadge ? 'Save Changes' : 'Create Badge'}
-                    </button>
-                  </div>
-                </form>
-              )}
             </div>
           </div>
         </div>

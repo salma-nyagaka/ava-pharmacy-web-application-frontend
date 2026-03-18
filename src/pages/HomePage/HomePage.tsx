@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import backgroundBanner from '../../assets/images/banner/background.jpg'
 import { cartService } from '../../services/cartService'
-import { useProducts } from '../../hooks/useProducts'
+import { fetchFeaturedProducts } from '../../services/productService'
+import { mapApiProduct, useProducts } from '../../hooks/useProducts'
 import { useCatalog } from '../../context/CatalogContext'
 import type { CatalogProduct } from '../../data/products'
 import '../../styles/pages/HomePage.css'
@@ -34,7 +35,7 @@ function HomePage() {
   ]
 
   const { products: catalogProducts } = useProducts({ page_size: 200 })
-  const { products: featuredCatalogProducts } = useProducts({ page_size: 12, is_featured: true })
+  const [featuredProducts, setFeaturedProducts] = useState<CatalogProduct[]>([])
 
   const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
   const isDealProduct = (product: CatalogProduct) => product.originalPrice !== null && product.originalPrice > product.price
@@ -44,27 +45,39 @@ function HomePage() {
     return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
   }
   const getProductBadge = (product: CatalogProduct, section: 'deals' | 'featured' | 'new') => {
+    if (section !== 'deals') return null
     if (product.badge?.trim()) return product.badge.trim()
-    if (section === 'deals' && isDealProduct(product)) return `Save ${getDealPercentage(product)}%`
-    if (section === 'featured') return 'Featured'
-    if (section === 'new') return 'New Arrival'
     return null
   }
 
-  const featuredProducts = featuredCatalogProducts
-    .filter(isAvailableProduct)
-    .slice(0, 4)
+  useEffect(() => {
+    let isMounted = true
+
+    void fetchFeaturedProducts()
+      .then((items) => {
+        if (!isMounted) return
+        setFeaturedProducts(items.map(mapApiProduct).filter(isAvailableProduct).slice(0, 5))
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setFeaturedProducts([])
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const featuredProductIds = new Set(featuredProducts.map((product) => product.id))
 
   const newProducts = catalogProducts
     .filter((product) => isAvailableProduct(product) && !featuredProductIds.has(product.id))
-    .slice(0, 4)
+    .slice(0, 5)
 
   const offerDeals = [...catalogProducts]
     .filter((product) => isAvailableProduct(product) && isDealProduct(product))
     .sort((a, b) => getDealSavings(b) - getDealSavings(a))
-    .slice(0, 4)
+    .slice(0, 5)
 
   const formatPrice = (price: number) => {
     return `KSh ${price.toLocaleString()}`
@@ -427,7 +440,7 @@ function HomePage() {
           <div className="section__header">
             <h2 className="section__title">Featured Products</h2>
             <p className="section__subtitle">
-              Products your team has intentionally highlighted on the storefront.
+              Top-bought favourites customers are loving right now.
             </p>
           </div>
           {featuredProducts.length === 0 ? (

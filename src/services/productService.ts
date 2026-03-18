@@ -24,7 +24,6 @@ export interface Product {
   available_quantity: number
   can_purchase: boolean
   has_variants: boolean
-  is_featured: boolean
   is_active: boolean
 }
 
@@ -60,7 +59,6 @@ export interface ProductFilters {
   min_price?: number
   max_price?: number
   requires_prescription?: boolean
-  is_featured?: boolean
 }
 
 export interface SearchSuggestion {
@@ -249,8 +247,11 @@ export async function fetchBrandBySlug(slug: string): Promise<PublicBrand | null
 }
 
 export async function fetchFeaturedProducts(): Promise<Product[]> {
-  const res = await apiClient.get('/products/', { params: { is_featured: true, page_size: 12 } })
-  return res.data?.data ?? []
+  const res = await apiClient.get('/products/featured/', { params: { page_size: 12 } })
+  const payload = res.data?.data ?? res.data
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.results)) return payload.results
+  return []
 }
 
 export async function fetchBanners(): Promise<unknown[]> {

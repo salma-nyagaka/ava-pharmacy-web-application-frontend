@@ -9,11 +9,6 @@ import '../../styles/pages/ProductListingPage.css'
 const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
 const hasDeal = (price: number, originalPrice: number | null) => (originalPrice ?? price) > price
 const getSavings = (price: number, originalPrice: number | null) => (originalPrice ?? price) - price
-const getSavingsPercent = (price: number, originalPrice: number | null) => {
-  if (!originalPrice || originalPrice <= price) return 0
-  return Math.round(((originalPrice - price) / originalPrice) * 100)
-}
-
 const renderStars = (rating: number) => {
   const full = Math.min(5, Math.max(0, Math.round(rating)))
   return Array.from({ length: 5 }, (_, i) =>
@@ -88,7 +83,7 @@ function OffersPage() {
         <div className="container">
           <p className="offers-hero__eyebrow">Promotions</p>
           <h1 className="offers-hero__title">Latest Offers</h1>
-          <p className="offers-hero__sub">Save on products created in admin with discounts or active promotions. {allDeals.length} active deals.</p>
+          <p className="offers-hero__sub">Browse live promotions created in Deals. {allDeals.length} active deals.</p>
         </div>
       </div>
 
@@ -173,9 +168,6 @@ function OffersPage() {
                     {deal.badge && (
                       <span className={`product-card__badge ${deal.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>{deal.badge}</span>
                     )}
-                    <span className="product-card__badge product-card__badge--sale offers-saving-badge">
-                      Save {getSavingsPercent(deal.price, deal.originalPrice)}%
-                    </span>
                     <ImageWithFallback src={deal.image} alt={deal.name} />
                   </Link>
                   <div className="product-card__content">

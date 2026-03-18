@@ -121,6 +121,10 @@
   margin-bottom: 1.5rem;
 }
 
+.ad-stats--5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
 .ad-stat {
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -182,6 +186,182 @@
 
 .ad-stat__delta--down {
   color: #ef4444;
+}
+
+.ad-stat__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.1rem;
+}
+
+.ad-stat__sub {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Sparkline ─────────────────────────────────── */
+.ad-sparkline {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  opacity: 0.75;
+}
+
+/* ── Action Queue ──────────────────────────────── */
+.ad-action-queue {
+  display: flex;
+  flex-direction: column;
+}
+
+.ad-action-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid #f8fafc;
+  text-decoration: none;
+  transition: background 140ms ease;
+  cursor: pointer;
+}
+
+.ad-action-item:last-child {
+  border-bottom: none;
+}
+
+.ad-action-item:hover {
+  background: #f8fafc;
+}
+
+.ad-action-item__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ad-action-item__icon--amber { background: #fef3c7; color: #d97706; }
+.ad-action-item__icon--teal  { background: #f0fdfa; color: #0d9488; }
+.ad-action-item__icon--blue  { background: #eff6ff; color: #2563eb; }
+.ad-action-item__icon--red   { background: #fef2f2; color: #dc2626; }
+
+.ad-action-item__label {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #374151;
+  min-width: 0;
+}
+
+.ad-action-item__badge {
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  min-width: 28px;
+  text-align: center;
+}
+
+.ad-action-item__badge--amber  { background: #fffbeb; color: #b45309; }
+.ad-action-item__badge--teal   { background: #f0fdfa; color: #0d9488; }
+.ad-action-item__badge--blue   { background: #eff6ff; color: #1d4ed8; }
+.ad-action-item__badge--red    { background: #fef2f2; color: #b91c1c; }
+.ad-action-item__badge--zero   { background: #f3f4f6; color: #9ca3af; }
+
+.ad-action-item__arrow {
+  color: #d1d5db;
+  flex-shrink: 0;
+  transition: color 140ms ease;
+}
+
+.ad-action-item:hover .ad-action-item__arrow {
+  color: #6b7280;
+}
+
+/* ── Activity Feed ─────────────────────────────── */
+.ad-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+.ad-feed__empty {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.ad-feed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1.5rem;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.ad-feed-item:last-child {
+  border-bottom: none;
+}
+
+.ad-feed-icon {
+  font-size: 0.9rem;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.ad-feed-icon--green   { background: #f0fdf4; }
+.ad-feed-icon--blue    { background: #eff6ff; }
+.ad-feed-icon--amber   { background: #fffbeb; }
+.ad-feed-icon--red     { background: #fef2f2; }
+.ad-feed-icon--teal    { background: #f0fdfa; }
+.ad-feed-icon--neutral { background: #f3f4f6; }
+
+.ad-feed-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ad-feed-item__msg {
+  font-size: 0.8rem;
+  color: #374151;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ad-feed-item__time {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.ad-feed-item__link {
+  font-size: 0.8rem;
+  color: #10b981;
+  text-decoration: none;
+  flex-shrink: 0;
+  padding-top: 0.1rem;
+}
+
+.ad-feed-item__link:hover {
+  text-decoration: underline;
 }
 
 /* ── Quick actions ───────────────────────────────── */
@@ -715,8 +895,9 @@
 
 /* ── Responsive ──────────────────────────────────── */
 @media (max-width: 1280px) {
-  .ad-stats {
-    grid-template-columns: repeat(2, 1fr);
+  .ad-stats,
+  .ad-stats--5 {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .ad-grid {
@@ -725,7 +906,8 @@
 }
 
 @media (max-width: 768px) {
-  .ad-stats {
+  .ad-stats,
+  .ad-stats--5 {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
   }

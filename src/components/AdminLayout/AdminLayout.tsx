@@ -95,6 +95,16 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
+        label: 'Deals',
+        to: '/admin/deals',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
+            <path d="m21 12-9 9-9-9V3h9l9 9Z" />
+            <circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none" />
+          </svg>
+        ),
+      },
+      {
         label: 'Orders',
         to: '/admin/orders',
         matchChildren: true,
@@ -102,16 +112,6 @@ const NAV_SECTIONS: AdminNavSection[] = [
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
             <path d="M14 2v6h6M8 13h8M8 17h6" />
-          </svg>
-        ),
-      },
-      {
-        label: 'Deals',
-        to: '/admin/deals',
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
-            <path d="m21 12-9 9-9-9V3h9l9 9Z" />
-            <circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none" />
           </svg>
         ),
       },
