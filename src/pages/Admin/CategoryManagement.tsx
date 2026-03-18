@@ -16,12 +16,6 @@ function formatDate(value?: string): string {
 type ViewMode = 'categories' | 'subcategories'
 type ModalMode = 'create-category' | 'create-subcategory' | 'edit-category' | 'edit-subcategory'
 
-interface DeleteTarget {
-  type: 'category' | 'subcategory'
-  id: number
-  name: string
-}
-
 const PAGE_SIZE = 8
 
 function CategoryManagement() {
@@ -45,12 +39,12 @@ function CategoryManagement() {
   const [formImagePreview, setFormImagePreview] = useState('')
   const [formSaving, setFormSaving] = useState(false)
   const [formError, setFormError] = useState('')
-
-  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
+  const [subEntries, setSubEntries] = useState<{ name: string; description: string; error: string }[]>([
+    { name: '', description: '', error: '' },
+  ])
 
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
+  const [subcatPreview, setSubcatPreview] = useState<{ name: string; subcategories: ApiProductSubcategory[] } | null>(null)
 
   const loadAll = async () => {
     setLoading(true)
@@ -80,6 +74,7 @@ function CategoryManagement() {
     setFormImageFile(null)
     setFormImagePreview('')
     setFormError('')
+    setSubEntries([{ name: '', description: '', error: '' }])
     setShowModal(true)
   }
 
@@ -129,12 +124,84 @@ function CategoryManagement() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!formName.trim()) { setFormError('Name is required.'); return }
-    const isSubcategoryModal = modalMode === 'create-subcategory' || modalMode === 'edit-subcategory'
-    if (isSubcategoryModal && formParentId === '') { setFormError('Select a parent category.'); return }
     const isCategoryModal = modalMode === 'create-category' || modalMode === 'edit-category'
+
+    if (modalMode === 'create-subcategory') {
+      if (formParentId === '') { setFormError('Select a parent category.'); return }
+
+      // Validate each entry
+      const existingNames = subcategories
+        .filter((s) => s.category === Number(formParentId))
+        .map((s) => s.name.toLowerCase())
+
+      let hasError = false
+      const validated = subEntries.map((entry, idx) => {
+        const name = entry.name.trim()
+        if (!name) return { ...entry, error: 'Name is required.' }
+        const duplicate = subEntries.some(
+          (other, oi) => oi !== idx && other.name.trim().toLowerCase() === name.toLowerCase()
+        )
+        if (duplicate) return { ...entry, error: 'Duplicate name in this form.' }
+        if (existingNames.includes(name.toLowerCase())) {
+          return { ...entry, error: 'A subcategory with this name already exists in the selected category.' }
+        }
+        return { ...entry, error: '' }
+      })
+      if (validated.some((v) => v.error)) {
+        hasError = true
+        setSubEntries(validated)
+      }
+      if (hasError) return
+
+      setFormSaving(true)
+      setFormError('')
+      try {
+        const created = await Promise.all(
+          subEntries.map((entry) =>
+            adminProductService.createProductSubcategory({
+              name: entry.name.trim(),
+              category: Number(formParentId),
+              description: entry.description.trim() || undefined,
+            })
+          )
+        )
+        setSubcategories((prev) =>
+          [...prev, ...created].sort((a, b) => a.category_name.localeCompare(b.category_name) || a.name.localeCompare(b.name))
+        )
+        setCategories((prev) =>
+          prev.map((c) =>
+            c.id === Number(formParentId)
+              ? { ...c, subcategories: [...c.subcategories, ...created] }
+              : c
+          )
+        )
+        setShowModal(false)
+        window.dispatchEvent(new Event('ava:catalog-updated'))
+      } catch (err: unknown) {
+        type ApiErr = { response?: { data?: { error?: { message?: string } } } }
+        setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save. Please try again.')
+      } finally {
+        setFormSaving(false)
+      }
+      return
+    }
+
+    if (!formName.trim()) { setFormError('Name is required.'); return }
+    const isSubcategoryModal = modalMode === 'edit-subcategory'
+    if (isSubcategoryModal && formParentId === '') { setFormError('Select a parent category.'); return }
     if (isCategoryModal && !formDescription.trim()) { setFormError('Category description is required.'); return }
     if (isCategoryModal && modalMode === 'create-category' && !formImageFile) { setFormError('Category image is required.'); return }
+
+    // Uniqueness check for edit-subcategory
+    if (modalMode === 'edit-subcategory' && editingId !== null) {
+      const conflict = subcategories.some(
+        (s) =>
+          s.id !== editingId &&
+          s.category === Number(formParentId) &&
+          s.name.toLowerCase() === formName.trim().toLowerCase()
+      )
+      if (conflict) { setFormError('A subcategory with this name already exists in the selected category.'); return }
+    }
 
     setFormSaving(true)
     setFormError('')
@@ -146,20 +213,6 @@ function CategoryManagement() {
         if (formImageFile) payload.append('image', formImageFile)
         const created = await adminProductService.createProductCategory(payload)
         setCategories((prev) => [...prev, { ...created, subcategories: [] }].sort((a, b) => a.name.localeCompare(b.name)))
-      } else if (modalMode === 'create-subcategory') {
-        const created = await adminProductService.createProductSubcategory({
-          name: formName.trim(),
-          category: Number(formParentId),
-          description: formDescription.trim() || undefined,
-        })
-        setSubcategories((prev) =>
-          [...prev, created].sort((a, b) => a.category_name.localeCompare(b.category_name) || a.name.localeCompare(b.name))
-        )
-        setCategories((prev) =>
-          prev.map((c) =>
-            c.id === created.category ? { ...c, subcategories: [...c.subcategories, created] } : c
-          )
-        )
       } else if (modalMode === 'edit-category' && editingId !== null) {
         const payload = new FormData()
         payload.append('name', formName.trim())
@@ -213,37 +266,6 @@ function CategoryManagement() {
       // ignore
     } finally {
       setTogglingIds((prev) => { const s = new Set(prev); s.delete(key); return s })
-    }
-  }
-
-  const confirmDelete = (item: ApiProductCategory | ApiProductSubcategory, type: 'category' | 'subcategory') => {
-    setDeleteTarget({ type, id: item.id, name: item.name })
-    setDeleteError('')
-  }
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    setDeleting(true)
-    setDeleteError('')
-    try {
-      if (deleteTarget.type === 'category') {
-        await adminProductService.deleteProductCategory(deleteTarget.id)
-        setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id))
-        setSubcategories((prev) => prev.filter((s) => s.category !== deleteTarget.id))
-      } else {
-        await adminProductService.deleteProductSubcategory(deleteTarget.id)
-        setSubcategories((prev) => prev.filter((s) => s.id !== deleteTarget.id))
-        setCategories((prev) =>
-          prev.map((c) => ({ ...c, subcategories: c.subcategories.filter((s) => s.id !== deleteTarget.id) }))
-        )
-      }
-      setDeleteTarget(null)
-      window.dispatchEvent(new Event('ava:catalog-updated'))
-    } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setDeleteError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to delete. Please try again.')
-    } finally {
-      setDeleting(false)
     }
   }
 
@@ -575,7 +597,13 @@ function CategoryManagement() {
                                   </span>
                                 ))}
                                 {overflow > 0 && (
-                                  <span className="cm-chip cm-chip--more">+{overflow} more</span>
+                                  <button
+                                    type="button"
+                                    className="cm-chip cm-chip--more"
+                                    onClick={() => setSubcatPreview({ name: cat.name, subcategories: cat.subcategories })}
+                                  >
+                                    +{overflow} more
+                                  </button>
                                 )}
                               </>
                             )}
@@ -597,19 +625,6 @@ function CategoryManagement() {
                                 <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                               </svg>
                               Edit
-                            </button>
-                            <button
-                              type="button"
-                              className="cm-row-btn cm-row-btn--delete"
-                              onClick={() => confirmDelete(cat, 'category')}
-                              title="Delete category"
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6l-1 14H6L5 6" />
-                                <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                              </svg>
-                              Delete
                             </button>
                           </div>
                         </td>
@@ -707,19 +722,6 @@ function CategoryManagement() {
                               </svg>
                               Edit
                             </button>
-                            <button
-                              type="button"
-                              className="cm-row-btn cm-row-btn--delete"
-                              onClick={() => confirmDelete(sub, 'subcategory')}
-                              title="Delete subcategory"
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6l-1 14H6L5 6" />
-                                <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                              </svg>
-                              Delete
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -803,7 +805,10 @@ function CategoryManagement() {
                   <span>Parent Category</span>
                   <select
                     value={formParentId}
-                    onChange={(e) => setFormParentId(e.target.value ? Number(e.target.value) : '')}
+                    onChange={(e) => {
+                      setFormParentId(e.target.value ? Number(e.target.value) : '')
+                      setSubEntries((prev) => prev.map((en) => ({ ...en, error: '' })))
+                    }}
                     disabled={formSaving}
                   >
                     {categories.length === 0 ? (
@@ -817,30 +822,92 @@ function CategoryManagement() {
                 </label>
               )}
 
-              <label className="cm-field">
-                <span>Name</span>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => { setFormName(e.target.value); setFormError('') }}
-                  placeholder={isSubcategoryModal ? 'e.g. Pain Relief' : 'e.g. Medicines'}
-                  disabled={formSaving}
-                  autoFocus
-                  required
-                />
-              </label>
+              {modalMode === 'create-subcategory' ? (
+                <>
+                  {subEntries.map((entry, idx) => (
+                    <div key={idx} className="cm-sub-entry">
+                      <div className="cm-sub-entry__row">
+                        <div className="cm-sub-entry__index">{idx + 1}</div>
+                        <div className="cm-sub-entry__fields">
+                          <input
+                            type="text"
+                            value={entry.name}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              setSubEntries((prev) => prev.map((en, i) => i === idx ? { ...en, name: val, error: '' } : en))
+                            }}
+                            placeholder="Subcategory name"
+                            disabled={formSaving}
+                            autoFocus={idx === 0}
+                            required
+                          />
+                          <input
+                            type="text"
+                            value={entry.description}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              setSubEntries((prev) => prev.map((en, i) => i === idx ? { ...en, description: val } : en))
+                            }}
+                            placeholder="Description (optional)"
+                            disabled={formSaving}
+                          />
+                        </div>
+                        {subEntries.length > 1 && (
+                          <button
+                            type="button"
+                            className="cm-sub-entry__remove"
+                            onClick={() => setSubEntries((prev) => prev.filter((_, i) => i !== idx))}
+                            disabled={formSaving}
+                            title="Remove"
+                          >
+                            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      {entry.error && (
+                        <p className="cm-sub-entry__error">{entry.error}</p>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="cm-add-entry-btn"
+                    onClick={() => setSubEntries((prev) => [...prev, { name: '', description: '', error: '' }])}
+                    disabled={formSaving}
+                  >
+                    + Add another subcategory
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label className="cm-field">
+                    <span>Name</span>
+                    <input
+                      type="text"
+                      value={formName}
+                      onChange={(e) => { setFormName(e.target.value); setFormError('') }}
+                      placeholder={isSubcategoryModal ? 'e.g. Pain Relief' : 'e.g. Medicines'}
+                      disabled={formSaving}
+                      autoFocus
+                      required
+                    />
+                  </label>
 
-              <label className="cm-field">
-                <span>Description</span>
-                <textarea
-                  value={formDescription}
-                  onChange={(e) => { setFormDescription(e.target.value); setFormError('') }}
-                  placeholder="Brief description visible to shoppers"
-                  disabled={formSaving}
-                  rows={2}
-                  required={!isSubcategoryModal}
-                />
-              </label>
+                  <label className="cm-field">
+                    <span>Description</span>
+                    <textarea
+                      value={formDescription}
+                      onChange={(e) => { setFormDescription(e.target.value); setFormError('') }}
+                      placeholder="Brief description visible to shoppers"
+                      disabled={formSaving}
+                      rows={2}
+                      required={!isSubcategoryModal}
+                    />
+                  </label>
+                </>
+              )}
 
               {!isSubcategoryModal && (
                 <label className="cm-field">
@@ -879,9 +946,11 @@ function CategoryManagement() {
                 <button type="submit" className="btn btn--primary btn--sm" disabled={formSaving}>
                   {formSaving
                     ? <><span className="cm-spinner" /> Saving…</>
-                    : isCreateMode
-                      ? `Create ${isSubcategoryModal ? 'Subcategory' : 'Category'}`
-                      : 'Save Changes'}
+                    : modalMode === 'create-subcategory'
+                      ? `Create ${subEntries.length} Subcategor${subEntries.length === 1 ? 'y' : 'ies'}`
+                      : isCreateMode
+                        ? 'Create Category'
+                        : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -889,67 +958,35 @@ function CategoryManagement() {
         </div>
       )}
 
-      {/* ── Delete Confirmation Modal ── */}
-      {deleteTarget && (
-        <div className="cm-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
+      {/* ── Subcategory Preview Modal ── */}
+      {subcatPreview && (
+        <div className="cm-overlay" onClick={() => setSubcatPreview(null)}>
           <div className="cm-modal cm-modal--sm" onClick={(e) => e.stopPropagation()}>
-            <div className="cm-modal__header cm-modal__header--danger">
-              <h2>Delete {deleteTarget.type === 'category' ? 'Category' : 'Subcategory'}</h2>
-              <button
-                type="button"
-                className="cm-modal__close"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                aria-label="Close"
-              >
+            <div className="cm-modal__header">
+              <div>
+                <h2>Subcategories</h2>
+                <p>{subcatPreview.name}</p>
+              </div>
+              <button type="button" className="cm-modal__close" onClick={() => setSubcatPreview(null)} aria-label="Close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
-
-            <div className="cm-delete-body">
-              <div className="cm-delete-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-              </div>
-              <p>Delete <strong>"{deleteTarget.name}"</strong>? This action cannot be undone.</p>
-              {deleteTarget.type === 'category' && (
-                <p className="cm-delete-warning">All subcategories in this category will also be permanently removed.</p>
-              )}
-              {deleteError && (
-                <p className="cm-form__error" style={{ marginTop: '0.75rem' }}>
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  {deleteError}
-                </p>
-              )}
-            </div>
-
-            <div className="cm-modal__actions">
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn--danger btn--sm"
-                onClick={() => void handleDelete()}
-                disabled={deleting}
-              >
-                {deleting ? <><span className="cm-spinner cm-spinner--light" /> Deleting…</> : 'Delete'}
-              </button>
-            </div>
+            <ul style={{ listStyle: 'none', padding: '1rem 1.25rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '60vh', overflowY: 'auto' }}>
+              {subcatPreview.subcategories.map((s) => (
+                <li key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', borderRadius: '8px', background: '#f8f9fc', fontSize: '0.875rem', color: '#1f2937' }}>
+                  <span>{s.name}</span>
+                  <span style={{ fontSize: '0.75rem', color: s.is_active ? '#16a34a' : '#9ca3af', fontWeight: 600 }}>
+                    {s.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
+
     </div>
   )
 }
