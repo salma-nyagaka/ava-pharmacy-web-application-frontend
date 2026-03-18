@@ -382,6 +382,17 @@
   color: #fff;
 }
 
+.cm-pagination .pagination__ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.3rem;
+  padding: 0.45rem 0.25rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  user-select: none;
+}
+
 /* ── Error Banner ── */
 .cm-error-banner {
   display: flex;
@@ -476,6 +487,8 @@
 /* ── Table ── */
 .cm-table-wrap {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 520px;
 }
 
 .cm-table {

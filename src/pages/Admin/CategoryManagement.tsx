@@ -737,39 +737,70 @@ function CategoryManagement() {
         {!loading && !error && visibleCount > PAGE_SIZE && (
           <div className="cm-pagination">
             <span className="cm-pagination__info">
-              Showing {startIndex + 1}-{Math.min(startIndex + PAGE_SIZE, visibleCount)} of {visibleCount}
+              {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, visibleCount)} of {visibleCount}
             </span>
             <div className="cm-pagination__controls">
               <button
                 className="pagination__button"
                 type="button"
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                title="First page"
+              >
+                «
+              </button>
+              <button
+                className="pagination__button"
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
               >
-                Prev
+                ‹
               </button>
               <div className="pagination__pages">
-                {Array.from({ length: totalPages }, (_, index) => {
-                  const page = index + 1
-                  return (
-                    <button
-                      key={page}
-                      className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
-                      type="button"
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </button>
+                {(() => {
+                  const pages: (number | 'ellipsis-start' | 'ellipsis-end')[] = []
+                  if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i)
+                  } else {
+                    pages.push(1)
+                    if (currentPage > 3) pages.push('ellipsis-start')
+                    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i)
+                    if (currentPage < totalPages - 2) pages.push('ellipsis-end')
+                    pages.push(totalPages)
+                  }
+                  return pages.map((p, idx) =>
+                    p === 'ellipsis-start' || p === 'ellipsis-end' ? (
+                      <span key={p + String(idx)} className="pagination__ellipsis">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        className={`pagination__page${p === currentPage ? ' pagination__page--active' : ''}`}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                      >
+                        {p}
+                      </button>
+                    )
                   )
-                })}
+                })()}
               </div>
               <button
                 className="pagination__button"
                 type="button"
-                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
               >
-                Next
+                ›
+              </button>
+              <button
+                className="pagination__button"
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                title="Last page"
+              >
+                »
               </button>
             </div>
           </div>

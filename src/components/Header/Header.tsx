@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import '../../styles/components/Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
+import { sortCategoriesByPreferredOrder } from '../../constants/catalog'
 import { useCatalog } from '../../context/CatalogContext'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
@@ -65,7 +66,11 @@ function Header() {
   }, [])
 
   const { categories, brands, healthConcerns } = useCatalog()
-  const defaultCategorySlug = categories[0]?.slug ?? ALL_CATEGORIES_KEY
+  const orderedCategories = useMemo(
+    () => sortCategoriesByPreferredOrder(categories),
+    [categories]
+  )
+  const defaultCategorySlug = orderedCategories[0]?.slug ?? ALL_CATEGORIES_KEY
 
   const [activeCategory, setActiveCategory] = useState(defaultCategorySlug)
   const banners = loadBanners()
@@ -96,12 +101,12 @@ function Header() {
 
   const activeCategoryData =
     activeCategory === ALL_CATEGORIES_KEY
-      ? categories[0]
-      : categories.find((category) => category.slug === activeCategory) || categories[0]
+      ? orderedCategories[0]
+      : orderedCategories.find((category) => category.slug === activeCategory) || orderedCategories[0]
   const activeCategoryLabel = activeCategory === ALL_CATEGORIES_KEY ? 'All Products' : activeCategoryData?.name ?? 'Shop by Category'
   const megaPanelItems =
     activeCategory === ALL_CATEGORIES_KEY
-      ? categories.flatMap((category) =>
+      ? orderedCategories.flatMap((category) =>
           category.subcategories.map((item) => ({
             id: `${category.slug}-${item.slug}`,
             name: item.name,
@@ -126,6 +131,15 @@ function Header() {
     setIsMenuOpen(false)
     setActiveCategory(defaultCategorySlug)
   }
+
+  useEffect(() => {
+    if (!orderedCategories.length) return
+    setActiveCategory((current) =>
+      current === ALL_CATEGORIES_KEY || orderedCategories.some((category) => category.slug === current)
+        ? current
+        : orderedCategories[0].slug
+    )
+  }, [orderedCategories])
 
   const submitSearch = () => {
     const query = searchQuery.trim()

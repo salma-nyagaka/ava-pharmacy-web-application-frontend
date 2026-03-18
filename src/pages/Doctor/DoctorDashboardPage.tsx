@@ -21,13 +21,6 @@ import '../../styles/portals/DoctorDashboardPage.css'
 
 type DoctorTab = 'queue' | 'messages' | 'prescriptions' | 'patients' | 'earnings'
 
-const STATUS_COLORS: Record<string, string> = {
-  Waiting: '#f59e0b',
-  'In progress': '#10b981',
-  Completed: '#64748b',
-  Cancelled: '#ef4444',
-}
-
 const STATUS_PILL_STYLES: Record<string, { background: string; color: string }> = {
   Waiting:      { background: 'rgba(245,158,11,0.12)',  color: '#92400e' },
   'In progress':{ background: 'rgba(16,185,129,0.12)',  color: '#065f46' },
@@ -35,12 +28,6 @@ const STATUS_PILL_STYLES: Record<string, { background: string; color: string }> 
   Cancelled:    { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
   urgent:       { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
   critical:     { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
-}
-
-const RX_STATUS_COLORS: Record<string, string> = {
-  Draft: '#f59e0b',
-  Sent: '#3b82f6',
-  Dispensed: '#10b981',
 }
 
 function initials(name: string) {

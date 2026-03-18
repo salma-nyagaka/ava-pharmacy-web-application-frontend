@@ -684,24 +684,7 @@ function ProductManagement() {
     }
   }
 
-  const getCategoryLabel = (product: ApiProduct) => {
-    return getProductCatalog(product).categoryName
-  }
-
   const getProductBrandLabel = (product: ApiProduct) => product.brand?.name ?? product.brand_name ?? 'No brand'
-
-  const activeFilterChips = [
-    searchTerm.trim() ? { key: 'search', label: `Search: ${searchTerm.trim()}` } : null,
-    selectedCategory !== 'all'
-      ? { key: 'category', label: `Category: ${categories.find((category) => String(category.id) === selectedCategory)?.name ?? 'Unknown'}` }
-      : null,
-    selectedSubcat !== 'all'
-      ? { key: 'subcategory', label: `Subcategory: ${subcategories.find((subcategory) => String(subcategory.id) === selectedSubcat)?.name ?? 'Unknown'}` }
-      : null,
-    selectedConcern !== 'all'
-      ? { key: 'concern', label: `Health concern: ${allConcerns.find((concern) => String(concern.id) === selectedConcern)?.name ?? 'Unknown'}` }
-      : null,
-  ].filter((value): value is { key: string; label: string } => value !== null)
 
   return (
     <div className="category-management product-management">
@@ -998,14 +981,7 @@ function ProductManagement() {
                     </div>
                   </td>
                   <td>
-                    <div className="cm-brand-identity" style={{ gap: '0.5rem' }}>
-                      {product.brand?.logo ? (
-                        <div className="cm-brand-logo" style={{ width: 28, height: 28, borderRadius: 6 }}>
-                          <img className="cm-brand-logo__img" src={product.brand.logo} alt={product.brand.name} />
-                        </div>
-                      ) : null}
-                      <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{getProductBrandLabel(product)}</span>
-                    </div>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{getProductBrandLabel(product)}</span>
                   </td>
                   <td>
                     <div className="cm-name-cell">

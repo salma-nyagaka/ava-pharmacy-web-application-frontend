@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { addAdminOrderNote, listAdminOrders, refundAdminOrder, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
 import '../../styles/admin/OrderManagement.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
@@ -8,7 +8,6 @@ const formatCurrency = (value: string | number) => `KSh ${Number(value || 0).toL
 const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'
 
 function OrderManagementLive() {
-  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -20,8 +19,6 @@ function OrderManagementLive() {
   const [refundTarget, setRefundTarget] = useState<AdminOrder | null>(null)
   const [refundNote, setRefundNote] = useState('')
   const [refundReasonError, setRefundReasonError] = useState(false)
-
-  const handleBack = () => navigate(-1)
 
   const loadOrders = async () => {
     setLoading(true)

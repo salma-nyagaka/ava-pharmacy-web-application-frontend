@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import backgroundBanner from '../../assets/images/banner/background.jpg'
@@ -7,6 +7,7 @@ import { useProducts } from '../../hooks/useProducts'
 import { useCatalog } from '../../context/CatalogContext'
 import type { CatalogProduct } from '../../data/products'
 import '../../styles/pages/HomePage.css'
+import { sortCategoriesByPreferredOrder } from '../../constants/catalog'
 
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)
@@ -18,6 +19,12 @@ function HomePage() {
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
   const { categories } = useCatalog()
+
+
+  const orderedCategories = useMemo(
+    () => sortCategoriesByPreferredOrder(categories),
+    [categories]
+  )
 
   const valueBannerItems = [
     { key: 'delivery', title: 'Free Delivery',       subtitle: 'On orders over KSh 3,000',      link: '/help',                color: 'green'  },
@@ -37,8 +44,8 @@ function HomePage() {
     return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
   }
   const getProductBadge = (product: CatalogProduct, section: 'deals' | 'featured' | 'new') => {
-    if (section === 'deals' && isDealProduct(product)) return `Save ${getDealPercentage(product)}%`
     if (product.badge?.trim()) return product.badge.trim()
+    if (section === 'deals' && isDealProduct(product)) return `Save ${getDealPercentage(product)}%`
     if (section === 'featured') return 'Featured'
     if (section === 'new') return 'New Arrival'
     return null

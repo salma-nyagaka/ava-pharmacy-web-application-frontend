@@ -737,7 +737,7 @@ function PediatricianDashboardPage() {
                               </p>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
                                 <AgeBand ageYears={item.childAge} />
-                                {!item.guardian_consent && item.consentStatus !== 'Granted' && (
+                                {item.consentStatus !== 'Granted' && (
                                   <span className="ped-consent-warn">⚠ Consent pending</span>
                                 )}
                               </div>

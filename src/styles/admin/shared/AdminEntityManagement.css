@@ -381,6 +381,8 @@
 
 .cm-table-wrap {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 520px;
 }
 
 .cm-table {

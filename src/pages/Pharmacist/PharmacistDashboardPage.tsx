@@ -33,47 +33,6 @@ function TimeElapsed({ since }: { since: string | undefined }) {
   )
 }
 
-function DonutChart({ segments }: { segments: Array<{ value: number; color: string; label: string }> }) {
-  const total = segments.reduce((s, x) => s + x.value, 0) || 1
-  let offset = 0
-  const r = 36
-  const circ = 2 * Math.PI * r
-  return (
-    <div className="pharm-donut">
-      <svg viewBox="0 0 100 100" width="100" height="100">
-        {segments.map((seg, i) => {
-          const pct = seg.value / total
-          const dash = pct * circ
-          const gap = circ - dash
-          const el = (
-            <circle
-              key={i}
-              cx="50" cy="50" r={r}
-              fill="none"
-              stroke={seg.color}
-              strokeWidth="14"
-              strokeDasharray={`${dash} ${gap}`}
-              strokeDashoffset={-offset * circ}
-              style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
-            />
-          )
-          offset += pct
-          return el
-        })}
-        <text x="50" y="54" textAnchor="middle" fontSize="16" fontWeight="700" fill="#0f172a">{total}</text>
-      </svg>
-      <div className="pharm-donut__legend">
-        {segments.map((seg) => (
-          <div key={seg.label} className="pharm-donut__item">
-            <span className="pharm-donut__dot" style={{ background: seg.color }} />
-            <span>{seg.label}: {seg.value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 const REJECTION_REASONS = [
   'Illegible prescription',
   'Controlled substance — requires in-person verification',
@@ -234,13 +193,6 @@ function PharmacistDashboardPage() {
     clarification: prescriptions.filter((p) => p.status === 'Clarification').length,
     rejected: prescriptions.filter((p) => p.status === 'Rejected').length,
   }), [prescriptions])
-
-  const donutSegments = [
-    { value: stats.pending, color: '#f59e0b', label: 'Pending' },
-    { value: stats.approved, color: '#10b981', label: 'Approved' },
-    { value: stats.clarification, color: '#3b82f6', label: 'Clarification' },
-    { value: stats.rejected, color: '#ef4444', label: 'Rejected' },
-  ]
 
   const navigationItems = [
     {

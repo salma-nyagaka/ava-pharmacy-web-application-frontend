@@ -1,15 +1,22 @@
 import { Link } from 'react-router-dom'
+import { useCatalog } from '../../context/CatalogContext'
 import '../../styles/components/Footer.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
+import { sortCategoriesByPreferredOrder } from '../../constants/catalog'
 
 function Footer() {
   const currentYear = new Date().getFullYear()
+  const { categories } = useCatalog()
+
+
+  const orderedCategories = sortCategoriesByPreferredOrder(categories).slice(0, 4)
 
   const shopLinks = [
     { name: 'All Products', path: '/products' },
-    { name: 'Skincare', path: '/category/skincare' },
-    { name: 'Vitamins & Supplements', path: '/category/vitamins' },
-    { name: 'Baby & Mother', path: '/category/baby' },
+    ...orderedCategories.map((category) => ({
+      name: category.name,
+      path: category.path,
+    })),
     { name: 'Lab Tests', path: '/lab-tests' },
   ]
 

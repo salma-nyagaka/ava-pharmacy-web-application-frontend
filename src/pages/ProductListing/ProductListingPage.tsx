@@ -45,8 +45,6 @@ function ProductListingPage() {
     : healthConcernParam
       ? formatSlug(healthConcernParam)
       : activeCategory?.name ?? (categorySlug === 'all' ? 'All Products' : formatSlug(categorySlug))
-  const categoryPath = activeCategory?.path ?? '/products'
-  const subcategories = activeCategory?.subcategories ?? []
 
   const [brandData, setBrandData] = useState<PublicBrand | null>(null)
 
