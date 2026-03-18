@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
 import {
   adminProductService,
   ApiBadge,
@@ -139,11 +140,16 @@ function ProductManagement() {
   const [productDirections, setProductDirections] = useState('')
   const [productWarnings, setProductWarnings] = useState('')
   const [productBadgeId, setProductBadgeId] = useState<number | ''>('')
+  const [dosageQuantity, setDosageQuantity] = useState('')
+  const [dosageUnit, setDosageUnit] = useState('')
+  const [dosageFrequency, setDosageFrequency] = useState('')
+  const [dosageNotes, setDosageNotes] = useState('')
   const [branchStockQuantity, setBranchStockQuantity] = useState('0')
   const [branchLowStockThreshold, setBranchLowStockThreshold] = useState('5')
   const [branchAllowBackorder, setBranchAllowBackorder] = useState(false)
   const [branchMaxBackorderQuantity, setBranchMaxBackorderQuantity] = useState('0')
   const [productImageFile, setProductImageFile] = useState<File | null>(null)
+  const [productImagePreviewSrc, setProductImagePreviewSrc] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
   const [showBrandModal, setShowBrandModal] = useState(false)
   const [brandName, setBrandName] = useState('')
@@ -218,6 +224,10 @@ function ProductManagement() {
     setProductDirections('')
     setProductWarnings('')
     setProductBadgeId('')
+    setDosageQuantity('')
+    setDosageUnit('')
+    setDosageFrequency('')
+    setDosageNotes('')
     setBranchStockQuantity('0')
     setBranchLowStockThreshold('5')
     setBranchAllowBackorder(false)
@@ -278,6 +288,10 @@ function ProductManagement() {
     setProductDirections(product.directions ?? '')
     setProductWarnings(product.warnings ?? '')
     setProductBadgeId(product.badge?.id ?? '')
+    setDosageQuantity(product.dosage_quantity ?? '')
+    setDosageUnit(product.dosage_unit ?? '')
+    setDosageFrequency(product.dosage_frequency ?? '')
+    setDosageNotes(product.dosage_notes ?? '')
     setBranchStockQuantity(String(getInventoryItem(product, 'branch')?.stock_quantity ?? 0))
     setBranchLowStockThreshold(String(getInventoryItem(product, 'branch')?.low_stock_threshold ?? 5))
     setBranchAllowBackorder(getInventoryItem(product, 'branch')?.allow_backorder ?? false)
@@ -346,6 +360,10 @@ function ProductManagement() {
       directions: productDirections.trim(),
       warnings: productWarnings.trim(),
       badge_id: productBadgeId !== '' ? Number(productBadgeId) : null,
+      dosage_quantity: dosageQuantity.trim(),
+      dosage_unit: dosageUnit.trim(),
+      dosage_frequency: dosageFrequency,
+      dosage_notes: dosageNotes.trim(),
       branch_inventory: branchInventory,
     }
 
@@ -371,6 +389,10 @@ function ProductManagement() {
       formData.append('directions', payload.directions ?? '')
       formData.append('warnings', payload.warnings ?? '')
       if (payload.badge_id != null) formData.append('badge_id', String(payload.badge_id))
+      formData.append('dosage_quantity', payload.dosage_quantity ?? '')
+      formData.append('dosage_unit', payload.dosage_unit ?? '')
+      formData.append('dosage_frequency', payload.dosage_frequency ?? '')
+      formData.append('dosage_notes', payload.dosage_notes ?? '')
       formData.append('branch_inventory', JSON.stringify(payload.branch_inventory ?? {}))
 
       if (payload.cost_price !== undefined) formData.append('cost_price', String(payload.cost_price))
@@ -442,6 +464,16 @@ function ProductManagement() {
       setSaving(false)
     }
   }
+
+  useEffect(() => {
+    if (!productImageFile) {
+      setProductImagePreviewSrc(editingProduct?.image ?? null)
+      return
+    }
+    const url = URL.createObjectURL(productImageFile)
+    setProductImagePreviewSrc(url)
+    return () => URL.revokeObjectURL(url)
+  }, [editingProduct, productImageFile])
 
   const handleProductImageChange = async (file: File | null) => {
     if (!file) {
@@ -919,6 +951,7 @@ function ProductManagement() {
             <thead>
               <tr>
                 <th style={{ minWidth: 220 }}>Product</th>
+                <th style={{ minWidth: 120 }}>Brand</th>
                 <th style={{ minWidth: 130 }}>Subcategory</th>
                 <th style={{ minWidth: 90 }}>Selling</th>
                 <th style={{ minWidth: 100 }}>Discount</th>
@@ -945,9 +978,11 @@ function ProductManagement() {
                       <ImageWithFallback src={product.image ?? ''} alt={product.name} style={{ width: 36, height: 36, borderRadius: '0.375rem', objectFit: 'cover', flexShrink: 0 }} />
                       <div className="cm-name-cell">
                         <span className="cm-name-cell__name">{product.name}</span>
-                        <span className="cm-name-cell__id">{product.sku}</span>
-                        {getProductBrandLabel(product) !== 'No brand' && (
-                          <span className="cm-name-cell__id">Brand: {getProductBrandLabel(product)}</span>
+                        <span className="cm-name-cell__id">{product.sku}{product.strength ? ` · ${product.strength}` : ''}</span>
+                        {product.dosage_quantity && product.dosage_unit && product.dosage_frequency && (
+                          <span className="cm-name-cell__id" style={{ color: '#10b981' }}>
+                            {product.dosage_quantity} {product.dosage_unit} · {product.dosage_frequency.replace(/_/g, ' ')}{product.dosage_notes ? ` · ${product.dosage_notes}` : ''}
+                          </span>
                         )}
                         {product.health_concerns.length > 0 && (
                           <div className="cm-chips" style={{ marginTop: '0.25rem' }}>
@@ -960,6 +995,16 @@ function ProductManagement() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="cm-brand-identity" style={{ gap: '0.5rem' }}>
+                      {product.brand?.logo ? (
+                        <div className="cm-brand-logo" style={{ width: 28, height: 28, borderRadius: 6 }}>
+                          <img className="cm-brand-logo__img" src={product.brand.logo} alt={product.brand.name} />
+                        </div>
+                      ) : null}
+                      <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{getProductBrandLabel(product)}</span>
                     </div>
                   </td>
                   <td>
@@ -1129,33 +1174,27 @@ function ProductManagement() {
                     <div className="pf-field">
                       <label className="pf-label">Brand <span className="pf-req">*</span></label>
                       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                        <select
-                          className="pf-input"
-                          style={{ flex: 1 }}
+                        <SearchableSelect
+                          className="pf-ss"
                           value={productBrandId}
-                          onChange={(e) => setProductBrandId(e.target.value !== '' ? Number(e.target.value) : '')}
+                          onChange={(v) => setProductBrandId(v !== '' ? Number(v) : '')}
+                          options={brands.map((b) => ({ value: b.id, label: b.name }))}
+                          placeholder={brands.length === 0 ? 'Create a brand first' : 'Select brand…'}
                           disabled={brands.length === 0}
-                        >
-                          {brands.length === 0 && <option value="">Create a brand first</option>}
-                          {brands.map((brand) => (
-                            <option key={brand.id} value={brand.id}>{brand.name}</option>
-                          ))}
-                        </select>
+                          emptyMessage="No brands found"
+                        />
                       </div>
                     </div>
                     <div className="pf-field">
                       <label className="pf-label">Subcategory <span className="pf-req">*</span></label>
-                      <select
-                        className="pf-input"
+                      <SearchableSelect
                         value={productSubcategoryId}
-                        onChange={(e) => setProductSubcategoryId(e.target.value !== '' ? Number(e.target.value) : '')}
+                        onChange={(v) => setProductSubcategoryId(v !== '' ? Number(v) : '')}
+                        options={subcategories.map((s) => ({ value: s.id, label: `${s.category_name} / ${s.name}` }))}
+                        placeholder={subcategories.length === 0 ? 'Create a subcategory first' : 'Select subcategory…'}
                         disabled={subcategories.length === 0}
-                      >
-                        {subcategories.length === 0 && <option value="">Create a subcategory first</option>}
-                        {subcategories.map((s) => (
-                          <option key={s.id} value={s.id}>{s.category_name} / {s.name}</option>
-                        ))}
-                      </select>
+                        emptyMessage="No subcategories found"
+                      />
                     </div>
                   </div>
                   <div className="pf-row">
@@ -1206,9 +1245,7 @@ function ProductManagement() {
                     <div className="pf-field pf-field--sm">
                       <label className="pf-label">
                         Badge <span className="pf-optional">optional</span>
-                        <button type="button" className="pf-badge-manage-link" onClick={() => setShowBadgePanel(true)}>
-                          Manage badges
-                        </button>
+                      
                       </label>
                       <div className="pf-badge-picker">
                         <button
@@ -1245,6 +1282,73 @@ function ProductManagement() {
                     />
                     <span className="pf-hint">Each line becomes a separate bullet point on the product page.</span>
                   </div>
+                  {/* ── Dosage ── */}
+                  <div className="pf-dosage-section">
+                    <div className="pf-dosage-section__label">Dosage <span className="pf-optional">optional</span></div>
+                    <div className="pf-dosage-grid">
+                      <div className="pf-field">
+                        <label className="pf-label">Quantity</label>
+                        <input
+                          className="pf-input"
+                          type="text"
+                          placeholder="e.g. 1, 2, 1–2"
+                          value={dosageQuantity}
+                          onChange={(e) => setDosageQuantity(e.target.value)}
+                        />
+                      </div>
+                      <div className="pf-field">
+                        <label className="pf-label">Unit</label>
+                        <select className="pf-input" value={dosageUnit} onChange={(e) => setDosageUnit(e.target.value)}>
+                          <option value="">— select —</option>
+                          <option value="tablet">Tablet</option>
+                          <option value="tablets">Tablets</option>
+                          <option value="capsule">Capsule</option>
+                          <option value="capsules">Capsules</option>
+                          <option value="ml">ml</option>
+                          <option value="mg">mg</option>
+                          <option value="drop">Drop</option>
+                          <option value="drops">Drops</option>
+                          <option value="sachet">Sachet</option>
+                          <option value="application">Application</option>
+                          <option value="spray">Spray</option>
+                          <option value="unit">Unit</option>
+                        </select>
+                      </div>
+                      <div className="pf-field">
+                        <label className="pf-label">Frequency</label>
+                        <select className="pf-input" value={dosageFrequency} onChange={(e) => setDosageFrequency(e.target.value)}>
+                          <option value="">— select —</option>
+                          <option value="once_daily">Once daily</option>
+                          <option value="twice_daily">Twice daily</option>
+                          <option value="three_times_daily">3 times daily</option>
+                          <option value="four_times_daily">4 times daily</option>
+                          <option value="every_4_hours">Every 4 hours</option>
+                          <option value="every_6_hours">Every 6 hours</option>
+                          <option value="every_8_hours">Every 8 hours</option>
+                          <option value="every_12_hours">Every 12 hours</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="as_needed">As needed</option>
+                          <option value="as_directed">As directed</option>
+                        </select>
+                      </div>
+                      <div className="pf-field">
+                        <label className="pf-label">Notes</label>
+                        <input
+                          className="pf-input"
+                          type="text"
+                          placeholder="e.g. with food, before meals"
+                          value={dosageNotes}
+                          onChange={(e) => setDosageNotes(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    {dosageQuantity && dosageUnit && dosageFrequency && (
+                      <div className="pf-dosage-preview">
+                        {dosageQuantity} {dosageUnit} · {dosageFrequency.replace(/_/g, ' ')}{dosageNotes ? ` · ${dosageNotes}` : ''}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="pf-row">
                     <div className="pf-field">
                       <label className="pf-label">Directions <span className="pf-optional">optional</span></label>
@@ -1279,7 +1383,15 @@ function ProductManagement() {
                     <span className="pf-hint">
                       {editingProduct ? 'Leave empty to keep the current image.' : 'Upload the main product image.'} {getImageUploadHint('product')}
                     </span>
-                    {productImageFile && <span className="pf-hint">Selected: {productImageFile.name}</span>}
+                    {productImagePreviewSrc && (
+                      <div className="cm-brand-preview" style={{ marginTop: '0.5rem' }}>
+                        <img src={productImagePreviewSrc} alt="Product preview" className="cm-brand-preview__img" />
+                        <div className="cm-brand-preview__meta">
+                          <span className="cm-brand-preview__label">{productImageFile ? 'Selected file' : 'Current image'}</span>
+                          <span className="cm-brand-preview__name">{productImageFile?.name ?? editingProduct?.name ?? 'Product image'}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

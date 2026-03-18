@@ -5,6 +5,7 @@ import {
   ApiProductSubcategory,
 } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
+import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
 import '../../styles/admin/CategoryManagement.css'
 
 function formatDate(value?: string): string {
@@ -803,22 +804,17 @@ function CategoryManagement() {
               {isSubcategoryModal && (
                 <label className="cm-field">
                   <span>Parent Category</span>
-                  <select
+                  <SearchableSelect
                     value={formParentId}
-                    onChange={(e) => {
-                      setFormParentId(e.target.value ? Number(e.target.value) : '')
+                    onChange={(v) => {
+                      setFormParentId(v !== '' ? Number(v) : '')
                       setSubEntries((prev) => prev.map((en) => ({ ...en, error: '' })))
                     }}
-                    disabled={formSaving}
-                  >
-                    {categories.length === 0 ? (
-                      <option value="">No categories available — add one first</option>
-                    ) : (
-                      categories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))
-                    )}
-                  </select>
+                    options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                    placeholder={categories.length === 0 ? 'No categories available' : 'Select category…'}
+                    disabled={formSaving || categories.length === 0}
+                    emptyMessage="No categories found"
+                  />
                 </label>
               )}
 

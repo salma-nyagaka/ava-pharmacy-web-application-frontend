@@ -125,6 +125,10 @@ export interface ApiProduct {
   sku: string
   slug: string
   strength: string
+  dosage_quantity: string
+  dosage_unit: string
+  dosage_frequency: string
+  dosage_notes: string
   price: string
   cost_price: string | null
   discount_price: string | null
@@ -209,6 +213,10 @@ export interface ProductCreatePayload {
   features?: string[]
   directions?: string
   warnings?: string
+  dosage_quantity?: string
+  dosage_unit?: string
+  dosage_frequency?: string
+  dosage_notes?: string
   badge_id?: number | null
   image?: File | null
 }

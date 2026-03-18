@@ -36,10 +36,6 @@ function BrandManagement() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
-  const [deleteTarget, setDeleteTarget] = useState<ApiBrand | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
-
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
 
   const load = async () => {
@@ -188,24 +184,6 @@ function BrandManagement() {
         next.delete(brand.id)
         return next
       })
-    }
-  }
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-
-    setDeleting(true)
-    setDeleteError('')
-    try {
-      await adminProductService.deleteBrand(deleteTarget.id)
-      setBrands((prev) => prev.filter((brand) => brand.id !== deleteTarget.id))
-      setDeleteTarget(null)
-      window.dispatchEvent(new Event('ava:catalog-updated'))
-    } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setDeleteError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to delete. Please try again.')
-    } finally {
-      setDeleting(false)
     }
   }
 
@@ -463,19 +441,6 @@ function BrandManagement() {
                             </svg>
                             Edit
                           </button>
-                          <button
-                            type="button"
-                            className="cm-row-btn cm-row-btn--delete"
-                            onClick={() => { setDeleteTarget(brand); setDeleteError('') }}
-                            title="Delete"
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6l-1 14H6L5 6" />
-                              <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                            </svg>
-                            Delete
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -631,64 +596,6 @@ function BrandManagement() {
         </div>
       )}
 
-      {deleteTarget && (
-        <div className="cm-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
-          <div className="cm-modal cm-modal--sm" onClick={(e) => e.stopPropagation()}>
-            <div className="cm-modal__header cm-modal__header--danger">
-              <h2>Delete Brand</h2>
-              <button
-                type="button"
-                className="cm-modal__close"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                aria-label="Close"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="cm-delete-body">
-              <div className="cm-delete-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-              </div>
-              <p>Delete <strong>"{deleteTarget.name}"</strong>? This action cannot be undone.</p>
-              <p className="cm-delete-warning">Products linked to this brand may need review after deletion.</p>
-              {deleteError && (
-                <p className="cm-form__error" style={{ marginTop: '0.75rem', justifyContent: 'center' }}>
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  {deleteError}
-                </p>
-              )}
-            </div>
-
-            <div className="cm-modal__actions">
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn--danger btn--sm"
-                onClick={() => void handleDelete()}
-                disabled={deleting}
-              >
-                {deleting ? <><span className="cm-spinner cm-spinner--light" /> Deleting...</> : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

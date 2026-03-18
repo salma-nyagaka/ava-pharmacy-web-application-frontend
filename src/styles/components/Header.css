@@ -985,7 +985,6 @@
 }
 
 .brands-panel__logo {
-  height: 72px;
   background: var(--color-white);
   display: inline-flex;
   align-items: center;

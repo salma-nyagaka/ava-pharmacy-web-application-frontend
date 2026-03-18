@@ -1176,3 +1176,43 @@
 .pm-badge-color-swatch--blue   { background: #3b82f6; }
 .pm-badge-color-swatch--purple { background: #a855f7; }
 .pm-badge-color-swatch--teal   { background: #14b8a6; }
+
+/* ── Dosage section ── */
+.pf-dosage-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0.9rem 1rem 0.75rem;
+  background: #fafafa;
+  margin-bottom: 0.75rem;
+}
+
+.pf-dosage-section__label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pf-dosage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 0.6rem;
+}
+
+@media (max-width: 900px) {
+  .pf-dosage-grid { grid-template-columns: 1fr 1fr; }
+}
+
+.pf-dosage-preview {
+  margin-top: 0.6rem;
+  padding: 0.4rem 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #15803d;
+}

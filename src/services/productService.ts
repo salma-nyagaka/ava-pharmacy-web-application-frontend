@@ -241,7 +241,7 @@ export async function fetchBrands(): Promise<unknown[]> {
 export async function fetchBrandBySlug(slug: string): Promise<PublicBrand | null> {
   try {
     const res = await apiClient.get('/products/brands/', { params: { slug } })
-    const list: PublicBrand[] = res.data?.data ?? res.data ?? []
+    const list: PublicBrand[] = res.data?.results ?? res.data?.data ?? res.data ?? []
     return list.find((b) => b.slug === slug) ?? null
   } catch {
     return null
