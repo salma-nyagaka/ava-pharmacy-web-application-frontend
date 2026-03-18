@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
 import { useProducts } from '../../hooks/useProducts'
-import './OffersPage.css'
-import '../ProductListing/ProductListingPage.css'
+import '../../styles/pages/OffersPage.css'
+import '../../styles/pages/ProductListingPage.css'
 
 const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
 const hasDeal = (price: number, originalPrice: number | null) => (originalPrice ?? price) > price

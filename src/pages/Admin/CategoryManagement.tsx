@@ -5,7 +5,7 @@ import {
   ApiProductSubcategory,
 } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
-import './CategoryManagement.css'
+import '../../styles/admin/CategoryManagement.css'
 
 function formatDate(value?: string): string {
   if (!value) return '—'

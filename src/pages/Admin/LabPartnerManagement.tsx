@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import './AdminShared.css'
-import './LabPartnerManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/LabPartnerManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
 import {
   LabPartner,
@@ -149,8 +150,8 @@ function LabPartnerManagement() {
   }
 
   return (
-    <div className="admin-page lp-page">
-      <div className="admin-page__header">
+    <div className="category-management admin-page lp-page">
+      <div className="category-management__header">
         <div>
           <h1>Lab Partners</h1>
           <p className="lp-subtitle">Register lab partners, verify onboarding, and manage lab technicians.</p>
@@ -175,23 +176,24 @@ function LabPartnerManagement() {
         </div>
       </div>
 
-      <div className="admin-page__filters">
-        <input
-          type="text"
-          placeholder="Search by partner name, email, phone, or location"
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-        />
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | LabPartnerStatus)}>
-          <option value="all">All statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="Verified">Verified</option>
-          <option value="Suspended">Suspended</option>
-        </select>
+      <div className="cm-toolbar">
+        <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
+          <div className="cm-search-box">
+            <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
+            <input type="search" placeholder="Search by partner name, email, phone, or location" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+          </div>
+          <select className="cm-filter-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | LabPartnerStatus)}>
+            <option value="all">All statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Verified">Verified</option>
+            <option value="Suspended">Suspended</option>
+          </select>
+        </div>
       </div>
 
-      <div className="admin-page__table">
-        <table>
+      <div className="cm-panel">
+        <div className="cm-table-wrap">
+        <table className="cm-table">
           <thead>
             <tr>
               <th>Partner</th>
@@ -199,7 +201,7 @@ function LabPartnerManagement() {
               <th>Techs</th>
               <th>Status</th>
               <th>Submitted</th>
-              <th>Actions</th>
+              <th className="cm-th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -225,12 +227,12 @@ function LabPartnerManagement() {
                 </td>
                 <td>{partner.submittedAt}</td>
                 <td>
-                  <div className="lp-actions">
-                    <button className="btn btn--outline btn--sm" type="button" onClick={() => openManage(partner)}>
+                  <div className="cm-row-actions">
+                    <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => openManage(partner)}>
                       Manage
                     </button>
                     {partner.status === 'Pending' && (
-                      <button className="btn btn--primary btn--sm" type="button" onClick={() => handleVerify(partner)}>
+                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => handleVerify(partner)}>
                         Verify
                       </button>
                     )}
@@ -245,6 +247,7 @@ function LabPartnerManagement() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {filtered.length > PAGE_SIZE && (

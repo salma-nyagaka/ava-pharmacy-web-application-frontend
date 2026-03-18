@@ -11,8 +11,9 @@ import {
   saveSampleTypes,
 } from '../../data/labs'
 import { logAdminAction } from '../../data/adminAudit'
-import './AdminShared.css'
-import './LabTestManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/LabTestManagement.css'
 
 const PAGE_SIZE = 8
 
@@ -172,7 +173,7 @@ function LabTestManagement() {
     setDraft((p) => ({ ...p, [k]: e.target.value }))
 
   return (
-    <div className="admin-page">
+    <div className="category-management admin-page">
       {/* Header */}
       <div className="admin-page__header">
         <div>
@@ -241,8 +242,9 @@ function LabTestManagement() {
       </div>
 
       {/* Table */}
-      <div className="admin-page__table">
-        <table>
+      <div className="cm-panel">
+        <div className="cm-table-wrap">
+        <table className="cm-table">
           <thead>
             <tr>
               <th>Test</th>
@@ -250,7 +252,7 @@ function LabTestManagement() {
               <th>Sample</th>
               <th>Turnaround</th>
               <th>Price</th>
-              <th></th>
+              <th className="cm-th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -275,9 +277,9 @@ function LabTestManagement() {
                 </td>
                 <td><span className="lt-price">KSh {t.price.toLocaleString()}</span></td>
                 <td>
-                  <div className="lt-actions">
-                    <button className="btn btn--outline btn--sm" type="button" onClick={() => openEdit(t)}>Edit</button>
-                    <button className="lt-del-btn" type="button" onClick={() => setDeleteTarget(t)}>Delete</button>
+                  <div className="cm-row-actions">
+                    <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => openEdit(t)}>Edit</button>
+                    <button className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => setDeleteTarget(t)}>Delete</button>
                   </div>
                 </td>
               </tr>
@@ -299,6 +301,7 @@ function LabTestManagement() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}

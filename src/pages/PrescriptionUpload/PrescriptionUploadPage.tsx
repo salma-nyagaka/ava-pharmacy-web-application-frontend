@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PrescriptionRecord } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
-import './PrescriptionUploadPage.css'
+import '../../styles/pages/PrescriptionUploadPage.css'
 
 const DISPATCH_STEPS = ['Not started', 'Queued', 'Packed', 'Dispatched', 'Delivered']
 

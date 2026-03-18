@@ -2,7 +2,7 @@ import { CSSProperties, ReactNode, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import favicon from '../../assets/images/logos/favicon.png'
-import './AdminLayout.css'
+import '../../styles/components/AdminLayout.css'
 
 type AdminNavItem = {
   icon: ReactNode

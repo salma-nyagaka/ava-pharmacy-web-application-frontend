@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getOrderTotals, loadAdminOrders, saveAdminOrders } from '../../data/adminOrders'
 import { logAdminAction } from '../../data/adminAudit'
-import './AdminShared.css'
-import './OrderDetailsPage.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/OrderDetailsPage.css'
 
 const formatCurrency = (value: number) => `KSh ${value.toLocaleString()}`
 

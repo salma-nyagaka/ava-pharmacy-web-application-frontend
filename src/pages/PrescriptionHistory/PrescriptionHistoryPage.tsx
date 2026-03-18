@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PrescriptionRecord } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
-import './PrescriptionHistoryPage.css'
+import '../../styles/pages/PrescriptionHistoryPage.css'
 
 function PrescriptionHistoryPage() {
   const navigate = useNavigate()

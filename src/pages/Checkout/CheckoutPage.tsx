@@ -19,7 +19,7 @@ import {
   type ShippingMethod,
 } from '../../services/orderService'
 import { fetchAvailability } from '../../services/productService'
-import './CheckoutPage.css'
+import '../../styles/pages/CheckoutPage.css'
 
 type PaymentStatus = 'idle' | 'waiting' | 'confirmed' | 'failed'
 type DeliveryMethodOption = 'store_pickup' | 'doorstep_delivery'

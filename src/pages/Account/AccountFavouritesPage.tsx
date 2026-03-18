@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import FavouriteProductCard from '../../components/FavouriteProductCard/FavouriteProductCard'
 import { FavouriteItem } from '../../data/favourites'
 import { favouritesService } from '../../services/favouritesService'
-import './AccountFavouritesPage.css'
+import '../../styles/pages/AccountFavouritesPage.css'
 
 function AccountFavouritesPage() {
   const [items, setItems] = useState<FavouriteItem[]>([])

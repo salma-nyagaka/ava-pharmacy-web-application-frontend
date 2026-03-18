@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import './Header.css'
+import '../../styles/components/Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import { useCatalog } from '../../context/CatalogContext'
 import { loadBanners } from '../../data/banners'

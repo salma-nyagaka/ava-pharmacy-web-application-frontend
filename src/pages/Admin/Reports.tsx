@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import './AdminShared.css'
-import './Reports.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/Reports.css'
 
 function Reports() {
   const [timeRange, setTimeRange] = useState('7days')

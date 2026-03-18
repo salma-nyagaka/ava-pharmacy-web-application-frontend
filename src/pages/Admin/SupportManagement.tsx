@@ -4,8 +4,9 @@ import { logAdminAction } from '../../data/adminAudit'
 import { SupportPriority, SupportStatus, SupportTicket } from '../../data/support'
 import { supportService } from '../../services/supportService'
 import { loadAdminUsers } from '../../data/adminUsers'
-import './AdminShared.css'
-import './SupportManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/SupportManagement.css'
 
 const PAGE_SIZE = 6
 
@@ -134,8 +135,8 @@ function SupportManagement() {
   }
 
   return (
-    <div className="admin-page support-management">
-      <div className="admin-page__header">
+    <div className="category-management admin-page support-management">
+      <div className="category-management__header">
         <div className="admin-page__title">
           <div>
             <h1>Support & Escalations</h1>
@@ -219,8 +220,9 @@ function SupportManagement() {
         </div>
       </div>
 
-      <div className="admin-page__table">
-        <table>
+      <div className="cm-panel">
+        <div className="cm-table-wrap">
+        <table className="cm-table">
           <thead>
             <tr>
               <th>Ticket</th>
@@ -230,7 +232,7 @@ function SupportManagement() {
               <th>Status</th>
               <th>Assigned</th>
               <th>Last activity</th>
-              <th>Action</th>
+              <th className="cm-th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -268,17 +270,17 @@ function SupportManagement() {
                   {ticket.notes?.[0]?.time ?? ticket.createdAt}
                 </td>
                 <td>
-                  <div className="support-actions">
-                    <button className="btn-sm btn--outline" type="button" onClick={() => setActiveTicket(ticket)}>
+                  <div className="cm-row-actions">
+                    <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => setActiveTicket(ticket)}>
                       View
                     </button>
                     {ticket.status !== 'In Progress' && (
-                      <button className="btn-sm btn--outline" type="button" onClick={() => updateTicket(ticket.id, { status: 'In Progress' }, 'Moved to In Progress')}>
+                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => updateTicket(ticket.id, { status: 'In Progress' }, 'Moved to In Progress')}>
                         Start
                       </button>
                     )}
                     {ticket.status !== 'Resolved' && (
-                      <button className="btn-sm btn--primary" type="button" onClick={() => updateTicket(ticket.id, { status: 'Resolved' }, 'Marked as Resolved')}>
+                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => updateTicket(ticket.id, { status: 'Resolved' }, 'Marked as Resolved')}>
                         Resolve
                       </button>
                     )}
@@ -293,6 +295,7 @@ function SupportManagement() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {filteredTickets.length > 0 && (

@@ -9,8 +9,8 @@ import {
   updateAdminOrder,
 } from '../../services/adminOrderService'
 import type { PaymentIntent } from '../../services/orderService'
-import './AdminShared.css'
-import './OrderDetailsPage.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/OrderDetailsPage.css'
 
 const formatCurrency = (value: string | number) => `KSh ${Number(value || 0).toLocaleString()}`
 const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'

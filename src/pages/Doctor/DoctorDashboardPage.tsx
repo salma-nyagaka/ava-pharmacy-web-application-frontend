@@ -16,7 +16,8 @@ import {
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
-import './DoctorDashboardPage.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/portals/DoctorDashboardPage.css'
 
 type DoctorTab = 'queue' | 'messages' | 'prescriptions' | 'patients' | 'earnings'
 
@@ -437,41 +438,51 @@ function DoctorDashboardPage() {
               </div>
             </div>
 
-            <div className="dd-stats">
-              <div className="dd-stat dd-stat--total">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div className="cm-kpi-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
-                <p className="dd-stat__value">{stats.total}</p>
-                <p className="dd-stat__label">Total today</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">Total today</span>
+                  <strong className="cm-kpi-card__value">{stats.total}</strong>
+                </div>
               </div>
-              <div className="dd-stat dd-stat--waiting">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
-                <p className="dd-stat__value">{stats.waiting}</p>
-                <p className="dd-stat__label">Waiting</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">Waiting</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.waiting}</strong>
+                </div>
               </div>
-              <div className="dd-stat dd-stat--active">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="10 8 16 12 10 16 10 8"/></svg>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="10 8 16 12 10 16 10 8"/></svg>
                 </div>
-                <p className="dd-stat__value">{stats.inProgress}</p>
-                <p className="dd-stat__label">In progress</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">In progress</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.inProgress}</strong>
+                </div>
               </div>
-              <div className="dd-stat dd-stat--done">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 </div>
-                <p className="dd-stat__value">{stats.completed}</p>
-                <p className="dd-stat__label">Completed</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">Completed</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.completed}</strong>
+                </div>
               </div>
-              <div className="dd-stat dd-stat--revenue">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
-                <p className="dd-stat__value">KSh {stats.totalRevenue.toLocaleString()}</p>
-                <p className="dd-stat__label">Total revenue</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">Total revenue</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--purple">KSh {stats.totalRevenue.toLocaleString()}</strong>
+                </div>
               </div>
             </div>
 
@@ -492,8 +503,8 @@ function DoctorDashboardPage() {
                   <span className="dd-count">{queueItems.length} consultation{queueItems.length !== 1 ? 's' : ''}</span>
                 </div>
 
-                <div className="dd-table-wrap">
-                  <table className="dd-table">
+                <div className="cm-panel cm-table-wrap dd-table-wrap">
+                  <table className="cm-table dd-table">
                     <thead>
                       <tr>
                         <th>Patient</th>
@@ -782,8 +793,8 @@ function DoctorDashboardPage() {
                 New prescription
               </button>
             </div>
-            <div className="dd-table-wrap">
-              <table className="dd-table">
+            <div className="cm-panel cm-table-wrap dd-table-wrap">
+              <table className="cm-table dd-table">
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -951,8 +962,8 @@ function DoctorDashboardPage() {
               <div className="dd-toolbar">
                 <h3 className="dd-toolbar__title">Monthly breakdown</h3>
               </div>
-              <div className="dd-table-wrap">
-                <table className="dd-table">
+              <div className="cm-panel cm-table-wrap dd-table-wrap">
+                <table className="cm-table dd-table">
                   <thead>
                     <tr>
                       <th>Period</th>

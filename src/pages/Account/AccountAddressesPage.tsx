@@ -6,7 +6,7 @@ import {
   updateSavedAddress,
   type SavedAddress,
 } from '../../services/addressService'
-import './AccountAddressesPage.css'
+import '../../styles/pages/AccountAddressesPage.css'
 
 const EMPTY_FORM = { label: '', street: '', city: '', county: '' }
 

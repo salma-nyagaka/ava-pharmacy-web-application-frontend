@@ -12,8 +12,8 @@ import {
   pharmacistPermissionOptions,
   saveAdminUsers,
 } from '../../data/adminUsers'
-import './AdminShared.css'
-import './UserCreatePage.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/UserCreatePage.css'
 
 function getInitials(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean)

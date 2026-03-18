@@ -3,8 +3,9 @@ import { useAuth } from '../../context/AuthContext'
 import { logAdminAction } from '../../data/adminAudit'
 import { DispatchStatus, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
-import './AdminShared.css'
-import './PrescriptionManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/PrescriptionManagement.css'
 
 const DISPATCH_STEPS: DispatchStatus[] = ['Not started', 'Queued', 'Packed', 'Dispatched', 'Delivered']
 
@@ -122,8 +123,8 @@ function PrescriptionManagement() {
     f.startsWith('data:application/pdf') || /\.pdf$/i.test(f)
 
   return (
-    <div className="admin-page">
-      <div className="admin-page__header">
+    <div className="category-management admin-page">
+      <div className="category-management__header">
         <div>
           <h1>Prescription Management</h1>
           <p className="px-subtitle">Review, approve, and track prescription fulfilment.</p>
@@ -131,26 +132,51 @@ function PrescriptionManagement() {
       </div>
 
       {/* Stats */}
-      <div className="px-stats">
-        <div className="px-stat px-stat--pending" onClick={() => setSelectedStatus('Pending')} role="button" tabIndex={0}>
-          <span className="px-stat__value">{stats.pending}</span>
-          <span className="px-stat__label">Pending</span>
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card" onClick={() => setSelectedStatus('Pending')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Pending</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.pending}</strong>
+          </div>
         </div>
-        <div className="px-stat px-stat--approved" onClick={() => setSelectedStatus('Approved')} role="button" tabIndex={0}>
-          <span className="px-stat__value">{stats.approved}</span>
-          <span className="px-stat__label">Approved</span>
+        <div className="cm-kpi-card" onClick={() => setSelectedStatus('Approved')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Approved</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.approved}</strong>
+          </div>
         </div>
-        <div className="px-stat px-stat--clarification" onClick={() => setSelectedStatus('Clarification')} role="button" tabIndex={0}>
-          <span className="px-stat__value">{stats.clarification}</span>
-          <span className="px-stat__label">Clarification</span>
+        <div className="cm-kpi-card" onClick={() => setSelectedStatus('Clarification')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Clarification</span>
+            <strong className="cm-kpi-card__value">{stats.clarification}</strong>
+          </div>
         </div>
-        <div className="px-stat px-stat--rejected" onClick={() => setSelectedStatus('Rejected')} role="button" tabIndex={0}>
-          <span className="px-stat__value">{stats.rejected}</span>
-          <span className="px-stat__label">Rejected</span>
+        <div className="cm-kpi-card" onClick={() => setSelectedStatus('Rejected')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Rejected</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{stats.rejected}</strong>
+          </div>
         </div>
-        <div className="px-stat px-stat--transit">
-          <span className="px-stat__value">{stats.inTransit}</span>
-          <span className="px-stat__label">In transit</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">In Transit</span>
+            <strong className="cm-kpi-card__value">{stats.inTransit}</strong>
+          </div>
         </div>
       </div>
 
@@ -165,31 +191,37 @@ function PrescriptionManagement() {
       )}
 
       {/* Filters */}
-      <div className="admin-page__filters">
-        <input type="text" placeholder="Search by ID, patient, doctor, pharmacist…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as 'all' | PrescriptionStatus)}>
-          <option value="all">All statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="Approved">Approved</option>
-          <option value="Clarification">Clarification</option>
-          <option value="Rejected">Rejected</option>
-        </select>
-        <select value={selectedDispatch} onChange={(e) => setSelectedDispatch(e.target.value as 'all' | DispatchStatus)}>
-          <option value="all">All dispatch stages</option>
-          {DISPATCH_STEPS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select value={selectedPharmacist} onChange={(e) => setSelectedPharmacist(e.target.value)}>
-          <option value="all">All handlers</option>
-          <option value="Unassigned">Unhandled</option>
-        </select>
-        {selectedStatus !== 'all' && (
-          <button className="px-clear-filter" type="button" onClick={() => setSelectedStatus('all')}>✕ Clear filter</button>
-        )}
+      <div className="cm-toolbar">
+        <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
+          <div className="cm-search-box">
+            <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
+            <input type="search" placeholder="Search by ID, patient, doctor, pharmacist…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as 'all' | PrescriptionStatus)}>
+            <option value="all">All statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Clarification">Clarification</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+          <select className="cm-filter-select" value={selectedDispatch} onChange={(e) => setSelectedDispatch(e.target.value as 'all' | DispatchStatus)}>
+            <option value="all">All dispatch stages</option>
+            {DISPATCH_STEPS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select className="cm-filter-select" value={selectedPharmacist} onChange={(e) => setSelectedPharmacist(e.target.value)}>
+            <option value="all">All handlers</option>
+            <option value="Unassigned">Unhandled</option>
+          </select>
+          {selectedStatus !== 'all' && (
+            <button className="cm-clear-filter" type="button" onClick={() => setSelectedStatus('all')}>Clear filter</button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
-      <div className="admin-page__table">
-        <table>
+      <div className="cm-panel">
+        <div className="cm-table-wrap">
+        <table className="cm-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -198,7 +230,7 @@ function PrescriptionManagement() {
               <th>Status</th>
               <th>Dispatch</th>
               <th>Submitted</th>
-              <th></th>
+              <th className="cm-th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -218,7 +250,9 @@ function PrescriptionManagement() {
                 <td><span className="admin-status admin-status--info">{rx.dispatchStatus}</span></td>
                 <td className="px-date">{rx.submitted}</td>
                 <td>
-                  <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(rx)}>Review</button>
+                  <div className="cm-row-actions">
+                    <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => setActiveRx(rx)}>Review</button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -227,6 +261,7 @@ function PrescriptionManagement() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}

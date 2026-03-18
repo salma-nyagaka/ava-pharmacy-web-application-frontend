@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import './OrderTrackingPage.css'
+import '../../styles/pages/OrderTrackingPage.css'
 
 function SearchIcon() {
   return (

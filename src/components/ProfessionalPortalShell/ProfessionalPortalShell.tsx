@@ -1,7 +1,7 @@
 import { CSSProperties, ReactNode, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import favicon from '../../assets/images/logos/favicon.png'
-import './ProfessionalPortalShell.css'
+import '../../styles/components/ProfessionalPortalShell.css'
 
 export type ProfessionalPortalNavItem = {
   badge?: number

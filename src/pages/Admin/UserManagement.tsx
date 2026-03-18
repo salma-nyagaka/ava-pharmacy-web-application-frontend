@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { AdminUserRole, PharmacistPermission, adminRoleOptions, formatAdminRole, loadAdminUsers } from '../../data/adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
 import { AdminUserError, adminUserService } from '../../services/adminUserService'
-import './UserManagement.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/UserManagement.css'
 
 function getRoleFromSearchParams(value: string | null): AdminUserRole | 'all' {
   if (!value) return 'all'
@@ -131,8 +132,8 @@ function UserManagement() {
   }
 
   return (
-    <div className="user-management">
-      <div className="user-management__header">
+    <div className="category-management user-management">
+      <div className="category-management__header user-management__header">
         <div>
           <h1>User Management</h1>
         </div>
@@ -151,34 +152,31 @@ function UserManagement() {
         </Link>
       </div>
 
-      <div className="user-management__filters">
-        <div className="search-box">
-          <input
-            type="text"
-            placeholder="Search by name, email, or phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="cm-toolbar">
+        <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
+          <div className="cm-search-box">
+            <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
+            <input type="search" placeholder="Search by name, email, or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          <select className="cm-filter-select" value={selectedRole} onChange={(e) => handleRoleChange(e.target.value as AdminUserRole | 'all')}>
+            <option value="all">All Roles</option>
+            {adminRoleOptions.map((role) => (
+              <option key={role.value} value={role.value}>{role.label}</option>
+            ))}
+          </select>
+          <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
         </div>
-        <select value={selectedRole} onChange={(e) => handleRoleChange(e.target.value as AdminUserRole | 'all')}>
-          <option value="all">All Roles</option>
-          {adminRoleOptions.map((role) => (
-            <option key={role.value} value={role.value}>
-              {role.label}
-            </option>
-          ))}
-        </select>
-        <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-        </select>
       </div>
 
-      <div className="user-management__table">
+      <div className="cm-panel user-management__table">
         {loadError && <p className="user-empty">{loadError}</p>}
         {loading && <p className="user-empty">Loading users...</p>}
-        <table>
+        <div className="cm-table-wrap">
+        <table className="cm-table">
           <thead>
             <tr>
               <th>User</th>
@@ -187,7 +185,7 @@ function UserManagement() {
               <th>Status</th>
               <th>Joined</th>
               <th>Orders</th>
-              <th>Actions</th>
+              <th className="cm-th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -221,13 +219,13 @@ function UserManagement() {
                 <td>{new Date(user.joinedDate).toLocaleDateString()}</td>
                 <td>{user.totalOrders}</td>
                 <td>
-                  <div className="action-buttons">
-                    <Link className="btn-sm btn--outline" to={`/admin/users/${user.id}`} title="View Details">
+                  <div className="cm-row-actions">
+                    <Link className="cm-row-btn cm-row-btn--edit" to={`/admin/users/${user.id}`} title="View Details">
                       View
                     </Link>
                     {user.status === 'active' ? (
                       <button
-                        className="btn-sm btn--danger"
+                        className="cm-row-btn cm-row-btn--delete"
                         title="Suspend"
                         onClick={() => handleToggleStatus(user.id, 'suspended')}
                       >
@@ -235,7 +233,7 @@ function UserManagement() {
                       </button>
                     ) : (
                       <button
-                        className="btn-sm btn--success"
+                        className="cm-row-btn cm-row-btn--edit"
                         title="Activate"
                         onClick={() => handleToggleStatus(user.id, 'active')}
                       >
@@ -253,6 +251,7 @@ function UserManagement() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {filteredUsers.length > 0 && (

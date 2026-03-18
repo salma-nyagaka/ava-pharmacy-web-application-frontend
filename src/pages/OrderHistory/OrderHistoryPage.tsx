@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { STATUS_CFG } from '../../data/ordersData'
 import type { Order } from '../../data/ordersData'
 import { useOrders } from '../../hooks/useOrders'
-import './OrderHistoryPage.css'
+import '../../styles/pages/OrderHistoryPage.css'
 
 const FILTER_TABS = ['All', 'Processing', 'In Transit', 'Delivered', 'Cancelled']
 

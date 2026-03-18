@@ -9,8 +9,8 @@ import {
   type PromotionStatus,
   type PromotionType,
 } from '../../services/adminProductService'
-import './AdminShared.css'
-import './DealsManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/DealsManagement.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const PAGE_SIZE = 6

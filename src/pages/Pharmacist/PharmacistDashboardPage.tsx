@@ -5,9 +5,10 @@ import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions
 import { prescriptionService } from '../../services/prescriptionService'
 import { cartService } from '../../services/cartService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
-import '../Admin/AdminShared.css'
-import '../Admin/PrescriptionManagement.css'
-import './PharmacistDashboardPage.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/PrescriptionManagement.css'
+import '../../styles/portals/PharmacistDashboardPage.css'
 
 const statusClass = (status: PrescriptionStatus) =>
   status === 'Approved' ? 'admin-status--success'
@@ -333,25 +334,42 @@ function PharmacistDashboardPage() {
         </div>
       </div>
 
-      {/* Stats — donut chart + clickable stat cards */}
-      <div className="px-stats-area">
-        <DonutChart segments={donutSegments} />
-        <div className="px-stats">
-          <div className="px-stat px-stat--pending" onClick={() => setSelectedStatus('Pending')} role="button" tabIndex={0}>
-            <span className="px-stat__value">{stats.pending}</span>
-            <span className="px-stat__label">Pending</span>
+      {/* Stats — KPI grid */}
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card" onClick={() => setSelectedStatus('Pending')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
           </div>
-          <div className="px-stat px-stat--approved" onClick={() => setSelectedStatus('Approved')} role="button" tabIndex={0}>
-            <span className="px-stat__value">{stats.approved}</span>
-            <span className="px-stat__label">Approved</span>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Pending</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.pending}</strong>
           </div>
-          <div className="px-stat px-stat--clarification" onClick={() => setSelectedStatus('Clarification')} role="button" tabIndex={0}>
-            <span className="px-stat__value">{stats.clarification}</span>
-            <span className="px-stat__label">Clarification</span>
+        </div>
+        <div className="cm-kpi-card" onClick={() => setSelectedStatus('Approved')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
-          <div className="px-stat px-stat--rejected" onClick={() => setSelectedStatus('Rejected')} role="button" tabIndex={0}>
-            <span className="px-stat__value">{stats.rejected}</span>
-            <span className="px-stat__label">Rejected</span>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Approved</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.approved}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card" onClick={() => setSelectedStatus('Clarification')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Clarification</span>
+            <strong className="cm-kpi-card__value">{stats.clarification}</strong>
+          </div>
+        </div>
+        <div className="cm-kpi-card" onClick={() => setSelectedStatus('Rejected')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Rejected</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{stats.rejected}</strong>
           </div>
         </div>
       </div>
@@ -387,8 +405,9 @@ function PharmacistDashboardPage() {
       </div>
 
       {/* Table */}
-      <div className="admin-page__table">
-        <table>
+      <div className="cm-panel">
+        <div className="cm-table-wrap">
+        <table className="cm-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -397,7 +416,7 @@ function PharmacistDashboardPage() {
               <th>Status</th>
               <th>Dispatch</th>
               <th>Submitted</th>
-              <th></th>
+              <th className="cm-th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -418,7 +437,9 @@ function PharmacistDashboardPage() {
                   {rx.status === 'Pending' && <TimeElapsed since={rx.submitted} />}
                 </td>
                 <td>
-                  <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(rx)}>Review</button>
+                  <div className="cm-row-actions">
+                    <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => setActiveRx(rx)}>Review</button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -427,6 +448,7 @@ function PharmacistDashboardPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}

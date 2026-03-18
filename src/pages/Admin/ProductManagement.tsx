@@ -11,10 +11,10 @@ import {
   ProductCreatePayload,
 } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
-import './AdminShared.css'
+import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
-import './ProductManagement.css'
+import '../../styles/admin/ProductManagement.css'
 
 const PAGE_SIZE = 6
 

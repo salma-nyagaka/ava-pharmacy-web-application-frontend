@@ -19,8 +19,9 @@ import {
   upsertLabResult,
 } from '../../data/labs'
 import { LabPartner, loadLabPartners } from '../../data/labPartners'
-import './AdminShared.css'
-import './LabRequestManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/LabRequestManagement.css'
 
 const PAGE_SIZE = 10
 
@@ -193,7 +194,7 @@ function LabRequestManagement() {
   const stepIndex = (status: LabRequestStatus) => STATUS_STEPS.indexOf(status)
 
   return (
-    <div className={`lrm-root ${panelId ? 'lrm-root--panel-open' : ''}`}>
+    <div className={`category-management lrm-root ${panelId ? 'lrm-root--panel-open' : ''}`}>
       <PageHeader
         title="Lab requests"
         subtitle="Review and manage all patient-submitted lab test requests."
@@ -305,8 +306,9 @@ function LabRequestManagement() {
           </div>
 
           {/* Table */}
-          <div className="lrm-table-wrap">
-            <table className="lrm-table">
+          <div className="cm-panel">
+            <div className="cm-table-wrap lrm-table-wrap">
+            <table className="cm-table lrm-table">
               <thead>
                 <tr>
                   <th>Request</th>
@@ -316,7 +318,7 @@ function LabRequestManagement() {
                   <th>Technician</th>
                   <th>Status</th>
                   <th>Payment</th>
-                  <th>Actions</th>
+                  <th className="cm-th-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -408,6 +410,7 @@ function LabRequestManagement() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Pagination */}

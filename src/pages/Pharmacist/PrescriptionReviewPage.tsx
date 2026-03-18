@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { PrescriptionItem, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { fetchProducts, Product } from '../../services/productService'
 import { prescriptionService } from '../../services/prescriptionService'
-import './PrescriptionReviewPage.css'
+import '../../styles/portals/PrescriptionReviewPage.css'
 
 function statusBarClass(status: string) {
   if (status === 'Approved') return 'prx-status-bar prx-status-bar--approved'

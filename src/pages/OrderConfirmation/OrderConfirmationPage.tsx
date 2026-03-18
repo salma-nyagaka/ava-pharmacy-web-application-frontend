@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { fetchOrder, type Order } from '../../services/orderService'
-import './OrderConfirmationPage.css'
+import '../../styles/pages/OrderConfirmationPage.css'
 
 const CHECKOUT_ORDER_STORAGE_KEY = 'ava_checkout_order_id'
 

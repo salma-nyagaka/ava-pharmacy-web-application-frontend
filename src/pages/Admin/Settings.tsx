@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import './AdminShared.css'
-import './Settings.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/Settings.css'
 import { logAdminAction } from '../../data/adminAudit'
 
 function Settings() {

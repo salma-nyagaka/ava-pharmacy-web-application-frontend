@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adminProductService, ApiInventoryProduct } from '../../services/adminProductService'
-import './AdminShared.css'
-import './InventoryManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/InventoryManagement.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const PAGE_SIZE = 10

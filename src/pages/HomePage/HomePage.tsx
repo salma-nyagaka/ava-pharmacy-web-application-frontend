@@ -6,7 +6,7 @@ import { cartService } from '../../services/cartService'
 import { useProducts } from '../../hooks/useProducts'
 import { useCatalog } from '../../context/CatalogContext'
 import type { CatalogProduct } from '../../data/products'
-import './HomePage.css'
+import '../../styles/pages/HomePage.css'
 
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)

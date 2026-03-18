@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import './AdminShared.css'
-import './PayoutManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/PayoutManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
 import { loadDoctorProfiles } from '../../data/telemedicine'
 import {
@@ -360,8 +361,8 @@ function PayoutManagement() {
   }
 
   return (
-    <div className="admin-page">
-      <div className="admin-page__header">
+    <div className="category-management admin-page">
+      <div className="category-management__header">
         <div>
           <div className="pm-title-row">
             <h1>Payouts</h1>
@@ -466,32 +467,33 @@ function PayoutManagement() {
         </div>
       )}
 
-      <div className="admin-page__filters">
-        <input
-          type="text"
-          placeholder="Search by payout ID, recipient, task ID, period, reference"
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-        />
-        <select value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as 'all' | PayoutRole)}>
-          <option value="all">All roles</option>
-          {payoutRoles.map((roleOption) => (
-            <option key={roleOption} value={roleOption}>{roleOption}</option>
-          ))}
-        </select>
-        <select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as 'all' | PayoutStatus)}>
-          <option value="all">All statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="Paid">Paid</option>
-          <option value="Failed">Failed</option>
-        </select>
-        {hasFilters && (
-          <button className="pm-clear-filter" type="button" onClick={clearFilters}>✕ Clear filters</button>
-        )}
+      <div className="cm-toolbar">
+        <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
+          <div className="cm-search-box">
+            <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
+            <input type="search" placeholder="Search by payout ID, recipient, task ID, period, reference" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+          </div>
+          <select className="cm-filter-select" value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as 'all' | PayoutRole)}>
+            <option value="all">All roles</option>
+            {payoutRoles.map((roleOption) => (
+              <option key={roleOption} value={roleOption}>{roleOption}</option>
+            ))}
+          </select>
+          <select className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as 'all' | PayoutStatus)}>
+            <option value="all">All statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Paid">Paid</option>
+            <option value="Failed">Failed</option>
+          </select>
+          {hasFilters && (
+            <button className="cm-clear-filter" type="button" onClick={clearFilters}>Clear filters</button>
+          )}
+        </div>
       </div>
 
-      <div className="admin-page__table" ref={tableRef}>
-        <table>
+      <div className="cm-panel" ref={tableRef}>
+        <div className="cm-table-wrap">
+        <table className="cm-table">
           <thead>
             <tr>
               <th>Payout</th>
@@ -500,7 +502,7 @@ function PayoutManagement() {
               <th>Amount</th>
               <th>Payment</th>
               <th>Status</th>
-              <th>Action</th>
+              <th className="cm-th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -543,10 +545,10 @@ function PayoutManagement() {
                   </span>
                 </td>
                 <td>
-                  <div className="payout-actions">
+                  <div className="cm-row-actions">
                     {payout.status !== 'Paid' && (
                       <button
-                        className="btn btn--outline btn--sm"
+                        className="cm-row-btn cm-row-btn--edit"
                         type="button"
                         onClick={() => openPaidModal(payout)}
                       >
@@ -555,7 +557,7 @@ function PayoutManagement() {
                     )}
                     {payout.status !== 'Failed' && payout.status !== 'Paid' && (
                       <button
-                        className="btn btn--outline btn--sm"
+                        className="cm-row-btn cm-row-btn--delete"
                         type="button"
                         onClick={() => updatePayoutStatus(payout.id, 'Failed')}
                       >
@@ -573,6 +575,7 @@ function PayoutManagement() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {filteredPayouts.length > 0 && (

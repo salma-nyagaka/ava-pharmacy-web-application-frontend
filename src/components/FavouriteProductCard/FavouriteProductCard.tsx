@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../ImageWithFallback/ImageWithFallback'
 import { FavouriteItem } from '../../data/favourites'
-import './FavouriteProductCard.css'
+import '../../styles/components/FavouriteProductCard.css'
 
 type FavouriteProductCardProps = {
   item: FavouriteItem

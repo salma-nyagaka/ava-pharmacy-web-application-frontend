@@ -2,10 +2,10 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { adminProductService, ApiBrand } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
-import './AdminShared.css'
+import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
-import './BrandManagement.css'
+import '../../styles/admin/BrandManagement.css'
 
 const PAGE_SIZE = 8
 

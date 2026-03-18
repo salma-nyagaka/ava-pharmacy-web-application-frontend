@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { adminProductService, ApiOrder, ApiReports } from '../../services/adminProductService'
-import './AdminDashboard.css'
+import '../../styles/admin/AdminDashboard.css'
 
 const RECENT_ORDERS_PAGE_SIZE = 5
 

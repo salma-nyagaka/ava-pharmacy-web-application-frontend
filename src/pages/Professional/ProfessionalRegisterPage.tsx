@@ -5,7 +5,7 @@ import {
   type LabPartnerOption,
   type ProfessionalRegistrationType,
 } from '../../services/professionalRegistrationService'
-import './ProfessionalRegisterPage.css'
+import '../../styles/pages/ProfessionalRegisterPage.css'
 
 type ProfType = 'Doctor' | 'Pediatrician' | 'Lab Partner' | 'Lab Technician'
 

@@ -6,7 +6,7 @@ import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchAvailability, fetchProductById, fetchProducts } from '../../services/productService'
 import { mapApiProduct } from '../../hooks/useProducts'
-import './ProductDetailPage.css'
+import '../../styles/pages/ProductDetailPage.css'
 
 function ProductDetailPage() {
   const navigate = useNavigate()

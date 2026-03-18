@@ -4,7 +4,7 @@ import PageHeader from '../../components/PageHeader/PageHeader'
 import FavouriteProductCard from '../../components/FavouriteProductCard/FavouriteProductCard'
 import { FavouriteItem } from '../../data/favourites'
 import { favouritesService } from '../../services/favouritesService'
-import './WishlistPage.css'
+import '../../styles/pages/WishlistPage.css'
 
 function WishlistPage() {
   const [items, setItems] = useState<FavouriteItem[]>([])
