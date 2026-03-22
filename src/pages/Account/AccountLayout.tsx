@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { useAuth } from '../../context/AuthContext'
 import avatarJohn from '../../assets/images/avatars/avatar-john.svg'
 import '../../styles/pages/AccountLayout.css'
 
@@ -96,29 +97,23 @@ const NAV_ITEMS = [
 
 function AccountLayout() {
   const location = useLocation()
-  const user = {
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    avatar: avatarJohn,
-  }
+  const { user } = useAuth()
 
-  const isActive = (item: typeof NAV_ITEMS[number]) => {
-    return location.pathname.startsWith(item.link)
-  }
+  const displayName = user?.name || 'My Account'
+  const displayEmail = user?.email || ''
+
+  const isActive = (item: typeof NAV_ITEMS[number]) => location.pathname.startsWith(item.link)
 
   return (
     <div className="acl-page">
       <div className="container">
         <div className="acl-grid">
-
-          {/* ── Sidebar ── */}
           <aside className="acl-sidebar">
-            {/* User card */}
             <div className="acl-user">
-              <ImageWithFallback src={user.avatar} alt={user.name} className="acl-user__avatar" />
+              <ImageWithFallback src={avatarJohn} alt={displayName} className="acl-user__avatar" />
               <div className="acl-user__info">
-                <p className="acl-user__name">{user.name}</p>
-                <p className="acl-user__email">{user.email}</p>
+                <p className="acl-user__name">{displayName}</p>
+                <p className="acl-user__email">{displayEmail}</p>
               </div>
               <Link to="/account/edit" className="acl-user__edit" title="Edit profile">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -128,7 +123,6 @@ function AccountLayout() {
               </Link>
             </div>
 
-            {/* Nav */}
             <nav aria-label="Account navigation">
               <p className="acl-nav__label">My Account</p>
               {NAV_ITEMS.map((item) => {
@@ -150,20 +144,16 @@ function AccountLayout() {
                       {item.icon}
                     </span>
                     <span className="acl-nav__title">{item.title}</span>
-                    {active && (
-                      <span className="acl-nav__active-dot" style={{ background: item.color }} />
-                    )}
+                    {active && <span className="acl-nav__active-dot" style={{ background: item.color }} />}
                   </Link>
                 )
               })}
             </nav>
           </aside>
 
-          {/* ── Content ── */}
           <main className="acl-content">
             <Outlet />
           </main>
-
         </div>
       </div>
     </div>

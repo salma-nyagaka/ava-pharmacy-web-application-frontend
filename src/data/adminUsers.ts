@@ -19,6 +19,7 @@ export interface AdminUser {
   phone: string
   role: AdminUserRole
   status: 'active' | 'suspended'
+  accountActivated?: boolean
   joinedDate: string
   totalOrders: number
   lastOrderDate?: string
@@ -29,133 +30,10 @@ export interface AdminUser {
 
 const STORAGE_KEY = 'ava_admin_users'
 
-const defaultUsers: AdminUser[] = [
-  {
-    id: 1,
-    name: 'John Doe',
-    email: 'john@example.com',
-    phone: '+254 712 345 678',
-    role: 'customer',
-    status: 'active',
-    joinedDate: '2024-01-15',
-    totalOrders: 12,
-    lastOrderDate: '2026-01-18',
-    address: 'Westlands, Nairobi',
-    notes: ['Prefers M-Pesa payments.'],
-  },
-  {
-    id: 2,
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    phone: '+254 723 456 789',
-    role: 'customer',
-    status: 'active',
-    joinedDate: '2024-02-20',
-    totalOrders: 8,
-    lastOrderDate: '2026-01-12',
-    address: 'Kilimani, Nairobi',
-    notes: ['Repeat customer for skincare items.'],
-  },
-  {
-    id: 3,
-    name: 'Admin User',
-    email: 'admin@avapharmacy.co.ke',
-    phone: '+254 734 567 890',
-    role: 'admin',
-    status: 'active',
-    joinedDate: '2023-12-01',
-    totalOrders: 0,
-    address: 'Head Office',
-    notes: ['Full admin access.'],
-  },
-  {
-    id: 4,
-    name: 'Dr. Sarah Johnson',
-    email: 'dr.sarah@avapharmacy.co.ke',
-    phone: '+254 745 678 901',
-    role: 'doctor',
-    status: 'active',
-    joinedDate: '2024-03-10',
-    totalOrders: 0,
-    address: 'Nairobi CBD',
-    notes: ['Consulting physician.'],
-  },
-  {
-    id: 5,
-    name: 'Dr. Mercy Otieno',
-    email: 'dr.mercy@avapharmacy.co.ke',
-    phone: '+254 756 789 012',
-    role: 'pediatrician',
-    status: 'active',
-    joinedDate: '2024-01-05',
-    totalOrders: 0,
-    address: 'Parklands, Nairobi',
-    notes: ['Pediatric consultations.'],
-  },
-  {
-    id: 6,
-    name: 'Grace Njeri',
-    email: 'grace.pharm@avapharmacy.co.ke',
-    phone: '+254 767 890 123',
-    role: 'pharmacist',
-    status: 'active',
-    joinedDate: '2024-04-01',
-    totalOrders: 0,
-    address: 'Upper Hill, Nairobi',
-    notes: ['Dispensing and review team lead.'],
-    pharmacistPermissions: ['prescription_review', 'dispense_orders', 'inventory_add'],
-  },
-  {
-    id: 7,
-    name: 'Samuel Kiptoo',
-    email: 'samuel.lab@avapharmacy.co.ke',
-    phone: '+254 778 901 234',
-    role: 'lab_technician',
-    status: 'active',
-    joinedDate: '2024-02-14',
-    totalOrders: 0,
-    address: 'Karen, Nairobi',
-    notes: ['Lab processing desk.'],
-  },
-  {
-    id: 8,
-    name: 'Support Admin',
-    email: 'support@avapharmacy.co.ke',
-    phone: '+254 789 012 345',
-    role: 'admin',
-    status: 'active',
-    joinedDate: '2024-01-01',
-    totalOrders: 0,
-    address: 'Head Office',
-    notes: ['Support escalation contact.'],
-  },
-  {
-    id: 9,
-    name: 'Liam Otieno',
-    email: 'liam@example.com',
-    phone: '+254 701 111 222',
-    role: 'customer',
-    status: 'active',
-    joinedDate: '2024-05-21',
-    totalOrders: 4,
-    lastOrderDate: '2026-01-25',
-    address: 'Langata, Nairobi',
-    notes: ['Prefers SMS updates.'],
-  },
-  {
-    id: 10,
-    name: 'Grace Wanjiku',
-    email: 'grace@example.com',
-    phone: '+254 702 333 444',
-    role: 'customer',
-    status: 'active',
-    joinedDate: '2024-06-02',
-    totalOrders: 5,
-    lastOrderDate: '2026-01-10',
-    address: 'Runda, Nairobi',
-    notes: ['Allergy to penicillin noted.'],
-  },
-]
+const looksLikeLegacySeed = (users: AdminUser[]) => {
+  const emails = new Set(users.map((user) => user.email))
+  return emails.has('grace.pharm@avapharmacy.co.ke') && emails.has('john@example.com')
+}
 
 export const adminRoleOptions: Array<{ value: AdminUserRole; label: string }> = [
   { value: 'customer', label: 'Customer' },
@@ -183,9 +61,7 @@ export const formatPharmacistPermission = (permission: PharmacistPermission) => 
   return option?.label ?? permission
 }
 
-const getFallbackUsers = () => {
-  return defaultUsers
-}
+const getFallbackUsers = (): AdminUser[] => []
 
 export const loadAdminUsers = () => {
   if (typeof window === 'undefined') {
@@ -194,12 +70,16 @@ export const loadAdminUsers = () => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) {
-      const fallback = getFallbackUsers()
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(fallback))
-      return fallback
+      return getFallbackUsers()
     }
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed as AdminUser[] : getFallbackUsers()
+    if (!Array.isArray(parsed)) return getFallbackUsers()
+    const users = parsed as AdminUser[]
+    if (looksLikeLegacySeed(users)) {
+      window.localStorage.removeItem(STORAGE_KEY)
+      return getFallbackUsers()
+    }
+    return users
   } catch {
     return getFallbackUsers()
   }

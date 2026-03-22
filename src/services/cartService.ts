@@ -147,7 +147,7 @@ export const cartService = {
       return { data: updated }
     }
     try {
-      await apiClient.post(`/products/cart/items/${item.serverItemId ?? item.id}/move-to-wishlist/`, {})
+      await apiClient.post(`/cart/items/${item.serverItemId ?? item.id}/move-to-wishlist/`, {})
       const res = await apiClient.get('/cart/')
       const items: CartItem[] = ((res.data?.data?.items ?? res.data?.items ?? []) as Record<string, unknown>[]).map(mapApiItem)
       dispatchCartEvent()

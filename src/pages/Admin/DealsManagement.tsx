@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   adminProductService,
   type ApiBrand,
@@ -107,6 +107,106 @@ function toDraft(promotion: ApiPromotion): PromotionDraft {
     code: promotion.code ?? '',
     minimumOrderAmount: String(Number(promotion.minimum_order_amount ?? 0)),
   }
+}
+
+/* ── Searchable multi-select target picker ── */
+function TargetPicker({
+  options,
+  selected,
+  onToggle,
+  placeholder,
+}: {
+  options: TargetOption[]
+  selected: string[]
+  onToggle: (value: string) => void
+  placeholder: string
+}) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = options.filter((o) =>
+    !selected.includes(o.value) &&
+    o.label.toLowerCase().includes(query.toLowerCase())
+  )
+
+  const selectedOptions = selected.map(
+    (v) => options.find((o) => o.value === v) ?? { value: v, label: v }
+  )
+
+  return (
+    <div className="dm-picker" ref={wrapRef}>
+      {/* Input + dropdown */}
+      <div className={`dm-picker__input-wrap${open ? ' dm-picker__input-wrap--open' : ''}`}>
+        <svg className="dm-picker__search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="14" height="14">
+          <circle cx="9" cy="9" r="5.5" /><path d="M13 13L16.5 16.5" strokeLinecap="round" />
+        </svg>
+        <input
+          type="text"
+          className="dm-picker__input"
+          placeholder={open ? 'Search…' : placeholder}
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+        />
+        <span className="dm-picker__count" onClick={() => setOpen((o) => !o)}>
+          {selected.length > 0 ? `${selected.length} selected` : ''}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12" style={{ marginLeft: 4, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </div>
+
+      {open && (
+        <div className="dm-picker__dropdown">
+          {filtered.length === 0 ? (
+            <div className="dm-picker__empty">
+              {query ? `No results for "${query}"` : 'All items selected'}
+            </div>
+          ) : (
+            filtered.slice(0, 80).map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                className="dm-picker__option"
+                onMouseDown={(e) => { e.preventDefault(); onToggle(o.value); setQuery('') }}
+              >
+                {o.label}
+              </button>
+            ))
+          )}
+          {filtered.length > 80 && (
+            <div className="dm-picker__more">+{filtered.length - 80} more · refine your search</div>
+          )}
+        </div>
+      )}
+
+      {/* Selected chips */}
+      {selectedOptions.length > 0 && (
+        <div className="dm-picker__chips">
+          {selectedOptions.map((o) => (
+            <span key={o.value} className="dm-picker__chip">
+              <span className="dm-picker__chip-label">{o.label}</span>
+              <button
+                type="button"
+                className="dm-picker__chip-remove"
+                onClick={() => onToggle(o.value)}
+                aria-label={`Remove ${o.label}`}
+              >×</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function DealsManagement() {
@@ -513,14 +613,6 @@ function DealsManagement() {
                           <button type="button" className="cm-row-btn" onClick={() => void toggleStatus(promotion)}>
                             {promotion.status === 'active' ? 'Deactivate' : 'Activate'}
                           </button>
-                          <button type="button" className="cm-row-btn cm-row-btn--delete" onClick={() => setConfirmDeleteId(promotion.id)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6l-1 14H6L5 6" />
-                              <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                            </svg>
-                            Delete
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -609,20 +701,16 @@ function DealsManagement() {
 
               {draft.scope !== 'all' && (
                 <div className="form-group">
-                  <label>{SCOPE_LABELS[draft.scope]}s <span className="dm-hint">- select one or more</span></label>
-                  <div className="dm-target-pills">
-                    {targetOptions.map((target) => (
-                      <button
-                        key={target.value}
-                        type="button"
-                        className={`dm-target-pill ${draft.targets.includes(target.value) ? 'dm-target-pill--active' : ''}`}
-                        onClick={() => toggleTarget(target.value)}
-                      >
-                        {draft.targets.includes(target.value) ? '✓ ' : ''}{target.label}
-                      </button>
-                    ))}
-                  </div>
-                  {draft.targets.length > 0 && <p className="dm-selected-hint">{draft.targets.length} selected</p>}
+                  <label>
+                    {SCOPE_LABELS[draft.scope]}s
+                    <span className="dm-hint"> -select one or more</span>
+                  </label>
+                  <TargetPicker
+                    options={targetOptions}
+                    selected={draft.targets}
+                    onToggle={toggleTarget}
+                    placeholder={`Search ${SCOPE_LABELS[draft.scope].toLowerCase()}s…`}
+                  />
                 </div>
               )}
 

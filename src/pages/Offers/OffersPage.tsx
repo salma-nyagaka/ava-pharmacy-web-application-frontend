@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
@@ -9,6 +9,8 @@ import '../../styles/pages/ProductListingPage.css'
 const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
 const hasDeal = (price: number, originalPrice: number | null) => (originalPrice ?? price) > price
 const getSavings = (price: number, originalPrice: number | null) => (originalPrice ?? price) - price
+const ITEMS_PER_PAGE = 12
+
 const renderStars = (rating: number) => {
   const full = Math.min(5, Math.max(0, Math.round(rating)))
   return Array.from({ length: 5 }, (_, i) =>
@@ -32,6 +34,7 @@ function OffersPage() {
   const [sortBy, setSortBy] = useState('savings')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [addedId, setAddedId] = useState<number | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const brands = useMemo(
     () => Array.from(new Set(allDeals.map((product) => product.brand))).sort((a, b) => a.localeCompare(b)),
@@ -53,6 +56,38 @@ function OffersPage() {
   }, [allDeals, searchTerm, minPrice, maxPrice, selectedBrands, sortBy])
 
   const activeFilterCount = selectedBrands.length + (minPrice > 0 || maxPrice < 10000 ? 1 : 0)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, minPrice, maxPrice, selectedBrands, sortBy])
+
+  const totalPages = Math.max(1, Math.ceil(filteredDeals.length / ITEMS_PER_PAGE))
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const paginatedDeals = useMemo(
+    () => filteredDeals.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [filteredDeals, currentPage],
+  )
+
+  const startItem = filteredDeals.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, filteredDeals.length)
+
+  const getPageNumbers = (): (number | '...')[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const pages: (number | '...')[] = [1]
+    if (currentPage > 3) pages.push('...')
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i)
+    }
+    if (currentPage < totalPages - 2) pages.push('...')
+    pages.push(totalPages)
+    return pages
+  }
 
   const clearAllFilters = () => {
     setSearchTerm('')
@@ -127,7 +162,9 @@ function OffersPage() {
           <main className="plp__main">
             <div className="plp__toolbar">
               <p className="plp__results-count">
-                {filteredDeals.length === 0 ? 'No offers found' : `Showing ${filteredDeals.length} offer${filteredDeals.length !== 1 ? 's' : ''}`}
+                {filteredDeals.length === 0
+                  ? 'No offers found'
+                  : `Showing ${startItem}–${endItem} of ${filteredDeals.length} offer${filteredDeals.length !== 1 ? 's' : ''}`}
               </p>
               <div className="plp__toolbar-right">
                 <div className="plp__search-wrap">
@@ -162,7 +199,7 @@ function OffersPage() {
             </div>
 
             <div className={`products-grid ${viewMode === 'list' ? 'products-grid--list' : ''}`}>
-              {filteredDeals.map((deal) => (
+              {paginatedDeals.map((deal) => (
                 <article key={deal.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
                   <Link to={`/product/${deal.id}`} className="product-card__image">
                     {deal.badge && (
@@ -211,6 +248,56 @@ function OffersPage() {
                 </div>
               )}
             </div>
+
+            {totalPages > 1 && (
+              <div className="pagination-wrap">
+                <p className="pagination-info">
+                  Showing <strong>{startItem}–{endItem}</strong> of <strong>{filteredDeals.length}</strong> results
+                </p>
+                <div className="pagination">
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    aria-label="Previous page"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                    Prev
+                  </button>
+
+                  <div className="pagination__pages">
+                    {getPageNumbers().map((page, idx) =>
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="pagination__ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={page}
+                          className={`pagination__btn pagination__btn--page ${currentPage === page ? 'pagination__btn--active' : ''}`}
+                          onClick={() => setCurrentPage(page)}
+                          aria-current={currentPage === page ? 'page' : undefined}
+                        >
+                          {page}
+                        </button>
+                      ),
+                    )}
+                  </div>
+
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    aria-label="Next page"
+                  >
+                    Next
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
           </main>
         </div>
       </div>

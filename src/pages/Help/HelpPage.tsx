@@ -1,7 +1,13 @@
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
+import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
 import '../../styles/pages/HelpPage.css'
 
 function HelpPage() {
+  const { settings } = useSiteSettings()
+  const normalizedSupportPhone = settings.supportPhone.replace(/\D/g, '')
+  const normalizedWhatsappPhone = settings.whatsappPhone.replace(/\D/g, '')
+  const hasDistinctWhatsapp = Boolean(normalizedWhatsappPhone) && normalizedWhatsappPhone !== normalizedSupportPhone
   const faqs = [
     {
       question: 'How do I upload a prescription? ',
@@ -34,17 +40,21 @@ function HelpPage() {
             <div className="card">
               <h3 className="card__title">Live chat</h3>
               <p className="card__subtitle">Available 24/7 on WhatsApp.</p>
-              <button className="btn btn--primary btn--sm">Start WhatsApp chat</button>
+              <a className="btn btn--primary btn--sm" href={`https://wa.me/${formatWhatsAppHref(settings.whatsappPhone)}`} target="_blank" rel="noreferrer">
+                Start WhatsApp chat
+              </a>
             </div>
-            <div className="card">
-              <h3 className="card__title">Call support</h3>
-              <p className="card__subtitle">Talk to an agent for urgent issues.</p>
-              <button className="btn btn--secondary btn--sm">+254 700 000 000</button>
-            </div>
+            {hasDistinctWhatsapp && (
+              <div className="card">
+                <h3 className="card__title">Call support</h3>
+                <p className="card__subtitle">Talk to an agent for urgent issues.</p>
+                <a className="btn btn--secondary btn--sm" href={`tel:${formatPhoneHref(settings.supportPhone)}`}>{settings.supportPhone}</a>
+              </div>
+            )}
             <div className="card">
               <h3 className="card__title">Email support</h3>
               <p className="card__subtitle">We reply within 2 hours.</p>
-              <button className="btn btn--outline btn--sm">support@avapharmacy.co.ke</button>
+              <a className="btn btn--outline btn--sm" href={`mailto:${settings.supportEmail}`}>{settings.supportEmail}</a>
             </div>
           </div>
 

@@ -1,69 +1,64 @@
-/* ── Page shell ─────────────────────────────────────────────── */
-.user-management {
-  background: #f1f5f9;
-  min-height: 100vh;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 1.5rem 3rem 4rem;
-  max-width: none;
-  margin: 0;
-}
 
-/* ── Header card ────────────────────────────────────────────── */
-.user-management__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1rem;
-}
+/* ── Header ─────────────────────────────────────────────────── */
 
 .user-management__header h1 {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #111827;
   margin: 0;
 }
 
-/* ── Stats mini strip (shared with OrderManagement) ─────────── */
+/* ── Stats strip → cm-kpi-card grid ────────────────────────── */
 .stats-mini {
-  display: flex;
-  gap: 0;
-  background: #f8fafc;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 10px;
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  background: none;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
 }
 
 .stat-mini {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 0.55rem 1.25rem;
-  border-right: 1px solid rgba(15, 23, 42, 0.07);
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-top: 3px solid #3b82f6;
+  border-radius: 14px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.15s, transform 0.15s;
 }
 
-.stat-mini:last-child { border-right: none; }
+.stat-mini:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+  transform: translateY(-1px);
+}
+
+.stat-mini:nth-child(2) { border-top-color: #16a34a; }
+.stat-mini:nth-child(3) { border-top-color: #7c3aed; }
+.stat-mini:nth-child(4) { border-top-color: #0d9488; }
 
 .stat-mini__value {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.35rem;
+  font-weight: 800;
   color: #0f172a;
-  line-height: 1.2;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-family: 'Fraunces', 'Georgia', serif;
 }
 
 .stat-mini__label {
-  font-size: 0.68rem;
-  font-weight: 600;
+  font-size: 0.65rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: #94a3b8;
-  white-space: nowrap;
+  line-height: 1.3;
 }
 
 /* ── Filter bar ─────────────────────────────────────────────── */
@@ -313,12 +308,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-top: 1rem;
-  padding: 0.875rem 1.25rem;
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 10px;
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
   flex-wrap: wrap;
+  margin-top: 0;
+  background: none;
+  border-radius: 0;
 }
 
 .pagination__pages {
@@ -381,4 +376,257 @@
   .action-buttons { flex-wrap: wrap; }
 
   .user-pagination { flex-direction: column; align-items: flex-start; }
+}
+
+/* ── Add Pharmacist Modal ─────────────────────────────── */
+.um-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.um-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: um-slide-in 0.18s ease-out;
+}
+
+@keyframes um-slide-in {
+  from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.um-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.um-modal__header h2 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 0.2rem;
+}
+
+.um-modal__header p {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.um-modal__close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.um-modal__close:hover { color: #374151; background: #f1f5f9; }
+
+.um-modal__body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.um-modal__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.875rem;
+}
+
+.um-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.um-modal__field label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.um-modal__field input {
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  color: #111827;
+  background: #fafafa;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.um-modal__field input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(232, 23, 80, 0.08);
+  background: #fff;
+}
+
+.um-req { color: var(--color-primary); font-size: 0.75rem; }
+.um-opt { font-size: 0.72rem; font-weight: 400; color: #94a3b8; margin-left: 0.2rem; }
+
+.um-perm-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.um-perm-tile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 7px;
+  border: 1.5px solid #e5e7eb;
+  background: #fafafa;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.um-perm-tile:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+.um-perm-tile--on {
+  background: #fff0f3;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.um-perm-tile__check {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1.5px solid currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.um-perm-tile--on .um-perm-tile__check {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.um-modal__error {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.875rem;
+  background: #fff0f0;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.um-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  background: #fafafa;
+  flex-wrap: wrap;
+}
+
+.um-email-note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.775rem;
+  color: #64748b;
+}
+
+.um-email-note svg { color: #10b981; flex-shrink: 0; }
+
+.um-modal__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Success state inside modal */
+.um-modal__success {
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.um-modal__success-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.um-modal__success h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+.um-modal__success p {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.um-modal__success strong { color: #111827; }
+
+.um-modal__success-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Toolbar add-pharmacist button with icon */
+.btn svg { vertical-align: middle; }
+
+@media (max-width: 560px) {
+  .um-modal { border-radius: 12px; }
+  .um-modal__row { grid-template-columns: 1fr; }
+  .um-modal__footer { flex-direction: column; align-items: flex-start; }
+  .um-modal__actions { width: 100%; justify-content: flex-end; }
 }

@@ -50,7 +50,7 @@ function mapApiItem(item: WishlistApiItem): FavouriteItem {
 }
 
 async function listRemote(): Promise<FavouriteItem[]> {
-  const res = await apiClient.get('/products/wishlist/')
+  const res = await apiClient.get('/wishlist/')
   const payload = res.data?.data ?? res.data ?? []
   const rows = Array.isArray(payload) ? payload : []
   return rows.map((row) => mapApiItem(row as WishlistApiItem))
@@ -69,7 +69,7 @@ export const favouritesService = {
 
   add: async (item: FavouriteItem): Promise<{ data: FavouriteItem[] }> => {
     if (!isAuthenticated()) return { data: [] }
-    await apiClient.post('/products/wishlist/', { product_id: item.id })
+    await apiClient.post('/wishlist/', { product_id: item.id })
     emitFavouritesUpdate()
     return favouritesService.list()
   },
@@ -78,7 +78,7 @@ export const favouritesService = {
     if (!isAuthenticated()) return { data: [] }
     const remoteItem = serverWishlistId ? { serverWishlistId } : await findRemoteWishlistItem(productId)
     if (remoteItem?.serverWishlistId) {
-      await apiClient.delete(`/products/wishlist/${remoteItem.serverWishlistId}/`)
+      await apiClient.delete(`/wishlist/${remoteItem.serverWishlistId}/`)
     }
     emitFavouritesUpdate()
     return favouritesService.list()
@@ -88,9 +88,9 @@ export const favouritesService = {
     if (!isAuthenticated()) return { data: [] }
     const existing = await findRemoteWishlistItem(item.id)
     if (existing?.serverWishlistId) {
-      await apiClient.delete(`/products/wishlist/${existing.serverWishlistId}/`)
+      await apiClient.delete(`/wishlist/${existing.serverWishlistId}/`)
     } else {
-      await apiClient.post('/products/wishlist/', { product_id: item.id })
+      await apiClient.post('/wishlist/', { product_id: item.id })
     }
     emitFavouritesUpdate()
     return favouritesService.list()
@@ -101,7 +101,7 @@ export const favouritesService = {
     const remoteItem = item.serverWishlistId ? item : await findRemoteWishlistItem(item.id)
     if (!remoteItem?.serverWishlistId) return favouritesService.list()
 
-    await apiClient.post(`/products/wishlist/${remoteItem.serverWishlistId}/move-to-cart/`, { quantity })
+    await apiClient.post(`/wishlist/${remoteItem.serverWishlistId}/move-to-cart/`, { quantity })
     emitFavouritesUpdate()
     emitCartUpdate()
     return favouritesService.list()

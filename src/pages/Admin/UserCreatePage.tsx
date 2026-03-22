@@ -1,36 +1,23 @@
-import { FormEvent, useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { FormEvent, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { logAdminAction } from '../../data/adminAudit'
 import { AdminUserError, adminUserService } from '../../services/adminUserService'
-import {
-  AdminUserRole,
-  PharmacistPermission,
-  adminRoleOptions,
-  formatAdminRole,
-  loadAdminUsers,
-  nextAdminUserId,
-  pharmacistPermissionOptions,
-  saveAdminUsers,
-} from '../../data/adminUsers'
-import '../../styles/admin/AdminShared.css'
+import { PharmacistPermission, pharmacistPermissionOptions } from '../../data/adminUsers'
+import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/UserCreatePage.css'
 
-function getInitials(fullName: string) {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'
   if (parts.length === 1) return parts[0][0].toUpperCase()
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 function UserCreatePage() {
-  const location = useLocation()
   const navigate = useNavigate()
-  const isPharmacistCreate = location.pathname.endsWith('/admin/users/pharmacist/new')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState<AdminUserRole>(() => (isPharmacistCreate ? 'pharmacist' : 'customer'))
-  const [status, setStatus] = useState<'active' | 'suspended'>('active')
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
   const [pharmacistPermissions, setPharmacistPermissions] = useState<PharmacistPermission[]>([
@@ -39,256 +26,217 @@ function UserCreatePage() {
   ])
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState<{ email: string } | null>(null)
 
-  useEffect(() => {
-    if (isPharmacistCreate && role !== 'pharmacist') {
-      setRole('pharmacist')
-    }
-  }, [isPharmacistCreate, role])
-
-  const togglePharmacistPermission = (permission: PharmacistPermission) => {
+  const togglePermission = (perm: PharmacistPermission) => {
     setPharmacistPermissions((prev) =>
-      prev.includes(permission)
-        ? prev.filter((item) => item !== permission)
-        : [...prev, permission]
+      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
     )
   }
 
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault()
-    const resolvedRole: AdminUserRole = isPharmacistCreate ? 'pharmacist' : role
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
     if (!name.trim() || !email.trim() || !phone.trim()) {
-      setFormError('Name, email, and phone are required.')
+      setFormError('Full name, email, and phone are required.')
       return
     }
-
-    if (resolvedRole === 'pharmacist' && pharmacistPermissions.length === 0) {
-      setFormError('Select at least one pharmacist permission.')
+    if (pharmacistPermissions.length === 0) {
+      setFormError('Select at least one permission.')
       return
     }
-
-    if (resolvedRole === 'pharmacist' && isPharmacistCreate) {
-      setSubmitting(true)
-      setFormError('')
-      adminUserService.createPharmacist({
+    setSubmitting(true)
+    setFormError('')
+    try {
+      await adminUserService.createPharmacist({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
         address: address.trim() || undefined,
         pharmacistPermissions,
-      }).then(() => {
-        logAdminAction({
-          action: 'Create pharmacist',
-          entity: 'User',
-          entityId: 'backend',
-          detail: `${name.trim()} (Pharmacist) invite sent`,
-        })
-        navigate('/admin/users')
-      }).catch((error) => {
-        if (error instanceof AdminUserError) {
-          setFormError(error.message)
-          return
-        }
-        setFormError('Unable to create pharmacist right now. Please try again.')
-      }).finally(() => {
-        setSubmitting(false)
       })
-      return
+      logAdminAction({
+        action: 'Create pharmacist',
+        entity: 'User',
+        entityId: 'backend',
+        detail: `${name.trim()} (Pharmacist) invite sent`,
+      })
+      setSuccess({ email: email.trim().toLowerCase() })
+    } catch (err) {
+      setFormError(err instanceof AdminUserError ? err.message : 'Unable to create pharmacist. Please try again.')
+    } finally {
+      setSubmitting(false)
     }
-
-    const users = loadAdminUsers()
-    const nextId = nextAdminUserId(users)
-    const noteItems = notes
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean)
-
-    const nextUser = {
-      id: nextId,
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim(),
-      role: resolvedRole,
-      status,
-      joinedDate: new Date().toISOString().slice(0, 10),
-      totalOrders: 0,
-      address: address.trim() || 'Not set',
-      notes: noteItems,
-      pharmacistPermissions: resolvedRole === 'pharmacist' ? pharmacistPermissions : undefined,
-    }
-
-    saveAdminUsers([nextUser, ...users])
-    logAdminAction({
-      action: resolvedRole === 'pharmacist' ? 'Create pharmacist' : 'Create user',
-      entity: 'User',
-      entityId: String(nextUser.id),
-      detail:
-        resolvedRole === 'pharmacist'
-          ? `${nextUser.name} (${formatAdminRole(resolvedRole)}) permissions: ${(nextUser.pharmacistPermissions ?? []).join(', ')}`
-          : `${nextUser.name} (${formatAdminRole(resolvedRole)})`,
-    })
-
-    navigate('/admin/users')
   }
 
-  const initials = getInitials(name)
+  if (success) {
+    return (
+      <div className="category-management uc-page">
+        <div className="uc-success-card">
+          <div className="uc-success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="36" height="36">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <h2>Pharmacist Account Created</h2>
+          <p>
+            An activation email has been sent to <strong>{success.email}</strong>.<br />
+            They will click the link, set a password, and sign in to their dashboard.
+          </p>
+          <div className="uc-success-actions">
+            <button className="btn btn--primary btn--sm" type="button" onClick={() => navigate('/admin/users?role=pharmacist')}>
+              View Pharmacists
+            </button>
+            <button
+              className="btn btn--outline btn--sm"
+              type="button"
+              onClick={() => {
+                setSuccess(null); setName(''); setEmail(''); setPhone(''); setAddress(''); setNotes('')
+                setPharmacistPermissions(['inventory_add', 'prescription_review'])
+              }}
+            >
+              Add Another
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="admin-page uc-page">
-      <div className="admin-page__header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <h1>{isPharmacistCreate ? 'Add Pharmacist' : 'Add User'}</h1>
+    <div className="category-management uc-page">
+      <div className="category-management__header">
+        <div className="cm-title-group">
+          <h1>Add Pharmacist</h1>
+          <p className="cm-title-sub">Create a staff account -an activation email is sent automatically</p>
+        </div>
+        <div className="category-management__actions">
+          <button className="btn btn--outline btn--sm" type="button" onClick={() => navigate(-1)}>Cancel</button>
         </div>
       </div>
 
-      <form className="uc-form" onSubmit={handleSubmit}>
-        <div className="uc-preview">
-          <div className="uc-avatar">{initials}</div>
-          <div>
-            <p className="uc-preview__name">{name.trim() || 'New User'}</p>
-            <p className="uc-preview__role">{formatAdminRole(role)}</p>
-          </div>
-        </div>
+      <div className="uc-layout">
+        <form className="uc-form-col" onSubmit={handleSubmit} noValidate>
 
-        <div className="uc-section">
-          <p className="uc-section__title">Identity</p>
-          <div className="form-group">
-            <label htmlFor="user-name">Full name</label>
-            <input
-              id="user-name"
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Jane Doe"
-            />
-          </div>
-          <div className="uc-row">
-            <div className="form-group">
-              <label htmlFor="user-email">Email</label>
-              <input
-                id="user-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="name@avapharmacy.co.ke"
-              />
+          <div className="uc-card">
+            <div className="uc-card__header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="15" height="15">
+                <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
+              </svg>
+              Identity
             </div>
-            <div className="form-group">
-              <label htmlFor="user-phone">Phone</label>
-              <input
-                id="user-phone"
-                type="text"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                placeholder="+254 700 000 000"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="uc-divider" />
-
-        <div className="uc-section">
-          <p className="uc-section__title">Account</p>
-          <div className="uc-row">
-            <div className="form-group">
-              <label htmlFor="user-role">Role</label>
-              {isPharmacistCreate ? (
-                <input id="user-role" type="text" value="Pharmacist" readOnly />
-              ) : (
-                <select
-                  id="user-role"
-                  value={role}
-                  onChange={(event) => setRole(event.target.value as AdminUserRole)}
-                >
-                  {adminRoleOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div className="form-group">
-              <label htmlFor="user-status">Status</label>
-              <div className="uc-status-toggle">
-                <button
-                  type="button"
-                  className={`uc-status-btn ${status === 'active' ? 'uc-status-btn--active' : ''}`}
-                  onClick={() => setStatus('active')}
-                  disabled={isPharmacistCreate}
-                >
-                  Active
-                </button>
-                <button
-                  type="button"
-                  className={`uc-status-btn ${status === 'suspended' ? 'uc-status-btn--suspended' : ''}`}
-                  onClick={() => setStatus('suspended')}
-                  disabled={isPharmacistCreate}
-                >
-                  Suspended
-                </button>
+            <div className="uc-card__body">
+              <div className="uc-field">
+                <label htmlFor="uc-name">Full Name <span className="uc-req">*</span></label>
+                <input id="uc-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Wanjiku" />
+              </div>
+              <div className="uc-row">
+                <div className="uc-field">
+                  <label htmlFor="uc-email">Email <span className="uc-req">*</span></label>
+                  <input id="uc-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@avapharmacy.co.ke" />
+                </div>
+                <div className="uc-field">
+                  <label htmlFor="uc-phone">Phone <span className="uc-req">*</span></label>
+                  <input id="uc-phone" type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+254 700 000 000" />
+                </div>
+              </div>
+              <div className="uc-field">
+                <label htmlFor="uc-address">Branch / Location <span className="uc-opt">Optional</span></label>
+                <input id="uc-address" type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Main Branch, Nairobi" />
               </div>
             </div>
           </div>
-        </div>
 
-        {role === 'pharmacist' && (
-          <>
-            <div className="uc-divider" />
-            <div className="uc-section">
-              <p className="uc-section__title">Permissions</p>
-              <div className="uc-perm-pills">
-                {pharmacistPermissionOptions.map((permission) => (
-                  <button
-                    key={permission.value}
-                    type="button"
-                    className={`uc-perm-pill ${pharmacistPermissions.includes(permission.value) ? 'uc-perm-pill--active' : ''}`}
-                    onClick={() => togglePharmacistPermission(permission.value)}
-                  >
-                    {pharmacistPermissions.includes(permission.value) ? '✓ ' : ''}{permission.label}
-                  </button>
+          <div className="uc-card">
+            <div className="uc-card__header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="15" height="15">
+                <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              Permissions
+            </div>
+            <div className="uc-card__body">
+              <div className="uc-perm-grid">
+                {pharmacistPermissionOptions.map((opt) => {
+                  const on = pharmacistPermissions.includes(opt.value)
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`uc-perm-tile ${on ? 'uc-perm-tile--on' : ''}`}
+                      onClick={() => togglePermission(opt.value)}
+                    >
+                      <span className="uc-perm-tile__check">
+                        {on && (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" width="11" height="11">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </span>
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="uc-hint">Select the system access this pharmacist will have.</p>
+            </div>
+          </div>
+
+          <div className="uc-card">
+            <div className="uc-card__header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="15" height="15">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+              </svg>
+              Notes <span className="uc-opt" style={{ fontWeight: 400 }}>· Optional</span>
+            </div>
+            <div className="uc-card__body">
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Any setup notes or account context" />
+            </div>
+          </div>
+
+          {formError && <p className="uc-form-error">{formError}</p>}
+
+          <div className="uc-submit-row">
+            <div className="uc-email-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="15" height="15">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+              Activation email will be sent for them to set their password.
+            </div>
+            <button className="btn btn--primary" type="submit" disabled={submitting}>
+              {submitting ? 'Creating…' : 'Create & Send Invite'}
+            </button>
+          </div>
+        </form>
+
+        <div className="uc-sidebar">
+          <div className="uc-preview-card">
+            <div className="uc-preview-avatar">{getInitials(name || 'NP')}</div>
+            <p className="uc-preview-name">{name.trim() || 'New Pharmacist'}</p>
+            <span className="uc-preview-badge">Pharmacist</span>
+            {email && <p className="uc-preview-meta">{email}</p>}
+            {phone && <p className="uc-preview-meta">{phone}</p>}
+            {address && <p className="uc-preview-meta">{address}</p>}
+            {pharmacistPermissions.length > 0 && (
+              <div className="uc-preview-perms">
+                {pharmacistPermissions.map((p) => (
+                  <span key={p} className="uc-preview-perm">
+                    {pharmacistPermissionOptions.find((o) => o.value === p)?.label ?? p}
+                  </span>
                 ))}
               </div>
-              <p className="uc-hint">Grant "Add inventory records" to allow pharmacists to create inventory entries.</p>
-            </div>
-          </>
-        )}
-
-        <div className="uc-divider" />
-
-        <div className="uc-section">
-          <p className="uc-section__title">Additional info</p>
-          <div className="form-group">
-            <label htmlFor="user-address">Address <span className="uc-optional">Optional</span></label>
-            <input
-              id="user-address"
-              type="text"
-              value={address}
-              onChange={(event) => setAddress(event.target.value)}
-              placeholder="Branch or work location"
-            />
+            )}
           </div>
-          <div className="form-group">
-            <label htmlFor="user-notes">Notes <span className="uc-optional">Optional · one per line</span></label>
-            <textarea
-              id="user-notes"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              rows={3}
-              placeholder="Any setup or account notes"
-            />
+          <div className="uc-info-box">
+            <p className="uc-info-box__title">What happens next?</p>
+            <ol>
+              <li>Account is created in pending state</li>
+              <li>Activation email is sent to the pharmacist</li>
+              <li>They click the link and set a password</li>
+              <li>They sign in to their pharmacist dashboard</li>
+            </ol>
           </div>
         </div>
-
-        {formError && <p className="form-error">{formError}</p>}
-
-        <div className="uc-actions">
-          <button className="btn btn--primary btn--sm" type="submit" disabled={submitting}>
-            {submitting ? 'Creating account...' : isPharmacistCreate ? 'Create pharmacist' : 'Create user'}
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   )
 }

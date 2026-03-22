@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import backgroundBanner from '../../assets/images/banner/background.jpg'
@@ -6,9 +6,9 @@ import { cartService } from '../../services/cartService'
 import { fetchFeaturedProducts } from '../../services/productService'
 import { mapApiProduct, useProducts } from '../../hooks/useProducts'
 import { useCatalog } from '../../context/CatalogContext'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
 import type { CatalogProduct } from '../../data/products'
 import '../../styles/pages/HomePage.css'
-import { sortCategoriesByPreferredOrder } from '../../constants/catalog'
 
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)
@@ -20,15 +20,10 @@ function HomePage() {
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
   const { categories } = useCatalog()
-
-
-  const orderedCategories = useMemo(
-    () => sortCategoriesByPreferredOrder(categories),
-    [categories]
-  )
+  const { settings } = useSiteSettings()
 
   const valueBannerItems = [
-    { key: 'delivery', title: 'Free Delivery',       subtitle: 'On orders over KSh 3,000',      link: '/help',                color: 'green'  },
+    { key: 'delivery', title: 'Free Delivery',       subtitle: `On orders over KSh ${settings.freeDeliveryThreshold.toLocaleString()}`, link: '/help', color: 'green'  },
     { key: 'support',  title: 'Expert Pharmacists',  subtitle: 'Professional guidance, 24/7',   link: '/doctor-consultation', color: 'blue'   },
     { key: 'quality',  title: 'Genuine Products',    subtitle: 'Certified & lab-verified stock', link: '/about',               color: 'purple' },
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
@@ -40,10 +35,6 @@ function HomePage() {
   const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
   const isDealProduct = (product: CatalogProduct) => product.originalPrice !== null && product.originalPrice > product.price
   const getDealSavings = (product: CatalogProduct) => (product.originalPrice ?? product.price) - product.price
-  const getDealPercentage = (product: CatalogProduct) => {
-    if (!product.originalPrice || product.originalPrice <= product.price) return 0
-    return Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-  }
   const getProductBadge = (product: CatalogProduct, section: 'deals' | 'featured' | 'new') => {
     if (section !== 'deals') return null
     if (product.badge?.trim()) return product.badge.trim()

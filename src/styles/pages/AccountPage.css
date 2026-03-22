@@ -5,6 +5,88 @@
   gap: 1.5rem;
 }
 
+.account-dashboard__intro {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+}
+
+.account-dashboard__eyebrow {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #94a3b8;
+  margin: 0 0 0.35rem;
+}
+
+.account-dashboard__title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.25rem;
+}
+
+.account-dashboard__sub {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.account-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.account-summary-card {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 18px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+}
+
+.account-summary-card__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin: 0 0 0.55rem;
+}
+
+.account-summary-card__value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.3rem;
+}
+
+.account-summary-card__meta {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.account-summary-card--blue {
+  border-top: 3px solid #3b82f6;
+}
+
+.account-summary-card--amber {
+  border-top: 3px solid #f59e0b;
+}
+
+.account-summary-card--green {
+  border-top: 3px solid #10b981;
+}
+
+.account-summary-card--rose {
+  border-top: 3px solid #e11d48;
+}
+
 /* ── Orders section ── */
 .account-orders-section {
   background: #fff;
@@ -40,6 +122,26 @@
   color: var(--color-primary);
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.account-orders-empty {
+  border: 1px dashed #e2e8f0;
+  border-radius: 16px;
+  padding: 1.25rem;
+  background: #f8fafc;
+}
+
+.account-orders-empty__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.2rem;
+}
+
+.account-orders-empty__sub {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0;
 }
 
 /* ── Orders list ── */
@@ -194,7 +296,17 @@
   height: 14px;
 }
 
+@media (max-width: 900px) {
+  .account-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 480px) {
+  .account-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
   .account-order-row {
     flex-direction: column;
     align-items: flex-start;

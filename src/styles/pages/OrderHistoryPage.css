@@ -242,7 +242,7 @@
   flex-shrink: 0;
 }
 
-/* Status chip — matches oc-chip in OrderConfirmationPage */
+/* Status chip_ matches oc-chip in OrderConfirmationPage */
 .ohp-row__status {
   display: inline-flex;
   align-items: center;

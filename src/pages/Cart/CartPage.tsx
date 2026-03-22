@@ -2,15 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { useAuth } from '../../context/AuthContext'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { CartItem } from '../../data/cart'
 import { cartService } from '../../services/cartService'
 import '../../styles/pages/CartPage.css'
 
-const FREE_DELIVERY_THRESHOLD = 3000
-const DELIVERY_FEE = 300
-
 function CartPage() {
   const { isLoggedIn } = useAuth()
+  const { settings } = useSiteSettings()
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [movedId, setMovedId] = useState<number | null>(null)
 
@@ -21,10 +20,12 @@ function CartPage() {
   }, [])
 
   const subtotal = useMemo(() => cartItems.reduce((s, i) => s + i.price * i.quantity, 0), [cartItems])
-  const delivery = subtotal >= FREE_DELIVERY_THRESHOLD || cartItems.length === 0 ? 0 : DELIVERY_FEE
+  const delivery = subtotal >= settings.freeDeliveryThreshold || cartItems.length === 0 ? 0 : settings.baseDeliveryFee
   const total = subtotal + delivery
-  const deliveryProgress = Math.min(100, (subtotal / FREE_DELIVERY_THRESHOLD) * 100)
-  const amountToFree = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal)
+  const deliveryProgress = settings.freeDeliveryThreshold > 0
+    ? Math.min(100, (subtotal / settings.freeDeliveryThreshold) * 100)
+    : 100
+  const amountToFree = Math.max(0, settings.freeDeliveryThreshold - subtotal)
   const itemCount = cartItems.reduce((s, i) => s + i.quantity, 0)
   const prescriptionItemCount = cartItems.filter((item) => !!item.prescriptionId).length
 

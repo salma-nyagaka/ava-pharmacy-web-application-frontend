@@ -4,7 +4,6 @@ import {
   adminDashboardService,
   AdminDashboardData,
   ActivityFeedItem,
-  DailySummary,
 } from '../../services/adminDashboardService'
 import { adminProductService, ApiOrder, ApiReports } from '../../services/adminProductService'
 import '../../styles/admin/AdminDashboard.css'
@@ -36,58 +35,6 @@ function fmtKsh(n: number) {
   if (n >= 1_000_000) return `KSh ${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `KSh ${(n / 1_000).toFixed(1)}k`
   return `KSh ${n.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`
-}
-
-/* ── Area sparkline ── */
-function Sparkline({
-  data,
-  field,
-  color = '#10b981',
-}: {
-  data: DailySummary[]
-  field: keyof DailySummary
-  color?: string
-}) {
-  if (data.length < 2) return <div className="ad-sparkline" />
-
-  const values = data.map((d) => Number(d[field]))
-  const max = Math.max(...values, 1)
-  const min = Math.min(...values)
-  const range = max - min || 1
-  const W = 80, H = 32, pad = 2
-
-  const pts: [number, number][] = values.map((v, i) => [
-    pad + (i / (values.length - 1)) * (W - pad * 2),
-    H - pad - ((v - min) / range) * (H - pad * 2),
-  ])
-
-  function cubicPath(p: [number, number][]): string {
-    let d = `M${p[0][0].toFixed(1)},${p[0][1].toFixed(1)}`
-    for (let i = 1; i < p.length; i++) {
-      const mx = (p[i - 1][0] + p[i][0]) / 2
-      d += ` C${mx.toFixed(1)},${p[i-1][1].toFixed(1)} ${mx.toFixed(1)},${p[i][1].toFixed(1)} ${p[i][0].toFixed(1)},${p[i][1].toFixed(1)}`
-    }
-    return d
-  }
-
-  const linePath = cubicPath(pts)
-  const areaPath = `${linePath} L${pts[pts.length-1][0]},${H} L${pts[0][0]},${H} Z`
-  const gradId = `sp-${field as string}-${color.replace('#','')}`
-
-  return (
-    <div className="ad-sparkline">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="80" height="32">
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        <path d={areaPath} fill={`url(#${gradId})`} />
-        <path d={linePath} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </div>
-  )
 }
 
 function getOrderedQuickActions() {
@@ -237,16 +184,12 @@ function AdminDashboard() {
     }
   }, [load, loadFeed])
 
-  const dailySummary = dashboard?.daily_summary ?? []
-
   const stats = [
     {
       title: 'Total Orders',
       value: reports ? reports.total_orders.toLocaleString() : '—',
       sub: `${dashboard?.orders.today ?? 0} today`,
       color: '#3b82f6',
-      sparkField: 'orders' as keyof DailySummary,
-      sparkColor: '#3b82f6',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
           <path d="M16 11V7a4 4 0 0 0-8 0v4"/><rect x="3" y="11" width="18" height="11" rx="2"/>
@@ -258,8 +201,6 @@ function AdminDashboard() {
       value: dashboard ? fmtKsh(dashboard.orders.monthly_revenue) : '—',
       sub: fmtKsh(dashboard?.orders.total_revenue ?? 0) + ' all time',
       color: '#10b981',
-      sparkField: 'revenue' as keyof DailySummary,
-      sparkColor: '#10b981',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
           <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
@@ -271,8 +212,6 @@ function AdminDashboard() {
       value: reports ? reports.total_customers.toLocaleString() : '—',
       sub: `${dashboard?.users.new_today ?? 0} new today`,
       color: '#8b5cf6',
-      sparkField: 'new_customers' as keyof DailySummary,
-      sparkColor: '#8b5cf6',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -285,8 +224,6 @@ function AdminDashboard() {
       value: reports ? reports.low_stock_products.toLocaleString() : '—',
       sub: 'items need restocking',
       color: '#f59e0b',
-      sparkField: null,
-      sparkColor: '#f59e0b',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -295,21 +232,35 @@ function AdminDashboard() {
       ),
     },
     {
-      title: 'Pending Actions',
-      value: dashboard
-        ? String(
-            (dashboard.orders.pending ?? 0) +
-            (dashboard.prescriptions.pending ?? 0) +
-            (dashboard.support.open ?? 0)
-          )
-        : '—',
-      sub: 'orders + prescriptions + tickets',
+      title: 'Pending Orders',
+      value: dashboard ? String(dashboard.orders.pending ?? 0) : '—',
+      sub: 'orders awaiting action',
       color: '#ef4444',
-      sparkField: null,
-      sparkColor: '#ef4444',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
           <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      ),
+    },
+    {
+      title: 'Pending Prescriptions',
+      value: dashboard ? String(dashboard.prescriptions.pending ?? 0) : '—',
+      sub: 'awaiting pharmacist review',
+      color: '#f97316',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
+          <path d="M9 12h6M9 16h6M9 8h3M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+        </svg>
+      ),
+    },
+    {
+      title: 'Open Tickets',
+      value: dashboard ? String(dashboard.support.open ?? 0) : '—',
+      sub: 'support requests still open',
+      color: '#0ea5e9',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
       ),
     },
@@ -396,10 +347,6 @@ function AdminDashboard() {
           <p className="ad-header__date">{getTodayLabel()}</p>
         </div>
         <div className="ad-header__right">
-          <div className="ad-live-indicator">
-            <span className="ad-live-indicator__dot" />
-            Live
-          </div>
           <Link to="/admin/reports" className="ad-header__cta">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
               <path d="M4 20V8M12 20V4M20 20v-9"/>
@@ -417,13 +364,11 @@ function AdminDashboard() {
               <span className="ad-stat__label">{stat.title}</span>
               <span className="ad-stat__icon">{stat.icon}</span>
             </div>
-            <p className="ad-stat__value">{loading ? '…' : stat.value}</p>
-            <div className="ad-stat__bottom">
-              <span className="ad-stat__sub">{stat.sub}</span>
-              {!loading && stat.sparkField && dailySummary.length >= 2 && (
-                <Sparkline data={dailySummary} field={stat.sparkField} color={stat.sparkColor} />
-              )}
+            <div className="ad-stat__middle">
+              <p className="ad-stat__value">{loading ? '…' : stat.value}</p>
+              <p className="ad-stat__sub">{stat.sub}</p>
             </div>
+          
           </div>
         ))}
       </div>
@@ -631,10 +576,6 @@ function AdminDashboard() {
               <div>
                 <h2 className="ad-panel__title">Live Activity Feed</h2>
                 <p className="ad-panel__subtitle">Recent system events · auto-refreshes</p>
-              </div>
-              <div className="ad-live-indicator">
-                <span className="ad-live-indicator__dot" />
-                Live
               </div>
             </div>
             <div className="ad-feed">

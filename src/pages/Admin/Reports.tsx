@@ -434,28 +434,30 @@ function Reports() {
 
       {/* ── Header ── */}
       <div className="reports__header">
-        <div className="reports__title">
-          <h1>Reports &amp; Analytics</h1>
-          <p>Live operational insights — revenue, orders, customers, prescriptions &amp; payouts</p>
-        </div>
-        <div className="reports__controls">
-          <div className="rpt-range-pills">
-            {RANGE_OPTIONS.map((o) => (
-              <button
-                key={o.value} type="button"
-                className={`rpt-range-pill${range === o.value ? ' rpt-range-pill--active' : ''}`}
-                onClick={() => setRange(o.value)}
-              >{o.label}</button>
-            ))}
+        <div className="reports__hero">
+          <div className="reports__title">
+            <h1>Reports &amp; Analytics</h1>
+            <p>Track revenue, orders, customers, prescriptions and payouts in one place.</p>
           </div>
-          <ExportMenu onExport={download} loading={downloading} />
-          <Link to="/admin/invoices" className="rpt-invoices-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-              <path d="M9 3h11a1 1 0 0 1 1 1v17l-4-3-4 3-4-3-4 3V4a1 1 0 0 1 1-1h3"/>
-              <path d="M8 12h8M8 16h5"/>
-            </svg>
-            Invoices
-          </Link>
+          <div className="reports__controls">
+            <div className="rpt-range-pills">
+              {RANGE_OPTIONS.map((o) => (
+                <button
+                  key={o.value} type="button"
+                  className={`rpt-range-pill${range === o.value ? ' rpt-range-pill--active' : ''}`}
+                  onClick={() => setRange(o.value)}
+                >{o.label}</button>
+              ))}
+            </div>
+            <ExportMenu onExport={download} loading={downloading} />
+            <Link to="/admin/invoices" className="rpt-invoices-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                <path d="M9 3h11a1 1 0 0 1 1 1v17l-4-3-4 3-4-3-4 3V4a1 1 0 0 1 1-1h3"/>
+                <path d="M8 12h8M8 16h5"/>
+              </svg>
+              Invoices
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -519,14 +521,14 @@ function Reports() {
           },
         ].map((kpi) => (
           <div key={kpi.label} className={`rpt-kpi rpt-kpi--${kpi.color}`}>
-            <div className={`rpt-kpi__icon rpt-kpi__icon--${kpi.color}`}>{kpi.icon}</div>
-            <div className="rpt-kpi__body">
+            <div className="rpt-kpi__top">
               <span className="rpt-kpi__label">{kpi.label}</span>
-              <strong className="rpt-kpi__value">{kpi.value === null ? <Skeleton w={70} /> : kpi.value}</strong>
-              <div className="rpt-kpi__footer">
-                <span className="rpt-kpi__sub">{loading ? <Skeleton w={80} h={12} /> : kpi.sub}</span>
-                {!loading && kpi.delta}
-              </div>
+              <div className={`rpt-kpi__icon rpt-kpi__icon--${kpi.color}`}>{kpi.icon}</div>
+            </div>
+            <strong className="rpt-kpi__value">{kpi.value === null ? <Skeleton w={70} /> : kpi.value}</strong>
+            <div className="rpt-kpi__footer">
+              <span className="rpt-kpi__sub">{loading ? <Skeleton w={96} h={12} /> : kpi.sub}</span>
+              {!loading && kpi.delta}
             </div>
           </div>
         ))}
@@ -535,7 +537,7 @@ function Reports() {
       {/* ── Main grid ── */}
       <div className="rpt-grid">
 
-        {/* ── Area chart — full width ── */}
+        {/* ── Area chart_ full width ── */}
         <div className="rpt-card rpt-card--full">
           <div className="rpt-card__header">
             <div>
@@ -652,7 +654,7 @@ function Reports() {
             <div className="rpt-card__split">
               <DonutChart data={paymentDonut} size={130} total={totalOrders} />
               <div className="rpt-pipes">
-                {(data?.orders_by_payment ?? []).map((p, i) => (
+                {(data?.orders_by_payment ?? []).map((p) => (
                   <PipelineRow
                     key={p.payment_method}
                     label={statusLabel(p.payment_method || 'Unknown')}
@@ -762,7 +764,7 @@ function Reports() {
           </div>
         </div>
 
-        {/* ── Top products — full width ── */}
+        {/* ── Top products_ full width ── */}
         <div className="rpt-card rpt-card--full">
           <div className="rpt-card__header">
             <div>
@@ -833,7 +835,7 @@ function Reports() {
           )}
         </div>
 
-        {/* ── Customer analytics — full width ── */}
+        {/* ── Customer analytics_ full width ── */}
         <div className="rpt-card rpt-card--full">
           <div className="rpt-card__header">
             <div>
@@ -898,7 +900,7 @@ function Reports() {
           )}
         </div>
 
-        {/* ── Orders by location — full width ── */}
+        {/* ── Orders by location_ full width ── */}
         <div className="rpt-card rpt-card--full">
           <div className="rpt-card__header">
             <div>

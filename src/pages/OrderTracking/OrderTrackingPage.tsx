@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
+import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
 import '../../styles/pages/OrderTrackingPage.css'
 
 function SearchIcon() {
@@ -139,6 +141,10 @@ const BANNER_CFG: Record<string, { cls: string; icon: React.ReactNode }> = {
 }
 
 function OrderTrackingPage() {
+  const { settings } = useSiteSettings()
+  const normalizedSupportPhone = settings.supportPhone.replace(/\D/g, '')
+  const normalizedWhatsappPhone = settings.whatsappPhone.replace(/\D/g, '')
+  const hasDistinctWhatsapp = Boolean(normalizedWhatsappPhone) && normalizedWhatsappPhone !== normalizedSupportPhone
   const [orderId, setOrderId] = useState('')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState('')
@@ -218,7 +224,7 @@ function OrderTrackingPage() {
 
           <div className="track-page-header">
             <h1>Track your order</h1>
-            <p>See exactly where your medicines are — from pharmacy shelf to your door.</p>
+            <p>See exactly where your medicines are_ from pharmacy shelf to your door.</p>
           </div>
 
           {/* ── Search card ─────────────────────────────── */}
@@ -230,7 +236,7 @@ function OrderTrackingPage() {
                 </span>
                 <h2 className="track-card__title">Where is my order?</h2>
               </div>
-              <p className="track-card__subtitle">You only need <strong>one</strong> of the fields below — your Order ID or phone number.</p>
+              <p className="track-card__subtitle">You only need <strong>one</strong> of the fields below_ your Order ID or phone number.</p>
             </div>
 
             <div className="track-form">
@@ -477,15 +483,17 @@ function OrderTrackingPage() {
                     </div>
                     <p className="track-card__subtitle">Our support team is here for you.</p>
                     <div className="track-help-links">
-                      <a href="tel:+254700000000" className="track-help-link">
-                        <span className="track-help-link__icon"><PhoneIcon /></span>
-                        <div>
-                          <p className="track-help-link__label">Call us</p>
-                          <p className="track-help-link__value">+254 700 000 000</p>
-                        </div>
-                        <span className="track-help-link__arrow"><ArrowRightIcon /></span>
-                      </a>
-                      <a href="https://wa.me/254700000000" className="track-help-link" target="_blank" rel="noreferrer">
+                      {hasDistinctWhatsapp && (
+                        <a href={`tel:${formatPhoneHref(settings.supportPhone)}`} className="track-help-link">
+                          <span className="track-help-link__icon"><PhoneIcon /></span>
+                          <div>
+                            <p className="track-help-link__label">Call us</p>
+                            <p className="track-help-link__value">{settings.supportPhone}</p>
+                          </div>
+                          <span className="track-help-link__arrow"><ArrowRightIcon /></span>
+                        </a>
+                      )}
+                      <a href={`https://wa.me/${formatWhatsAppHref(settings.whatsappPhone)}`} className="track-help-link" target="_blank" rel="noreferrer">
                         <span className="track-help-link__icon"><MessageIcon /></span>
                         <div>
                           <p className="track-help-link__label">WhatsApp</p>
@@ -493,11 +501,11 @@ function OrderTrackingPage() {
                         </div>
                         <span className="track-help-link__arrow"><ArrowRightIcon /></span>
                       </a>
-                      <a href="mailto:support@avapharmacy.co.ke" className="track-help-link">
+                      <a href={`mailto:${settings.supportEmail}`} className="track-help-link">
                         <span className="track-help-link__icon"><MailIcon /></span>
                         <div>
                           <p className="track-help-link__label">Email us</p>
-                          <p className="track-help-link__value">support@avapharmacy.co.ke</p>
+                          <p className="track-help-link__value">{settings.supportEmail}</p>
                         </div>
                         <span className="track-help-link__arrow"><ArrowRightIcon /></span>
                       </a>

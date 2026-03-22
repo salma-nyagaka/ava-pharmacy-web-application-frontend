@@ -120,7 +120,7 @@ function GrowthChart({ weightKg, ageMonths }: { weightKg?: number; ageMonths?: n
         <text x={toX(24)} y="138" fontSize="7" fill="#94a3b8">24m</text>
       </svg>
       <p className="ped-growth-chart__meta">
-        {weightKg}kg at {ageMonths}m — {
+        {weightKg}kg at {ageMonths}m_ {
           weightKg < p3 ? 'Below P3 (underweight)' :
           weightKg > p97 ? 'Above P97 (overweight)' :
           weightKg >= p50 ? `Above median (P50: ${p50}kg)` :

@@ -1,18 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { STATUS_CFG } from '../../data/ordersData'
-import type { Order } from '../../data/ordersData'
+import { STATUS_CFG, type Order, type OrderStatus } from '../../data/ordersData'
 import { useOrders } from '../../hooks/useOrders'
 import '../../styles/pages/OrderHistoryPage.css'
 
-const FILTER_TABS = ['All', 'Processing', 'In Transit', 'Delivered', 'Cancelled']
+const FILTER_TABS: Array<'All' | OrderStatus> = ['All', 'Pending', 'Confirmed', 'Processing', 'In Transit', 'Delivered', 'Cancelled', 'Refunded']
 
-/* ── Receipt download ───────────────────────── */
 function downloadReceipt(order: Order) {
   const formatPrice = (n: number) => `KSh ${n.toLocaleString()}`
-  const deliveryFee = order.total >= 2500 ? 0 : 200
-  const subtotal = order.total - deliveryFee
-
   const rows = order.productItems.map((item) => `
     <tr>
       <td>${item.name}</td>
@@ -30,7 +25,6 @@ function downloadReceipt(order: Order) {
     body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; display: flex; justify-content: center; padding: 2rem 1rem; }
     .receipt { background: #fff; width: 100%; max-width: 480px; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
     .receipt__top { background: #e81750; color: #fff; padding: 1.5rem; text-align: center; }
-    .receipt__logo { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 0.2rem; }
     .receipt__tagline { font-size: 0.75rem; opacity: 0.8; }
     .receipt__body { padding: 1.5rem; }
     .receipt__title { font-size: 1rem; font-weight: 800; color: #0f172a; margin-bottom: 0.2rem; }
@@ -55,7 +49,7 @@ function downloadReceipt(order: Order) {
 <body>
   <div class="receipt">
     <div class="receipt__top">
-      <p class="receipt__logo"></p>
+      <p class="receipt__title">Avapharmacy</p>
       <p class="receipt__tagline">Your health, our priority</p>
     </div>
     <div class="receipt__body">
@@ -72,8 +66,8 @@ function downloadReceipt(order: Order) {
 
       <div class="receipt__section">
         <p class="receipt__label">Summary</p>
-        <div class="totals-row"><span>Subtotal</span><span>${formatPrice(subtotal)}</span></div>
-        <div class="totals-row"><span>Delivery</span><span>${deliveryFee === 0 ? 'Free' : formatPrice(deliveryFee)}</span></div>
+        <div class="totals-row"><span>Subtotal</span><span>${formatPrice(order.subtotal)}</span></div>
+        <div class="totals-row"><span>Delivery</span><span>${order.shippingFee === 0 ? 'Free' : formatPrice(order.shippingFee)}</span></div>
         <div class="totals-row totals-row--total"><span>Total</span><span>${formatPrice(order.total)}</span></div>
       </div>
 
@@ -81,14 +75,13 @@ function downloadReceipt(order: Order) {
         <p class="receipt__label">Order Details</p>
         <div class="info-row"><span>Status</span><span><span class="status-badge">${order.status}</span></span></div>
         <div class="info-row"><span>Payment</span><span>${order.payment}</span></div>
+        <div class="info-row"><span>Payment status</span><span>${order.paymentStatus}</span></div>
         <div class="info-row"><span>Delivery address</span><span>${order.address}</span></div>
         ${order.deliveredDate ? `<div class="info-row"><span>Delivered on</span><span>${order.deliveredDate}</span></div>` : ''}
-        ${order.estimatedDelivery && order.status !== 'Delivered' ? `<div class="info-row"><span>Est. delivery</span><span>${order.estimatedDelivery}</span></div>` : ''}
+        ${order.estimatedDelivery && order.status !== 'Delivered' ? `<div class="info-row"><span>Delivery window</span><span>${order.estimatedDelivery}</span></div>` : ''}
       </div>
     </div>
-    <div class="receipt__footer">
-      Thank you for shopping with  · avapharmacy.com
-    </div>
+    <div class="receipt__footer">Thank you for shopping with Avapharmacy · avapharmacy.com</div>
   </div>
   <script>window.onload = () => window.print()</script>
 </body>
@@ -101,7 +94,6 @@ function downloadReceipt(order: Order) {
   }
 }
 
-/* ── Review Modal ───────────────────────────── */
 function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) {
   const [hover, setHover] = useState(0)
   const [rating, setRating] = useState(0)
@@ -131,8 +123,6 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
   return (
     <div className="rm-overlay" onClick={onClose}>
       <div className="rm-modal" onClick={(e) => e.stopPropagation()}>
-
-        {/* Header */}
         <div className="rm-modal__header">
           <div className="rm-modal__header-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -150,7 +140,6 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
           </button>
         </div>
 
-        {/* Products ordered */}
         <div className="rm-products">
           <p className="rm-label">Items in this order</p>
           <div className="rm-product-list">
@@ -160,47 +149,40 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
           </div>
         </div>
 
-        {/* Star rating */}
         <div className="rm-stars-section">
           <p className="rm-label">Overall experience <span className="rm-required">*</span></p>
           <div className="rm-stars">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
-                key={n} type="button"
+                key={n}
+                type="button"
                 className={`rm-star ${n <= (hover || rating) ? 'rm-star--active' : ''}`}
-                onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
+                onMouseEnter={() => setHover(n)}
+                onMouseLeave={() => setHover(0)}
                 onClick={() => setRating(n)}
                 aria-label={`${n} star${n > 1 ? 's' : ''}`}
               >★</button>
             ))}
           </div>
-          {rating > 0 && (
-            <p className="rm-rating-label" style={{ color: starColors[rating] }}>
-              {starLabels[rating]}
-            </p>
-          )}
+          {rating > 0 && <p className="rm-rating-label" style={{ color: starColors[rating] }}>{starLabels[rating]}</p>}
         </div>
 
-        {/* Text review */}
         <div className="rm-text-section">
           <p className="rm-label">Tell us more <span className="rm-optional">(optional)</span></p>
           <textarea
-            className="rm-textarea" rows={4}
+            className="rm-textarea"
+            rows={4}
             placeholder="What did you like or dislike? How was the delivery and packaging?"
-            value={text} onChange={(e) => setText(e.target.value)} maxLength={500}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={500}
           />
           <p className="rm-char-count">{text.length} / 500</p>
         </div>
 
-        {/* Footer */}
         <div className="rm-modal__footer">
           <button className="rm-cancel-btn" type="button" onClick={onClose}>Cancel</button>
-          <button
-            className="rm-submit-btn"
-            type="button"
-            onClick={() => { if (rating) setSubmitted(true) }}
-            disabled={!rating}
-          >
+          <button className="rm-submit-btn" type="button" onClick={() => { if (rating) setSubmitted(true) }} disabled={!rating}>
             Submit Review
           </button>
         </div>
@@ -209,45 +191,38 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
   )
 }
 
-/* ── Page ───────────────────────────────────── */
 function OrderHistoryPage() {
-  const [activeFilter, setActiveFilter] = useState('All')
+  const [activeFilter, setActiveFilter] = useState<'All' | OrderStatus>('All')
   const [search, setSearch] = useState('')
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null)
-  const { orders: ORDERS, loading, error } = useOrders()
+  const { orders, loading, error } = useOrders()
 
   const formatPrice = (n: number) => `KSh ${n.toLocaleString()}`
 
-  const filtered = ORDERS.filter((o) => {
-    const matchFilter = activeFilter === 'All' || o.status === activeFilter
-    const matchSearch =
-      o.id.toLowerCase().includes(search.toLowerCase()) ||
-      o.products.some((p) => p.toLowerCase().includes(search.toLowerCase()))
+  const filtered = orders.filter((order) => {
+    const matchFilter = activeFilter === 'All' || order.status === activeFilter
+    const query = search.trim().toLowerCase()
+    if (!query) return matchFilter
+    const matchSearch = order.id.toLowerCase().includes(query) || order.products.some((product) => product.toLowerCase().includes(query))
     return matchFilter && matchSearch
   })
 
   return (
     <div className="ohp">
-
-      {/* ── Header ── */}
       <div className="ohp-header">
         <div>
           <h2 className="ohp-header__title">My Orders</h2>
-          <p className="ohp-header__sub">{ORDERS.length} orders in total</p>
+          <p className="ohp-header__sub">{orders.length} orders in total</p>
         </div>
         <div className="ohp-search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
-          <input
-            type="text" placeholder="Search orders…"
-            value={search} onChange={(e) => setSearch(e.target.value)}
-          />
+          <input type="text" placeholder="Search orders…" value={search} onChange={(e) => setSearch(e.target.value)} />
           {search && <button className="ohp-search__clear" onClick={() => setSearch('')} type="button">✕</button>}
         </div>
       </div>
 
-      {/* ── Filter tabs ── */}
       <div className="ohp-tabs">
         {FILTER_TABS.map((tab) => (
           <button
@@ -258,13 +233,12 @@ function OrderHistoryPage() {
           >
             {tab}
             <span className="ohp-tab__count">
-              {tab === 'All' ? ORDERS.length : ORDERS.filter((o) => o.status === tab).length}
+              {tab === 'All' ? orders.length : orders.filter((order) => order.status === tab).length}
             </span>
           </button>
         ))}
       </div>
 
-      {/* ── Orders list ── */}
       <div className="ohp-card">
         {loading ? (
           <div className="ohp-loading">
@@ -292,7 +266,7 @@ function OrderHistoryPage() {
             {filtered.map((order) => {
               const cfg = STATUS_CFG[order.status]
               return (
-                <li key={order.id} className="ohp-row">
+                <li key={order.apiId} className="ohp-row">
                   <div className="ohp-row__left">
                     <div className="ohp-row__icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -313,22 +287,8 @@ function OrderHistoryPage() {
                     </span>
                     <span className="ohp-row__total">{formatPrice(order.total)}</span>
                     <div className="ohp-row__actions">
-                      <Link to={`/account/orders/${order.id}`} className="ohp-row__view">View</Link>
-                      {(order.status === 'Processing' || order.status === 'In Transit') && (
-                        <Link to={`/track-order?order=${order.id}`} className="ohp-row__track">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                            <rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v4h-7V8z"/>
-                            <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
-                          </svg>
-                          Track
-                        </Link>
-                      )}
-                      <button
-                        className="ohp-row__receipt"
-                        type="button"
-                        onClick={() => downloadReceipt(order)}
-                        title="Download receipt"
-                      >
+                      <Link to={`/account/orders/${order.apiId}`} className="ohp-row__view">View</Link>
+                      <button className="ohp-row__receipt" type="button" onClick={() => downloadReceipt(order)} title="Download receipt">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                           <polyline points="7 10 12 15 17 10"/>
@@ -353,9 +313,7 @@ function OrderHistoryPage() {
         )}
 
         <div className="ohp-footer">
-          <p className="ohp-footer__text">
-            Need to return something? <Link to="/returns">Start a return →</Link>
-          </p>
+          <p className="ohp-footer__text">Need to return something? <Link to="/returns">Start a return →</Link></p>
         </div>
       </div>
 

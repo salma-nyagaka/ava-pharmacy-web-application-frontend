@@ -35,7 +35,7 @@ function TimeElapsed({ since }: { since: string | undefined }) {
 
 const REJECTION_REASONS = [
   'Illegible prescription',
-  'Controlled substance — requires in-person verification',
+  'Controlled substance_ requires in-person verification',
   'Missing doctor information',
   'Expired prescription',
   'Incorrect dosage instructions',
@@ -286,7 +286,7 @@ function PharmacistDashboardPage() {
         </div>
       </div>
 
-      {/* Stats — KPI grid */}
+      {/* Stats_ KPI grid */}
       <div className="cm-kpi-grid">
         <div className="cm-kpi-card" onClick={() => setSelectedStatus('Pending')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
           <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
@@ -490,7 +490,7 @@ function PharmacistDashboardPage() {
                   </div>
                 )}
 
-                {/* Item picker — check items that are in stock */}
+                {/* Item picker_ check items that are in stock */}
                 {activeRx.items.length > 0 && (
                   <div className="px-modal__section">
                     <div className="px-item-picker-header">
@@ -499,7 +499,7 @@ function PharmacistDashboardPage() {
                         {Object.values(itemSelections).filter(Boolean).length} / {activeRx.items.length} in stock
                       </span>
                     </div>
-                    <p className="px-item-picker-hint">Uncheck items that are out of stock — only checked items will be added to the patient's cart.</p>
+                    <p className="px-item-picker-hint">Uncheck items that are out of stock_ only checked items will be added to the patient's cart.</p>
                     <div className="px-items-list">
                       {activeRx.items.map((item) => (
                         <label key={item.name} className={`px-item px-item--selectable${!itemSelections[item.name] ? ' px-item--oos' : ''}`}>

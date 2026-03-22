@@ -94,7 +94,7 @@
   margin: 0;
 }
 
-/* Filters — superseded by cm-toolbar; kept for reference only */
+/* Filters_ superseded by cm-toolbar; kept for reference only */
 .product-management__filters {
   display: none;
 }
@@ -196,7 +196,7 @@
   font-weight: 600;
 }
 
-/* Table — superseded by cm-panel; kept for reference only */
+/* Table_ superseded by cm-panel; kept for reference only */
 .product-management__table {
   display: none;
 }
@@ -404,7 +404,7 @@
 .btn-icon--play { color: #10b981; }
 .btn-icon--play:hover { background: #ecfdf5; border-color: #6ee7b7; color: #059669; }
 
-/* Pagination — superseded by cm-pagination; kept for shared pagination__button/page styles */
+/* Pagination_ superseded by cm-pagination; kept for shared pagination__button/page styles */
 .pagination {
   display: flex;
   align-items: center;

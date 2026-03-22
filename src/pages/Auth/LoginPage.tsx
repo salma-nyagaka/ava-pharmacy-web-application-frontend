@@ -94,7 +94,7 @@ function LoginPage() {
               Your health,<br />delivered.
             </h1>
             <p className="login-brand__sub">
-              Kenya's trusted pharmacy and telemedicine platform — prescriptions, consultations, and lab tests in one place.
+              Kenya's trusted pharmacy and telemedicine platform_ prescriptions, consultations, and lab tests in one place.
             </p>
 
             <ul className="login-brand__features">

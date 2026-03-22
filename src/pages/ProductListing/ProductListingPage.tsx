@@ -187,9 +187,16 @@ function ProductListingPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, minPrice, maxPrice, selectedBrands, minRating, availability, sortBy])
+  }, [searchTerm, minPrice, maxPrice, selectedBrands, minRating, availability, sortBy, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
 
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE))
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
   const paginatedProducts = useMemo(
     () => sortedProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
     [sortedProducts, currentPage]

@@ -169,7 +169,7 @@ function PrescriptionReviewPage() {
         <div className="prx-status-bar__inner">
           <div className="prx-status-icon"><StatusIcon status={prescription.status} /></div>
           <span className="prx-status-label">Status: {prescription.status}</span>
-          <span className="prx-status-desc">— {statusDescription(prescription.status)}</span>
+          <span className="prx-status-desc">-{statusDescription(prescription.status)}</span>
         </div>
       </div>
 
@@ -340,7 +340,7 @@ function PrescriptionReviewPage() {
             </div>
             <div className="prx-card__body">
               <label className="prx-decision-label" htmlFor="review-notes">
-                Add notes (optional — explain your decision)
+                Add notes (optional_ explain your decision)
               </label>
               <textarea id="review-notes" className="prx-textarea" rows={3} placeholder="e.g. Dosage confirmed with prescriber, approved for dispensing…" value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} />
               <div className="prx-decision-btns">

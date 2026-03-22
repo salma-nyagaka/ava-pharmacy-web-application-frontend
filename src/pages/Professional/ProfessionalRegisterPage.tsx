@@ -570,7 +570,7 @@ function ProfessionalRegisterPage() {
           </div>
         )}
 
-        {/* Step 1 — Role */}
+        {/* Step 1_ Role */}
         {currentStep === 1 && (
           <div className="pr-step">
             <div className="pr-step__head">
@@ -610,7 +610,7 @@ function ProfessionalRegisterPage() {
           </div>
         )}
 
-        {/* Step 2 — Personal */}
+        {/* Step 2_ Personal */}
         {currentStep === 2 && type && (
           <div className="pr-step">
             <div className="pr-step__head">
@@ -704,7 +704,7 @@ function ProfessionalRegisterPage() {
           </div>
         )}
 
-        {/* Step 3 — Credentials */}
+        {/* Step 3_ Credentials */}
         {currentStep === 3 && type && (
           <div className="pr-step">
             <div className="pr-step__head">
@@ -928,7 +928,7 @@ function ProfessionalRegisterPage() {
           </div>
         )}
 
-        {/* Step 4 — Practice & Payout */}
+        {/* Step 4_ Practice & Payout */}
         {currentStep === 4 && type && (
           <div className="pr-step">
             <div className="pr-step__head">
@@ -1002,7 +1002,7 @@ function ProfessionalRegisterPage() {
           </div>
         )}
 
-        {/* Step 5 — References & Compliance */}
+        {/* Step 5_ References & Compliance */}
         {currentStep === 5 && (
           <div className="pr-step">
             <div className="pr-step__head">
@@ -1068,7 +1068,7 @@ function ProfessionalRegisterPage() {
           </div>
         )}
 
-        {/* Step 6 — Documents */}
+        {/* Step 6_ Documents */}
         {currentStep === 6 && (
           <div className="pr-step">
             <div className="pr-step__head">
@@ -1096,7 +1096,7 @@ function ProfessionalRegisterPage() {
                     <line x1="12" y1="3" x2="12" y2="15"/>
                   </svg>
                   <span className="pr-file-zone__text">Click to upload or drag &amp; drop</span>
-                  <span className="pr-file-zone__hint">PDF, JPG, PNG — max 10 MB each</span>
+                  <span className="pr-file-zone__hint">PDF, JPG, PNG_ max 10 MB each</span>
                   <input
                     type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="pr-file-zone__input"
                     onChange={(e) => {
@@ -1159,12 +1159,12 @@ function ProfessionalRegisterPage() {
           </div>
         )}
 
-        {/* Step 7 — Agreement & Submit */}
+        {/* Step 7_ Agreement & Submit */}
         {currentStep === 7 && (
           <div className="pr-step">
             <div className="pr-step__head">
               <h2 className="pr-step__title">Review &amp; submit</h2>
-              <p className="pr-step__sub">Almost done — agree to our terms and submit your application.</p>
+              <p className="pr-step__sub">Almost done_ agree to our terms and submit your application.</p>
             </div>
             <div className="pr-fields">
               <div className="pr-summary-card">

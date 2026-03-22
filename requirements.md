@@ -1,4 +1,4 @@
-# AvaPharmacy — Backend API Requirements Document
+# AvaPharmacy_ Backend API Requirements Document
 
 **Module:** Product Catalog, Search, Cart, Checkout, Payment Integration, Inventory Sync, Order Push & Real-Time Availability
 **Version:** 1.0
@@ -119,7 +119,7 @@ Creates a new patient account.
 - `email` must be unique and valid format
 - `phone` must be a valid Kenyan number (07xx or 01xx, 10 digits)
 - `password` minimum 8 characters, at least one uppercase, one number
-- `agreed_to_terms` must be `true` — reject registration if `false`
+- `agreed_to_terms` must be `true`_ reject registration if `false`
 
 **Response (201 Created):**
 ```json
@@ -569,7 +569,7 @@ The product listing page shows:
 
 | Param | Type | Description |
 |---|---|---|
-| `q` | string | Search query — matches product name, brand, SKU, description |
+| `q` | string | Search query_ matches product name, brand, SKU, description |
 | `category_slug` | string | Optional category constraint |
 | `subcategory_slug` | string | Optional subcategory constraint |
 | `min_price` | int | Optional price floor |
@@ -585,7 +585,7 @@ The product listing page shows:
 - Minimum query length: **2 characters**
 - Return empty results (not 400) for queries with no matches
 - Return `did_you_mean` suggestions when query has typos (optional v2 feature)
-- Record search term in analytics (no PII — session-based)
+- Record search term in analytics (no PII_ session-based)
 
 **Response:**
 ```json
@@ -611,7 +611,7 @@ The product listing page shows:
 ---
 
 #### `GET /products/search/suggestions`
-Live autocomplete — called as user types (debounced 300ms client-side).
+Live autocomplete_ called as user types (debounced 300ms client-side).
 
 **Query Parameters:** `q` (min 2 chars)
 
@@ -791,11 +791,11 @@ Removes applied promo code.
 ### 6.1 Checkout Flow
 
 The UI checkout flow has these steps:
-1. **Review Cart** — confirm items and quantities
-2. **Delivery Address** — select saved address or add new
-3. **Delivery Method** — choose delivery type
-4. **Payment** — select payment method and confirm
-5. **Order Confirmation** — display order reference
+1. **Review Cart**_ confirm items and quantities
+2. **Delivery Address**_ select saved address or add new
+3. **Delivery Method**_ choose delivery type
+4. **Payment**_ select payment method and confirm
+5. **Order Confirmation**_ display order reference
 
 ### 6.2 Address Data Model
 
@@ -899,7 +899,7 @@ Returns available delivery methods based on address.
 ---
 
 #### `POST /checkout/validate`
-Pre-submission validation — checks stock, prescriptions, address. Called before showing payment step.
+Pre-submission validation_ checks stock, prescriptions, address. Called before showing payment step.
 
 **Request:**
 ```json
@@ -1061,7 +1061,7 @@ The primary payment method based on the Kenyan market context.
 ```
 
 #### `POST /payments/mpesa/callback` (Daraja Webhook)
-Receives payment confirmation from Safaricom. This is an internal endpoint called by Safaricom — it must:
+Receives payment confirmation from Safaricom. This is an internal endpoint called by Safaricom_ it must:
 - Verify the callback source IP
 - Parse `ResultCode` (0 = success, anything else = failure)
 - Update order `payment.status` to `paid` or `failed`
@@ -1119,7 +1119,7 @@ Webhook from payment gateway confirming charge result.
 Returns saved payment methods for the user.
 
 #### `POST /account/payment-methods`
-Saves a new payment method (card token — never raw card data).
+Saves a new payment method (card token_ never raw card data).
 
 #### `DELETE /account/payment-methods/:id`
 Removes a saved payment method.
@@ -1211,7 +1211,7 @@ Updates stock levels manually (e.g., after physical count).
 ---
 
 #### `POST /admin/inventory/bulk-update`
-Batch stock update — used when syncing from external ERP or supplier import.
+Batch stock update_ used when syncing from external ERP or supplier import.
 
 **Request:**
 ```json
@@ -1566,4 +1566,4 @@ All webhook payloads include an `X-Ava-Signature` header (HMAC-SHA256) for verif
 
 ---
 
-*End of Requirements Document — v1.0*
+*End of Requirements Document_ v1.0*

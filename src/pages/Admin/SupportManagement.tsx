@@ -137,34 +137,52 @@ function SupportManagement() {
   return (
     <div className="category-management admin-page support-management">
       <div className="category-management__header">
-        <div className="admin-page__title">
-          <div>
-            <h1>Support & Escalations</h1>
-            <p className="support-management__subtitle">Prioritize tickets, assign owners, and keep resolution on track.</p>
-          </div>
+        <div className="cm-title-group">
+          <h1>Support & Escalations</h1>
+          <p className="cm-title-sub">Prioritize tickets, assign owners, and keep resolution on track.</p>
         </div>
-        <div className="support-header__actions">
+        <div className="category-management__actions">
           <button className="btn btn--outline btn--sm" type="button">Export</button>
           <Link className="btn btn--outline btn--sm" to="/admin/settings">Support settings</Link>
         </div>
       </div>
 
-      <div className="support-stats">
-        <div className="support-stat support-stat--open">
-          <span className="support-stat__label">Open tickets</span>
-          <span className="support-stat__value">{stats.open}</span>
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Open tickets</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.open}</strong>
+          </div>
         </div>
-        <div className="support-stat support-stat--progress">
-          <span className="support-stat__label">In progress</span>
-          <span className="support-stat__value">{stats.inProgress}</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">In progress</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--blue">{stats.inProgress}</strong>
+          </div>
         </div>
-        <div className="support-stat support-stat--unassigned">
-          <span className="support-stat__label">Unassigned</span>
-          <span className="support-stat__value">{stats.unassigned}</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Unassigned</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{stats.unassigned}</strong>
+          </div>
         </div>
-        <div className="support-stat support-stat--priority">
-          <span className="support-stat__label">High priority</span>
-          <span className="support-stat__value">{stats.highPriority}</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">High priority</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{stats.highPriority}</strong>
+          </div>
         </div>
       </div>
 

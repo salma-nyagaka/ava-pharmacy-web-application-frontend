@@ -12,14 +12,35 @@ export interface AdminUserApi {
   id: number
   first_name?: string
   last_name?: string
+  full_name?: string
   name?: string
   email: string
   phone?: string
   role?: string
   status?: string
+  is_active?: boolean
   address?: string
   pharmacist_permissions?: string[]
   created_at?: string
+  date_joined?: string
+  total_orders?: number
+  last_order_date?: string | null
+  total_spend?: string | number
+  recent_orders?: Array<{
+    id: number
+    order_number: string
+    status: string
+    payment_status: string
+    total: string
+    created_at: string
+  }>
+}
+
+export interface AdminUserUpdatePayload {
+  email?: string
+  password?: string
+  phone?: string
+  address?: string
 }
 
 export class AdminUserError extends Error {
@@ -73,6 +94,29 @@ const getAuthHeaders = (): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+const normalizeAdminUsersPayload = (payload: unknown): AdminUserApi[] => {
+  if (Array.isArray(payload)) return payload as AdminUserApi[]
+  if (!payload || typeof payload !== 'object') return []
+
+  const record = payload as Record<string, unknown>
+  if (Array.isArray(record.results)) return record.results as AdminUserApi[]
+  if (Array.isArray(record.data)) return record.data as AdminUserApi[]
+  if (record.data && typeof record.data === 'object' && Array.isArray((record.data as Record<string, unknown>).results)) {
+    return (record.data as Record<string, unknown>).results as AdminUserApi[]
+  }
+  return []
+}
+
+const normalizeAdminUserPayload = (payload: unknown): AdminUserApi => {
+  if (!payload || typeof payload !== 'object') {
+    throw new AdminUserError('Invalid user payload.')
+  }
+  const record = payload as Record<string, unknown>
+  if (record.user && typeof record.user === 'object') return record.user as AdminUserApi
+  if (record.data && typeof record.data === 'object' && !Array.isArray(record.data)) return record.data as AdminUserApi
+  return record as unknown as AdminUserApi
+}
+
 const handleResponse = async <T,>(response: Response): Promise<T> => {
   const payload = await response.json().catch(() => null)
   if (response.ok) return payload as T
@@ -96,10 +140,31 @@ export const adminUserService = {
         ...getAuthHeaders(),
       },
     })
-    const payload = await handleResponse<AdminUserApi[] | { results: AdminUserApi[] }>(response)
-    if (Array.isArray(payload)) return payload
-    if (payload && typeof payload === 'object' && Array.isArray(payload.results)) return payload.results
-    return []
+    const payload = await handleResponse<unknown>(response)
+    return normalizeAdminUsersPayload(payload)
+  },
+
+  async getUser(id: number) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    })
+    const payload = await handleResponse<unknown>(response)
+    return normalizeAdminUserPayload(payload)
+  },
+
+  async updateUser(id: number, payload: AdminUserUpdatePayload) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(payload),
+    })
+    const body = await handleResponse<unknown>(response)
+    return normalizeAdminUserPayload(body)
   },
 
   async suspendUser(id: number) {
@@ -109,7 +174,8 @@ export const adminUserService = {
         ...getAuthHeaders(),
       },
     })
-    return handleResponse<AdminUserApi>(response)
+    const payload = await handleResponse<unknown>(response)
+    return normalizeAdminUserPayload(payload)
   },
 
   async activateUser(id: number) {
@@ -119,7 +185,8 @@ export const adminUserService = {
         ...getAuthHeaders(),
       },
     })
-    return handleResponse<AdminUserApi>(response)
+    const payload = await handleResponse<unknown>(response)
+    return normalizeAdminUserPayload(payload)
   },
 
   async createPharmacist(payload: PharmacistCreatePayload) {
@@ -140,6 +207,24 @@ export const adminUserService = {
         pharmacist_permissions: payload.pharmacistPermissions,
       }),
     })
-    return handleResponse<AdminUserApi>(response)
+    const payload = await handleResponse<unknown>(response)
+    return normalizeAdminUserPayload(payload)
+  },
+
+  async resendActivation(id: number) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/resend-activation/`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders() },
+    })
+    return handleResponse<{ detail: string }>(response)
+  },
+
+  async activateStaffPassword(payload: { token: string; new_password: string; new_password_confirm: string }) {
+    const response = await fetch(`${API_BASE_URL}/auth/professional/activate/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<{ detail: string }>(response)
   },
 }

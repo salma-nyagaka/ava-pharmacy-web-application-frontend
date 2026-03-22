@@ -100,6 +100,61 @@ type ProductFormPayload =
   Pick<ProductCreatePayload, 'name' | 'slug' | 'sku' | 'price' | 'is_active' | 'requires_prescription'>
   & Partial<ProductCreatePayload>
 
+const DOSAGE_UNIT_OPTIONS = [
+  'tablet',
+  'tablets',
+  'capsule',
+  'capsules',
+  'ml',
+  'mg',
+  'drop',
+  'drops',
+  'sachet',
+  'application',
+  'spray',
+  'unit',
+] as const
+
+const DOSAGE_FREQUENCY_OPTIONS = [
+  'once_daily',
+  'twice_daily',
+  'three_times_daily',
+  'four_times_daily',
+  'every_4_hours',
+  'every_6_hours',
+  'every_8_hours',
+  'every_12_hours',
+  'weekly',
+  'as_needed',
+  'as_directed',
+] as const
+
+function normalizeDosageUnitValue(value?: string | null): string {
+  if (!value) return ''
+  const normalized = value.trim().toLowerCase()
+  return DOSAGE_UNIT_OPTIONS.find((option) => option === normalized) ?? ''
+}
+
+function normalizeDosageFrequencyValue(value?: string | null): string {
+  if (!value) return ''
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, '_')
+  const aliasMap: Record<string, typeof DOSAGE_FREQUENCY_OPTIONS[number]> = {
+    '1x_daily': 'once_daily',
+    '1_time_daily': 'once_daily',
+    '2x_daily': 'twice_daily',
+    '2_times_daily': 'twice_daily',
+    '3x_daily': 'three_times_daily',
+    '3_times_daily': 'three_times_daily',
+    'four_times_a_day': 'four_times_daily',
+    '4x_daily': 'four_times_daily',
+    '4_times_daily': 'four_times_daily',
+    'prn': 'as_needed',
+  }
+  return DOSAGE_FREQUENCY_OPTIONS.find((option) => option === normalized)
+    ?? aliasMap[normalized]
+    ?? ''
+}
+
 function ProductManagement() {
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [brands, setBrands] = useState<ApiBrand[]>([])
@@ -246,14 +301,17 @@ function ProductManagement() {
   }
 
   const openEditModal = (product: ApiProduct) => {
+    const resolvedBrand = resolveProductBrand(product)
+    const resolvedSubcategory = resolveProductSubcategory(product)
+
     setProductName(product.name)
     setProductSlug(product.slug ?? generateSlug(product.name))
     setProductSku(product.sku)
     setProductStrength(product.strength ?? '')
     setProductPrice(product.price)
     setProductCostPrice(product.cost_price ?? '')
-    setProductSubcategoryId(product.subcategory_id ?? (subcategories[0]?.id ?? ''))
-    setProductBrandId(product.brand?.id ?? (brands[0]?.id ?? ''))
+    setProductSubcategoryId(resolvedSubcategory?.id ?? product.subcategory_id ?? (subcategories[0]?.id ?? ''))
+    setProductBrandId(resolvedBrand?.id ?? product.brand?.id ?? (brands[0]?.id ?? ''))
     setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
     setProductStatus(product.is_active ? 'active' : 'inactive')
     setProductRequiresRx(product.requires_prescription)
@@ -262,14 +320,15 @@ function ProductManagement() {
     setProductDirections(product.directions ?? '')
     setProductWarnings(product.warnings ?? '')
     setDosageQuantity(product.dosage_quantity ?? '')
-    setDosageUnit(product.dosage_unit ?? '')
-    setDosageFrequency(product.dosage_frequency ?? '')
+    setDosageUnit(normalizeDosageUnitValue(product.dosage_unit))
+    setDosageFrequency(normalizeDosageFrequencyValue(product.dosage_frequency))
     setDosageNotes(product.dosage_notes ?? '')
     setBranchStockQuantity(String(getInventoryItem(product, 'branch')?.stock_quantity ?? 0))
     setBranchLowStockThreshold(String(getInventoryItem(product, 'branch')?.low_stock_threshold ?? 5))
     setBranchAllowBackorder(getInventoryItem(product, 'branch')?.allow_backorder ?? false)
     setBranchMaxBackorderQuantity(String(getInventoryItem(product, 'branch')?.max_backorder_quantity ?? 0))
     setProductImageFile(null)
+    setProductImagePreviewSrc(product.image ?? null)
     setEditingProduct(product)
     setFormError('')
     setShowAddModal(true)
@@ -568,7 +627,20 @@ function ProductManagement() {
     selectedSubcat !== 'all' ||
     selectedConcern !== 'all'
 
-  const resolveProductSubcategory = (product: ApiProduct) => {
+  function resolveProductBrand(product: ApiProduct) {
+    if (product.brand?.id !== null && product.brand?.id !== undefined) {
+      const byId = brands.find((brand) => brand.id === product.brand!.id)
+      if (byId) return byId
+    }
+
+    const brandName = product.brand?.name ?? product.brand_name
+    if (!brandName) return null
+
+    const normalized = brandName.trim().toLowerCase()
+    return brands.find((brand) => brand.name.trim().toLowerCase() === normalized) ?? null
+  }
+
+  function resolveProductSubcategory(product: ApiProduct) {
     if (product.subcategory_id !== null) {
       const byId = subcategories.find((subcategory) => subcategory.id === product.subcategory_id)
       if (byId) return byId
@@ -591,7 +663,7 @@ function ProductManagement() {
     return null
   }
 
-  const getProductCategoryId = (product: ApiProduct) => {
+  function getProductCategoryId(product: ApiProduct) {
     if (product.category !== null) return product.category
     const resolvedSubcategory = resolveProductSubcategory(product)
     if (resolvedSubcategory) return resolvedSubcategory.category
@@ -1208,7 +1280,7 @@ function ProductManagement() {
                       <div className="pf-field">
                         <label className="pf-label">Unit</label>
                         <select className="pf-input" value={dosageUnit} onChange={(e) => setDosageUnit(e.target.value)}>
-                          <option value="">— select —</option>
+                          <option value="">-select_</option>
                           <option value="tablet">Tablet</option>
                           <option value="tablets">Tablets</option>
                           <option value="capsule">Capsule</option>
@@ -1226,7 +1298,7 @@ function ProductManagement() {
                       <div className="pf-field">
                         <label className="pf-label">Frequency</label>
                         <select className="pf-input" value={dosageFrequency} onChange={(e) => setDosageFrequency(e.target.value)}>
-                          <option value="">— select —</option>
+                          <option value="">-select_</option>
                           <option value="once_daily">Once daily</option>
                           <option value="twice_daily">Twice daily</option>
                           <option value="three_times_daily">3 times daily</option>

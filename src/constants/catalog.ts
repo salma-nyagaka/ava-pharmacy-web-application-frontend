@@ -14,9 +14,10 @@ export interface OrderedCategoryLike {
 }
 
 export function sortCategoriesByPreferredOrder<T extends OrderedCategoryLike>(categories: T[]): T[] {
+  const preferredOrder: readonly string[] = PREFERRED_CATEGORY_ORDER
   return [...categories].sort((left, right) => {
-    const leftIndex = PREFERRED_CATEGORY_ORDER.indexOf(left.name)
-    const rightIndex = PREFERRED_CATEGORY_ORDER.indexOf(right.name)
+    const leftIndex = preferredOrder.indexOf(left.name)
+    const rightIndex = preferredOrder.indexOf(right.name)
     const normalizedLeft = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex
     const normalizedRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex
     if (normalizedLeft !== normalizedRight) return normalizedLeft - normalizedRight

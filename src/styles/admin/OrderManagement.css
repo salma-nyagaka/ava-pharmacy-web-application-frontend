@@ -9,7 +9,7 @@
   margin: 0;
 }
 
-/* ── Header card — superseded by category-management__header ── */
+/* ── Header card_ superseded by category-management__header ── */
 .order-management__header {
   display: none;
 }
@@ -65,7 +65,7 @@
   white-space: nowrap;
 }
 
-/* ── Filter bar — superseded by cm-toolbar ───────────────────── */
+/* ── Filter bar_ superseded by cm-toolbar ───────────────────── */
 .order-management__filters {
   display: none;
 }
@@ -115,7 +115,7 @@
   box-shadow: 0 0 0 3px rgba(232, 23, 80, 0.08);
 }
 
-/* ── Table card — superseded by cm-panel ────────────────────── */
+/* ── Table card_ superseded by cm-panel ────────────────────── */
 .order-management__table {
   display: none;
 }
@@ -280,7 +280,7 @@
   pointer-events: none;
 }
 
-/* ── Pagination — superseded by cm-pagination ───────────────── */
+/* ── Pagination_ superseded by cm-pagination ───────────────── */
 .order-pagination {
   display: none;
 }

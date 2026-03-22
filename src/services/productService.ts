@@ -270,15 +270,15 @@ export async function submitProductReview(productId: number, payload: { rating: 
 }
 
 export async function toggleWishlist(productId: number): Promise<unknown> {
-  const res = await apiClient.post('/products/wishlist/', { product_id: productId })
+  const res = await apiClient.post('/wishlist/', { product_id: productId })
   return res.data?.data ?? res.data
 }
 
 export async function fetchWishlist(): Promise<unknown[]> {
-  const res = await apiClient.get('/products/wishlist/')
+  const res = await apiClient.get('/wishlist/')
   return res.data?.data ?? []
 }
 
 export async function removeFromWishlist(id: number): Promise<void> {
-  await apiClient.delete(`/products/wishlist/${id}/`)
+  await apiClient.delete(`/wishlist/${id}/`)
 }

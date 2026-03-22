@@ -28,7 +28,7 @@ export const kenyaCountyCities: Record<string, string[]> = {
   Migori: ['Migori', 'Rongo', 'Kehancha'],
   Mombasa: ['Mombasa', 'Likoni', 'Bamburi'],
   "Murang'a": ["Murang'a", 'Kangema', 'Kenol'],
-  Nairobi: ['Nairobi CBD', 'Westlands', 'Karen', 'Kilimani', 'Parklands', 'Embakasi'],
+  Nairobi: ['Buruburu', 'Dagoretti', 'Dagoretti Corner', 'Dandora', 'Donholm', 'Eastleigh', 'Embakasi', 'Gigiri', 'Githurai 44', 'Hurlingham', 'Imara Daima', 'Kahawa West', 'Kangemi', 'Karen', 'Kasarani', 'Kawangware', 'Kibra', 'Kileleshwa', 'Kilimani', 'Komarock', "Lang'ata", 'Lavington', 'Lucky Summer', 'Madaraka', 'Mirema', 'Mountain View', 'Muthaiga', 'Nairobi CBD', 'Nairobi West', 'Ngara', 'Ngong Road', 'Pangani', 'Parklands', 'Pipeline', 'Roysambu', 'Ruaraka', 'Ruai', 'South B', 'South C', 'Spring Valley', 'Syokimau', 'Tena', 'Umoja', 'Upper Hill', 'Uthiru', 'Westlands', 'Zimmerman'],
   Nakuru: ['Nakuru', 'Naivasha', 'Molo'],
   Nandi: ['Kapsabet', 'Nandi Hills', 'Mosoriot'],
   Narok: ['Narok', 'Kilgoris', 'Ololulunga'],

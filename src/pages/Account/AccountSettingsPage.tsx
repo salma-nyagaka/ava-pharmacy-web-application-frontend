@@ -222,7 +222,7 @@ function AccountSettingsPage() {
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
-              <p>After changing your password you'll be logged in as usual — no need to sign in again.</p>
+              <p>After changing your password you'll be logged in as usual_ no need to sign in again.</p>
             </div>
             <div className="ase-form__actions">
               <button className={`ase-btn ase-btn--primary ${saved ? 'ase-btn--saved' : ''}`} type="submit">
@@ -250,7 +250,7 @@ function AccountSettingsPage() {
             </div>
             <div>
               <h3 className="ase-section-head__title">How we contact you</h3>
-              <p className="ase-section-head__sub">Choose what you'd like to hear from us — we'll never spam you</p>
+              <p className="ase-section-head__sub">Choose what you'd like to hear from us_ we'll never spam you</p>
             </div>
           </div>
 

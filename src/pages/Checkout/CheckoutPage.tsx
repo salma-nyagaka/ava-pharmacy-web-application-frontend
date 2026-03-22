@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CartItem } from '../../data/cart'
 import { kenyaCounties, kenyaCountyCities } from '../../data/kenyaLocations'
 import { useAuth } from '../../context/AuthContext'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { cartService } from '../../services/cartService'
 import { fetchSavedAddresses, type SavedAddress } from '../../services/addressService'
 import {
@@ -25,6 +26,7 @@ type PaymentStatus = 'idle' | 'waiting' | 'confirmed' | 'failed'
 type DeliveryMethodOption = 'store_pickup' | 'doorstep_delivery'
 type MpesaFlow = 'stk' | 'paybill'
 const CHECKOUT_ORDER_STORAGE_KEY = 'ava_checkout_order_id'
+const supportedCountries = ['Kenya']
 
 const deliveryMethodLabels: Record<DeliveryMethodOption, string> = {
   store_pickup: 'Store Pickup',
@@ -77,6 +79,7 @@ const CopyIcon = () => (
 function CheckoutPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { settings } = useSiteSettings()
   const [searchParams, setSearchParams] = useSearchParams()
   const [currentStep, setCurrentStep] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card' | 'cash'>('mpesa')
@@ -89,6 +92,7 @@ function CheckoutPage() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [street, setStreet] = useState('')
+  const [country, setCountry] = useState('Kenya')
   const [city, setCity] = useState('')
   const [county, setCounty] = useState('')
   const [validationError, setValidationError] = useState('')
@@ -107,6 +111,38 @@ function CheckoutPage() {
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true)
   const [copiedField, setCopiedField] = useState<'paybill-number' | 'paybill-account' | null>(null)
   const isPaymentLocked = paymentStatus === 'confirmed'
+  const activeDeliveryCounties = useMemo(
+    () => kenyaCounties.filter((countyName) => settings.activeDeliveryZones.includes(countyName)),
+    [settings.activeDeliveryZones],
+  )
+  const countyOptions = useMemo(() => (country === 'Kenya' ? activeDeliveryCounties : []), [activeDeliveryCounties, country])
+  const areaOptions = useMemo(() => (country === 'Kenya' ? kenyaCountyCities[county] ?? [] : []), [country, county])
+  const deliverableSavedAddresses = useMemo(
+    () => savedAddresses.filter((address) => countyOptions.includes(address.county)),
+    [countyOptions, savedAddresses],
+  )
+  const inactiveSavedAddressCount = savedAddresses.length - deliverableSavedAddresses.length
+  const areaLabel = county === 'Nairobi' ? 'Area *' : 'City / Town *'
+
+  const applySavedAddress = (address: SavedAddress) => {
+    setSelectedAddressId(String(address.id))
+    setStreet(address.street)
+    setCountry('Kenya')
+    setCity(address.city)
+    setCounty(address.county)
+    setAddressLabel(address.label || 'Home')
+    setSaveAddress(false)
+    setSetDefaultAddress(address.is_default)
+    setValidationError('')
+  }
+
+  const switchToManualAddress = () => {
+    if (selectedAddressId === 'new') return
+    setSelectedAddressId('new')
+    setAddressLabel('')
+    setSaveAddress(true)
+    setSetDefaultAddress(savedAddresses.length === 0)
+  }
 
   const applyRestoredPaymentState = (order: Order, latestIntent: PaymentIntent | null) => {
     setPaymentIntent(latestIntent)
@@ -199,15 +235,12 @@ function CheckoutPage() {
       .then((addresses) => {
         if (!active) return
         setSavedAddresses(addresses)
-        const initial = addresses.find((address) => address.is_default) ?? addresses[0] ?? null
+        const initial =
+          addresses.find((address) => address.is_default && activeDeliveryCounties.includes(address.county))
+          ?? addresses.find((address) => activeDeliveryCounties.includes(address.county))
+          ?? null
         if (initial) {
-          setSelectedAddressId(String(initial.id))
-          setStreet(initial.street)
-          setCity(initial.city)
-          setCounty(initial.county)
-          setAddressLabel(initial.label || 'Home')
-          setSaveAddress(false)
-          setSetDefaultAddress(initial.is_default)
+          applySavedAddress(initial)
         } else {
           setSelectedAddressId('new')
           setAddressLabel('Home')
@@ -229,7 +262,7 @@ function CheckoutPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [activeDeliveryCounties])
 
   useEffect(() => {
     const hasCardCallback = !!searchParams.get('tx_ref') && !!searchParams.get('transaction_id')
@@ -417,7 +450,6 @@ function CheckoutPage() {
     () => shippingMethods.find((method) => matchesShippingMethod(method, ['pickup', 'collect'])) ?? null,
     [shippingMethods],
   )
-  const cityOptions = useMemo(() => kenyaCountyCities[county] ?? [], [county])
   const doorstepShippingMethod = useMemo(
     () =>
       shippingMethods.find((method) => matchesShippingMethod(method, ['doorstep', 'delivery', 'standard', 'shipping', 'courier']))
@@ -431,11 +463,13 @@ function CheckoutPage() {
   )
   const deliveryMethodLabel = deliveryMethodLabels[deliveryMethod]
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const qualifiesForFreeDelivery =
+    subtotal >= settings.freeDeliveryThreshold || cartItems.length === 0
   const delivery = deliveryMethod === 'store_pickup'
     ? 0
-    : selectedShippingMethod
-      ? Number(selectedShippingMethod.fee)
-      : (subtotal >= 3000 || cartItems.length === 0 ? 0 : 300)
+    : qualifiesForFreeDelivery
+      ? 0
+      : settings.baseDeliveryFee || (selectedShippingMethod ? Number(selectedShippingMethod.fee) : 300)
   const total = subtotal + delivery
   const itemCount = cartItems.reduce((s, i) => s + i.quantity, 0)
   const paymentNoticeTone = paymentStatus === 'confirmed' || paymentNotice.toLowerCase().includes('initiated') || paymentNotice.toLowerCase().includes('success')
@@ -457,10 +491,31 @@ function CheckoutPage() {
   const fmt = (price: number) => `KSh ${price.toLocaleString()}`
 
   useEffect(() => {
-    if (!city) return
-    if (cityOptions.includes(city)) return
+    if (!county) return
+    if (countyOptions.includes(county)) return
+    setCounty('')
     setCity('')
-  }, [city, cityOptions])
+  }, [county, countyOptions])
+
+  useEffect(() => {
+    if (!city) return
+    if (areaOptions.includes(city)) return
+    setCity('')
+  }, [city, areaOptions])
+
+  useEffect(() => {
+    if (selectedAddressId === 'new') return
+    const selectedAddress = deliverableSavedAddresses.find((address) => String(address.id) === selectedAddressId)
+    if (selectedAddress) return
+
+    const fallbackAddress = deliverableSavedAddresses.find((address) => address.is_default) ?? deliverableSavedAddresses[0] ?? null
+    if (fallbackAddress) {
+      applySavedAddress(fallbackAddress)
+      return
+    }
+
+    switchToManualAddress()
+  }, [deliverableSavedAddresses, savedAddresses.length, selectedAddressId])
 
   const validateCardDetails = () => {
     setValidationError('')
@@ -500,20 +555,16 @@ function CheckoutPage() {
       setValidationError('Complete all required shipping fields to continue.')
       return false
     }
+    if (country === 'Kenya' && !countyOptions.includes(county)) {
+      setValidationError('Select an active delivery county to continue.')
+      return false
+    }
     if (availabilityErrors.length > 0) {
       setValidationError(availabilityErrors[0])
       return false
     }
     setValidationError('')
     return true
-  }
-
-  const switchToManualAddress = () => {
-    if (selectedAddressId === 'new') return
-    setSelectedAddressId('new')
-    setAddressLabel('')
-    setSaveAddress(true)
-    setSetDefaultAddress(savedAddresses.length === 0)
   }
 
   useEffect(() => {
@@ -570,6 +621,7 @@ function CheckoutPage() {
       (order.shipping_street ?? '') === payload.street &&
       (order.shipping_city ?? '') === payload.city &&
       (order.shipping_county ?? '') === payload.county &&
+      Number(order.shipping_fee ?? 0) === delivery &&
       String(order.shipping_method?.id ?? '') === String(payload.shipping_method_id ?? '')
     )
   }
@@ -793,26 +845,25 @@ function CheckoutPage() {
                             setSetDefaultAddress(savedAddresses.length === 0)
                             return
                           }
-                          const selected = savedAddresses.find((address) => String(address.id) === nextValue)
+                          const selected = deliverableSavedAddresses.find((address) => String(address.id) === nextValue)
                           if (!selected) return
-                          setStreet(selected.street)
-                          setCity(selected.city)
-                          setCounty(selected.county)
-                          setAddressLabel(selected.label || 'Home')
-                          setSaveAddress(false)
-                          setSetDefaultAddress(selected.is_default)
-                          setValidationError('')
+                          applySavedAddress(selected)
                         }}
                         disabled={isLoadingAddresses}
                       >
                         <option value="new">Use a new address</option>
-                        {savedAddresses.map((address) => (
+                        {deliverableSavedAddresses.map((address) => (
                           <option key={address.id} value={address.id}>
-                            {address.label || 'Saved address'} · {address.street}, {address.city}
+                            {address.label || 'Saved address'} · {address.street}, {address.city}, {address.county}
                           </option>
                         ))}
                       </select>
-                      <p className="co-note">Select a saved address or switch to a new address for this order.</p>
+                      <p className="co-note">Select a saved address in an active delivery county or switch to a new address for this order.</p>
+                      {inactiveSavedAddressCount > 0 && (
+                        <p className="co-note">
+                          {inactiveSavedAddressCount} saved {inactiveSavedAddressCount === 1 ? 'address is' : 'addresses are'} hidden because the county is not active for delivery.
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -855,6 +906,26 @@ function CheckoutPage() {
                   </div>
                   <div className="co-form__row">
                     <div className="co-field">
+                      <label className="co-field__label">Country *</label>
+                      <select
+                        className="co-field__input"
+                        required
+                        value={country}
+                        onChange={(e) => {
+                          switchToManualAddress()
+                          setCountry(e.target.value)
+                          setCounty('')
+                          setCity('')
+                        }}
+                      >
+                        {supportedCountries.map((countryName) => (
+                          <option key={countryName} value={countryName}>
+                            {countryName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="co-field">
                       <label className="co-field__label">County *</label>
                       <select
                         className="co-field__input"
@@ -863,36 +934,43 @@ function CheckoutPage() {
                         onChange={(e) => {
                           switchToManualAddress()
                           setCounty(e.target.value)
+                          setCity('')
                         }}
+                        disabled={countyOptions.length === 0}
                       >
-                        <option value="">Select county</option>
-                        {kenyaCounties.map((countyName) => (
+                        <option value="">{country ? 'Select delivery county' : 'Select country first'}</option>
+                        {countyOptions.map((countyName) => (
                           <option key={countyName} value={countyName}>
                             {countyName}
                           </option>
                         ))}
                       </select>
+                      <p className="co-note">
+                        {countyOptions.length > 0
+                          ? `Delivery is currently available in ${countyOptions.length} active ${countyOptions.length === 1 ? 'county' : 'counties'}.`
+                          : 'No delivery counties are active right now. You can still continue with store pickup.'}
+                      </p>
                     </div>
-                    <div className="co-field">
-                      <label className="co-field__label">City *</label>
-                      <select
-                        className="co-field__input"
-                        required
-                        value={city}
-                        onChange={(e) => {
-                          switchToManualAddress()
-                          setCity(e.target.value)
-                        }}
-                        disabled={cityOptions.length === 0}
-                      >
-                        <option value="">{county ? 'Select city' : 'Select county first'}</option>
-                        {cityOptions.map((cityName) => (
-                          <option key={cityName} value={cityName}>
-                            {cityName}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  </div>
+                  <div className="co-field">
+                    <label className="co-field__label">{areaLabel}</label>
+                    <select
+                      className="co-field__input"
+                      required
+                      value={city}
+                      onChange={(e) => {
+                        switchToManualAddress()
+                        setCity(e.target.value)
+                      }}
+                      disabled={areaOptions.length === 0}
+                    >
+                      <option value="">{county ? (county === 'Nairobi' ? 'Select area' : 'Select city / town') : 'Select county first'}</option>
+                      {areaOptions.map((cityName) => (
+                        <option key={cityName} value={cityName}>
+                          {cityName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   {selectedAddressId === 'new' && (
                     <>
@@ -1141,7 +1219,7 @@ function CheckoutPage() {
                       {firstName} {lastName}<br />
                       {street}<br />
                       {city}, {county}<br />
-                      Kenya
+                      {country}
                     </p>
                     <p className="co-review-block__meta">
                       {deliveryMethodLabel} {delivery === 0 ? '· Free' : `· ${fmt(delivery)}`}

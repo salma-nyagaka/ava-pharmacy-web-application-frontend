@@ -171,16 +171,6 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
-        label: 'Add Pharmacist',
-        to: '/admin/users/pharmacist/new',
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
-            <circle cx="8.5" cy="8" r="3.5" />
-            <path d="M2.5 20a6 6 0 0 1 12 0M18 8v6M21 11h-6" />
-          </svg>
-        ),
-      },
-      {
         label: 'Pharmacists',
         to: '/admin/users?role=pharmacist',
         icon: (

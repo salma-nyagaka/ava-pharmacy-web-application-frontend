@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { CatalogProvider } from './context/CatalogContext'
+import { SiteSettingsProvider } from './context/SiteSettingsContext'
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import AdminRoute from './components/ProtectedRoute/AdminRoute'
 import AdminLayout from './components/AdminLayout/AdminLayout'
@@ -28,7 +29,6 @@ import HealthConcernManagement from './pages/Admin/HealthConcernManagement'
 import BrandManagement from './pages/Admin/BrandManagement'
 import UserManagement from './pages/Admin/UserManagement'
 import UserDetailsPage from './pages/Admin/UserDetailsPage'
-import UserCreatePage from './pages/Admin/UserCreatePage'
 import OrderManagement from './pages/Admin/OrderManagementLive'
 import OrderDetailsPage from './pages/Admin/OrderDetailsLivePage'
 import Reports from './pages/Admin/Reports'
@@ -44,6 +44,7 @@ import LoginPage from './pages/Auth/LoginPage'
 import RegisterPage from './pages/Auth/RegisterPage'
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage'
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage'
+import StaffActivatePage from './pages/Auth/StaffActivatePage'
 import OrderTrackingPage from './pages/OrderTracking/OrderTrackingPage'
 import OrderConfirmationPage from './pages/OrderConfirmation/OrderConfirmationPage'
 import WishlistPage from './pages/Wishlist/WishlistPage'
@@ -81,8 +82,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <CatalogProvider>
-          <Routes>
+        <SiteSettingsProvider>
+          <CatalogProvider>
+            <Routes>
             <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="products" element={<ProductListingPage />} />
@@ -90,7 +92,7 @@ function App() {
               <Route path="product/:id" element={<ProductDetailPage />} />
               <Route path="cart" element={<CartPage />} />
               <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-              <Route path="account" element={<AccountLayout />}>
+              <Route path="account" element={<ProtectedRoute><AccountLayout /></ProtectedRoute>}>
                 <Route index element={<AccountPage />} />
                 <Route path="orders" element={<OrderHistoryPage />} />
                 <Route path="orders/:id" element={<OrderDetailPage />} />
@@ -116,6 +118,7 @@ function App() {
               <Route path="register" element={<RegisterPage />} />
               <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="reset-password" element={<ResetPasswordPage />} />
+              <Route path="auth/professional/activate" element={<StaffActivatePage />} />
               <Route path="order-confirmation" element={<OrderConfirmationPage />} />
               <Route path="track-order" element={<OrderTrackingPage />} />
               <Route path="wishlist" element={<WishlistPage />} />
@@ -165,7 +168,6 @@ function App() {
               <Route path="health-concerns" element={<HealthConcernManagement />} />
               <Route path="brands" element={<BrandManagement />} />
               <Route path="users" element={<UserManagement />} />
-              <Route path="users/pharmacist/new" element={<UserCreatePage />} />
               <Route path="users/:id" element={<UserDetailsPage />} />
               <Route path="orders" element={<OrderManagement />} />
               <Route path="orders/:id" element={<OrderDetailsPage />} />
@@ -183,8 +185,9 @@ function App() {
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Route>
-          </Routes>
-        </CatalogProvider>
+            </Routes>
+          </CatalogProvider>
+        </SiteSettingsProvider>
       </AuthProvider>
     </BrowserRouter>
   )

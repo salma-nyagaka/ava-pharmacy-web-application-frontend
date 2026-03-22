@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────
-   Category Management — Layout
+   Category Management_ Layout
 ───────────────────────────────────────── */
 .category-management {
   width: 100%;
@@ -92,20 +92,28 @@
 /* ── KPI Cards ── */
 .cm-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
 .cm-kpi-card {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 0 0.75rem;
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
-  padding: 1rem 1.125rem;
-  border-top-width: 3px;
+  border-top: 3px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.cm-kpi-card:hover {
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+  transform: translateY(-1px);
 }
 
 .cm-kpi-grid .cm-kpi-card:nth-child(1) { border-top-color: #3b82f6; }
@@ -114,8 +122,10 @@
 .cm-kpi-grid .cm-kpi-card:nth-child(4) { border-top-color: #0d9488; }
 
 .cm-kpi-card__icon {
-  width: 40px;
-  height: 40px;
+  grid-column: 2;
+  grid-row: 1;
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -129,26 +139,31 @@
 .cm-kpi-card__icon--teal   { background: #f0fdfa; color: #0d9488; }
 
 .cm-kpi-card__body {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.45rem;
   min-width: 0;
 }
 
 .cm-kpi-card__label {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.65rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: #94a3b8;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .cm-kpi-card__value {
-  font-size: 1.375rem;
-  font-weight: 700;
+  font-size: 1.35rem;
+  font-weight: 800;
   color: #0f172a;
   line-height: 1;
+  letter-spacing: -0.03em;
+  font-family: 'Fraunces', 'Georgia', serif;
+  margin: 0;
 }
 
 .cm-kpi-card__value--green {
