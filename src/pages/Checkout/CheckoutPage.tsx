@@ -431,7 +431,9 @@ function CheckoutPage() {
           const nextErrors = cartItems.flatMap((item) => {
             const availability = byId.get(item.id)
             if (!availability) return []
-            if (availability.is_available && availability.quantity >= item.quantity) return []
+            const posQty = availability.pos_quantity ?? 0
+            const effectiveQty = Math.max(availability.quantity ?? 0, posQty)
+            if (availability.is_available && effectiveQty >= item.quantity) return []
             return [`${item.name} is no longer fully available.`]
           })
           setAvailabilityErrors(nextErrors)

@@ -150,8 +150,8 @@ export const adminUserService = {
         ...getAuthHeaders(),
       },
     })
-    const payload = await handleResponse<unknown>(response)
-    return normalizeAdminUserPayload(payload)
+    const responsePayload = await handleResponse<unknown>(response)
+    return normalizeAdminUserPayload(responsePayload)
   },
 
   async updateUser(id: number, payload: AdminUserUpdatePayload) {
@@ -207,8 +207,8 @@ export const adminUserService = {
         pharmacist_permissions: payload.pharmacistPermissions,
       }),
     })
-    const payload = await handleResponse<unknown>(response)
-    return normalizeAdminUserPayload(payload)
+    const responsePayload = await handleResponse<unknown>(response)
+    return normalizeAdminUserPayload(responsePayload)
   },
 
   async resendActivation(id: number) {

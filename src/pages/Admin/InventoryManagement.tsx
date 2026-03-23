@@ -88,6 +88,8 @@ function InventoryManagement() {
   const [branchMaxBackorder, setBranchMaxBackorder] = useState('0')
   const [adjustError, setAdjustError] = useState('')
   const [adjustSaving, setAdjustSaving] = useState(false)
+  const [posSyncingIds, setPosSyncingIds] = useState<Record<number, boolean>>({})
+  const [posSyncError, setPosSyncError] = useState('')
 
   const filterProductId = searchParams.get('product')
 
@@ -117,6 +119,7 @@ function InventoryManagement() {
     setAdjustItem(null)
     setIsAddMode(false)
     setAdjustError('')
+    setPosSyncError('')
   }
 
   const filteredInventory = useMemo(() => {
@@ -224,6 +227,25 @@ function InventoryManagement() {
 
   const posInventory = adjustItem ? getInventoryItem(adjustItem, 'warehouse') : null
 
+  const handlePosSync = async (productId: number) => {
+    setPosSyncingIds((prev) => ({ ...prev, [productId]: true }))
+    setPosSyncError('')
+    try {
+      const updated = await adminProductService.refreshPosInventory([productId], true)
+      if (updated.length > 0) {
+        const updatedItem = updated[0]
+        setInventory((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)))
+        if (adjustItem && adjustItem.id === updatedItem.id) {
+          setAdjustItem(updatedItem)
+        }
+      }
+    } catch {
+      setPosSyncError('Failed to sync POS stock. Make sure the POS lookup endpoint is configured.')
+    } finally {
+      setPosSyncingIds((prev) => ({ ...prev, [productId]: false }))
+    }
+  }
+
   return (
     <div className="category-management admin-page">
       <div className="category-management__header">
@@ -315,6 +337,14 @@ function InventoryManagement() {
       </div>
 
       <div className="cm-panel">
+        {posSyncError && (
+          <div className="cm-error-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{posSyncError}</span>
+          </div>
+        )}
         {loading && (
           <div className="cm-skeletons">
             {[...Array(6)].map((_, i) => (
@@ -407,9 +437,19 @@ function InventoryManagement() {
                         </span>
                       </td>
                       <td>
-                        <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => handleAdjustOpen(item)}>
-                          Adjust
-                        </button>
+                        <div className="cm-row-actions">
+                          <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => handleAdjustOpen(item)}>
+                            Adjust
+                          </button>
+                          <button
+                            className="cm-row-btn cm-row-btn--warn"
+                            type="button"
+                            onClick={() => handlePosSync(item.id)}
+                            disabled={Boolean(posSyncingIds[item.id])}
+                          >
+                            {posSyncingIds[item.id] ? 'Syncing…' : 'POS Sync'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -447,65 +487,90 @@ function InventoryManagement() {
             <div className="modal__content">
               <div className="adjust-info">
                 <p className="adjust-title">{isAddMode ? 'Add Inventory' : adjustItem.name}</p>
-                <p className="adjust-subtitle" style={{ color: '#6b7280', fontSize: '0.85rem' }}>{adjustItem.sku}</p>
+                <p className="adjust-subtitle">{adjustItem.sku}</p>
               </div>
               {isAddMode && (
-                <div className="form-group">
-                  <label>Product</label>
-                  <select
-                    value={adjustItem.id}
-                    onChange={(e) => {
-                      const selected = inventory.find((item) => item.id === Number(e.target.value))
-                      if (selected) populateAdjustForm(selected)
-                    }}
+                <div className="adjust-section">
+                  <div className="adjust-section__title">Product</div>
+                  <div className="adjust-grid adjust-grid--single">
+                    <div className="adjust-field">
+                      <label>Product</label>
+                      <select
+                        value={adjustItem.id}
+                        onChange={(e) => {
+                          const selected = inventory.find((item) => item.id === Number(e.target.value))
+                          if (selected) populateAdjustForm(selected)
+                        }}
+                      >
+                        {inventory.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name} · {item.sku}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="adjust-section">
+                <div className="adjust-section__title">Main Shop Stock</div>
+                <div className="adjust-grid">
+                  <div className="adjust-field">
+                    <label>Available stock</label>
+                    <input type="number" min={0} value={branchStock} onChange={(e) => setBranchStock(e.target.value)} />
+                  </div>
+                  <div className="adjust-field">
+                    <label>Low stock threshold</label>
+                    <input type="number" min={0} value={branchThreshold} onChange={(e) => setBranchThreshold(e.target.value)} />
+                  </div>
+                </div>
+                <div className="adjust-grid adjust-grid--single">
+                  <div className="adjust-field">
+                    <label className="adjust-checkbox">
+                      <input type="checkbox" checked={branchAllowBackorder} onChange={(e) => setBranchAllowBackorder(e.target.checked)} />
+                      Allow backorders
+                    </label>
+                  </div>
+                  {branchAllowBackorder && (
+                    <div className="adjust-field">
+                      <label>Max backorder quantity</label>
+                      <input type="number" min={0} value={branchMaxBackorder} onChange={(e) => setBranchMaxBackorder(e.target.value)} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="adjust-section">
+                <div className="adjust-section__title">POS Store (Read-only)</div>
+                <div className="adjust-pos-card">
+                  <div>
+                    <div className="adjust-pos-row">
+                      <span>POS stock</span>
+                      <strong>{getInventoryQuantity(adjustItem, 'warehouse')}</strong>
+                    </div>
+                    <div className="adjust-pos-row">
+                      <span>Source</span>
+                      <span>{posInventory?.source_name || 'POS Store'}</span>
+                    </div>
+                    <div className="adjust-pos-row">
+                      <span>Last sync</span>
+                      <span>{formatDateTime(posInventory?.last_synced_at)}</span>
+                    </div>
+                    <p className="adjust-hint">POS stock is updated from the external POS system.</p>
+                  </div>
+                  <button
+                    className="cm-row-btn cm-row-btn--warn"
+                    type="button"
+                    onClick={() => handlePosSync(adjustItem.id)}
+                    disabled={Boolean(posSyncingIds[adjustItem.id])}
                   >
-                    {inventory.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name} · {item.sku}
-                      </option>
-                    ))}
-                  </select>
+                    {posSyncingIds[adjustItem.id] ? 'Syncing…' : 'Sync POS now'}
+                  </button>
                 </div>
-              )}
-
-              <div className="form-group">
-                <label>Main shop stock</label>
-                <input type="number" min={0} value={branchStock} onChange={(e) => setBranchStock(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Main shop low stock threshold</label>
-                <input type="number" min={0} value={branchThreshold} onChange={(e) => setBranchThreshold(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input type="checkbox" checked={branchAllowBackorder} onChange={(e) => setBranchAllowBackorder(e.target.checked)} />
-                  Allow main shop backorder
-                </label>
-              </div>
-              {branchAllowBackorder && (
-                <div className="form-group">
-                  <label>Main shop max backorder quantity</label>
-                  <input type="number" min={0} value={branchMaxBackorder} onChange={(e) => setBranchMaxBackorder(e.target.value)} />
-                </div>
-              )}
-
-              <div className="form-group">
-                <label>POS store stock</label>
-                <input type="text" value={String(getInventoryQuantity(adjustItem, 'warehouse'))} readOnly />
-              </div>
-              <div className="form-group">
-                <label>POS source</label>
-                <input type="text" value={posInventory?.source_name || 'POS Store'} readOnly />
-              </div>
-              <div className="form-group">
-                <label>Last POS sync</label>
-                <input type="text" value={formatDateTime(posInventory?.last_synced_at)} readOnly />
               </div>
 
-              <p style={{ color: '#6b7280', fontSize: '0.8125rem', marginTop: '0.5rem' }}>
-                POS store stock is read-only here. It is updated by the external POS sync API.
-              </p>
-              {adjustError && <p style={{ color: 'red', marginTop: '0.75rem' }}>{adjustError}</p>}
+              {adjustError && <p className="adjust-error">{adjustError}</p>}
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" onClick={closeAdjustModal}>Cancel</button>

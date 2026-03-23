@@ -456,7 +456,7 @@ function LabServicesPage() {
 
                   <div className="lab-form-section">
                     <p className="lab-form-section__label">Payment</p>
-                    <p className="card__meta">Payment status is tracked after booking. You do not set it manually here.</p>
+                    <p className="card__meta">Payment status is tracked after booking.</p>
                   </div>
 
                   {bookingError && (

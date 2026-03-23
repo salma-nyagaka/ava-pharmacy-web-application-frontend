@@ -540,7 +540,7 @@ function PediatricianConsultation() {
                 <textarea id="ped-vaccine" rows={2} placeholder="Recent vaccinations or any pending ones..." value={formData.vaccineHistory} onChange={(event) => setField('vaccineHistory', event.target.value)} />
               </div>
 
-              <button type="submit" className="btn btn--primary dc-submit-btn ped-submit-btn" disabled={isSubmitting || !selectedPediatrician}>
+              <button type="submit" className="btn btn--primary dc-submit-btn ped-submit-btn" disabled={isSubmitting}>
                 {isSubmitting ? 'Starting consultation…' : 'Start chat consultation →'}
               </button>
             </form>

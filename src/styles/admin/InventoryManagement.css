@@ -134,11 +134,14 @@
 
 .adjust-info {
   margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed #e5e7eb;
 }
 
 .adjust-title {
-  font-weight: 600;
-  margin-bottom: 0.25rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+  font-size: 1.05rem;
 }
 
 .adjust-subtitle {
@@ -150,6 +153,85 @@
   margin-top: 0.5rem;
   font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+.adjust-section {
+  margin-top: 1rem;
+}
+
+.adjust-section__title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+.adjust-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.adjust-grid--single {
+  grid-template-columns: 1fr;
+  margin-top: 0.75rem;
+}
+
+.adjust-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.adjust-field label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.adjust-field input,
+.adjust-field select {
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 0.875rem;
+}
+
+.adjust-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.adjust-pos-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+
+.adjust-pos-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  font-size: 0.875rem;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.adjust-error {
+  color: #dc2626;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .modal-overlay {
@@ -170,7 +252,7 @@
   background: white;
   border-radius: 12px;
   width: 100%;
-  max-width: 520px;
+  max-width: 640px;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -200,7 +282,7 @@
 }
 
 .modal__content {
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem 1.5rem 1.5rem;
 }
 
 .modal__footer {
@@ -235,4 +317,3 @@
 }
 @media (max-width: 1023px) { .inventory-management, .im-page { padding: 1.5rem; } }
 @media (max-width: 640px) { .inventory-management, .im-page { padding: 1rem; } }
-

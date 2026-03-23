@@ -200,24 +200,27 @@ function DoctorConsultation() {
     if (!formData.phone.trim()) errors.phone = 'Phone number is required'
     else if (!/^\+?[0-9]{10,15}$/.test(formData.phone.replace(/\s/g, ''))) errors.phone = 'Invalid phone number'
     if (!formData.symptoms.trim()) errors.symptoms = 'Please describe your symptoms'
-    if (!selectedDoctor) errors.specialty = 'No doctor is currently available for the selected specialty'
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!validateForm() || !selectedDoctor) return
+    if (!validateForm()) return
 
     setIsSubmitting(true)
     setSubmitError('')
     try {
+      const issue = formData.specialty.trim()
+        ? `${formData.symptoms.trim()}\n\nPreferred specialty: ${formData.specialty.trim()}`
+        : formData.symptoms.trim()
+
       const created = await createConsultation({
-        doctor: selectedDoctor.id,
+        doctor: selectedDoctor?.id,
         patient_name: formData.name.trim(),
         patient_email: formData.email.trim(),
         patient_phone: formData.phone.trim(),
-        issue: formData.symptoms.trim(),
+        issue,
         priority: formData.urgency === 'Urgent' ? 'priority' : 'routine',
       })
       setCurrentConsultation(created)
@@ -531,7 +534,7 @@ function DoctorConsultation() {
                 {formErrors.symptoms && <span className="dc-field-error">{formErrors.symptoms}</span>}
               </div>
 
-              <button type="submit" className="btn btn--primary dc-submit-btn" disabled={isSubmitting || !selectedDoctor}>
+              <button type="submit" className="btn btn--primary dc-submit-btn" disabled={isSubmitting}>
                 {isSubmitting ? 'Starting consultation…' : 'Start chat consultation →'}
               </button>
             </form>

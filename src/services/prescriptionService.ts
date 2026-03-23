@@ -1,6 +1,7 @@
 
 import { apiClient } from '../lib/apiClient'
-import { PrescriptionAuditEntry, PrescriptionRecord } from '../data/prescriptions'
+import { PrescriptionAuditEntry, PrescriptionRecord, createUploadedPrescription, loadPrescriptionRecords, savePrescriptionRecords } from '../data/prescriptions'
+import { cartService } from './cartService'
 
 type UploadPayload = {
   patient: string
@@ -77,6 +78,11 @@ const DISPATCH_TO_API: Record<PrescriptionRecord['dispatchStatus'], string> = {
   Delivered: 'delivered',
 }
 
+function shouldUseLocalFallback(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } })?.response?.status
+  return status == null || status === 404 || status === 405 || status >= 500
+}
+
 function isAuthenticated() {
   return !!localStorage.getItem('ava_access_token')
 }
@@ -131,20 +137,25 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
 
 async function listPrescriptions(): Promise<PrescriptionRecord[]> {
   if (!isAuthenticated()) return []
-  const res = await apiClient.get(listEndpoint())
-  const payload = res.data?.data ?? res.data ?? []
-  const items = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.results)
-      ? payload.results
-      : []
-  return items.map(mapPrescription)
+  try {
+    const res = await apiClient.get(listEndpoint())
+    const payload = res.data?.data ?? res.data ?? []
+    const items = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.results)
+        ? payload.results
+        : []
+    return items.map(mapPrescription)
+  } catch (error) {
+    if (!shouldUseLocalFallback(error)) throw error
+    return loadPrescriptionRecords()
+  }
 }
 
 async function resolvePrescription(reference: string): Promise<PrescriptionRecord> {
   const records = await listPrescriptions()
   const match = records.find((item) => item.id === reference)
-  if (!match?.backendId) {
+  if (!match) {
     throw new Error('Prescription not found.')
   }
   return match
@@ -156,6 +167,7 @@ export const prescriptionService = {
     return { data }
   },
   saveAll: async (records: PrescriptionRecord[]) => {
+    savePrescriptionRecords(records)
     return { data: records }
   },
   upload: async (payload: UploadPayload) => {
@@ -164,7 +176,19 @@ export const prescriptionService = {
     formData.append('doctor_name', payload.doctor || '')
     formData.append('notes', payload.notes || '')
     payload.files.forEach((file) => formData.append('files', file))
-    await apiClient.post('/prescriptions/upload/', formData)
+    try {
+      await apiClient.post('/prescriptions/upload/', formData)
+    } catch (error) {
+      if (!shouldUseLocalFallback(error)) throw error
+      const records = loadPrescriptionRecords()
+      const nextRecords = createUploadedPrescription(records, {
+        patient: payload.patient,
+        doctor: payload.doctor,
+        notes: payload.notes,
+        files: payload.files.map((file) => file.name),
+      })
+      savePrescriptionRecords(nextRecords)
+    }
     return prescriptionService.list()
   },
   update: async (prescriptionId: string, updates: Partial<PrescriptionRecord>, auditAction?: string) => {
@@ -182,24 +206,87 @@ export const prescriptionService = {
         quantity: item.qty,
       }))
     }
-    if (Object.keys(body).length) {
-      await apiClient.patch(`/prescriptions/${prescription.backendId}/update/`, body)
+
+    try {
+      if (!prescription.backendId) {
+        throw new Error('LOCAL_FALLBACK')
+      }
+      if (Object.keys(body).length) {
+        await apiClient.patch(`/prescriptions/${prescription.backendId}/update/`, body)
+      }
+      if (auditAction) {
+        await apiClient.post(`/prescriptions/${prescription.backendId}/audit/`, { action: auditAction })
+      }
+    } catch (error) {
+      if (!shouldUseLocalFallback(error)) throw error
+
+      const now = new Date().toLocaleString()
+      const nextRecords = loadPrescriptionRecords().map((item) =>
+        item.id === prescriptionId
+          ? {
+            ...item,
+            ...updates,
+            audit: auditAction
+              ? [{ time: now, action: auditAction }, ...(item.audit ?? [])]
+              : item.audit,
+          }
+          : item
+      )
+      savePrescriptionRecords(nextRecords)
     }
-    if (auditAction) {
-      await apiClient.post(`/prescriptions/${prescription.backendId}/audit/`, { action: auditAction })
-    }
+
     return prescriptionService.list()
   },
   appendAudit: async (prescriptionId: string, entry: PrescriptionAuditEntry | string) => {
     const action = typeof entry === 'string' ? entry : entry.action
     const prescription = await resolvePrescription(prescriptionId)
-    await apiClient.post(`/prescriptions/${prescription.backendId}/audit/`, { action })
+    try {
+      if (!prescription.backendId) {
+        throw new Error('LOCAL_FALLBACK')
+      }
+      await apiClient.post(`/prescriptions/${prescription.backendId}/audit/`, { action })
+    } catch (error) {
+      if (!shouldUseLocalFallback(error)) throw error
+
+      const now = new Date().toLocaleString()
+      const nextRecords = loadPrescriptionRecords().map((item) =>
+        item.id === prescriptionId
+          ? {
+            ...item,
+            audit: [{ time: now, action }, ...(item.audit ?? [])],
+          }
+          : item
+      )
+      savePrescriptionRecords(nextRecords)
+    }
     return prescriptionService.list()
   },
   addApprovedItemToCart: async (prescriptionId: string, itemId: number, quantity?: number) => {
     const prescription = await resolvePrescription(prescriptionId)
     const payload = quantity ? { quantity } : {}
-    const res = await apiClient.post(`/prescriptions/${prescription.backendId}/items/${itemId}/add-to-cart/`, payload)
-    return res.data?.data ?? res.data
+    try {
+      if (!prescription.backendId) {
+        throw new Error('LOCAL_FALLBACK')
+      }
+      const res = await apiClient.post(`/prescriptions/${prescription.backendId}/items/${itemId}/add-to-cart/`, payload)
+      return res.data?.data ?? res.data
+    } catch (error) {
+      if (!shouldUseLocalFallback(error)) throw error
+
+      const item = prescription.items.find((entry) => entry.backendId === itemId || entry.productId === itemId)
+      if (!item?.productId) {
+        throw new Error('This approved item is not mapped to a product yet.')
+      }
+
+      return cartService.add({
+        id: item.productId,
+        name: item.productName || item.name,
+        brand: 'Prescription',
+        price: 0,
+        image: item.productImage || '',
+        stockSource: 'branch',
+        prescriptionId,
+      }, quantity ?? Math.max(item.qty, 1))
+    }
   },
 }

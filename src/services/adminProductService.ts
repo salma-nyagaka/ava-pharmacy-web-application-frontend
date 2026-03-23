@@ -117,6 +117,8 @@ export interface ApiProduct {
   id: number
   name: string
   sku: string
+  barcode?: string | null
+  pos_product_id?: string | null
   slug: string
   strength: string
   dosage_quantity: string
@@ -157,6 +159,46 @@ export interface ApiProduct {
   created_by_name: string
 }
 
+export interface ApiProductVariant {
+  id: number
+  sku: string
+  barcode?: string | null
+  pos_product_id?: string | null
+  name: string
+  attributes: Record<string, unknown>
+  price: string | null
+  original_price: string | null
+  effective_price: string
+  image: string | null
+  stock_source: StockSource
+  stock_quantity: number
+  low_stock_threshold: number
+  allow_backorder: boolean
+  max_backorder_quantity: number
+  inventory_status: string
+  available_quantity: number
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductVariantPayload {
+  sku: string
+  barcode?: string
+  pos_product_id?: string
+  name: string
+  attributes?: Record<string, unknown>
+  price?: number | null
+  original_price?: number | null
+  stock_quantity?: number
+  low_stock_threshold?: number
+  allow_backorder?: boolean
+  max_backorder_quantity?: number
+  is_active?: boolean
+  sort_order?: number
+}
+
 export interface ApiInventoryProduct extends ApiProduct {
   stock_quantity: number
   low_stock_threshold: number
@@ -188,6 +230,8 @@ export interface ProductCreatePayload {
   name: string
   slug: string
   sku: string
+  barcode?: string
+  pos_product_id?: string
   strength?: string
   price: number
   cost_price?: number
@@ -279,6 +323,25 @@ export const adminProductService = {
     await apiClient.delete(`/admin/products/${id}/`)
   },
 
+  async listProductVariants(productId: number) {
+    const res = await apiClient.get(`/admin/products/${productId}/variants/`)
+    return unwrapList<ApiProductVariant>(res)
+  },
+
+  async createProductVariant(productId: number, payload: ProductVariantPayload) {
+    const res = await apiClient.post(`/admin/products/${productId}/variants/`, payload)
+    return unwrap<ApiProductVariant>(res)
+  },
+
+  async updateProductVariant(productId: number, variantId: number, payload: Partial<ProductVariantPayload>) {
+    const res = await apiClient.patch(`/admin/products/${productId}/variants/${variantId}/`, payload)
+    return unwrap<ApiProductVariant>(res)
+  },
+
+  async deleteProductVariant(productId: number, variantId: number) {
+    await apiClient.delete(`/admin/products/${productId}/variants/${variantId}/`)
+  },
+
   async listCategories() {
     const res = await apiClient.get('/categories/')
     return unwrapList<ApiCategory>(res)
@@ -354,6 +417,18 @@ export const adminProductService = {
   async adjustInventory(id: number, payload: InventoryAdjustPayload) {
     const res = await apiClient.patch(`/admin/inventory/${id}/`, payload)
     return unwrap<ApiInventoryProduct>(res)
+  },
+
+  async refreshPosInventory(productIds: number[], force = true) {
+    const res = await apiClient.post('/admin/inventory/pos-refresh/', {
+      product_ids: productIds,
+      force,
+    })
+    const payload = res.data as { data?: { updated?: ApiInventoryProduct[] } } | { updated?: ApiInventoryProduct[] }
+    const updated = (payload as { updated?: ApiInventoryProduct[] }).updated
+      ?? (payload as { data?: { updated?: ApiInventoryProduct[] } }).data?.updated
+      ?? []
+    return updated
   },
 
   async syncPosInventory(payload: PosSyncPayload) {

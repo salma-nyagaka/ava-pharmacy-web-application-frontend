@@ -74,6 +74,9 @@ export interface ProductAvailability {
   stock_source: string
   quantity: number
   is_low_stock: boolean
+  pos_checked?: boolean
+  pos_quantity?: number | null
+  pos_store_count?: number
 }
 
 export interface NavBrand {

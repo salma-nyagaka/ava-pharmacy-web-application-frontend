@@ -289,13 +289,15 @@
 .admin-layout__main {
   min-height: 100vh;
   margin-left: var(--admin-sidebar-width);
+  width: calc(100% - var(--admin-sidebar-width));
+  min-width: 0;
   transition: margin-left 180ms ease;
   background: #f9fafb;
 }
 
 .admin-layout__content {
   min-height: 100vh;
-  padding: 2rem 2.5rem;
+  padding: 0;
 }
 
 .admin-layout--sidebar-collapsed .admin-layout__sidebar-inner {
@@ -343,7 +345,7 @@
 
 @media (max-width: 1023px) {
   .admin-layout__content {
-    padding: 1.5rem;
+    padding: 0;
   }
 }
 
@@ -353,6 +355,6 @@
   }
 
   .admin-layout__content {
-    padding: 1rem;
+    padding: 0;
   }
 }

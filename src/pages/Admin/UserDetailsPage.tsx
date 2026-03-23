@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { formatAdminRole, formatPharmacistPermission, loadAdminUsers, saveAdminUsers, type AdminUser as CachedAdminUser } from '../../data/adminUsers'
+import {
+  formatAdminRole,
+  formatPharmacistPermission,
+  loadAdminUsers,
+  saveAdminUsers,
+  type AdminUser as CachedAdminUser,
+  type PharmacistPermission,
+} from '../../data/adminUsers'
 import { AdminUserApi, AdminUserError, adminUserService } from '../../services/adminUserService'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/UserDetailsPage.css'
@@ -309,7 +316,7 @@ function UserDetailsPage() {
             {user.pharmacist_permissions && user.pharmacist_permissions.length > 0 ? (
               <ul className="ud-notes">
                 {user.pharmacist_permissions.map((permission) => (
-                  <li key={permission}>{formatPharmacistPermission(permission as CachedAdminUser['pharmacistPermissions'][number])}</li>
+                  <li key={permission}>{formatPharmacistPermission(permission as PharmacistPermission)}</li>
                 ))}
               </ul>
             ) : (

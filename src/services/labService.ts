@@ -1,4 +1,5 @@
 import { apiClient } from '../lib/apiClient'
+import { loadLabTests as loadFallbackLabTests } from '../data/labs'
 
 export type LabPriority = 'routine' | 'priority'
 export type LabPaymentStatus = 'pending' | 'paid'
@@ -86,6 +87,12 @@ export interface CreateLabRequestPayload {
   scheduled_at: string
 }
 
+type StoredUser = {
+  id?: number
+  name?: string
+  email?: string
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   blood: 'Blood',
   cardiac: 'Cardiac',
@@ -118,6 +125,13 @@ const CHANNEL_LABELS: Record<LabChannel, string> = {
   collection: 'Home collection',
 }
 
+const LOCAL_LAB_REQUESTS_KEY = 'ava_lab_service_requests'
+const USE_LOCAL_LAB_FLOW = true
+const DEFAULT_TECHNICIAN = {
+  id: 1,
+  name: 'Ava Diagnostics Team',
+}
+
 function unwrap<T>(value: unknown, fallback: T): T {
   if (value && typeof value === 'object' && 'data' in (value as Record<string, unknown>)) {
     return ((value as Record<string, unknown>).data as T) ?? fallback
@@ -128,6 +142,195 @@ function unwrap<T>(value: unknown, fallback: T): T {
 function normalizeNumber(value: unknown): number {
   const parsed = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function shouldUseLocalFallback(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } })?.response?.status
+  return status == null || status === 404 || status === 405 || status >= 500
+}
+
+function getStoredUser(): StoredUser | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.localStorage.getItem('ava_user')
+    if (!raw) return null
+    return JSON.parse(raw) as StoredUser
+  } catch {
+    return null
+  }
+}
+
+function normalizeText(value: string | null | undefined): string {
+  return String(value ?? '').trim().toLowerCase()
+}
+
+function parseFallbackTestId(reference: string): number {
+  const parsed = Number.parseInt(reference.replace(/\D/g, ''), 10)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function loadLocalLabRequests(): LabRequest[] {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const raw = window.localStorage.getItem(LOCAL_LAB_REQUESTS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as LabRequest[]) : []
+  } catch {
+    return []
+  }
+}
+
+function saveLocalLabRequests(requests: LabRequest[]) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(LOCAL_LAB_REQUESTS_KEY, JSON.stringify(requests))
+}
+
+function nextLocalLabRequestId(requests: LabRequest[]): number {
+  return requests.reduce((max, request) => Math.max(max, request.id), 3000) + 1
+}
+
+function createLocalAuditLog(id: number, action: string, timestamp: string, performedByName = DEFAULT_TECHNICIAN.name): LabAuditLog {
+  return {
+    id,
+    action,
+    performedBy: DEFAULT_TECHNICIAN.id,
+    performedByName,
+    timestamp,
+  }
+}
+
+function mapLocalFallbackTests(): LabTest[] {
+  return loadFallbackLabTests().map((test) => {
+    const category = test.category.trim().toLowerCase()
+    return {
+      id: parseFallbackTestId(test.id),
+      reference: test.id,
+      name: test.name,
+      category,
+      categoryLabel: test.category,
+      price: test.price,
+      turnaround: test.turnaround,
+      sampleType: test.sampleType,
+      description: test.description,
+      isActive: true,
+      createdAt: '',
+    }
+  })
+}
+
+function filterRequestsForCurrentUser(requests: LabRequest[]): LabRequest[] {
+  const user = getStoredUser()
+  if (!user) return []
+
+  const userEmail = normalizeText(user.email)
+  const userName = normalizeText(user.name)
+
+  return requests.filter((request) => {
+    if (userEmail && normalizeText(request.patientEmail) === userEmail) return true
+    if (userName && normalizeText(request.patientName) === userName) return true
+    return false
+  })
+}
+
+function ensureLocalRequestConnected(request: LabRequest): LabRequest {
+  if (request.result || request.status === 'completed' || request.status === 'result_ready') {
+    return request
+  }
+
+  const now = new Date().toISOString()
+  const auditLogs = [...request.auditLogs]
+  let nextAuditId = auditLogs.reduce((max, log) => Math.max(max, log.id), 0) + 1
+
+  if (request.status === 'awaiting_sample') {
+    auditLogs.push(createLocalAuditLog(nextAuditId++, 'Sample received and queued for analysis', now))
+  }
+
+  auditLogs.push(createLocalAuditLog(nextAuditId, `Processing started by ${DEFAULT_TECHNICIAN.name}`, now))
+
+  return {
+    ...request,
+    status: 'processing',
+    statusLabel: STATUS_LABELS.processing,
+    assignedTechnician: DEFAULT_TECHNICIAN.id,
+    technicianName: DEFAULT_TECHNICIAN.name,
+    updatedAt: now,
+    auditLogs,
+  }
+}
+
+function hydrateLocalLabRequests(): LabRequest[] {
+  const records = loadLocalLabRequests()
+  let changed = false
+
+  const nextRecords = records.map((record) => {
+    const hydrated = ensureLocalRequestConnected(record)
+    if (hydrated !== record) {
+      changed = true
+    }
+    return hydrated
+  })
+
+  if (changed) {
+    saveLocalLabRequests(nextRecords)
+  }
+
+  return nextRecords
+}
+
+function createLocalLabRequest(payload: CreateLabRequestPayload): LabRequest {
+  const tests = mapLocalFallbackTests()
+  const selectedTest = tests.find((test) => test.id === payload.test)
+  if (!selectedTest) {
+    throw new Error('Selected lab test could not be found.')
+  }
+
+  const user = getStoredUser()
+  const requests = hydrateLocalLabRequests()
+  const now = new Date().toISOString()
+  const nextId = nextLocalLabRequestId(requests)
+
+  const request: LabRequest = {
+    id: nextId,
+    reference: `LAB-${nextId}`,
+    test: selectedTest.id,
+    testName: selectedTest.name,
+    testCategory: selectedTest.category,
+    testCategoryLabel: selectedTest.categoryLabel,
+    testPrice: selectedTest.price,
+    testTurnaround: selectedTest.turnaround,
+    testSampleType: selectedTest.sampleType,
+    patient: user?.id ?? null,
+    patientName: payload.patient_name.trim(),
+    patientPhone: payload.patient_phone.trim(),
+    patientEmail: payload.patient_email?.trim() ?? '',
+    status: 'processing',
+    statusLabel: STATUS_LABELS.processing,
+    paymentStatus: 'pending',
+    paymentStatusLabel: PAYMENT_LABELS.pending,
+    priority: payload.priority ?? 'routine',
+    priorityLabel: PRIORITY_LABELS[payload.priority ?? 'routine'],
+    channel: payload.channel ?? 'walk_in',
+    channelLabel: CHANNEL_LABELS[payload.channel ?? 'walk_in'],
+    orderingDoctor: payload.ordering_doctor?.trim() ?? '',
+    notes: payload.notes?.trim() ?? '',
+    assignedTechnician: DEFAULT_TECHNICIAN.id,
+    technicianName: DEFAULT_TECHNICIAN.name,
+    scheduledAt: payload.scheduled_at,
+    requestedAt: now,
+    updatedAt: now,
+    auditLogs: [
+      createLocalAuditLog(1, 'Lab request created', now, user?.name?.trim() || 'Patient'),
+      createLocalAuditLog(2, 'Sample received and queued for analysis', now),
+      createLocalAuditLog(3, `Processing started by ${DEFAULT_TECHNICIAN.name}`, now),
+    ],
+    result: null,
+  }
+
+  saveLocalLabRequests([request, ...requests])
+  return request
 }
 
 function mapLabResult(raw: Record<string, unknown>): LabResult {
@@ -215,28 +418,105 @@ function mapLabRequest(raw: Record<string, unknown>): LabRequest {
 }
 
 export async function fetchLabTests(): Promise<LabTest[]> {
-  const res = await apiClient.get('/lab/tests/')
-  const payload = unwrap<unknown>(res.data, [])
-  const list = Array.isArray(payload)
-    ? payload
-    : Array.isArray((payload as { results?: unknown[] })?.results)
-      ? (payload as { results: unknown[] }).results
-      : []
-  return list.map((item) => mapLabTest(item as Record<string, unknown>))
+  if (USE_LOCAL_LAB_FLOW) {
+    return mapLocalFallbackTests()
+  }
+  try {
+    const res = await apiClient.get('/lab/tests/')
+    const payload = unwrap<unknown>(res.data, [])
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as { results?: unknown[] })?.results)
+        ? (payload as { results: unknown[] }).results
+        : []
+    return list.map((item) => mapLabTest(item as Record<string, unknown>))
+  } catch (error) {
+    if (!shouldUseLocalFallback(error)) throw error
+    return mapLocalFallbackTests()
+  }
 }
 
 export async function fetchMyLabRequests(): Promise<LabRequest[]> {
-  const res = await apiClient.get('/lab/requests/')
-  const payload = unwrap<unknown>(res.data, [])
-  const list = Array.isArray(payload)
-    ? payload
-    : Array.isArray((payload as { results?: unknown[] })?.results)
-      ? (payload as { results: unknown[] }).results
-      : []
-  return list.map((item) => mapLabRequest(item as Record<string, unknown>))
+  if (USE_LOCAL_LAB_FLOW) {
+    return filterRequestsForCurrentUser(hydrateLocalLabRequests())
+  }
+  try {
+    const res = await apiClient.get('/lab/requests/')
+    const payload = unwrap<unknown>(res.data, [])
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as { results?: unknown[] })?.results)
+        ? (payload as { results: unknown[] }).results
+        : []
+    return list.map((item) => mapLabRequest(item as Record<string, unknown>))
+  } catch (error) {
+    if (!shouldUseLocalFallback(error)) throw error
+    return filterRequestsForCurrentUser(loadLocalLabRequests())
+  }
 }
 
 export async function createLabRequest(payload: CreateLabRequestPayload): Promise<LabRequest> {
-  const res = await apiClient.post('/lab/requests/', payload)
-  return mapLabRequest(unwrap<Record<string, unknown>>(res.data, {}))
+  if (USE_LOCAL_LAB_FLOW) {
+    return createLocalLabRequest(payload)
+  }
+  try {
+    const res = await apiClient.post('/lab/requests/', payload)
+    return mapLabRequest(unwrap<Record<string, unknown>>(res.data, {}))
+  } catch (error) {
+    if (!shouldUseLocalFallback(error)) throw error
+
+    const tests = mapLocalFallbackTests()
+    const selectedTest = tests.find((test) => test.id === payload.test)
+    if (!selectedTest) {
+      throw new Error('Selected lab test could not be found.')
+    }
+
+    const user = getStoredUser()
+    const requests = loadLocalLabRequests()
+    const now = new Date().toISOString()
+    const nextId = nextLocalLabRequestId(requests)
+    const record: LabRequest = {
+      id: nextId,
+      reference: `LAB-${nextId}`,
+      test: selectedTest.id,
+      testName: selectedTest.name,
+      testCategory: selectedTest.category,
+      testCategoryLabel: selectedTest.categoryLabel,
+      testPrice: selectedTest.price,
+      testTurnaround: selectedTest.turnaround,
+      testSampleType: selectedTest.sampleType,
+      patient: user?.id ?? null,
+      patientName: payload.patient_name.trim(),
+      patientPhone: payload.patient_phone.trim(),
+      patientEmail: payload.patient_email?.trim() ?? '',
+      status: 'awaiting_sample',
+      statusLabel: STATUS_LABELS.awaiting_sample,
+      paymentStatus: 'pending',
+      paymentStatusLabel: PAYMENT_LABELS.pending,
+      priority: payload.priority ?? 'routine',
+      priorityLabel: PRIORITY_LABELS[payload.priority ?? 'routine'],
+      channel: payload.channel ?? 'walk_in',
+      channelLabel: CHANNEL_LABELS[payload.channel ?? 'walk_in'],
+      orderingDoctor: payload.ordering_doctor?.trim() ?? '',
+      notes: payload.notes?.trim() ?? '',
+      assignedTechnician: null,
+      technicianName: '',
+      scheduledAt: payload.scheduled_at,
+      requestedAt: now,
+      updatedAt: now,
+      auditLogs: [
+        {
+          id: 1,
+          action: 'Lab request created',
+          performedBy: user?.id ?? null,
+          performedByName: user?.name?.trim() || 'Patient',
+          timestamp: now,
+        },
+      ],
+      result: null,
+    }
+
+    saveLocalLabRequests([record, ...requests])
+    return record
+  }
 }

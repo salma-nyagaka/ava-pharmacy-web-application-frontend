@@ -14,7 +14,7 @@
   min-height: 100vh;
   width: 100%;
   box-sizing: border-box;
-  padding: 1.5rem 3rem 3rem;
+  padding: 1rem 1.25rem 2rem;
   max-width: none;
   margin: 0;
 }
@@ -232,6 +232,82 @@
 
 .product-management__table tbody tr:hover {
   background: #fafafa;
+}
+
+/* Variants */
+.pf-variant-panel {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.pf-variant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.pf-variant-title {
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.15rem;
+}
+
+.pf-variant-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+}
+
+.pf-variant-table-wrap {
+  overflow-x: auto;
+}
+
+.pf-variant-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.825rem;
+}
+
+.pf-variant-table th {
+  text-align: left;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.pf-variant-table td {
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid #edf2f7;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.pf-variant-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pf-variant-form {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.pf-variant-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 .td--muted {

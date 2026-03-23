@@ -1,6 +1,14 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { AdminUserRole, PharmacistPermission, adminRoleOptions, formatAdminRole, saveAdminUsers, pharmacistPermissionOptions } from '../../data/adminUsers'
+import {
+  AdminUserRole,
+  PharmacistPermission,
+  adminRoleOptions,
+  formatAdminRole,
+  saveAdminUsers,
+  pharmacistPermissionOptions,
+  type AdminUser,
+} from '../../data/adminUsers'
 import { logAdminAction } from '../../data/adminAudit'
 import { AdminUserError, adminUserService } from '../../services/adminUserService'
 import '../../styles/admin/shared/AdminEntityManagement.css'
@@ -41,7 +49,7 @@ function UserManagement() {
   const [selectedRole, setSelectedRole] = useState<AdminUserRole | 'all'>(() => getRoleFromSearchParams(searchParams.get('role')))
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
-  const [users, setUsers] = useState<import('../../data/adminUsers').AdminUser[]>([])
+  const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [resendingId, setResendingId] = useState<number | null>(null)
@@ -170,14 +178,15 @@ function UserManagement() {
         : await adminUserService.suspendUser(userId)
 
       setUsers((prev) => {
-        const nextUsers = prev.map((user) => user.id === userId
-          ? {
-              ...user,
-              status: response.status === 'suspended' ? 'suspended' : 'active',
-              accountActivated: response.is_active ?? user.accountActivated,
-            }
-          : user
-        )
+        const nextUsers = prev.map<AdminUser>((user) => (
+          user.id === userId
+            ? {
+                ...user,
+                status: response.status === 'suspended' ? 'suspended' : 'active',
+                accountActivated: response.is_active ?? user.accountActivated,
+              }
+            : user
+        ))
         saveAdminUsers(nextUsers)
         return nextUsers
       })
@@ -200,8 +209,6 @@ function UserManagement() {
       setResendingId(null)
     }
   }
-
-  const isPharmacistView = selectedRole === 'pharmacist'
 
   return (
     <div className="category-management user-management">

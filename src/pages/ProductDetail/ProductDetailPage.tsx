@@ -284,7 +284,7 @@ function ProductDetailPage() {
               <p>{product.description}</p>
             </div>
 
-            {/* Quantity & Add to Cart */}
+            {/* Quantity & Add to cart */}
             {product.requiresPrescription ? (
               <div className="pdp__rx-gate">
                 <div className="pdp__rx-gate-badge">
@@ -336,7 +336,7 @@ function ProductDetailPage() {
                       <circle cx="20" cy="21" r="1"/>
                       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
                     </svg>
-                    Add to Cart
+                    Add to cart
                   </button>
                 ) : (
                   <button className="btn btn--outline btn--lg pdp__add-to-cart" type="button" onClick={() => setRestockEnabled((prev) => !prev)}>

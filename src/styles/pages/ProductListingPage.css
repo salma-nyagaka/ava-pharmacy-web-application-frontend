@@ -702,11 +702,6 @@
   cursor: pointer;
 }
 
-.product-card__add-to-cart svg {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-}
 
 .product-card__add-to-cart:not(:disabled):hover {
   background: #c01040;

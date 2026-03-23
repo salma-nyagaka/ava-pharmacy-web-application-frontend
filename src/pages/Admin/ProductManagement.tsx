@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
+import { SearchableMultiSelect } from '../../components/SearchableMultiSelect/SearchableMultiSelect'
 import {
   adminProductService,
   ApiBrand,
@@ -9,6 +10,8 @@ import {
   ApiHealthConcern,
   ApiProductSubcategory,
   ApiProduct,
+  ApiProductVariant,
+  ProductVariantPayload,
   ProductCreatePayload,
 } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
@@ -175,6 +178,8 @@ function ProductManagement() {
   const [productName, setProductName] = useState('')
   const [productSlug, setProductSlug] = useState('')
   const [productSku, setProductSku] = useState('')
+  const [productBarcode, setProductBarcode] = useState('')
+  const [productPosProductId, setProductPosProductId] = useState('')
   const [productStrength, setProductStrength] = useState('')
   const [productPrice, setProductPrice] = useState('')
   const [productCostPrice, setProductCostPrice] = useState('')
@@ -198,6 +203,25 @@ function ProductManagement() {
   const [productImageFile, setProductImageFile] = useState<File | null>(null)
   const [productImagePreviewSrc, setProductImagePreviewSrc] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
+  const [variants, setVariants] = useState<ApiProductVariant[]>([])
+  const [variantsLoading, setVariantsLoading] = useState(false)
+  const [variantsError, setVariantsError] = useState('')
+  const [showVariantForm, setShowVariantForm] = useState(false)
+  const [editingVariant, setEditingVariant] = useState<ApiProductVariant | null>(null)
+  const [variantName, setVariantName] = useState('')
+  const [variantSku, setVariantSku] = useState('')
+  const [variantBarcode, setVariantBarcode] = useState('')
+  const [variantPosProductId, setVariantPosProductId] = useState('')
+  const [variantPrice, setVariantPrice] = useState('')
+  const [variantOriginalPrice, setVariantOriginalPrice] = useState('')
+  const [variantStockQuantity, setVariantStockQuantity] = useState('0')
+  const [variantLowStockThreshold, setVariantLowStockThreshold] = useState('5')
+  const [variantAllowBackorder, setVariantAllowBackorder] = useState(false)
+  const [variantMaxBackorderQuantity, setVariantMaxBackorderQuantity] = useState('0')
+  const [variantIsActive, setVariantIsActive] = useState(true)
+  const [variantAttributesText, setVariantAttributesText] = useState('{}')
+  const [variantSaving, setVariantSaving] = useState(false)
+  const [variantFormError, setVariantFormError] = useState('')
   const [showBrandModal, setShowBrandModal] = useState(false)
   const [brandName, setBrandName] = useState('')
   const [brandDescription, setBrandDescription] = useState('')
@@ -242,6 +266,8 @@ function ProductManagement() {
     setProductName('')
     setProductSlug('')
     setProductSku('')
+    setProductBarcode('')
+    setProductPosProductId('')
     setProductStrength('')
     setProductPrice('')
     setProductCostPrice('')
@@ -265,6 +291,25 @@ function ProductManagement() {
     setProductImageFile(null)
     setEditingProduct(null)
     setFormError('')
+    setVariants([])
+    setVariantsLoading(false)
+    setVariantsError('')
+    setShowVariantForm(false)
+    setEditingVariant(null)
+    setVariantName('')
+    setVariantSku('')
+    setVariantBarcode('')
+    setVariantPosProductId('')
+    setVariantPrice('')
+    setVariantOriginalPrice('')
+    setVariantStockQuantity('0')
+    setVariantLowStockThreshold('5')
+    setVariantAllowBackorder(false)
+    setVariantMaxBackorderQuantity('0')
+    setVariantIsActive(true)
+    setVariantAttributesText('{}')
+    setVariantSaving(false)
+    setVariantFormError('')
   }
 
   const openAddModal = () => {
@@ -307,6 +352,8 @@ function ProductManagement() {
     setProductName(product.name)
     setProductSlug(product.slug ?? generateSlug(product.name))
     setProductSku(product.sku)
+    setProductBarcode(product.barcode ?? '')
+    setProductPosProductId(product.pos_product_id ?? '')
     setProductStrength(product.strength ?? '')
     setProductPrice(product.price)
     setProductCostPrice(product.cost_price ?? '')
@@ -331,13 +378,160 @@ function ProductManagement() {
     setProductImagePreviewSrc(product.image ?? null)
     setEditingProduct(product)
     setFormError('')
+    setVariants([])
+    setVariantsError('')
+    setShowVariantForm(false)
+    setEditingVariant(null)
+    void loadVariants(product.id)
     setShowAddModal(true)
+  }
+
+  const loadVariants = async (productId: number) => {
+    setVariantsLoading(true)
+    setVariantsError('')
+    try {
+      const rows = await adminProductService.listProductVariants(productId)
+      setVariants(rows)
+    } catch {
+      setVariantsError('Failed to load variants.')
+    } finally {
+      setVariantsLoading(false)
+    }
+  }
+
+  const resetVariantForm = () => {
+    setEditingVariant(null)
+    setVariantName('')
+    setVariantSku('')
+    setVariantBarcode('')
+    setVariantPosProductId('')
+    setVariantPrice('')
+    setVariantOriginalPrice('')
+    setVariantStockQuantity('0')
+    setVariantLowStockThreshold('5')
+    setVariantAllowBackorder(false)
+    setVariantMaxBackorderQuantity('0')
+    setVariantIsActive(true)
+    setVariantAttributesText('{}')
+    setVariantFormError('')
+  }
+
+  const openAddVariant = () => {
+    resetVariantForm()
+    setShowVariantForm(true)
+  }
+
+  const openEditVariant = (variant: ApiProductVariant) => {
+    setEditingVariant(variant)
+    setVariantName(variant.name ?? '')
+    setVariantSku(variant.sku ?? '')
+    setVariantBarcode(variant.barcode ?? '')
+    setVariantPosProductId(variant.pos_product_id ?? '')
+    setVariantPrice(variant.price ?? '')
+    setVariantOriginalPrice(variant.original_price ?? '')
+    setVariantStockQuantity(String(variant.stock_quantity ?? 0))
+    setVariantLowStockThreshold(String(variant.low_stock_threshold ?? 5))
+    setVariantAllowBackorder(Boolean(variant.allow_backorder))
+    setVariantMaxBackorderQuantity(String(variant.max_backorder_quantity ?? 0))
+    setVariantIsActive(Boolean(variant.is_active))
+    setVariantAttributesText(JSON.stringify(variant.attributes ?? {}, null, 2))
+    setVariantFormError('')
+    setShowVariantForm(true)
+  }
+
+  const handleSaveVariant = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!editingProduct) return
+    if (!variantName.trim()) { setVariantFormError('Variant name is required.'); return }
+    if (!variantPosProductId.trim()) { setVariantFormError('POS Product ID is required.'); return }
+
+    let attributes: Record<string, unknown> = {}
+    if (variantAttributesText.trim()) {
+      try {
+        attributes = JSON.parse(variantAttributesText)
+        if (typeof attributes !== 'object' || Array.isArray(attributes) || attributes === null) {
+          setVariantFormError('Attributes must be a JSON object.')
+          return
+        }
+      } catch {
+        setVariantFormError('Attributes must be valid JSON.')
+        return
+      }
+    }
+
+    const stockQuantity = Math.max(0, Number.parseInt(variantStockQuantity, 10) || 0)
+    const lowStockThreshold = Math.max(0, Number.parseInt(variantLowStockThreshold, 10) || 0)
+    const maxBackorder = variantAllowBackorder
+      ? Math.max(0, Number.parseInt(variantMaxBackorderQuantity, 10) || 0)
+      : 0
+
+    if (variantAllowBackorder && maxBackorder === 0) {
+      setVariantFormError('Set a max backorder quantity greater than 0 when backorder is enabled.')
+      return
+    }
+
+    const skuValue = variantSku.trim() || generateSku(variantName)
+    const priceValue = variantPrice ? Number(variantPrice) : undefined
+    if (variantPrice && !Number.isFinite(priceValue)) {
+      setVariantFormError('Variant price must be a valid number.')
+      return
+    }
+    const originalPriceValue = variantOriginalPrice ? Number(variantOriginalPrice) : undefined
+    if (variantOriginalPrice && !Number.isFinite(originalPriceValue)) {
+      setVariantFormError('Original price must be a valid number.')
+      return
+    }
+
+    const payload: ProductVariantPayload = {
+      name: variantName.trim(),
+      sku: skuValue,
+      barcode: variantBarcode.trim(),
+      pos_product_id: variantPosProductId.trim(),
+      attributes,
+      price: priceValue,
+      original_price: originalPriceValue,
+      stock_quantity: stockQuantity,
+      low_stock_threshold: lowStockThreshold,
+      allow_backorder: variantAllowBackorder,
+      max_backorder_quantity: maxBackorder,
+      is_active: variantIsActive,
+    }
+
+    setVariantSaving(true)
+    setVariantFormError('')
+    try {
+      if (editingVariant) {
+        const updated = await adminProductService.updateProductVariant(editingProduct.id, editingVariant.id, payload)
+        setVariants((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
+      } else {
+        const created = await adminProductService.createProductVariant(editingProduct.id, payload)
+        setVariants((prev) => [...prev, created])
+      }
+      setShowVariantForm(false)
+      resetVariantForm()
+    } catch {
+      setVariantFormError('Failed to save variant.')
+    } finally {
+      setVariantSaving(false)
+    }
+  }
+
+  const handleDeleteVariant = async (variant: ApiProductVariant) => {
+    if (!editingProduct) return
+    if (!window.confirm(`Delete variant "${variant.name}"?`)) return
+    try {
+      await adminProductService.deleteProductVariant(editingProduct.id, variant.id)
+      setVariants((prev) => prev.filter((row) => row.id !== variant.id))
+    } catch {
+      setVariantsError('Failed to delete variant.')
+    }
   }
 
   const handleSaveProduct = async (e: FormEvent) => {
     e.preventDefault()
     if (!productName.trim()) { setFormError('Product name is required.'); return }
     if (!productPrice) { setFormError('Price is required.'); return }
+    if (!productPosProductId.trim()) { setFormError('POS Product ID is required.'); return }
     if (productBrandId === '') {
       setFormError(brands.length === 0 ? 'Create a brand before adding a product.' : 'Brand is required.')
       return
@@ -371,6 +565,8 @@ function ProductManagement() {
       name: productName.trim(),
       slug,
       sku,
+      barcode: productBarcode.trim(),
+      pos_product_id: productPosProductId.trim(),
       strength: productStrength.trim(),
       price: priceValue,
       cost_price: costPriceValue,
@@ -403,6 +599,8 @@ function ProductManagement() {
       formData.append('name', payload.name)
       formData.append('slug', payload.slug)
       formData.append('sku', payload.sku)
+      formData.append('barcode', payload.barcode ?? '')
+      formData.append('pos_product_id', payload.pos_product_id ?? '')
       formData.append('price', String(payload.price))
       formData.append('is_active', String(payload.is_active))
       formData.append('requires_prescription', String(payload.requires_prescription))
@@ -1135,7 +1333,7 @@ function ProductManagement() {
                 <h2>{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
                 <span className="modal__header-sub">All fields marked * are required</span>
               </div>
-              <button className="modal__close" onClick={() => setShowAddModal(false)}>
+              <button className="modal__close" onClick={() => { setShowAddModal(false); resetForm() }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
@@ -1179,6 +1377,43 @@ function ProductManagement() {
                   </div>
                   <div className="pf-row">
                     <div className="pf-field">
+                      <label className="pf-label">SKU <span className="pf-optional">optional</span></label>
+                      <input
+                        className="pf-input"
+                        type="text"
+                        placeholder="Auto-generated if blank"
+                        value={productSku}
+                        onChange={(e) => setProductSku(e.target.value)}
+                      />
+                    </div>
+                    <div className="pf-field">
+                      <label className="pf-label">Barcode <span className="pf-optional">optional</span></label>
+                      <input
+                        className="pf-input"
+                        type="text"
+                        placeholder="Scan or enter barcode"
+                        value={productBarcode}
+                        onChange={(e) => setProductBarcode(e.target.value)}
+                      />
+                    </div>
+                    <div className="pf-field">
+                      <label className="pf-label">POS Product ID <span className="pf-req">*</span></label>
+                      <input
+                        className="pf-input"
+                        type="text"
+                        placeholder="POS item identifier"
+                        value={productPosProductId}
+                        onChange={(e) => setProductPosProductId(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="pf-row">
+                    <div className="pf-field">
+                      <span className="pf-hint">POS Product ID is the item identifier in the POS system. We match products to POS items using POS Product ID.</span>
+                    </div>
+                  </div>
+                  <div className="pf-row">
+                    <div className="pf-field">
                       <label className="pf-label">Brand <span className="pf-req">*</span></label>
                       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                         <SearchableSelect
@@ -1216,26 +1451,12 @@ function ProductManagement() {
                   {allConcerns.length > 0 && (
                     <div className="pf-field">
                       <label className="pf-label">Health Concerns <span className="pf-optional">optional</span></label>
-                      <div className="pf-concern-grid">
-                        {allConcerns.filter((c) => c.is_active).map((c) => {
-                          const checked = productHealthConcernIds.includes(c.id)
-                          return (
-                            <label key={c.id} className={`pf-concern-chip${checked ? ' pf-concern-chip--selected' : ''}`}>
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() =>
-                                  setProductHealthConcernIds((prev) =>
-                                    checked ? prev.filter((id) => id !== c.id) : [...prev, c.id]
-                                  )
-                                }
-                              />
-                              {c.icon && <span>{c.icon}</span>}
-                              {c.name}
-                            </label>
-                          )
-                        })}
-                      </div>
+                      <SearchableMultiSelect
+                        value={productHealthConcernIds}
+                        onChange={(values) => setProductHealthConcernIds(values.map((v) => Number(v)))}
+                        options={allConcerns.filter((c) => c.is_active).map((c) => ({ value: c.id, label: c.name }))}
+                        placeholder="Select one or more concerns…"
+                      />
                     </div>
                   )}
                   <div className="pf-field">
@@ -1403,6 +1624,168 @@ function ProductManagement() {
                 </div>
 
                 <div className="pf-section">
+                  <div className="pf-section__label">Variants</div>
+                  {!editingProduct && (
+                    <span className="pf-hint">Save the product first, then add variants (sizes, strengths, packs).</span>
+                  )}
+                  {editingProduct && (
+                    <div className="pf-variant-panel">
+                      <div className="pf-variant-header">
+                        <div>
+                          <div className="pf-variant-title">Variants</div>
+                          <div className="pf-hint">Variants are different sellable versions of the same product. Each variant must have its own POS Product ID for POS matching.</div>
+                        </div>
+                        <button type="button" className="btn btn--ghost pf-variant-btn" onClick={openAddVariant}>Add Variant</button>
+                      </div>
+
+                      {variantsError && (
+                        <div className="form-alert form-alert--error">
+                          <span>{variantsError}</span>
+                        </div>
+                      )}
+
+                      {variantsLoading && <div className="pf-hint">Loading variants…</div>}
+
+                      {!variantsLoading && variants.length === 0 && (
+                        <div className="pf-hint">No variants yet.</div>
+                      )}
+
+                      {!variantsLoading && variants.length > 0 && (
+                        <div className="pf-variant-table-wrap">
+                          <table className="pf-variant-table">
+                            <thead>
+                              <tr>
+                                <th>Name</th>
+                                <th>SKU</th>
+                                <th>Barcode</th>
+                                <th>POS ID</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Status</th>
+                                <th className="pf-variant-actions">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {variants.map((variant) => (
+                                <tr key={variant.id}>
+                                  <td>{variant.name}</td>
+                                  <td>{variant.sku}</td>
+                                  <td>{variant.barcode ?? '—'}</td>
+                                  <td>{variant.pos_product_id ?? '—'}</td>
+                                  <td>{formatCurrency(variant.price ?? variant.effective_price)}</td>
+                                  <td>{variant.stock_quantity}</td>
+                                  <td>{variant.is_active ? 'Active' : 'Inactive'}</td>
+                                  <td className="pf-variant-actions">
+                                    <button type="button" className="cm-row-btn cm-row-btn--edit" onClick={() => openEditVariant(variant)}>
+                                      Edit
+                                    </button>
+                                    <button type="button" className="cm-row-btn cm-row-btn--delete" onClick={() => handleDeleteVariant(variant)}>
+                                      Delete
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {showVariantForm && (
+                        <form className="pf-variant-form" onSubmit={handleSaveVariant}>
+                          {variantFormError && (
+                            <div className="form-alert form-alert--error">
+                              <span>{variantFormError}</span>
+                            </div>
+                          )}
+
+                          <div className="pf-row">
+                            <div className="pf-field">
+                              <label className="pf-label">Variant Name <span className="pf-req">*</span></label>
+                              <input className="pf-input" type="text" value={variantName} onChange={(e) => setVariantName(e.target.value)} placeholder="e.g. 500mg - 20 tablets" />
+                            </div>
+                            <div className="pf-field">
+                              <label className="pf-label">SKU <span className="pf-optional">optional</span></label>
+                              <input className="pf-input" type="text" value={variantSku} onChange={(e) => setVariantSku(e.target.value)} placeholder="Auto-generated if blank" />
+                            </div>
+                          </div>
+
+                          <div className="pf-row">
+                            <div className="pf-field">
+                              <label className="pf-label">Barcode <span className="pf-optional">optional</span></label>
+                              <input className="pf-input" type="text" value={variantBarcode} onChange={(e) => setVariantBarcode(e.target.value)} placeholder="Scan or enter barcode" />
+                            </div>
+                            <div className="pf-field">
+                              <label className="pf-label">POS Product ID <span className="pf-req">*</span></label>
+                              <input className="pf-input" type="text" value={variantPosProductId} onChange={(e) => setVariantPosProductId(e.target.value)} placeholder="POS item identifier" />
+                            </div>
+                          </div>
+
+                          <div className="pf-row">
+                            <div className="pf-field">
+                              <label className="pf-label">Variant Price <span className="pf-optional">optional</span></label>
+                              <div className="pf-prefix-wrap">
+                                <span className="pf-prefix">KSh</span>
+                                <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" value={variantPrice} onChange={(e) => setVariantPrice(e.target.value)} placeholder="0.00" />
+                              </div>
+                            </div>
+                            <div className="pf-field">
+                              <label className="pf-label">Original Price <span className="pf-optional">optional</span></label>
+                              <div className="pf-prefix-wrap">
+                                <span className="pf-prefix">KSh</span>
+                                <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" value={variantOriginalPrice} onChange={(e) => setVariantOriginalPrice(e.target.value)} placeholder="0.00" />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pf-row">
+                            <div className="pf-field">
+                              <label className="pf-label">Stock Quantity</label>
+                              <input className="pf-input" type="number" min="0" value={variantStockQuantity} onChange={(e) => setVariantStockQuantity(e.target.value)} />
+                            </div>
+                            <div className="pf-field">
+                              <label className="pf-label">Low Stock Threshold</label>
+                              <input className="pf-input" type="number" min="0" value={variantLowStockThreshold} onChange={(e) => setVariantLowStockThreshold(e.target.value)} />
+                            </div>
+                          </div>
+
+                          <div className="pf-row">
+                            <div className="pf-field">
+                              <label className="pf-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <input type="checkbox" checked={variantAllowBackorder} onChange={(e) => setVariantAllowBackorder(e.target.checked)} />
+                                Allow Backorder
+                              </label>
+                              {variantAllowBackorder && (
+                                <input className="pf-input" type="number" min="0" value={variantMaxBackorderQuantity} onChange={(e) => setVariantMaxBackorderQuantity(e.target.value)} />
+                              )}
+                            </div>
+                            <div className="pf-field">
+                              <label className="pf-label">Status</label>
+                              <select className="pf-input" value={variantIsActive ? 'active' : 'inactive'} onChange={(e) => setVariantIsActive(e.target.value === 'active')}>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="pf-field">
+                            <label className="pf-label">Attributes (JSON) <span className="pf-optional">optional</span></label>
+                            <textarea className="pf-input pf-textarea" rows={3} value={variantAttributesText} onChange={(e) => setVariantAttributesText(e.target.value)} />
+                            <span className="pf-hint">Example: {"{\"size\":\"500mg\",\"pack\":\"20\"}"}</span>
+                          </div>
+
+                          <div className="pf-variant-form__actions">
+                            <button type="button" className="btn btn--secondary" onClick={() => { setShowVariantForm(false); resetVariantForm() }}>Cancel</button>
+                            <button type="submit" className="btn btn--primary" disabled={variantSaving}>
+                              {variantSaving ? 'Saving…' : editingVariant ? 'Save Variant' : 'Add Variant'}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pf-section">
                   <div className="pf-section__label">Inventory</div>
                   <div className="pf-row">
                     <div className="pf-field">
@@ -1449,7 +1832,7 @@ function ProductManagement() {
               </div>
 
               <div className="modal__footer">
-                <button type="button" className="btn btn--secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                <button type="button" className="btn btn--secondary" onClick={() => { setShowAddModal(false); resetForm() }}>Cancel</button>
                 <button type="submit" className="btn btn--primary" disabled={saving}>
                   {saving ? (
                     <><span className="btn-spinner" />Saving…</>
