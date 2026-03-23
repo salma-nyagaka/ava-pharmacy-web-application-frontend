@@ -262,7 +262,10 @@ function HomePage() {
           {product.rating > 0 && (
             <div className="product-card__rating">
               <div className="product-card__stars">{renderStars(product.rating)}</div>
-              {product.reviews > 0 && <span className="product-card__reviews">({product.reviews})</span>}
+              <span className="product-card__rating-value">{product.rating.toFixed(1)}</span>
+              {product.reviews > 0 && (
+                <span className="product-card__reviews">{product.reviews} review{product.reviews === 1 ? '' : 's'}</span>
+              )}
             </div>
           )}
           <div className="product-card__spacer" />
@@ -422,7 +425,7 @@ function HomePage() {
           <div className="section__header">
             <h2 className="section__title">Featured Products</h2>
             <p className="section__subtitle">
-              Top-bought favourites customers are loving right now.
+              Top-rated favourites customers trust most, with bestsellers filling in when reviews are still building.
             </p>
           </div>
           {featuredProducts.length === 0 ? (
