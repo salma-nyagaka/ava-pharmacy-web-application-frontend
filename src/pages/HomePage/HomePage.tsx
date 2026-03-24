@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import backgroundBanner from '../../assets/images/banner/background.jpg'
 import { cartService } from '../../services/cartService'
+import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
 import { mapApiProduct, useProducts } from '../../hooks/useProducts'
 import { useCatalog } from '../../context/CatalogContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
+import { useAuth } from '../../context/AuthContext'
 import type { CatalogProduct } from '../../data/products'
 import '../../styles/pages/HomePage.css'
 
@@ -19,8 +21,11 @@ function HomePage() {
   const [newsletterError, setNewsletterError] = useState('')
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
+  const navigate = useNavigate()
   const { categories } = useCatalog()
   const { settings } = useSiteSettings()
+  const { isLoggedIn } = useAuth()
+  const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
 
   const valueBannerItems = [
     { key: 'delivery', title: 'Free Delivery',       subtitle: `On orders over KSh ${settings.freeDeliveryThreshold.toLocaleString()}`, link: '/help', color: 'green'  },
@@ -32,6 +37,9 @@ function HomePage() {
   const { products: catalogProducts } = useProducts({ page_size: 200 })
   const [featuredProducts, setFeaturedProducts] = useState<CatalogProduct[]>([])
 
+  const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name'>) =>
+    `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+
   const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
   const isDealProduct = (product: CatalogProduct) => product.originalPrice !== null && product.originalPrice > product.price
   const getDealSavings = (product: CatalogProduct) => (product.originalPrice ?? product.price) - product.price
@@ -40,6 +48,28 @@ function HomePage() {
     if (product.badge?.trim()) return product.badge.trim()
     return null
   }
+
+  const refreshWishlist = () => {
+    if (!isLoggedIn) {
+      setWishlist({})
+      return
+    }
+    void favouritesService.list()
+      .then((response) => {
+        const next: Record<number, boolean> = {}
+        response.data.forEach((item) => {
+          next[item.id] = true
+        })
+        setWishlist(next)
+      })
+      .catch(() => setWishlist({}))
+  }
+
+  useEffect(() => {
+    refreshWishlist()
+    if (!isLoggedIn) return undefined
+    return favouritesService.subscribe(refreshWishlist)
+  }, [isLoggedIn])
 
   useEffect(() => {
     let isMounted = true
@@ -177,15 +207,14 @@ function HomePage() {
     setTimeout(() => setNewsletterSuccess(false), 5000)
   }
 
-  const handleAddToCart = (product: {
-    id: number
-    name: string
-    brand: string
-    price: number
-    image: string
-    stockSource?: 'branch' | 'warehouse' | 'out'
-  }) => {
-    void cartService.add({
+  const handleAddToCart = async (product: CatalogProduct) => {
+    if (product.requiresPrescription) {
+      const prescriptionPath = prescriptionPathFor(product)
+      navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
+      return
+    }
+
+    await cartService.add({
       id: product.id,
       name: product.name,
       brand: product.brand,
@@ -197,6 +226,24 @@ function HomePage() {
     window.setTimeout(() => {
       setAddedId((prev) => (prev === product.id ? null : prev))
     }, 1200)
+  }
+
+  const toggleWishlist = (product: CatalogProduct) => {
+    const redirectTarget = `${window.location.pathname}${window.location.search}`
+    if (!isLoggedIn) {
+      navigate(`/login?redirect=${encodeURIComponent(redirectTarget)}`)
+      return
+    }
+
+    void favouritesService.toggle({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      image: product.image,
+      stockSource: product.stockSource,
+    }).then(refreshWishlist).catch(() => {})
   }
 
   const renderBannerIcon = (key: (typeof valueBannerItems)[number]['key']) => {
@@ -247,8 +294,15 @@ function HomePage() {
           )}
           <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
           <div className="product-card__actions">
-            <button className="product-card__action" title="Add to Wishlist" onClick={(e) => e.preventDefault()}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <button
+              className={`product-card__action ${wishlist[product.id] ? 'product-card__action--active' : ''}`}
+              title={wishlist[product.id] ? 'Remove from favourites' : 'Save to favourites'}
+              onClick={(e) => {
+                e.preventDefault()
+                toggleWishlist(product)
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill={wishlist[product.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
               </svg>
             </button>
@@ -279,10 +333,10 @@ function HomePage() {
             <button
               className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`}
               type="button"
-              title="Add to cart"
-              onClick={() => handleAddToCart(product)}
+              title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
+              onClick={() => void handleAddToCart(product)}
             >
-              {addedId === product.id ? 'Added!' : 'Add to cart'}
+              {product.requiresPrescription ? 'Request with presciption' : addedId === product.id ? 'Added!' : 'Add to cart'}
             </button>
           </div>
         </div>

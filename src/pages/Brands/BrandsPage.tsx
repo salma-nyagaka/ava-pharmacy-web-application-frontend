@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
 import { loadCatalogProducts } from '../../data/products'
 import { categoryData } from '../../data/categories'
 import '../../styles/pages/BrandsPage.css'
 import '../../styles/pages/ProductListingPage.css'
+import { useAuth } from '../../context/AuthContext'
 
 const getStockLabel = (s: string) =>
   s === 'branch' ? 'In stock at selected branch' : s === 'warehouse' ? 'Available in central warehouse (2-3 days)' : 'Out of stock'
@@ -26,6 +27,8 @@ const getColor = (name: string) => CARD_COLORS[name.charCodeAt(0) % CARD_COLORS.
 
 function BrandsPage() {
   const { brand } = useParams()
+  const navigate = useNavigate()
+  const { isLoggedIn } = useAuth()
   const products = loadCatalogProducts()
 
   const slugify  = (v: string) => v.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
@@ -99,6 +102,11 @@ function BrandsPage() {
 
   const handleAddToCart = (product: typeof products[0]) => {
     if (product.stockSource === 'out') return
+    if (product.requiresPrescription) {
+      const prescriptionPath = `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+      navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
+      return
+    }
     void cartService.add({ id: product.id, name: product.name, brand: product.brand, price: product.price, image: product.image, stockSource: product.stockSource })
     setAddedId(product.id)
     window.setTimeout(() => setAddedId((prev) => prev === product.id ? null : prev), 1200)
@@ -315,7 +323,7 @@ function BrandsPage() {
                         {addedId === product.id ? (
                           <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>Added</>
                         ) : (
-                          <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to cart</>
+                          <>{product.requiresPrescription ? 'Request with presciption' : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to cart</>}</>
                         )}
                       </button>
                     ) : (

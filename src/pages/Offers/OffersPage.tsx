@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
 import { useProducts } from '../../hooks/useProducts'
 import '../../styles/pages/OffersPage.css'
 import '../../styles/pages/ProductListingPage.css'
+import { useAuth } from '../../context/AuthContext'
 
 const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
 const hasDeal = (price: number, originalPrice: number | null) => (originalPrice ?? price) > price
@@ -21,6 +22,8 @@ const renderStars = (rating: number) => {
 }
 
 function OffersPage() {
+  const navigate = useNavigate()
+  const { isLoggedIn } = useAuth()
   const { products } = useProducts({ page_size: 200 })
   const allDeals = useMemo(
     () => products.filter((product) => product.stockSource !== 'out' && hasDeal(product.price, product.originalPrice)),
@@ -100,6 +103,11 @@ function OffersPage() {
     setSelectedBrands((prev) => prev.includes(brand) ? prev.filter((item) => item !== brand) : [...prev, brand])
 
   const handleAddToCart = (deal: typeof allDeals[number]) => {
+    if (deal.requiresPrescription) {
+      const prescriptionPath = `/prescriptions?product_id=${deal.id}&product_name=${encodeURIComponent(deal.name)}`
+      navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
+      return
+    }
     void cartService.add({
       id: deal.id,
       name: deal.name,
@@ -231,7 +239,7 @@ function OffersPage() {
                       {addedId === deal.id ? (
                         <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>Added</>
                       ) : (
-                        <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to cart</>
+                        <>{deal.requiresPrescription ? 'Request with presciption' : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to cart</>}</>
                       )}
                     </button>
                   </div>

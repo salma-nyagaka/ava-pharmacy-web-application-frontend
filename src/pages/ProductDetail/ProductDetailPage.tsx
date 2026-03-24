@@ -151,13 +151,13 @@ function ProductDetailPage() {
     return 'Out of stock - set a restock alert'
   }
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (product.requiresPrescription) {
       setCartMessage('Upload a valid prescription first. Approved prescription items can then be requested from your prescription history.')
       return
     }
     if (!product.inStock) return
-    void cartService.add(
+    await cartService.add(
       {
         id: product.id,
         name: product.name,
@@ -330,7 +330,7 @@ function ProductDetailPage() {
                 </div>
 
                 {product.inStock ? (
-                  <button className="btn btn--primary btn--lg pdp__add-to-cart" type="button" onClick={handleAddToCart}>
+                  <button className="btn btn--primary btn--lg pdp__add-to-cart" type="button" onClick={() => void handleAddToCart()}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="9" cy="21" r="1"/>
                       <circle cx="20" cy="21" r="1"/>

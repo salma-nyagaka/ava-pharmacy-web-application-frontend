@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/apiClient'
+import { apiClient, resolveMediaUrl } from '../lib/apiClient'
 import { FavouriteItem, subscribeFavourites } from '../data/favourites'
 
 const FAV_SERVICE_EVENT = 'ava-favourites-service-updated'
@@ -44,7 +44,7 @@ function mapApiItem(item: WishlistApiItem): FavouriteItem {
     brand: String(product.brand_name ?? ((product.brand as Record<string, unknown> | undefined)?.name ?? '')),
     price: Number.parseFloat(String(rawPrice)) || 0,
     originalPrice: rawOriginalPrice == null ? null : Number.parseFloat(String(rawOriginalPrice)) || null,
-    image: String(product.image ?? ''),
+    image: resolveMediaUrl(String(product.image ?? '')) ?? '',
     stockSource,
   }
 }

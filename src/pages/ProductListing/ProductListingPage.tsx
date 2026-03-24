@@ -123,6 +123,9 @@ function ProductListingPage() {
     return favouritesService.subscribe(refreshWishlist)
   }, [])
 
+  const prescriptionPathFor = (product: Pick<ListingProduct, 'id' | 'name'>) =>
+    `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+
   const toggleWishlist = (product: ListingProduct) => {
     if (!isLoggedIn) {
       navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
@@ -235,6 +238,11 @@ function ProductListingPage() {
 
   const handleAddToCart = (product: ListingProduct) => {
     if (product.stockSource === 'out') return
+    if (product.requiresPrescription) {
+      const prescriptionPath = prescriptionPathFor(product)
+      navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
+      return
+    }
     void cartService.add({
       id: product.id,
       name: product.name,
@@ -540,7 +548,7 @@ function ProductListingPage() {
 
                     {product.stockSource !== 'out' ? (
                       <button className={`product-card__add-to-cart ${addedProductId === product.id ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
-                        {addedProductId === product.id ? 'Added!' : 'Add to cart'}
+                        {product.requiresPrescription ? 'Request with presciption' : addedProductId === product.id ? 'Added!' : 'Add to cart'}
                       </button>
                     ) : (
                       <button
