@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import FavouriteProductCard from '../../components/FavouriteProductCard/FavouriteProductCard'
 import { FavouriteItem } from '../../data/favourites'
 import { favouritesService } from '../../services/favouritesService'
+import '../../styles/pages/ProductListingPage.css'
 import '../../styles/pages/AccountFavouritesPage.css'
 
 function AccountFavouritesPage() {

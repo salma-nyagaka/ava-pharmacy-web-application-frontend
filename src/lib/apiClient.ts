@@ -52,6 +52,28 @@ export function extractAuthTokens(payload: unknown): { access: string | null; re
   }
 }
 
+
+export function getApiOrigin(): string {
+  try {
+    return new URL(BASE_URL).origin
+  } catch {
+    if (typeof window !== 'undefined') return window.location.origin
+    return ''
+  }
+}
+
+export function resolveMediaUrl(value: string | null | undefined): string | null {
+  if (!value) return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return trimmed
+  }
+  const origin = getApiOrigin()
+  if (!origin) return trimmed
+  return trimmed.startsWith('/') ? `${origin}${trimmed}` : `${origin}/${trimmed}`
+}
+
 export const apiClient = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },

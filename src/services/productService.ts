@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/apiClient'
+import { apiClient, resolveMediaUrl } from '../lib/apiClient'
 
 export interface Product {
   id: number
@@ -93,6 +93,27 @@ export interface NavHealthConcern {
   icon: string
 }
 
+
+function normalizeProduct(product: Product): Product {
+  return {
+    ...product,
+    image: resolveMediaUrl(product.image),
+  }
+}
+
+function normalizeProductDetail(product: ProductDetail): ProductDetail {
+  return {
+    ...normalizeProduct(product),
+    brand: {
+      ...product.brand,
+      logo: resolveMediaUrl(product.brand?.logo),
+    },
+    gallery: Array.isArray(product.gallery)
+      ? product.gallery.map((item) => ({ ...item, image: resolveMediaUrl(item.image) || item.image }))
+      : [],
+  }
+}
+
 export async function fetchProducts(filters: ProductFilters = {}): Promise<{ data: Product[]; meta: Record<string, unknown> }> {
   const params = Object.fromEntries(
     Object.entries(filters).filter(([, v]) => v !== undefined && v !== '' && v !== null)
@@ -104,19 +125,19 @@ export async function fetchProducts(filters: ProductFilters = {}): Promise<{ dat
   }
   const res = await apiClient.get(endpoint, { params })
   const payload = res.data?.data ?? res.data
-  if (Array.isArray(payload)) return { data: payload, meta: res.data?.meta ?? {} }
-  if (Array.isArray(payload?.products)) return { data: payload.products, meta: res.data?.meta ?? {} }
+  if (Array.isArray(payload)) return { data: payload.map(normalizeProduct), meta: res.data?.meta ?? {} }
+  if (Array.isArray(payload?.products)) return { data: payload.products.map(normalizeProduct), meta: res.data?.meta ?? {} }
   return { data: [], meta: res.data?.meta ?? {} }
 }
 
 export async function fetchProductBySlug(slug: string): Promise<ProductDetail> {
   const res = await apiClient.get(`/products/${slug}/`)
-  return res.data?.data ?? res.data
+  return normalizeProductDetail(res.data?.data ?? res.data)
 }
 
 export async function fetchProductById(id: number): Promise<ProductDetail> {
   const res = await apiClient.get(`/products/id/${id}/`)
-  return res.data?.data ?? res.data
+  return normalizeProductDetail(res.data?.data ?? res.data)
 }
 
 export async function searchProducts(query: string, filters: ProductFilters = {}): Promise<{ data: Product[]; meta: Record<string, unknown>; facets: unknown }> {
@@ -186,7 +207,7 @@ export async function fetchNavCategories(): Promise<NavCategory[]> {
         id: c.id,
         name: c.name,
         slug: c.slug,
-        image: c.image,
+        image: resolveMediaUrl(c.image),
         description: c.description ?? '',
         path: `/products?category=${c.slug}`,
         subcategories: (c.subcategories ?? [])
@@ -206,7 +227,7 @@ export async function fetchNavBrands(): Promise<NavBrand[]> {
       : Array.isArray(res.data?.results) ? res.data.results
       : Array.isArray(res.data) ? res.data
       : []
-    return raw.filter((b) => b.is_active).map((b) => ({ id: b.id, name: b.name, slug: b.slug, logo: b.logo }))
+    return raw.filter((b) => b.is_active).map((b) => ({ id: b.id, name: b.name, slug: b.slug, logo: resolveMediaUrl(b.logo) }))
   } catch {
     return []
   }
@@ -243,7 +264,8 @@ export async function fetchBrandBySlug(slug: string): Promise<PublicBrand | null
   try {
     const res = await apiClient.get('/products/brands/', { params: { slug } })
     const list: PublicBrand[] = res.data?.results ?? res.data?.data ?? res.data ?? []
-    return list.find((b) => b.slug === slug) ?? null
+    const found = list.find((b) => b.slug === slug) ?? null
+    return found ? { ...found, logo: resolveMediaUrl(found.logo) } : null
   } catch {
     return null
   }
@@ -252,8 +274,8 @@ export async function fetchBrandBySlug(slug: string): Promise<PublicBrand | null
 export async function fetchFeaturedProducts(): Promise<Product[]> {
   const res = await apiClient.get('/products/featured/', { params: { page_size: 12 } })
   const payload = res.data?.data ?? res.data
-  if (Array.isArray(payload)) return payload
-  if (Array.isArray(payload?.results)) return payload.results
+  if (Array.isArray(payload)) return payload.map(normalizeProduct)
+  if (Array.isArray(payload?.results)) return payload.results.map(normalizeProduct)
   return []
 }
 
