@@ -261,6 +261,23 @@ export const prescriptionService = {
     }
     return prescriptionService.list()
   },
+  resubmit: async (backendId: number, files: File[]) => {
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+    await apiClient.patch(`/prescriptions/${backendId}/resubmit/`, formData)
+    return prescriptionService.list()
+  },
+  pharmacistAssign: async (backendId: number) => {
+    await apiClient.post(`/pharmacist/prescriptions/${backendId}/assign/`)
+    return prescriptionService.list()
+  },
+  pharmacistReview: async (backendId: number, payload: {
+    action: 'approve' | 'reject' | 'request_clarification'
+    notes?: string
+  }) => {
+    await apiClient.post(`/pharmacist/prescriptions/${backendId}/review/`, payload)
+    return prescriptionService.list()
+  },
   addApprovedItemToCart: async (prescriptionId: string, itemId: number, quantity?: number) => {
     const prescription = await resolvePrescription(prescriptionId)
     const payload = quantity ? { quantity } : {}

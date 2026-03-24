@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import { apiClient, extractAuthTokens, refreshAccessToken, saveTokens, clearTokens } from '../lib/apiClient'
 import { cartService } from '../services/cartService'
 
-export type UserRole = 'patient' | 'doctor' | 'pediatrician' | 'pharmacist' | 'admin' | 'lab_technician'
+export type UserRole = 'patient' | 'doctor' | 'pediatrician' | 'pharmacist' | 'admin' | 'lab_partner' | 'lab_technician'
 
 export interface User {
   id: number

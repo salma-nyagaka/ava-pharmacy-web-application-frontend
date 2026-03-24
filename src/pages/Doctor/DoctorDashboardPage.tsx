@@ -15,6 +15,10 @@ import {
   saveDoctorMessages,
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
+import {
+  downloadClinicianPrescriptionPdf,
+  sendClinicianPrescription,
+} from '../../services/consultationService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/portals/DoctorDashboardPage.css'
@@ -319,6 +323,16 @@ function DoctorDashboardPage() {
     const updated = prescriptions.map((rx) => (rx.id === id ? { ...rx, status } : rx))
     setPrescriptions(updated)
     saveDoctorPrescriptions(updated)
+  }
+
+  const handleSendPrescription = (rx: DoctorPrescription) => {
+    if (!rx.backendId) { updatePrescriptionStatus(rx.id, 'Sent'); return }
+    void sendClinicianPrescription(rx.backendId).then(() => updatePrescriptionStatus(rx.id, 'Sent')).catch(() => updatePrescriptionStatus(rx.id, 'Sent'))
+  }
+
+  const handleDownloadPdf = (rx: DoctorPrescription) => {
+    if (!rx.backendId) return
+    void downloadClinicianPrescriptionPdf(rx.backendId)
   }
 
   const greeting = () => {
@@ -821,10 +835,19 @@ function DoctorDashboardPage() {
                             className="dd-action-btn dd-action-btn--start"
                             type="button"
                             disabled={rx.status === 'Sent' || rx.status === 'Dispensed'}
-                            onClick={() => updatePrescriptionStatus(rx.id, 'Sent')}
+                            onClick={() => handleSendPrescription(rx)}
                           >
                             Send
                           </button>
+                          {rx.backendId && (
+                            <button
+                              className="dd-action-btn"
+                              type="button"
+                              onClick={() => handleDownloadPdf(rx)}
+                            >
+                              PDF
+                            </button>
+                          )}
                           <button
                             className="dd-action-btn"
                             type="button"

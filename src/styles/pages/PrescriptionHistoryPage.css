@@ -102,3 +102,126 @@
   color: #64748b;
   font-size: 0.9rem;
 }
+
+/* Source filter tabs */
+.rx-source-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.rx-source-tab {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  color: #64748b;
+  transition: color 0.15s;
+}
+
+.rx-source-tab--active {
+  color: var(--color-primary, #E81750);
+  border-bottom-color: var(--color-primary, #E81750);
+}
+
+/* Expand button */
+.rx-expand-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  font-size: 0.625rem;
+  padding: 0.25rem;
+}
+
+/* Expanded row */
+.rx-expanded-row td {
+  background: #f8fafc;
+  border-top: none;
+}
+
+.rx-expanded {
+  padding: 0.875rem 1rem;
+  display: grid;
+  gap: 0.875rem;
+}
+
+.rx-expanded__section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.rx-expanded__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.rx-expanded__value {
+  font-size: 0.875rem;
+  color: #1e293b;
+  margin: 0;
+}
+
+.rx-expanded__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.rx-expanded__item-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #0f172a;
+}
+
+.rx-expanded__item-meta {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin-left: 0.5rem;
+}
+
+/* Audit log */
+.rx-audit {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.rx-audit__entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.rx-audit__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary, #E81750);
+  margin-top: 0.3rem;
+  flex-shrink: 0;
+}
+
+.rx-audit__action {
+  font-size: 0.875rem;
+  color: #1e293b;
+  margin: 0;
+}
+
+.rx-audit__time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0;
+}

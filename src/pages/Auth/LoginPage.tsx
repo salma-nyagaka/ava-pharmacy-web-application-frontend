@@ -49,6 +49,8 @@ function LoginPage() {
         navigate('/doctor/dashboard')
       } else if (loggedInUser.role === 'pediatrician') {
         navigate('/pediatrician/dashboard')
+      } else if (loggedInUser.role === 'lab_partner') {
+        navigate('/lab/dashboard')
       } else if (loggedInUser.role === 'lab_technician') {
         navigate('/labtech/dashboard')
       } else {

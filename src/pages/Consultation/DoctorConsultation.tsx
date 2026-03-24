@@ -7,12 +7,14 @@ import {
   ClinicianSummary,
   ConsultationRecord,
   createConsultation,
+  endConsultation,
   fetchConsultation,
   fetchDoctors,
   fetchMyConsultations,
   sendConsultationMessage,
   updateConsultation,
 } from '../../services/consultationService'
+import { useConsultationSocket } from '../../hooks/useConsultationSocket'
 import '../../styles/pages/ConsultationPage.css'
 
 type ConsultationViewState = 'form' | 'waiting' | 'chatting' | 'completed'
@@ -178,6 +180,30 @@ function DoctorConsultation() {
     [filteredDoctors, selectedDoctorId],
   )
 
+  const token = typeof window !== 'undefined' ? (localStorage.getItem('ava_access_token') ?? null) : null
+  const { messages: wsMessages, isConnected: wsConnected, typingUsers, sendMessage: wsSend, sendTyping } = useConsultationSocket(
+    currentConsultation?.id ?? null,
+    token,
+  )
+
+  // Merge WebSocket messages into consultation when they arrive
+  useEffect(() => {
+    if (!wsMessages.length) return
+    setCurrentConsultation((prev) => {
+      if (!prev) return prev
+      const existingIds = new Set(prev.messages.map((m) => m.id))
+      const newMsgs = wsMessages.filter((m) => !existingIds.has(m.id)).map((m) => ({
+        id: m.id,
+        sender: m.sender,
+        senderName: m.senderName,
+        message: m.message,
+        sentAt: m.sentAt,
+      }))
+      if (!newMsgs.length) return prev
+      return { ...prev, messages: [...prev.messages, ...newMsgs] }
+    })
+  }, [wsMessages])
+
   const viewState = mapViewState(currentConsultation)
   const assignedDoctor = useMemo(() => {
     if (currentConsultation?.doctor) {
@@ -260,7 +286,10 @@ function DoctorConsultation() {
     if (!currentConsultation) return
     setIsEndingConsultation(true)
     try {
-      const updated = await updateConsultation(currentConsultation.id, { status: 'completed' })
+      // Use dedicated endConsultation if available, fall back to status update
+      const updated = await endConsultation(currentConsultation.id).catch(() =>
+        updateConsultation(currentConsultation.id, { status: 'completed' })
+      )
       setCurrentConsultation(updated)
       setShowEndConfirm(false)
     } catch {
@@ -268,6 +297,18 @@ function DoctorConsultation() {
     } finally {
       setIsEndingConsultation(false)
     }
+  }
+
+  // Use WebSocket send when connected, otherwise fall back to HTTP
+  const dispatchMessage = (text: string) => {
+    if (wsConnected) {
+      wsSend(text)
+    }
+  }
+
+  const handleMessageInputChange = (value: string) => {
+    setMessageInput(value)
+    sendTyping()
   }
 
   if (isLoading) {
@@ -363,20 +404,24 @@ function DoctorConsultation() {
             <div ref={messagesEndRef} />
           </div>
 
+          {typingUsers.length > 0 && (
+            <p className="dc-chat__typing">{typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing…</p>
+          )}
           <div className="dc-chat__input">
             <input
               type="text"
               placeholder="Type your message…"
               value={messageInput}
-              onChange={(event) => setMessageInput(event.target.value)}
+              onChange={(event) => handleMessageInputChange(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault()
+                  dispatchMessage(messageInput.trim())
                   void handleSendMessage()
                 }
               }}
             />
-            <button className="btn btn--primary" type="button" onClick={() => { void handleSendMessage() }} disabled={!messageInput.trim() || isSendingMessage}>
+            <button className="btn btn--primary" type="button" onClick={() => { dispatchMessage(messageInput.trim()); void handleSendMessage() }} disabled={!messageInput.trim() || isSendingMessage}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
           </div>

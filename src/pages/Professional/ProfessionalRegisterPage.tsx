@@ -2,12 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   professionalRegistrationService,
   ProfessionalRegistrationError,
-  type LabPartnerOption,
   type ProfessionalRegistrationType,
 } from '../../services/professionalRegistrationService'
 import '../../styles/pages/ProfessionalRegisterPage.css'
 
-type ProfType = 'Doctor' | 'Pediatrician' | 'Lab Partner' | 'Lab Technician'
+type ProfType = 'Doctor' | 'Pediatrician' | 'Lab Partner'
 
 const DOCTOR_SPECIALTIES = [
   'General Medicine', 'Family Medicine', 'Internal Medicine', 'Cardiology',
@@ -42,16 +41,6 @@ const LAB_PARTNER_DOCS = [
   'Quality assurance policy',
 ]
 
-const LAB_TECH_DOCS = [
-  'Lab technician licence', 'National ID / Passport',
-  'Professional indemnity insurance', 'Certificate of good standing',
-]
-
-const LAB_TECH_SPECIALTIES = [
-  'Phlebotomy', 'Clinical Chemistry', 'Haematology',
-  'Microbiology', 'Pathology', 'Radiology',
-]
-
 const LANGUAGES = [
   'Afrikaans', 'Akan', 'Albanian', 'Amharic', 'Arabic', 'Armenian', 'Assamese', 'Azerbaijani',
   'Bambara', 'Basque', 'Belarusian', 'Bengali', 'Berber', 'Bhojpuri', 'Bosnian', 'Bulgarian',
@@ -78,7 +67,6 @@ const PROFESSIONAL_TYPE_MAP: Record<ProfType, string> = {
   Doctor: 'doctor',
   Pediatrician: 'pediatrician',
   'Lab Partner': 'lab_partner',
-  'Lab Technician': 'lab_technician',
 }
 
 const API_TO_FORM_ERROR_MAP: Record<string, string> = {
@@ -101,8 +89,6 @@ const API_TO_FORM_ERROR_MAP: Record<string, string> = {
   labName: 'labName',
   labLocation: 'labLocation',
   labAccreditation: 'labAccreditation',
-  labPartnerId: 'labPartnerId',
-  partner_id: 'labPartnerId',
   payoutMethod: 'payoutMethod',
   payout_method: 'payoutMethod',
   payoutAccount: 'payoutAccount',
@@ -133,7 +119,7 @@ const blank = () => ({
   name: '', email: '', phone: '',
   license: '', licenseBoard: '', licenseCountry: 'Kenya', licenseExpiry: '', idNumber: '',
   specialty: '', facility: '', labName: '', labLocation: '', labAccreditation: '',
-  labPartnerId: '', experience: '', availability: '', fee: '',
+  experience: '', availability: '', fee: '',
   county: '', address: '', bio: '',
   languages: ['English', 'Swahili'] as string[],
   payoutMethod: 'M-Pesa' as (typeof PAYOUT_METHODS)[number],
@@ -185,19 +171,6 @@ const ROLE_CARDS: Array<{ type: ProfType; icon: React.ReactNode; tagline: string
       </svg>
     ),
   },
-  {
-    type: 'Lab Technician',
-    tagline: 'Sample collection & analysis',
-    perks: ['Work with verified lab partners', 'Digital workflow tools', 'On-demand patient requests'],
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <rect x="3" y="6" width="18" height="12" rx="2"/>
-        <path d="M3 10h18"/>
-        <path d="M8 6v-2h8v2"/>
-        <circle cx="12" cy="14" r="1"/>
-      </svg>
-    ),
-  },
 ]
 
 function CheckIcon() {
@@ -236,8 +209,6 @@ function ProfessionalRegisterPage() {
   const [submitError, setSubmitError] = useState('')
   const [successDetail, setSuccessDetail] = useState('')
   const [successSteps, setSuccessSteps] = useState<string[]>([])
-  const [labPartners, setLabPartners] = useState<LabPartnerOption[]>([])
-  const [labPartnerError, setLabPartnerError] = useState('')
   const [currentStep, setCurrentStep] = useState(1)
   const [langOpen, setLangOpen] = useState(false)
   const [langQuery, setLangQuery] = useState('')
@@ -280,13 +251,11 @@ function ProfessionalRegisterPage() {
 
   const specialties = type === 'Doctor' ? DOCTOR_SPECIALTIES
     : type === 'Pediatrician' ? PEDIATRICIAN_SPECIALTIES
-    : type === 'Lab Technician' ? LAB_TECH_SPECIALTIES
     : []
 
   const requiredDocs = type === 'Doctor' ? DOCTOR_DOCS
     : type === 'Pediatrician' ? PEDIATRICIAN_DOCS
-    : type === 'Lab Partner' ? LAB_PARTNER_DOCS
-    : LAB_TECH_DOCS
+    : LAB_PARTNER_DOCS
 
   const set = <K extends keyof ReturnType<typeof blank>>(key: K, value: ReturnType<typeof blank>[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -335,12 +304,6 @@ function ProfessionalRegisterPage() {
   const toPayoutMethod = (value: (typeof PAYOUT_METHODS)[number]) =>
     value === 'M-Pesa' ? 'mpesa' : 'bank_transfer'
 
-  useEffect(() => {
-    professionalRegistrationService.listLabPartners()
-      .then(setLabPartners)
-      .catch(() => setLabPartnerError('Unable to load lab partners.'))
-  }, [])
-
   const validateStep = (step: number): boolean => {
     if (UI_TEST_MODE) return true
     const e: Record<string, string> = {}
@@ -364,7 +327,6 @@ function ProfessionalRegisterPage() {
         if (!form.licenseExpiry.trim()) e.licenseExpiry = 'License expiry date is required.'
         if (!form.idNumber.trim()) e.idNumber = 'ID / Passport number is required.'
         if (!form.specialty) e.specialty = 'Please select a specialty.'
-        if (type === 'Lab Technician' && !form.labPartnerId) e.labPartnerId = 'Select a lab partner.'
       }
     } else if (step === 4) {
       if (!form.payoutAccount.trim()) e.payoutAccount = 'Payout account is required.'
@@ -382,7 +344,7 @@ function ProfessionalRegisterPage() {
     const keys = new Set(Object.keys(fieldErrors))
     if (keys.has('type')) return 1
     if (['name', 'email', 'phone', 'labName', 'labLocation'].some((k) => keys.has(k))) return 2
-    if (['license', 'licenseBoard', 'licenseExpiry', 'idNumber', 'specialty', 'labAccreditation', 'labPartnerId'].some((k) => keys.has(k))) return 3
+    if (['license', 'licenseBoard', 'licenseExpiry', 'idNumber', 'specialty', 'labAccreditation'].some((k) => keys.has(k))) return 3
     if (['payoutAccount', 'payoutMethod'].some((k) => keys.has(k))) return 4
     if (['backgroundConsent', 'complianceDeclaration'].some((k) => keys.has(k))) return 5
     if (['docChecklist'].some((k) => keys.has(k))) return 6
@@ -433,7 +395,6 @@ function ProfessionalRegisterPage() {
     if (form.labName.trim()) formData.append('lab_name', form.labName.trim())
     if (form.labLocation.trim()) formData.append('lab_location', form.labLocation.trim())
     if (form.labAccreditation.trim()) formData.append('lab_accreditation', form.labAccreditation.trim())
-    if (form.labPartnerId) formData.append('partner_id', form.labPartnerId)
     if (form.experience) formData.append('years_experience', String(form.experience))
     if (form.availability.trim()) formData.append('availability', form.availability.trim())
     if (form.fee) formData.append('fee', String(form.fee))
@@ -583,7 +544,7 @@ function ProfessionalRegisterPage() {
                   key={card.type}
                   type="button"
                   className={`pr-role-card ${type === card.type ? 'pr-role-card--selected' : ''}`}
-                  onClick={() => { setType(card.type); set('specialty', ''); set('labPartnerId', '') }}
+                  onClick={() => { setType(card.type); set('specialty', '') }}
                 >
                   {type === card.type && (
                     <span className="pr-role-card__check"><CheckIcon /></span>
@@ -789,7 +750,7 @@ function ProfessionalRegisterPage() {
                         className={errors.idNumber ? 'err' : ''}
                       />
                     </Field>
-                    <Field label={type === 'Lab Technician' ? 'Lab specialty' : 'Specialty'} required error={errors.specialty}>
+                    <Field label="Specialty" required error={errors.specialty}>
                       <select
                         value={form.specialty}
                         onChange={(e) => set('specialty', e.target.value)}
@@ -800,33 +761,6 @@ function ProfessionalRegisterPage() {
                       </select>
                     </Field>
                   </div>
-                  {type === 'Lab Technician' && (
-                    <div className="pr-row">
-                      <Field label="Lab partner" required error={errors.labPartnerId}>
-                        <select
-                          value={form.labPartnerId}
-                          onChange={(e) => set('labPartnerId', e.target.value)}
-                          className={errors.labPartnerId ? 'err' : ''}
-                        >
-                          <option value="">Select lab partner</option>
-                          {labPartners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        {labPartnerError && <p className="pr-field__err">{labPartnerError}</p>}
-                        {!labPartnerError && labPartners.length === 0 && (
-                          <p className="pr-field__hint">No verified lab partners yet.</p>
-                        )}
-                      </Field>
-                      <Field label="Availability hours" optional error={errors.availability}>
-                        <input
-                          type="text"
-                          placeholder="Mon–Fri, 9am–5pm"
-                          value={form.availability}
-                          onChange={(e) => set('availability', e.target.value)}
-                          className={errors.availability ? 'err' : ''}
-                        />
-                      </Field>
-                    </div>
-                  )}
                   {(type === 'Doctor' || type === 'Pediatrician') && (
                     <div className="pr-row">
                       <Field label="Affiliated facility" optional>
@@ -837,91 +771,80 @@ function ProfessionalRegisterPage() {
                           onChange={(e) => set('facility', e.target.value)}
                         />
                       </Field>
-                      <Field label="Availability hours" optional error={errors.availability}>
-                        <input
-                          type="text"
-                          placeholder="Mon–Fri, 9am–5pm"
-                          value={form.availability}
-                          onChange={(e) => set('availability', e.target.value)}
-                          className={errors.availability ? 'err' : ''}
-                        />
-                      </Field>
                     </div>
                   )}
-                  {type !== 'Lab Technician' && (
-                    <Field label="Languages spoken" optional error={errors.languages}>
-                      <div className="pr-lang-select" ref={langRef}>
-                        <button
-                          type="button"
-                          className="pr-lang-trigger"
-                          ref={langTriggerRef}
-                          aria-haspopup="listbox"
-                          aria-expanded={langOpen}
-                          onClick={() => setLangOpen((prev) => !prev)}
-                        >
-                          <span>
-                            {form.languages.length === 0
-                              ? 'Select languages'
-                              : `${form.languages.slice(0, 3).join(', ')}${form.languages.length > 3 ? ` +${form.languages.length - 3} more` : ''}`}
-                          </span>
-                          <span className={`pr-lang-caret ${langOpen ? 'open' : ''}`}>▾</span>
-                        </button>
-                        {langOpen && (
-                          <div className="pr-lang-menu">
-                            <div className="pr-lang-menu__top">
-                              <span>{form.languages.length} selected</span>
-                              {form.languages.length > 0 && (
-                                <button type="button" className="pr-lang-clear" onClick={clearLanguages}>
-                                  Clear all
-                                </button>
-                              )}
-                            </div>
-                            <div className="pr-lang-search">
-                              <input
-                                type="text"
-                                placeholder="Search languages"
-                                value={langQuery}
-                                onChange={(e) => setLangQuery(e.target.value)}
-                                onKeyDown={handleLangKeyDown}
-                                ref={langSearchRef}
-                              />
-                            </div>
-                            <div className="pr-lang-options">
-                              {filteredLanguages.length === 0 ? (
-                                <p className="pr-lang-empty">No matches found.</p>
-                              ) : (
-                                filteredLanguages.map((lang, index) => (
-                                  <label key={lang} className={`pr-lang-option ${form.languages.includes(lang) ? 'on' : ''} ${index === langActiveIndex ? 'active' : ''}`}>
-                                    <input
-                                      type="checkbox"
-                                      checked={form.languages.includes(lang)}
-                                      onChange={() => toggleLanguage(lang)}
-                                    />
-                                    <span>{lang}</span>
-                                  </label>
-                                ))
-                              )}
-                            </div>
+                  <Field label="Languages spoken" optional error={errors.languages}>
+                    <div className="pr-lang-select" ref={langRef}>
+                      <button
+                        type="button"
+                        className="pr-lang-trigger"
+                        ref={langTriggerRef}
+                        aria-haspopup="listbox"
+                        aria-expanded={langOpen}
+                        onClick={() => setLangOpen((prev) => !prev)}
+                      >
+                        <span>
+                          {form.languages.length === 0
+                            ? 'Select languages'
+                            : `${form.languages.slice(0, 3).join(', ')}${form.languages.length > 3 ? ` +${form.languages.length - 3} more` : ''}`}
+                        </span>
+                        <span className={`pr-lang-caret ${langOpen ? 'open' : ''}`}>▾</span>
+                      </button>
+                      {langOpen && (
+                        <div className="pr-lang-menu">
+                          <div className="pr-lang-menu__top">
+                            <span>{form.languages.length} selected</span>
+                            {form.languages.length > 0 && (
+                              <button type="button" className="pr-lang-clear" onClick={clearLanguages}>
+                                Clear all
+                              </button>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      {form.languages.length > 0 && (
-                        <div className="pr-lang-chips">
-                          {form.languages.map((lang) => (
-                            <button
-                              key={lang}
-                              type="button"
-                              className="pr-pill pr-pill--on"
-                              onClick={() => toggleLanguage(lang)}
-                            >
-                              <CheckIcon />
-                              {lang}
-                            </button>
-                          ))}
+                          <div className="pr-lang-search">
+                            <input
+                              type="text"
+                              placeholder="Search languages"
+                              value={langQuery}
+                              onChange={(e) => setLangQuery(e.target.value)}
+                              onKeyDown={handleLangKeyDown}
+                              ref={langSearchRef}
+                            />
+                          </div>
+                          <div className="pr-lang-options">
+                            {filteredLanguages.length === 0 ? (
+                              <p className="pr-lang-empty">No matches found.</p>
+                            ) : (
+                              filteredLanguages.map((lang, index) => (
+                                <label key={lang} className={`pr-lang-option ${form.languages.includes(lang) ? 'on' : ''} ${index === langActiveIndex ? 'active' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={form.languages.includes(lang)}
+                                    onChange={() => toggleLanguage(lang)}
+                                  />
+                                  <span>{lang}</span>
+                                </label>
+                              ))
+                            )}
+                          </div>
                         </div>
                       )}
-                    </Field>
-                  )}
+                    </div>
+                    {form.languages.length > 0 && (
+                      <div className="pr-lang-chips">
+                        {form.languages.map((lang) => (
+                          <button
+                            key={lang}
+                            type="button"
+                            className="pr-pill pr-pill--on"
+                            onClick={() => toggleLanguage(lang)}
+                          >
+                            <CheckIcon />
+                            {lang}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </Field>
                 </>
               )}
             </div>

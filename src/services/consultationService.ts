@@ -625,6 +625,78 @@ export async function sendConsultationMessage(id: number, message: string): Prom
   }
 }
 
+export async function endConsultation(id: number): Promise<ConsultationRecord> {
+  if (USE_LOCAL_CONSULTATION_FLOW) {
+    const updatedAt = new Date().toISOString()
+    const records = loadLocalConsultations()
+    let updatedRecord: ConsultationRecord | null = null
+    const nextRecords = records.map((record) => {
+      if (record.id !== id) return record
+      updatedRecord = { ...record, status: 'completed', updatedAt }
+      return updatedRecord
+    })
+    if (!updatedRecord) throw new Error('Consultation not found.')
+    saveLocalConsultations(nextRecords)
+    return updatedRecord
+  }
+  const res = await apiClient.post(`/consultations/${id}/end/`)
+  return mapConsultation(unwrap<Record<string, unknown>>(res.data, {}))
+}
+
+export interface ClinicianPrescriptionItem {
+  drug_name: string
+  dose: string
+  frequency: string
+  duration: string
+  notes?: string
+}
+
+export interface ClinicianPrescription {
+  id: number
+  reference: string
+  consultation_id: number | null
+  patient_name: string
+  status: 'draft' | 'sent' | 'dispensed'
+  items: ClinicianPrescriptionItem[]
+  digital_signature: string | null
+  created_at: string
+}
+
+export async function fetchClinicianPrescriptions(): Promise<ClinicianPrescription[]> {
+  const res = await apiClient.get('/doctor/prescriptions/')
+  const payload = unwrap<unknown>(res.data, [])
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as { results?: unknown[] })?.results)
+      ? (payload as { results: unknown[] }).results
+      : []
+  return list as ClinicianPrescription[]
+}
+
+export async function createClinicianPrescription(payload: {
+  patient_name: string
+  consultation_id?: number | null
+  items: ClinicianPrescriptionItem[]
+}): Promise<ClinicianPrescription> {
+  const res = await apiClient.post('/doctor/prescriptions/', payload)
+  return unwrap<ClinicianPrescription>(res.data, {} as ClinicianPrescription)
+}
+
+export async function sendClinicianPrescription(id: number): Promise<ClinicianPrescription> {
+  const res = await apiClient.post(`/doctor/prescriptions/${id}/send/`)
+  return unwrap<ClinicianPrescription>(res.data, {} as ClinicianPrescription)
+}
+
+export async function downloadClinicianPrescriptionPdf(id: number): Promise<void> {
+  const res = await apiClient.get(`/doctor/prescriptions/${id}/pdf/`, { responseType: 'blob' })
+  const url = URL.createObjectURL(res.data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `prescription-${id}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function grantConsultationConsent(id: number): Promise<void> {
   if (USE_LOCAL_CONSULTATION_FLOW) {
     const updatedAt = new Date().toISOString()

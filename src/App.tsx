@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { CatalogProvider } from './context/CatalogContext'
 import { SiteSettingsProvider } from './context/SiteSettingsContext'
@@ -64,6 +64,7 @@ import AccountConsultationsPage from './pages/Account/AccountConsultationsPage'
 import AccountLabTestsPage from './pages/Account/AccountLabTestsPage'
 import AccountFavouritesPage from './pages/Account/AccountFavouritesPage'
 import DoctorDashboardPage from './pages/Doctor/DoctorDashboardPage'
+import DoctorOnboardingPage from './pages/Doctor/DoctorOnboardingPage'
 import PediatricianDashboardPage from './pages/Pediatrician/PediatricianDashboardPage'
 import PharmacistDashboardPage from './pages/Pharmacist/PharmacistDashboardPage'
 import LabServicesPage from './pages/Lab/LabServicesPage'
@@ -77,6 +78,13 @@ import ProfessionalRegisterPage from './pages/Professional/ProfessionalRegisterP
 import BrandsPage from './pages/Brands/BrandsPage'
 import ConditionsPage from './pages/Conditions/ConditionsPage'
 import HealthServicesPage from './pages/HealthServices/HealthServicesPage'
+
+
+function LegacyLabDashboardRedirect() {
+  const location = useLocation()
+  const target = location.pathname.includes('labtech') ? '/labtech/dashboard' : '/lab/dashboard'
+  return <Navigate to={target} replace />
+}
 
 function App() {
   return (
@@ -144,9 +152,6 @@ function App() {
               <Route path="lab-tests" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
               <Route path="laboratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
               <Route path="labaratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
-              <Route path="lab/dashboard" element={<LabDashboardPage />} />
-              <Route path="laboratory/dashboard" element={<LabDashboardPage />} />
-              <Route path="labaratory/dashboard" element={<LabDashboardPage />} />
               <Route path="inventory" element={<InventoryOverviewPage />} />
               <Route path="*" element={<div style={{ padding: '4rem 0', textAlign: 'center' }}>
                 <h1>Page Coming Soon</h1>
@@ -155,10 +160,16 @@ function App() {
             </Route>
 
             <Route path="doctor/dashboard" element={<DoctorDashboardPage />} />
+            <Route path="doctor/onboarding" element={<ProtectedRoute><DoctorOnboardingPage /></ProtectedRoute>} />
             <Route path="pediatrician/dashboard" element={<PediatricianDashboardPage />} />
             <Route path="paedetrician/dashboard" element={<Navigate to="/pediatrician/dashboard" replace />} />
             <Route path="pharmacist/dashboard" element={<PharmacistDashboardPage />} />
-            <Route path="labtech/dashboard" element={<LabTechPortal />} />
+            <Route path="lab/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
+            <Route path="ab/dashboard" element={<ProtectedRoute><LegacyLabDashboardRedirect /></ProtectedRoute>} />
+            <Route path="laboratory/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
+            <Route path="labaratory/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
+            <Route path="//ab/dashboard" element={<ProtectedRoute><LegacyLabDashboardRedirect /></ProtectedRoute>} />
+            <Route path="labtech/dashboard" element={<ProtectedRoute><LabTechPortal /></ProtectedRoute>} />
 
             <Route path="admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route index element={<Navigate to="/admin/dashboard" replace />} />

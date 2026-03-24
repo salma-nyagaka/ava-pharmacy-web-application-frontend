@@ -7,6 +7,62 @@ import '../../styles/pages/PrescriptionUploadPage.css'
 
 const DISPATCH_STEPS = ['Not started', 'Queued', 'Packed', 'Dispatched', 'Delivered']
 
+function ResubmitSection({
+  prescription,
+  onResubmitted,
+}: {
+  prescription: PrescriptionRecord
+  onResubmitted: (updated: PrescriptionRecord[]) => void
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) setFiles(Array.from(e.target.files))
+  }
+
+  const handleResubmit = () => {
+    if (!files.length) { setError('Please attach at least one file.'); return }
+    if (!prescription.backendId) { setError('Cannot resubmit — prescription not synced with server.'); return }
+    setSubmitting(true)
+    setError('')
+    void prescriptionService.resubmit(prescription.backendId, files).then((r) => {
+      onResubmitted(r.data)
+      setDone(true)
+    }).catch(() => {
+      setError('Resubmit failed. Please try again.')
+    }).finally(() => setSubmitting(false))
+  }
+
+  if (done) {
+    return <p className="rup-card__clarify-note" style={{ color: 'var(--color-success, #059669)' }}>Resubmitted successfully — awaiting pharmacist review.</p>
+  }
+
+  return (
+    <div className="rup-resubmit">
+      {prescription.notes && (
+        <p className="rup-resubmit__note">
+          <strong>Pharmacist note:</strong> {prescription.notes}
+        </p>
+      )}
+      <p className="rup-resubmit__label">Upload updated prescription files:</p>
+      <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={handleFiles} className="rup-file-input" />
+      <div className="rup-resubmit__actions">
+        <button className="btn btn--outline btn--sm" type="button" onClick={() => fileInputRef.current?.click()}>
+          Choose files {files.length > 0 && `(${files.length} selected)`}
+        </button>
+        <button className="btn btn--primary btn--sm" type="button" onClick={handleResubmit} disabled={submitting || !files.length}>
+          {submitting ? 'Submitting…' : 'Resubmit'}
+        </button>
+      </div>
+      {error && <p className="rup-error">{error}</p>}
+    </div>
+  )
+}
+
 function PrescriptionUploadPage() {
   const { user, isLoggedIn } = useAuth()
   const [searchParams] = useSearchParams()
@@ -330,7 +386,10 @@ function PrescriptionUploadPage() {
                     )}
 
                     {rx.status === 'Clarification' && (
-                      <p className="rup-card__clarify-note">Our pharmacist needs additional information. Please contact us or re-upload a clearer prescription.</p>
+                      <ResubmitSection
+                        prescription={rx}
+                        onResubmitted={(updated) => setAllPrescriptions(updated)}
+                      />
                     )}
 
                     <div className="rup-card__actions">

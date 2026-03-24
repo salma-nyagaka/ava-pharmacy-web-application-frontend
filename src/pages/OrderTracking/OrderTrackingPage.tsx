@@ -1,8 +1,26 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
+import { fetchOrder, fetchOrderTracking } from '../../services/orderService'
+import { useInterval } from '../../hooks/useInterval'
 import '../../styles/pages/OrderTrackingPage.css'
+
+interface OrderEvent {
+  id: number
+  status: string
+  note: string
+  created_at: string
+}
+
+interface LiveOrder {
+  id: number
+  order_number: string
+  status: string
+  total: string
+  items: Array<{ product_name: string; quantity: number; subtotal: string }>
+  events: OrderEvent[]
+}
 
 function SearchIcon() {
   return (
@@ -155,6 +173,37 @@ function OrderTrackingPage() {
   const [deliveryNote, setDeliveryNote] = useState('')
   const [noteSaved, setNoteSaved] = useState(false)
   const [notifyPrefs, setNotifyPrefs] = useState({ sms: true, whatsapp: false, email: true })
+  const [liveOrder, setLiveOrder] = useState<LiveOrder | null>(null)
+  const [liveOrderId, setLiveOrderId] = useState<number | null>(null)
+
+  const fetchLiveOrder = useCallback(() => {
+    if (!liveOrderId) return
+    void Promise.all([
+      fetchOrder(liveOrderId),
+      fetchOrderTracking(liveOrderId),
+    ]).then(([order, tracking]) => {
+      const events = Array.isArray(tracking)
+        ? (tracking as OrderEvent[])
+        : (tracking as { events?: OrderEvent[] })?.events ?? []
+      setLiveOrder({
+        id: order.id,
+        order_number: order.order_number,
+        status: order.status,
+        total: order.total,
+        items: order.items.map((i) => ({
+          product_name: i.product_name,
+          quantity: i.quantity,
+          subtotal: i.subtotal,
+        })),
+        events,
+      })
+    }).catch(() => {
+      // silently keep previous data on poll failure
+    })
+  }, [liveOrderId])
+
+  useEffect(() => { fetchLiveOrder() }, [fetchLiveOrder])
+  useInterval(fetchLiveOrder, liveOrderId ? 30000 : null)
 
   const sampleOrder = useMemo(() => ({
     id: 'ORD-007',
@@ -191,7 +240,14 @@ function OrderTrackingPage() {
     }
     setIsTracking(true)
     setResultReady(false)
-    window.setTimeout(() => { setIsTracking(false); setResultReady(true) }, 900)
+    const numericId = Number(orderId.trim())
+    if (Number.isFinite(numericId) && numericId > 0) {
+      setLiveOrderId(numericId)
+      setIsTracking(false)
+      setResultReady(true)
+    } else {
+      window.setTimeout(() => { setIsTracking(false); setResultReady(true) }, 900)
+    }
   }
 
   const applySample = () => { setOrderId(sampleOrder.id); setPhone('+254 700 000 000'); setError('') }
@@ -354,6 +410,32 @@ function OrderTrackingPage() {
                       </button>
                     </div>
                     <p className="track-card__subtitle">Tap any step to see more details.</p>
+                    {liveOrder && liveOrder.events.length > 0 && (
+                      <div className="timeline">
+                        {liveOrder.events.map((event, index) => (
+                          <button
+                            key={event.id}
+                            className={`timeline__item timeline__item--${index === 0 ? 'current' : 'done'}`}
+                            type="button"
+                            onClick={() => toggleStep(1000 + index)}
+                            aria-expanded={expandedStep === 1000 + index}
+                          >
+                            <div className="timeline__icon"><CheckIcon size={16} /></div>
+                            <div className="timeline__content">
+                              <div className="timeline__title">{event.status.replace(/_/g, ' ')}</div>
+                              {event.note && <div className="timeline__body">{event.note}</div>}
+                              <div className="timeline__time">
+                                {new Date(event.created_at).toLocaleString('en-KE')}
+                              </div>
+                            </div>
+                            <span className="timeline__chevron">
+                              {expandedStep === 1000 + index ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {(!liveOrder || liveOrder.events.length === 0) && (
                     <div className="timeline">
                       {steps.map((step, index) => (
                         <button
@@ -382,6 +464,7 @@ function OrderTrackingPage() {
                         </button>
                       ))}
                     </div>
+                    )}
                   </div>
 
                   {/* Delivery notes */}

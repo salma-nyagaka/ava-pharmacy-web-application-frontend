@@ -61,6 +61,7 @@ function PediatricianConsultation() {
   const [pediatricians, setPediatricians] = useState<ClinicianSummary[]>([])
   const [currentConsultation, setCurrentConsultation] = useState<ConsultationRecord | null>(null)
   const [selectedPediatricianId, setSelectedPediatricianId] = useState<number | null>(null)
+  const [consentChecked, setConsentChecked] = useState(false)
   const [formData, setFormData] = useState({
     parentName: user?.name ?? '',
     childName: '',
@@ -179,6 +180,7 @@ function PediatricianConsultation() {
     if (!formData.phone.trim()) errors.phone = 'Phone number is required'
     else if (!/^\+?[0-9]{10,15}$/.test(formData.phone.replace(/\s/g, ''))) errors.phone = 'Invalid phone number'
     if (!formData.symptoms.trim()) errors.symptoms = 'Please describe the child\'s symptoms'
+    if (!consentChecked) errors.consent = 'You must provide guardian consent to proceed'
     if (!selectedPediatrician) errors.parentName = 'No pediatrician is currently available'
     setFormErrors(errors)
     return Object.keys(errors).length === 0
@@ -540,7 +542,20 @@ function PediatricianConsultation() {
                 <textarea id="ped-vaccine" rows={2} placeholder="Recent vaccinations or any pending ones..." value={formData.vaccineHistory} onChange={(event) => setField('vaccineHistory', event.target.value)} />
               </div>
 
-              <button type="submit" className="btn btn--primary dc-submit-btn ped-submit-btn" disabled={isSubmitting}>
+              <div className="dc-field" style={{ marginBottom: '1.25rem' }}>
+                <label className="ped-consent-label">
+                  <input
+                    type="checkbox"
+                    checked={consentChecked}
+                    onChange={(e) => setConsentChecked(e.target.checked)}
+                    style={{ marginRight: '0.5rem', accentColor: '#0f766e' }}
+                  />
+                  I, as parent/guardian, give consent for this telemedicine consultation on behalf of my child.
+                </label>
+                {formErrors.consent && <span className="dc-field-error">{formErrors.consent}</span>}
+              </div>
+
+              <button type="submit" className="btn btn--primary dc-submit-btn ped-submit-btn" disabled={isSubmitting || !consentChecked}>
                 {isSubmitting ? 'Starting consultation…' : 'Start chat consultation →'}
               </button>
             </form>

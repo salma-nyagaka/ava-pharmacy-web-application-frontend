@@ -1,0 +1,118 @@
+.inv-sync-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-surface, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.inv-sync-bar__meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.inv-sync-bar__last {
+  font-size: 0.8125rem;
+  color: var(--color-muted, #64748b);
+}
+
+.inv-sync-bar__msg {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.inv-sync-bar__msg--ok { color: #059669; }
+.inv-sync-bar__msg--error { color: #dc2626; }
+
+.inv-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid var(--color-border, #e2e8f0);
+}
+
+.inv-tab {
+  padding: 0.5rem 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-muted, #64748b);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: color 0.15s;
+}
+
+.inv-tab--active {
+  color: var(--color-primary, #E81750);
+  border-bottom-color: var(--color-primary, #E81750);
+}
+
+.inv-tab__badge {
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0 0.375rem;
+  line-height: 1.4;
+}
+
+.inv-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.inv-filters__search {
+  flex: 1 1 200px;
+  padding: 0.4375rem 0.75rem;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.inv-filters__select {
+  padding: 0.4375rem 0.75rem;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #fff;
+}
+
+.inv-filters__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.inv-loading, .inv-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-muted, #64748b);
+  font-size: 0.9375rem;
+}
+
+.inv-error-cell {
+  max-width: 280px;
+  font-size: 0.8125rem;
+  color: #dc2626;
+  white-space: normal;
+  word-break: break-word;
+}
