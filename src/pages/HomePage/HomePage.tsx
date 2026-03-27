@@ -2,8 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import PromotionFeatureCard from '../../components/PromotionFeatureCard/PromotionFeatureCard'
-import easterBanner from '../../assets/images/banner/easter-wide-banner.png'
-import uncoverBanner from '../../assets/images/banner/uncover-wide-banner.png'
+import easterBanner from '../../assets/images/banner/easter.png'
+import uncoverBanner from '../../assets/images/banner/uncover.png'
+// import wellnessBanner from '../../assets/images/banner/wellness-wide-banner.png'
+// import familyCareBanner from '../../assets/images/banner/family-care-wide-banner.png'
+// import devicesBanner from '../../assets/images/banner/devices-wide-banner.png'
+// import welcomeBanner from '../../assets/images/banner/welcome-wide-banner.png'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
@@ -16,19 +20,89 @@ import { categoryCardImages } from '../../data/categoryCardImages'
 import { buildPromotionSummary, filterProductsByPromotion, getPromotionScopeEyebrow } from '../../services/promotionService'
 import '../../styles/pages/HomePage.css'
 
-const bannerSlides = [
+type HeroPromoSlide = {
+  id: number
+  kind: 'promo'
+  image: string
+  alt: string
+  link: string
+}
+
+type HeroWelcomeSlide = {
+  id: number
+  kind: 'welcome'
+  image: string
+  alt: string
+  eyebrow: string
+  title: string
+  description: string
+  highlights: string[]
+  actions: Array<{
+    label: string
+    to: string
+    tone: 'primary' | 'secondary'
+  }>
+}
+
+type HeroSlide = HeroPromoSlide | HeroWelcomeSlide
+
+const bannerSlides: HeroSlide[] = [
   {
     id: 1,
+    kind: 'promo',
     image: easterBanner,
-    alt: 'Ava Pharmacy Easter offers banner',
-    link: '/offers',
-  },
-  {
-    id: 2,
-    image: uncoverBanner,
     alt: 'Ava Pharmacy uncover skincare banner',
     link: '/products',
   },
+  // {
+  //   id: 2,
+  //   kind: 'welcome',
+  //   image: welcomeBanner,
+  //   alt: 'Welcome to Ava Pharmacy banner',
+  //   eyebrow: 'Welcome to Ava Pharmacy',
+  //   title: 'Your pharmacy, prescriptions and consultations in one place',
+  //   description:
+  //     'Shop trusted products, upload prescriptions securely, book clinician consultations and manage everyday health support from one account.',
+  //   highlights: [
+  //     'Live medicine catalog',
+  //     'Prescription upload',
+  //     'Doctor consultation',
+  //     'Lab services',
+  //   ],
+  //   actions: [
+  //     { label: 'Upload Prescription', to: '/prescriptions', tone: 'primary' },
+  //     { label: 'Book Consultation', to: '/doctor-consultation', tone: 'secondary' },
+  //     { label: 'Explore Products', to: '/products', tone: 'secondary' },
+  //   ],
+  // },
+  {
+    id: 2,
+    kind: 'promo',
+    image: uncoverBanner,
+    alt: 'Ava Pharmacy wellness promotion banner',
+    link: '/products?category=vitamins-supplements',
+  },
+  // {
+  //   id: 4,
+  //   kind: 'promo',
+  //   image: devicesBanner,
+  //   alt: 'Ava Pharmacy medical devices promotion banner',
+  //   link: '/products?category=medical-devices-home-diagnostics',
+  // },
+  // {
+  //   id: 5,
+  //   kind: 'promo',
+  //   image: familyCareBanner,
+  //   alt: 'Ava Pharmacy family care promotion banner',
+  //   link: '/products?category=baby-mother-family-care',
+  // },
+  // {
+  //   id: 6,
+  //   kind: 'promo',
+  //   image: easterBanner,
+  //   alt: 'Ava Pharmacy Easter offers banner',
+  //   link: '/offers',
+  // },
 ]
 
 function HomePage() {
@@ -120,7 +194,7 @@ function HomePage() {
   const featuredPromotions = [...promotions]
     .filter((promotion) => promotion.image)
     .sort((a, b) => b.priority - a.priority || a.end_date.localeCompare(b.end_date))
-    .slice(0, 3)
+    .slice(0, 4)
 
   const formatPrice = (price: number) => {
     return `KSh ${price.toLocaleString()}`
@@ -392,17 +466,53 @@ function HomePage() {
           className="hero-carousel__track"
           style={{ transform: `translateX(-${currentSlide * 100}%)` }}
         >
-          {bannerSlides.map(slide => (
-            <Link key={slide.id} to={slide.link} className="hero-carousel__slide">
-              <img
-                src={slide.image}
-                alt={slide.alt}
-                className="hero-carousel__img"
-                loading={slide.id === 1 ? 'eager' : 'lazy'}
-                decoding="async"
-                fetchPriority={slide.id === 1 ? 'high' : 'auto'}
-              />
-            </Link>
+          {bannerSlides.map((slide, index) => (
+            slide.kind === 'welcome' ? (
+              <div key={slide.id} className="hero-carousel__slide hero-carousel__slide--welcome">
+                <img
+                  src={slide.image}
+                  alt={slide.alt}
+                  className="hero-carousel__img"
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  fetchPriority={index === 0 ? 'high' : 'auto'}
+                />
+                <div className="hero-carousel__welcome-content">
+                  <div className="hero-carousel__welcome-panel">
+                    <span className="hero-carousel__welcome-eyebrow">{slide.eyebrow}</span>
+                    <h2 className="hero-carousel__welcome-title">{slide.title}</h2>
+                    <p className="hero-carousel__welcome-description">{slide.description}</p>
+                    <div className="hero-carousel__welcome-highlights">
+                      {slide.highlights.map((item) => (
+                        <span key={item} className="hero-carousel__welcome-highlight">{item}</span>
+                      ))}
+                    </div>
+                    <div className="hero-carousel__welcome-actions">
+                      {slide.actions.map((action) => (
+                        <Link
+                          key={action.label}
+                          to={action.to}
+                          className={`hero-carousel__welcome-action hero-carousel__welcome-action--${action.tone}`}
+                        >
+                          {action.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Link key={slide.id} to={slide.link} className="hero-carousel__slide hero-carousel__slide--promo">
+                <img
+                  src={slide.image}
+                  alt={slide.alt}
+                  className="hero-carousel__img"
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  fetchPriority={index === 0 ? 'high' : 'auto'}
+                />
+              </Link>
+            )
           ))}
         </div>
 
@@ -546,7 +656,7 @@ function HomePage() {
           <div className="section__header">
             <h2 className="section__title">Hot Offers</h2>
             <p className="section__subtitle">
-              Editorial campaign cards driven by the live offers configured in Deals.
+              This week&apos;s strongest pharmacy savings, refreshed from the live campaigns in Deals.
             </p>
           </div>
           {featuredPromotions.length === 0 ? (
@@ -555,7 +665,7 @@ function HomePage() {
             </div>
           ) : (
             <div className="promotion-feature-grid">
-              {featuredPromotions.map((promotion, index) => {
+              {featuredPromotions.map((promotion) => {
                 const matchingDeals = filterProductsByPromotion(offerDeals, promotion)
                 return (
                   <PromotionFeatureCard
@@ -572,8 +682,7 @@ function HomePage() {
                         : 'Live now',
                       promotion.code ? `Code ${promotion.code}` : formatOfferDate(promotion.end_date),
                     ]}
-                    ctaLabel="Explore the offer"
-                    featured={index === 0}
+                    ctaLabel="Shop now"
                   />
                 )
               })}
@@ -607,65 +716,6 @@ function HomePage() {
             <Link to="/products" className="btn btn--primary btn--lg">
               View All Products
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="section hs-reviews">
-        <div className="container">
-          <div className="hs-reviews__head">
-            <p className="hs-reviews__eyebrow">Customer Reviews</p>
-            <h2 className="hs-reviews__title">Trusted by thousands across Kenya</h2>
-          </div>
-          <div className="hs-reviews__grid">
-            <div className="hs-review-card">
-              <div className="hs-review-card__stars">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                ))}
-              </div>
-              <p className="hs-review-card__body">"Ordering was so easy and my prescription was verified within the hour. The delivery came the same day - I was genuinely impressed."</p>
-              <div className="hs-review-card__author">
-                <div className="hs-review-card__avatar">AW</div>
-                <div>
-                  <strong>Amina Wanjiru</strong>
-                  <span>Nairobi, Kenya</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="hs-review-card">
-              <div className="hs-review-card__stars">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                ))}
-              </div>
-              <p className="hs-review-card__body">"I booked a lab test through the app and the technician came home to collect the sample. Results were in my inbox the next morning. Outstanding service."</p>
-              <div className="hs-review-card__author">
-                <div className="hs-review-card__avatar">DK</div>
-                <div>
-                  <strong>David Kamau</strong>
-                  <span>Karen, Nairobi</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="hs-review-card">
-              <div className="hs-review-card__stars">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                ))}
-              </div>
-              <p className="hs-review-card__body">"The pediatrician consultation saved us a long trip to the hospital. The doctor was thorough and kind, and we had a prescription ready in 20 minutes."</p>
-              <div className="hs-review-card__author">
-                <div className="hs-review-card__avatar">FM</div>
-                <div>
-                  <strong>Faith Muthoni</strong>
-                  <span>Westlands, Nairobi</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>

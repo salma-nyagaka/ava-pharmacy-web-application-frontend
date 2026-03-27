@@ -5,11 +5,7 @@ import PromotionFeatureCard from '../../components/PromotionFeatureCard/Promotio
 import { cartService } from '../../services/cartService'
 import { useProducts } from '../../hooks/useProducts'
 import { usePromotions } from '../../hooks/usePromotions'
-import {
-  buildPromotionSummary,
-  filterProductsByPromotion,
-  getPromotionScopeEyebrow,
-} from '../../services/promotionService'
+import { buildPromotionSummary, filterProductsByPromotion, getPromotionScopeEyebrow } from '../../services/promotionService'
 import '../../styles/pages/OffersPage.css'
 import '../../styles/pages/ProductListingPage.css'
 import { useAuth } from '../../context/AuthContext'
@@ -17,6 +13,11 @@ import { useAuth } from '../../context/AuthContext'
 const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
 const hasDeal = (price: number, originalPrice: number | null) => (originalPrice ?? price) > price
 const getSavings = (price: number, originalPrice: number | null) => (originalPrice ?? price) - price
+const getDiscountPercent = (price: number, originalPrice: number | null) => {
+  const baselinePrice = originalPrice ?? price
+  if (baselinePrice <= 0 || baselinePrice <= price) return 0
+  return ((baselinePrice - price) / baselinePrice) * 100
+}
 const ITEMS_PER_PAGE = 12
 
 const renderStars = (rating: number) => {
@@ -58,6 +59,8 @@ function OffersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [minPrice, setMinPrice] = useState(0)
   const [maxPrice, setMaxPrice] = useState(10000)
+  const [minDiscount, setMinDiscount] = useState(0)
+  const [maxDiscount, setMaxDiscount] = useState(100)
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [sortBy, setSortBy] = useState('savings')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
@@ -74,20 +77,31 @@ function OffersPage() {
     let list = promotionScopedDeals.filter((product) => {
       const queryMatch = !query || [product.name, product.brand, product.category].some((value) => value.toLowerCase().includes(query))
       const priceMatch = product.price >= minPrice && product.price <= maxPrice
+      const discountPercent = getDiscountPercent(product.price, product.originalPrice)
+      const discountMatch = discountPercent >= minDiscount && discountPercent <= maxDiscount
       const brandMatch = selectedBrands.length === 0 || selectedBrands.includes(product.brand)
-      return queryMatch && priceMatch && brandMatch
+      return queryMatch && priceMatch && discountMatch && brandMatch
     })
     if (sortBy === 'savings') list = [...list].sort((a, b) => getSavings(b.price, b.originalPrice) - getSavings(a.price, a.originalPrice))
     if (sortBy === 'price-low') list = [...list].sort((a, b) => a.price - b.price)
     if (sortBy === 'price-high') list = [...list].sort((a, b) => b.price - a.price)
     return list
-  }, [promotionScopedDeals, searchTerm, minPrice, maxPrice, selectedBrands, sortBy])
+  }, [promotionScopedDeals, searchTerm, minPrice, maxPrice, minDiscount, maxDiscount, selectedBrands, sortBy])
 
-  const activeFilterCount = selectedBrands.length + (minPrice > 0 || maxPrice < 10000 ? 1 : 0)
+  const pageTitle = selectedPromotion?.title ?? 'Latest Offers'
+  const pageSubtitle = selectedPromotion
+    ? `${buildPromotionSummary(selectedPromotion, promotionScopedDeals.length)} ${promotionScopedDeals.length} discounted product${promotionScopedDeals.length === 1 ? '' : 's'} currently match this campaign.`
+    : `Browse the live pharmacy campaigns and the discounted lines attached to them. ${activePromotions.length} campaign${activePromotions.length === 1 ? '' : 's'} and ${allDeals.length} discounted product${allDeals.length === 1 ? '' : 's'} are live.`
+
+  const activeFilterCount =
+    (searchTerm ? 1 : 0) +
+    selectedBrands.length +
+    (minPrice > 0 || maxPrice < 10000 ? 1 : 0) +
+    (minDiscount > 0 || maxDiscount < 100 ? 1 : 0)
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [selectedPromotionId, searchTerm, minPrice, maxPrice, selectedBrands, sortBy])
+  }, [selectedPromotionId, searchTerm, minPrice, maxPrice, minDiscount, maxDiscount, selectedBrands, sortBy])
 
   useEffect(() => {
     if (!searchParams.get('promotion') || selectedPromotion || promotionsLoading) return
@@ -128,6 +142,8 @@ function OffersPage() {
     setSearchTerm('')
     setMinPrice(0)
     setMaxPrice(10000)
+    setMinDiscount(0)
+    setMaxDiscount(100)
     setSelectedBrands([])
   }
 
@@ -158,27 +174,33 @@ function OffersPage() {
     window.setTimeout(() => setAddedId((prev) => prev === deal.id ? null : prev), 1200)
   }
 
-  const formatOfferDate = (value: string) => {
-    const parsed = new Date(value)
-    if (Number.isNaN(parsed.getTime())) return 'Ends soon'
-    return `Ends ${parsed.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}`
-  }
-
   return (
-    <div className="cond-page offers-page">
-      <div className="offers-hero">
-        <div className="container">
-          <p className="offers-hero__eyebrow">Promotions</p>
-          <h1 className="offers-hero__title">{selectedPromotion?.title ?? 'Latest Offers'}</h1>
-          <p className="offers-hero__sub">
-            {selectedPromotion
-              ? `${buildPromotionSummary(selectedPromotion, promotionScopedDeals.length)} ${promotionScopedDeals.length} discounted product${promotionScopedDeals.length === 1 ? '' : 's'} currently match this campaign.`
-              : `Browse live campaigns created in Deals. ${activePromotions.length} image-led promotion${activePromotions.length === 1 ? '' : 's'} and ${allDeals.length} discounted product${allDeals.length === 1 ? '' : 's'} are live.`}
-          </p>
-        </div>
-      </div>
-
+    <div className="plp offers-page">
       <div className="container">
+        <div className="plp__header offers-page__header">
+          <div className="breadcrumbs">
+            <Link to="/">Home</Link>
+            <span>/</span>
+            {selectedPromotion ? <Link to="/offers">Offers</Link> : <span>Offers</span>}
+            {selectedPromotion && (
+              <>
+                <span>/</span>
+                <span>{selectedPromotion.title}</span>
+              </>
+            )}
+          </div>
+
+          <div className="plp__header-top">
+            <div className="plp__title-row">
+              <div>
+                <p className="offers-page__eyebrow">{selectedPromotion ? 'Promotion' : 'Deals'}</p>
+                <h1 className="plp__title">{pageTitle}</h1>
+                <p className="plp__subtitle offers-page__subtitle">{pageSubtitle}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {selectedPromotion && (
           <div className="offers-selection-bar">
             <div>
@@ -193,20 +215,20 @@ function OffersPage() {
           </div>
         )}
 
-        {activePromotions.length > 0 && (
+        {!selectedPromotion && activePromotions.length > 0 && (
           <section className="offers-showcase">
             <div className="offers-showcase__header">
               <div>
                 <p className="offers-showcase__eyebrow">Campaigns</p>
-                <h2 className="offers-showcase__title">Offers built to stand apart from the product grid</h2>
+                <h2 className="offers-showcase__title">Shop by live offer</h2>
                 <p className="offers-showcase__sub">
-                  Each card uses the uploaded campaign image and routes shoppers into the relevant discounted range.
+                  Pick a campaign first, then browse the matching discounted lines below.
                 </p>
               </div>
             </div>
 
             <div className="promotion-feature-grid">
-              {activePromotions.slice(0, 6).map((promotion, index) => {
+              {activePromotions.map((promotion) => {
                 const matchingDeals = filterProductsByPromotion(allDeals, promotion)
                 return (
                   <PromotionFeatureCard
@@ -221,16 +243,56 @@ function OffersPage() {
                       matchingDeals.length > 0
                         ? `${matchingDeals.length} discounted line${matchingDeals.length === 1 ? '' : 's'}`
                         : 'Live now',
-                      promotion.code ? `Code ${promotion.code}` : formatOfferDate(promotion.end_date),
+                      promotion.code ? `Code ${promotion.code}` : 'Limited time',
                     ]}
-                    ctaLabel={selectedPromotion?.id === promotion.id ? 'Campaign selected' : 'View this campaign'}
-                    featured={!selectedPromotion && index === 0}
-                    selected={selectedPromotion?.id === promotion.id}
+                    ctaLabel="Shop now"
+                    selected={promotion.id === selectedPromotionId}
                   />
                 )
               })}
             </div>
           </section>
+        )}
+
+        {(selectedPromotion || activeFilterCount > 0) && (
+          <div className="plp__filter-chips">
+            <span className="plp__filter-chips__label">Active filters:</span>
+            {selectedPromotion && (
+              <span className="plp__chip plp__chip--promotion">
+                Campaign: {selectedPromotion.title}
+                <button className="plp__chip__remove" type="button" onClick={clearSelectedPromotion}>×</button>
+              </span>
+            )}
+            {searchTerm && (
+              <span className="plp__chip">
+                Search: &ldquo;{searchTerm}&rdquo;
+                <button className="plp__chip__remove" type="button" onClick={() => setSearchTerm('')}>×</button>
+              </span>
+            )}
+            {selectedBrands.map((brand) => (
+              <span key={brand} className="plp__chip">
+                {brand}
+                <button className="plp__chip__remove" type="button" onClick={() => toggleBrand(brand)}>×</button>
+              </span>
+            ))}
+            {(minPrice > 0 || maxPrice < 10000) && (
+              <span className="plp__chip">
+                KSh {minPrice.toLocaleString()}–{maxPrice.toLocaleString()}
+                <button className="plp__chip__remove" type="button" onClick={() => { setMinPrice(0); setMaxPrice(10000) }}>×</button>
+              </span>
+            )}
+            {(minDiscount > 0 || maxDiscount < 100) && (
+              <span className="plp__chip">
+                Discount {minDiscount}%–{maxDiscount}%
+                <button className="plp__chip__remove" type="button" onClick={() => { setMinDiscount(0); setMaxDiscount(100) }}>×</button>
+              </span>
+            )}
+            {activeFilterCount > 0 && (
+              <button className="plp__chip plp__chip--clear" type="button" onClick={clearAllFilters}>
+                Clear filters
+              </button>
+            )}
+          </div>
         )}
 
         <div className="plp__layout">
@@ -252,6 +314,31 @@ function OffersPage() {
                   <input type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
                   <span className="price-sep">–</span>
                   <input type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
+                </div>
+              </div>
+
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Discount Range</h4>
+                <div className="price-inputs">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="Min %"
+                    className="price-input"
+                    value={minDiscount}
+                    onChange={(e) => setMinDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                  />
+                  <span className="price-sep">–</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="Max %"
+                    className="price-input"
+                    value={maxDiscount}
+                    onChange={(e) => setMaxDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                  />
                 </div>
               </div>
 
@@ -352,7 +439,8 @@ function OffersPage() {
               {filteredDeals.length === 0 && (
                 <div className="empty-state">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  <p className="empty-state__message">No offers match your filters</p>
+                  <p className="empty-state__title">No offers match your filters</p>
+                  <p className="empty-state__sub">Try a broader search, remove brand filters, or switch campaigns.</p>
                   {activeFilterCount > 0 && (
                     <button className="btn btn--outline btn--sm" type="button" onClick={clearAllFilters}>Clear filters</button>
                   )}

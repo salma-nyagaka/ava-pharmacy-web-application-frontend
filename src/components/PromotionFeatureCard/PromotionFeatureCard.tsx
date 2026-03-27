@@ -27,7 +27,7 @@ function PromotionFeatureCard({
   featured = false,
   selected = false,
 }: PromotionFeatureCardProps) {
-  const note = highlights.slice(0, 2).join(' • ')
+  const note = highlights.filter(Boolean).slice(0, 2).join(' • ')
 
   return (
     <Link
@@ -39,11 +39,13 @@ function PromotionFeatureCard({
       ].filter(Boolean).join(' ')}
     >
       <div className="promotion-feature-card__media">
-        {image ? (
-          <ImageWithFallback src={image} alt={title} className="promotion-feature-card__image" />
-        ) : (
-          <div className="promotion-feature-card__image promotion-feature-card__image--empty" aria-hidden="true" />
-        )}
+        <div className="promotion-feature-card__artwork">
+          {image ? (
+            <ImageWithFallback src={image} alt={title} className="promotion-feature-card__image" />
+          ) : (
+            <div className="promotion-feature-card__image promotion-feature-card__image--empty" aria-hidden="true" />
+          )}
+        </div>
         {badge && <span className="promotion-feature-card__badge">{badge}</span>}
       </div>
 
