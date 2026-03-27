@@ -1682,133 +1682,127 @@
 
 /* ── Services Section ───────────────────── */
 .hp-services {
-  background: #0f172a;
-  padding: 3rem 0;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7fa 100%);
+  padding: 2.8rem 0 3rem;
 }
 
 .hp-services__head {
   text-align: center;
-  margin-bottom: 2.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .hp-services__eyebrow {
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #818cf8;
-  margin: 0 0 0.6rem;
+  letter-spacing: 0.12em;
+  color: #be123c;
+  margin: 0 0 0.5rem;
 }
 
 .hp-services__title {
-  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-size: clamp(1.9rem, 3.4vw, 3rem);
   font-weight: 800;
-  color: #f1f5f9;
-  margin: 0 0 0.875rem;
+  color: #2b1246;
+  margin: 0 0 0.6rem;
 }
 
 .hp-services__sub {
-  font-size: 0.95rem;
-  color: #94a3b8;
-  max-width: 520px;
+  font-size: 0.92rem;
+  color: #64748b;
+  max-width: 560px;
   margin: 0 auto;
-  line-height: 1.65;
+  line-height: 1.6;
 }
 
 .hp-services__grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
 }
 
 /* Service card base */
 .hp-svc-card {
   display: flex;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.8rem;
+  min-height: 170px;
+  background: #ffffff;
+  border: 1.5px solid rgba(43, 18, 70, 0.14);
   border-radius: 16px;
-  padding: 1.25rem;
-  transition: all 0.22s;
-  align-items: flex-start;
+  padding: 1rem 1rem 1.1rem;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 10px 26px rgba(43, 18, 70, 0.05);
 }
 
 .hp-svc-card:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: #ffffff;
+  border-color: rgba(232, 23, 80, 0.28);
+  box-shadow: 0 14px 30px rgba(232, 23, 80, 0.09);
   transform: translateY(-3px);
 }
 
 /* Icon wrap */
 .hp-svc-card__icon-wrap {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid transparent;
 }
 
 .hp-svc-card__icon-wrap svg {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 
 .hp-svc-card--doctor .hp-svc-card__icon-wrap {
-  background: rgba(99, 102, 241, 0.18);
-  color: #818cf8;
+  background: rgba(232, 23, 80, 0.09);
+  border-color: rgba(232, 23, 80, 0.12);
+  color: #e81750;
 }
 
 .hp-svc-card--paed .hp-svc-card__icon-wrap {
-  background: rgba(16, 185, 129, 0.18);
-  color: #34d399;
+  background: rgba(153, 27, 31, 0.08);
+  border-color: rgba(153, 27, 31, 0.12);
+  color: #991b1f;
 }
 
 .hp-svc-card--rx .hp-svc-card__icon-wrap {
-  background: rgba(245, 158, 11, 0.18);
-  color: #fbbf24;
+  background: rgba(190, 24, 93, 0.08);
+  border-color: rgba(190, 24, 93, 0.12);
+  color: #be185d;
 }
 
 .hp-svc-card--lab .hp-svc-card__icon-wrap {
-  background: rgba(14, 165, 233, 0.18);
-  color: #38bdf8;
+  background: rgba(91, 33, 182, 0.08);
+  border-color: rgba(91, 33, 182, 0.12);
+  color: #5b21b6;
 }
 
 /* Card body */
 .hp-svc-card__body {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
 }
 
 .hp-svc-card__title {
-  font-size: 1.02rem;
-  font-weight: 700;
-  color: #f1f5f9;
-  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #2b1246;
+  margin: 0 0 0.3rem;
 }
 
 .hp-svc-card__desc {
   font-size: 0.8rem;
-  color: #94a3b8;
-  line-height: 1.55;
-  margin: 0 0 0.5rem;
-}
-
-.hp-svc-card__cta {
-  display: inline-block;
-  font-size: 0.78rem;
-  font-weight: 700;
-  transition: letter-spacing 0.15s;
-}
-
-.hp-svc-card--doctor .hp-svc-card__cta { color: #818cf8; }
-.hp-svc-card--paed   .hp-svc-card__cta { color: #34d399; }
-.hp-svc-card--rx     .hp-svc-card__cta { color: #fbbf24; }
-.hp-svc-card--lab    .hp-svc-card__cta { color: #38bdf8; }
-
-.hp-svc-card:hover .hp-svc-card__cta {
-  letter-spacing: 0.02em;
+  color: #64748b;
+  line-height: 1.45;
+  margin: 0;
 }
 
 /* ── Responsive ─────────────────────────── */
@@ -2023,7 +2017,7 @@
   }
 
   .hp-services__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .hp-services {
@@ -2253,6 +2247,10 @@
 
   .newsletter__title {
     font-size: 1.5rem;
+  }
+
+  .hp-services__grid {
+    grid-template-columns: 1fr;
   }
 }
 

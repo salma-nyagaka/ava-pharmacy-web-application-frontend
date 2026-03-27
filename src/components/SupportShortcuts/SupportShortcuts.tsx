@@ -87,32 +87,29 @@ function SupportShortcuts() {
   return (
     <section className="support-shortcuts" aria-labelledby="support-shortcuts-title">
       <div className="container">
-        <div className="support-shortcuts__panel">
-          <p className="support-shortcuts__eyebrow">Support shortcuts</p>
+        <div className="support-shortcuts__heading">
           <h2 className="support-shortcuts__title" id="support-shortcuts-title">
             Need help fast?
           </h2>
-          <p className="support-shortcuts__subtitle">
-            Simple links to the pages people use most.
-          </p>
+        
+        </div>
 
-          <div className="support-shortcuts__actions">
-            {shortcuts.map((shortcut) => {
-              const isActive = matchesPath(location.pathname, shortcut.path)
+        <div className="support-shortcuts__actions">
+          {shortcuts.map((shortcut) => {
+            const isActive = matchesPath(location.pathname, shortcut.path)
 
-              return (
-                <Link
-                  key={shortcut.path}
-                  to={shortcut.path}
-                  className={`support-shortcuts__link${isActive ? ' support-shortcuts__link--active' : ''}`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <span className="support-shortcuts__icon">{shortcut.icon}</span>
-                  <span className="support-shortcuts__label">{shortcut.label}</span>
-                </Link>
-              )
-            })}
-          </div>
+            return (
+              <Link
+                key={shortcut.path}
+                to={shortcut.path}
+                className={`support-shortcuts__link${isActive ? ' support-shortcuts__link--active' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <span className="support-shortcuts__icon">{shortcut.icon}</span>
+                <span className="support-shortcuts__label">{shortcut.label}</span>
+              </Link>
+            )
+          })}
         </div>
       </div>
     </section>

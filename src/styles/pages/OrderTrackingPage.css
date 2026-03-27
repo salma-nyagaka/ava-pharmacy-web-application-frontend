@@ -71,6 +71,19 @@
   font-size: 1rem;
   font-weight: 700;
   min-height: 48px;
+  background: linear-gradient(135deg, #e81750 0%, #c91444 100%);
+  border: 1px solid rgba(201, 20, 68, 0.55);
+  box-shadow: 0 12px 28px rgba(232, 23, 80, 0.22);
+}
+
+.track-btn--main:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff2f72 0%, #d3154a 100%);
+  border-color: rgba(211, 21, 74, 0.7);
+  box-shadow: 0 16px 34px rgba(232, 23, 80, 0.28);
+}
+
+.track-btn--main:disabled {
+  box-shadow: none;
 }
 
 .track-error {

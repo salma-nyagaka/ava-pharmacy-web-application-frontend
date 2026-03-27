@@ -1469,10 +1469,7 @@ function ProductManagement() {
                       onChange={(e) => setProductDescription(e.target.value)}
                     />
                   </div>
-                  <div className="pf-field">
-                    <label className="pf-label">Promotions & Deals</label>
-                    <span className="pf-hint">Discount pricing and deal badges are managed from the Deals screen.</span>
-                  </div>
+               
                   <div className="pf-field">
                     <label className="pf-label">Features <span className="pf-optional">optional</span></label>
                     <textarea

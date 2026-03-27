@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import PromotionFeatureCard from '../../components/PromotionFeatureCard/PromotionFeatureCard'
 import { cartService } from '../../services/cartService'
 import { useProducts } from '../../hooks/useProducts'
 import { usePromotions } from '../../hooks/usePromotions'
-import { buildPromotionSummary, filterProductsByPromotion, getPromotionScopeEyebrow } from '../../services/promotionService'
+import { buildPromotionSummary, filterProductsByPromotion } from '../../services/promotionService'
 import '../../styles/pages/OffersPage.css'
 import '../../styles/pages/ProductListingPage.css'
 import { useAuth } from '../../context/AuthContext'
@@ -39,17 +38,11 @@ function OffersPage() {
     () => products.filter((product) => product.stockSource !== 'out' && hasDeal(product.price, product.originalPrice)),
     [products],
   )
-  const activePromotions = useMemo(
-    () => [...promotions]
-      .filter((promotion) => promotion.image)
-      .sort((a, b) => b.priority - a.priority || a.end_date.localeCompare(b.end_date)),
-    [promotions],
-  )
 
   const selectedPromotionId = Number(searchParams.get('promotion') ?? '') || null
   const selectedPromotion = useMemo(
-    () => activePromotions.find((promotion) => promotion.id === selectedPromotionId) ?? null,
-    [activePromotions, selectedPromotionId],
+    () => promotions.find((promotion) => promotion.id === selectedPromotionId) ?? null,
+    [promotions, selectedPromotionId],
   )
   const promotionScopedDeals = useMemo(
     () => filterProductsByPromotion(allDeals, selectedPromotion),
@@ -90,8 +83,8 @@ function OffersPage() {
 
   const pageTitle = selectedPromotion?.title ?? 'Latest Offers'
   const pageSubtitle = selectedPromotion
-    ? `${buildPromotionSummary(selectedPromotion, promotionScopedDeals.length)} ${promotionScopedDeals.length} discounted product${promotionScopedDeals.length === 1 ? '' : 's'} currently match this campaign.`
-    : `Browse the live pharmacy campaigns and the discounted lines attached to them. ${activePromotions.length} campaign${activePromotions.length === 1 ? '' : 's'} and ${allDeals.length} discounted product${allDeals.length === 1 ? '' : 's'} are live.`
+    ? `${buildPromotionSummary(selectedPromotion, promotionScopedDeals.length)} ${promotionScopedDeals.length} discounted product${promotionScopedDeals.length === 1 ? '' : 's'} currently match this offer.`
+    : `${allDeals.length} discounted product${allDeals.length === 1 ? '' : 's'} available now across medicines, wellness, beauty and everyday essentials.`
 
   const activeFilterCount =
     (searchTerm ? 1 : 0) +
@@ -206,52 +199,13 @@ function OffersPage() {
             <div>
               <span className="offers-selection-bar__eyebrow">{selectedPromotion.badge}</span>
               <p className="offers-selection-bar__copy">
-                Showing products attached to <strong>{selectedPromotion.title}</strong>.
+                Showing discounted products attached to <strong>{selectedPromotion.title}</strong>.
               </p>
             </div>
             <button className="btn btn--outline btn--sm" type="button" onClick={clearSelectedPromotion}>
-              Show all campaigns
+              Show all offers
             </button>
           </div>
-        )}
-
-        {!selectedPromotion && activePromotions.length > 0 && (
-          <section className="offers-showcase">
-            <div className="offers-showcase__header">
-              <div>
-                <p className="offers-showcase__eyebrow">Campaigns</p>
-                <h2 className="offers-showcase__title">Shop by live offer</h2>
-                <p className="offers-showcase__sub">
-                  Pick a campaign first, then browse the matching discounted lines below.
-                </p>
-              </div>
-            </div>
-
-            <div className="promotion-feature-grid">
-              {activePromotions.map((promotion) => {
-                const matchingDeals = filterProductsByPromotion(allDeals, promotion)
-                return (
-                  <PromotionFeatureCard
-                    key={promotion.id}
-                    href={`/offers?promotion=${promotion.id}`}
-                    image={promotion.image}
-                    badge={promotion.badge}
-                    eyebrow={getPromotionScopeEyebrow(promotion)}
-                    title={promotion.title}
-                    description={buildPromotionSummary(promotion, matchingDeals.length)}
-                    highlights={[
-                      matchingDeals.length > 0
-                        ? `${matchingDeals.length} discounted line${matchingDeals.length === 1 ? '' : 's'}`
-                        : 'Live now',
-                      promotion.code ? `Code ${promotion.code}` : 'Limited time',
-                    ]}
-                    ctaLabel="Shop now"
-                    selected={promotion.id === selectedPromotionId}
-                  />
-                )
-              })}
-            </div>
-          </section>
         )}
 
         {(selectedPromotion || activeFilterCount > 0) && (
@@ -259,7 +213,7 @@ function OffersPage() {
             <span className="plp__filter-chips__label">Active filters:</span>
             {selectedPromotion && (
               <span className="plp__chip plp__chip--promotion">
-                Campaign: {selectedPromotion.title}
+                Offer: {selectedPromotion.title}
                 <button className="plp__chip__remove" type="button" onClick={clearSelectedPromotion}>×</button>
               </span>
             )}
@@ -440,7 +394,7 @@ function OffersPage() {
                 <div className="empty-state">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                   <p className="empty-state__title">No offers match your filters</p>
-                  <p className="empty-state__sub">Try a broader search, remove brand filters, or switch campaigns.</p>
+                  <p className="empty-state__sub">Try a broader search, remove brand filters, or clear the current offer filter.</p>
                   {activeFilterCount > 0 && (
                     <button className="btn btn--outline btn--sm" type="button" onClick={clearAllFilters}>Clear filters</button>
                   )}

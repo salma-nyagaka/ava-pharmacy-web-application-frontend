@@ -735,7 +735,7 @@ function HomePage() {
           <div className="hp-services__head">
             <p className="hp-services__eyebrow">Complete Healthcare</p>
             <h2 className="hp-services__title">Everything you need, in one place</h2>
-            <p className="hp-services__sub">Prescriptions, consults, and lab tests - delivered fast with licensed experts.</p>
+            <p className="hp-services__sub">Prescriptions, consults, and lab tests with licensed support.</p>
           </div>
           <div className="hp-services__grid">
 
@@ -748,9 +748,8 @@ function HomePage() {
                 </svg>
               </div>
               <div className="hp-svc-card__body">
-                <h3 className="hp-svc-card__title">Doctor Consultation</h3>
-                <p className="hp-svc-card__desc">Chat with licensed doctors and get e-prescriptions, 7 days a week.</p>
-                <span className="hp-svc-card__cta">Book a doctor →</span>
+                <h3 className="hp-svc-card__title">Consultations</h3>
+                <p className="hp-svc-card__desc">Talk to licensed doctors online.</p>
               </div>
             </Link>
 
@@ -764,8 +763,7 @@ function HomePage() {
               </div>
               <div className="hp-svc-card__body">
                 <h3 className="hp-svc-card__title">Pediatric Care</h3>
-                <p className="hp-svc-card__desc">Specialist pediatricians for infants, children, and teens on demand.</p>
-                <span className="hp-svc-card__cta">See pediatricians →</span>
+                <p className="hp-svc-card__desc">Specialist care for infants and children.</p>
               </div>
             </Link>
 
@@ -779,9 +777,8 @@ function HomePage() {
                 </svg>
               </div>
               <div className="hp-svc-card__body">
-                <h3 className="hp-svc-card__title">Prescription Upload</h3>
-                <p className="hp-svc-card__desc">Upload your prescription for pharmacist verification and same-day delivery.</p>
-                <span className="hp-svc-card__cta">Upload prescription →</span>
+                <h3 className="hp-svc-card__title">Prescriptions</h3>
+                <p className="hp-svc-card__desc">Upload and get pharmacist review fast.</p>
               </div>
             </Link>
 
@@ -794,8 +791,7 @@ function HomePage() {
               </div>
               <div className="hp-svc-card__body">
                 <h3 className="hp-svc-card__title">Lab Tests</h3>
-                <p className="hp-svc-card__desc">Book 200+ diagnostics with home sample collection and results in 24–48h.</p>
-                <span className="hp-svc-card__cta">Book a test →</span>
+                <p className="hp-svc-card__desc">Book diagnostics and sample collection.</p>
               </div>
             </Link>
 
