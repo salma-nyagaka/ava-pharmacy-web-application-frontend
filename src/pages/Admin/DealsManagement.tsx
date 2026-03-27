@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import {
   adminProductService,
   type ApiBrand,
@@ -225,6 +226,8 @@ function DealsManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [draft, setDraft] = useState<PromotionDraft>(createBlankDraft())
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [promotionImageFile, setPromotionImageFile] = useState<File | null>(null)
+  const [promotionImagePreviewSrc, setPromotionImagePreviewSrc] = useState('')
   const [titleError, setTitleError] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
@@ -291,6 +294,10 @@ function DealsManagement() {
     })
     return Array.from(optionMap.values())
   }, [categoryOptions, brandOptions, productOptions, draft.scope, draft.targets])
+  const editingPromotion = useMemo(
+    () => promotions.find((promotion) => promotion.id === editingId) ?? null,
+    [promotions, editingId],
+  )
 
   const filteredPromotions = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -312,9 +319,21 @@ function DealsManagement() {
   const pagedPromotions = filteredPromotions.slice(startIndex, startIndex + PAGE_SIZE)
   const discountPreview = getDiscountPreview(draft.type, draft.value)
 
+  useEffect(() => {
+    if (!promotionImageFile) {
+      setPromotionImagePreviewSrc(editingPromotion?.image ?? '')
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(promotionImageFile)
+    setPromotionImagePreviewSrc(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [promotionImageFile, editingPromotion])
+
   const openCreate = () => {
     setDraft(createBlankDraft())
     setEditingId(null)
+    setPromotionImageFile(null)
     setTitleError(false)
     setFormError('')
     setIsModalOpen(true)
@@ -323,6 +342,7 @@ function DealsManagement() {
   const openEdit = (promotion: ApiPromotion) => {
     setDraft(toDraft(promotion))
     setEditingId(promotion.id)
+    setPromotionImageFile(null)
     setTitleError(false)
     setFormError('')
     setIsModalOpen(true)
@@ -342,6 +362,33 @@ function DealsManagement() {
         ? prev.targets.filter((item) => item !== target)
         : [...prev.targets, target],
     }))
+  }
+
+  const handlePromotionImageChange = (file: File | null) => {
+    setPromotionImageFile(file)
+    setFormError('')
+  }
+
+  const buildPromotionPayload = () => {
+    const payload = new FormData()
+
+    payload.append('title', draft.title.trim())
+    payload.append('type', draft.type)
+    payload.append('value', String(Number(draft.value)))
+    payload.append('scope', draft.scope)
+    payload.append('targets', JSON.stringify(draft.scope === 'all' ? [] : draft.targets))
+    payload.append('start_date', draft.startDate)
+    payload.append('end_date', draft.endDate)
+    payload.append('status', draft.status)
+    payload.append('code', draft.code.trim())
+    payload.append('description', draft.description.trim())
+    payload.append('minimum_order_amount', String(Math.max(0, Number(draft.minimumOrderAmount) || 0)))
+
+    if (promotionImageFile) {
+      payload.append('image', promotionImageFile)
+    }
+
+    return payload
   }
 
   const handleSave = async () => {
@@ -367,23 +414,15 @@ function DealsManagement() {
       setFormError('Discount value must be greater than 0.')
       return
     }
+    if (!promotionImageFile && !editingPromotion?.image) {
+      setFormError('Offer image is required.')
+      return
+    }
 
     setSaving(true)
     setFormError('')
     try {
-      const payload = {
-        title: trimmedTitle,
-        type: draft.type,
-        value,
-        scope: draft.scope,
-        targets: draft.scope === 'all' ? [] : draft.targets,
-        start_date: draft.startDate,
-        end_date: draft.endDate,
-        status: draft.status,
-        code: draft.code.trim() || undefined,
-        description: draft.description.trim() || undefined,
-        minimum_order_amount: Math.max(0, Number(draft.minimumOrderAmount) || 0),
-      }
+      const payload = buildPromotionPayload()
 
       if (editingId !== null) {
         const updated = await adminProductService.updatePromotion(editingId, payload)
@@ -395,8 +434,22 @@ function DealsManagement() {
 
       setIsModalOpen(false)
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save the deal. Please try again.')
+      type ApiErr = {
+        response?: {
+          data?: {
+            error?: { message?: string }
+            image?: string[]
+            detail?: string
+          }
+        }
+      }
+      const response = (err as ApiErr)?.response?.data
+      setFormError(
+        response?.error?.message
+          ?? response?.image?.[0]
+          ?? response?.detail
+          ?? 'Failed to save the deal. Please try again.',
+      )
     } finally {
       setSaving(false)
     }
@@ -571,16 +624,23 @@ function DealsManagement() {
                   return (
                     <tr key={promotion.id}>
                       <td>
-                        <div className="cm-name-cell">
-                          <span className="cm-name-cell__name">{promotion.title}</span>
-                          {promotion.code && <span className="cm-name-cell__id">Code: {promotion.code}</span>}
-                          {targetLabels.length > 0 && (
-                            <span className="cm-name-cell__id">
-                              {targetLabels.length <= 2
-                                ? targetLabels.join(', ')
-                                : `${targetLabels.slice(0, 2).join(', ')} +${targetLabels.length - 2} more`}
-                            </span>
+                        <div className="dm-offer-cell">
+                          {promotion.image && (
+                            <div className="dm-offer-cell__media">
+                              <ImageWithFallback src={promotion.image} alt={promotion.title} className="dm-offer-cell__image" />
+                            </div>
                           )}
+                          <div className="cm-name-cell">
+                            <span className="cm-name-cell__name">{promotion.title}</span>
+                            {promotion.code && <span className="cm-name-cell__id">Code: {promotion.code}</span>}
+                            {targetLabels.length > 0 && (
+                              <span className="cm-name-cell__id">
+                                {targetLabels.length <= 2
+                                  ? targetLabels.join(', ')
+                                  : `${targetLabels.slice(0, 2).join(', ')} +${targetLabels.length - 2} more`}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td>
@@ -665,6 +725,43 @@ function DealsManagement() {
                 />
                 {titleError && <p className="dm-field-error">Title is required.</p>}
               </div>
+
+              <div className="form-group">
+                <label>
+                  Offer image <span className="dm-required">Required</span>
+                  {editingPromotion && <span className="dm-hint"> - leave empty to keep the current image</span>}
+                </label>
+                <input
+                  id="promotion-image-input"
+                  className="cm-file-input__native"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => handlePromotionImageChange(event.currentTarget.files?.[0] ?? null)}
+                  disabled={saving}
+                  required={!editingPromotion}
+                />
+                <label htmlFor="promotion-image-input" className={`cm-file-input${saving ? ' cm-file-input--disabled' : ''}`}>
+                  <span className="cm-file-input__button">
+                    {editingPromotion ? 'Replace image' : 'Choose image'}
+                  </span>
+                  <span className="cm-file-input__text">
+                    {promotionImageFile?.name ?? (editingPromotion?.image ? 'Keep current image' : 'No file selected')}
+                  </span>
+                </label>
+                <p className="cm-upload-note">
+                  Upload the offer artwork shown on the homepage and offers landing page.
+                </p>
+              </div>
+
+              {promotionImagePreviewSrc && (
+                <div className="cm-brand-preview">
+                  <ImageWithFallback src={promotionImagePreviewSrc} alt={draft.title || 'Offer preview'} className="cm-brand-preview__img" />
+                  <div className="cm-brand-preview__meta">
+                    <span className="cm-brand-preview__label">{promotionImageFile ? 'Selected file' : 'Current image'}</span>
+                    <span className="cm-brand-preview__name">{(promotionImageFile?.name ?? draft.title.trim()) || 'Offer image'}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="dm-section-label">Discount</div>
               <div className="dm-discount-row">

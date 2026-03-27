@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import easterBanner from '../../assets/images/banner/easter.png'
-import uncoverBanner from '../../assets/images/banner/uncover.png'
+import PromotionFeatureCard from '../../components/PromotionFeatureCard/PromotionFeatureCard'
+import easterBanner from '../../assets/images/banner/easter-wide-banner.png'
+import uncoverBanner from '../../assets/images/banner/uncover-wide-banner.png'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
 import { mapApiProduct, useProducts } from '../../hooks/useProducts'
+import { usePromotions } from '../../hooks/usePromotions'
 import { useCatalog } from '../../context/CatalogContext'
 import { useAuth } from '../../context/AuthContext'
 import type { CatalogProduct } from '../../data/products'
 import { categoryCardImages } from '../../data/categoryCardImages'
+import { buildPromotionSummary, filterProductsByPromotion, getPromotionScopeEyebrow } from '../../services/promotionService'
 import '../../styles/pages/HomePage.css'
 
 const bannerSlides = [
@@ -43,13 +46,14 @@ function HomePage() {
   const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
 
   const valueBannerItems = [
-    { key: 'delivery', title: 'Free Delivery',       subtitle: `On orders over KSh 5000/-`, link: '/help', color: 'green'  },
+    { key: 'delivery', title: 'Free Delivery',       subtitle: `On orders over KSh 2500/-`, link: '/help', color: 'green'  },
     { key: 'support',  title: 'Expert Pharmacists',  subtitle: 'Professional guidance, 24/7',   link: '/doctor-consultation', color: 'blue'   },
     { key: 'quality',  title: 'Genuine Products',    subtitle: 'Certified & lab-verified stock', link: '/about',               color: 'purple' },
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
   ]
 
   const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
+  const { promotions } = usePromotions()
   const [featuredProducts, setFeaturedProducts] = useState<CatalogProduct[]>([])
 
   const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name'>) =>
@@ -113,10 +117,19 @@ function HomePage() {
   const offerDeals = [...catalogProducts]
     .filter((product) => isAvailableProduct(product) && isDealProduct(product))
     .sort((a, b) => getDealSavings(b) - getDealSavings(a))
-    .slice(0, 5)
+  const featuredPromotions = [...promotions]
+    .filter((promotion) => promotion.image)
+    .sort((a, b) => b.priority - a.priority || a.end_date.localeCompare(b.end_date))
+    .slice(0, 3)
 
   const formatPrice = (price: number) => {
     return `KSh ${price.toLocaleString()}`
+  }
+
+  const formatOfferDate = (value: string) => {
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return 'Ends soon'
+    return `Ends ${parsed.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}`
   }
 
   const renderStars = (rating: number) => {
@@ -175,7 +188,7 @@ function HomePage() {
   useEffect(() => {
     const t = window.setInterval(() => {
       setCurrentSlide(s => (s + 1) % bannerSlides.length)
-    }, 5000)
+    }, 6000)
     return () => window.clearInterval(t)
   }, [bannerSlides.length])
 
@@ -228,7 +241,7 @@ function HomePage() {
 
     setNewsletterSuccess(true)
     setNewsletterEmail('')
-    setTimeout(() => setNewsletterSuccess(false), 5000)
+    setTimeout(() => setNewsletterSuccess(false), 2500)
   }
 
   const handleAddToCart = async (product: CatalogProduct) => {
@@ -381,7 +394,14 @@ function HomePage() {
         >
           {bannerSlides.map(slide => (
             <Link key={slide.id} to={slide.link} className="hero-carousel__slide">
-              <img src={slide.image} alt={slide.alt} className="hero-carousel__img" />
+              <img
+                src={slide.image}
+                alt={slide.alt}
+                className="hero-carousel__img"
+                loading={slide.id === 1 ? 'eager' : 'lazy'}
+                decoding="async"
+                fetchPriority={slide.id === 1 ? 'high' : 'auto'}
+              />
             </Link>
           ))}
         </div>
@@ -526,16 +546,37 @@ function HomePage() {
           <div className="section__header">
             <h2 className="section__title">Hot Offers</h2>
             <p className="section__subtitle">
-              Products with active discounts or promotions created by admin.
+              Editorial campaign cards driven by the live offers configured in Deals.
             </p>
           </div>
-          {offerDeals.length === 0 ? (
+          {featuredPromotions.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-state__message">No active deals are available right now.</p>
+              <p className="empty-state__message">No live offer campaigns are available right now.</p>
             </div>
           ) : (
-            <div className="products__grid">
-              {offerDeals.map((product) => renderProductCard(product, 'deals'))}
+            <div className="promotion-feature-grid">
+              {featuredPromotions.map((promotion, index) => {
+                const matchingDeals = filterProductsByPromotion(offerDeals, promotion)
+                return (
+                  <PromotionFeatureCard
+                    key={promotion.id}
+                    href={`/offers?promotion=${promotion.id}`}
+                    image={promotion.image}
+                    badge={promotion.badge}
+                    eyebrow={getPromotionScopeEyebrow(promotion)}
+                    title={promotion.title}
+                    description={buildPromotionSummary(promotion, matchingDeals.length)}
+                    highlights={[
+                      matchingDeals.length > 0
+                        ? `${matchingDeals.length} discounted line${matchingDeals.length === 1 ? '' : 's'}`
+                        : 'Live now',
+                      promotion.code ? `Code ${promotion.code}` : formatOfferDate(promotion.end_date),
+                    ]}
+                    ctaLabel="Explore the offer"
+                    featured={index === 0}
+                  />
+                )
+              })}
             </div>
           )}
           <div className="featured-products__cta">

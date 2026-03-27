@@ -400,7 +400,7 @@ function CheckoutPage() {
           }
         })
         .catch(() => {})
-    }, 5000)
+    }, 2500)
     return () => window.clearInterval(intervalId)
   }, [paymentIntent, paymentStatus])
 

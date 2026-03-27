@@ -139,7 +139,7 @@ function PediatricianConsultation() {
       } catch {
         // Ignore transient polling errors.
       }
-    }, 5000)
+    }, 2500)
 
     return () => window.clearInterval(timer)
   }, [currentConsultation?.id, currentConsultation?.status])

@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import PromotionFeatureCard from '../../components/PromotionFeatureCard/PromotionFeatureCard'
 import { cartService } from '../../services/cartService'
 import { useProducts } from '../../hooks/useProducts'
+import { usePromotions } from '../../hooks/usePromotions'
+import {
+  buildPromotionSummary,
+  filterProductsByPromotion,
+  getPromotionScopeEyebrow,
+} from '../../services/promotionService'
 import '../../styles/pages/OffersPage.css'
 import '../../styles/pages/ProductListingPage.css'
 import { useAuth } from '../../context/AuthContext'
@@ -17,17 +24,35 @@ const renderStars = (rating: number) => {
   return Array.from({ length: 5 }, (_, i) =>
     i < full
       ? <svg key={i} className="star star--filled" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-      : <svg key={i} className="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      : <svg key={i} className="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
   )
 }
 
 function OffersPage() {
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { products } = useProducts({ page_size: 200 }, { loadAllPages: true })
+  const { promotions, loading: promotionsLoading } = usePromotions()
   const allDeals = useMemo(
     () => products.filter((product) => product.stockSource !== 'out' && hasDeal(product.price, product.originalPrice)),
     [products],
+  )
+  const activePromotions = useMemo(
+    () => [...promotions]
+      .filter((promotion) => promotion.image)
+      .sort((a, b) => b.priority - a.priority || a.end_date.localeCompare(b.end_date)),
+    [promotions],
+  )
+
+  const selectedPromotionId = Number(searchParams.get('promotion') ?? '') || null
+  const selectedPromotion = useMemo(
+    () => activePromotions.find((promotion) => promotion.id === selectedPromotionId) ?? null,
+    [activePromotions, selectedPromotionId],
+  )
+  const promotionScopedDeals = useMemo(
+    () => filterProductsByPromotion(allDeals, selectedPromotion),
+    [allDeals, selectedPromotion],
   )
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -40,13 +65,13 @@ function OffersPage() {
   const [currentPage, setCurrentPage] = useState(1)
 
   const brands = useMemo(
-    () => Array.from(new Set(allDeals.map((product) => product.brand))).sort((a, b) => a.localeCompare(b)),
-    [allDeals],
+    () => Array.from(new Set(promotionScopedDeals.map((product) => product.brand).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [promotionScopedDeals],
   )
 
   const filteredDeals = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
-    let list = allDeals.filter((product) => {
+    let list = promotionScopedDeals.filter((product) => {
       const queryMatch = !query || [product.name, product.brand, product.category].some((value) => value.toLowerCase().includes(query))
       const priceMatch = product.price >= minPrice && product.price <= maxPrice
       const brandMatch = selectedBrands.length === 0 || selectedBrands.includes(product.brand)
@@ -56,13 +81,20 @@ function OffersPage() {
     if (sortBy === 'price-low') list = [...list].sort((a, b) => a.price - b.price)
     if (sortBy === 'price-high') list = [...list].sort((a, b) => b.price - a.price)
     return list
-  }, [allDeals, searchTerm, minPrice, maxPrice, selectedBrands, sortBy])
+  }, [promotionScopedDeals, searchTerm, minPrice, maxPrice, selectedBrands, sortBy])
 
   const activeFilterCount = selectedBrands.length + (minPrice > 0 || maxPrice < 10000 ? 1 : 0)
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, minPrice, maxPrice, selectedBrands, sortBy])
+  }, [selectedPromotionId, searchTerm, minPrice, maxPrice, selectedBrands, sortBy])
+
+  useEffect(() => {
+    if (!searchParams.get('promotion') || selectedPromotion || promotionsLoading) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('promotion')
+    setSearchParams(next, { replace: true })
+  }, [promotionsLoading, searchParams, selectedPromotion, setSearchParams])
 
   const totalPages = Math.max(1, Math.ceil(filteredDeals.length / ITEMS_PER_PAGE))
 
@@ -99,6 +131,12 @@ function OffersPage() {
     setSelectedBrands([])
   }
 
+  const clearSelectedPromotion = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('promotion')
+    setSearchParams(next)
+  }
+
   const toggleBrand = (brand: string) =>
     setSelectedBrands((prev) => prev.includes(brand) ? prev.filter((item) => item !== brand) : [...prev, brand])
 
@@ -120,17 +158,81 @@ function OffersPage() {
     window.setTimeout(() => setAddedId((prev) => prev === deal.id ? null : prev), 1200)
   }
 
+  const formatOfferDate = (value: string) => {
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return 'Ends soon'
+    return `Ends ${parsed.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}`
+  }
+
   return (
-    <div className="cond-page">
+    <div className="cond-page offers-page">
       <div className="offers-hero">
         <div className="container">
           <p className="offers-hero__eyebrow">Promotions</p>
-          <h1 className="offers-hero__title">Latest Offers</h1>
-          <p className="offers-hero__sub">Browse live promotions created in Deals. {allDeals.length} active deals.</p>
+          <h1 className="offers-hero__title">{selectedPromotion?.title ?? 'Latest Offers'}</h1>
+          <p className="offers-hero__sub">
+            {selectedPromotion
+              ? `${buildPromotionSummary(selectedPromotion, promotionScopedDeals.length)} ${promotionScopedDeals.length} discounted product${promotionScopedDeals.length === 1 ? '' : 's'} currently match this campaign.`
+              : `Browse live campaigns created in Deals. ${activePromotions.length} image-led promotion${activePromotions.length === 1 ? '' : 's'} and ${allDeals.length} discounted product${allDeals.length === 1 ? '' : 's'} are live.`}
+          </p>
         </div>
       </div>
 
       <div className="container">
+        {selectedPromotion && (
+          <div className="offers-selection-bar">
+            <div>
+              <span className="offers-selection-bar__eyebrow">{selectedPromotion.badge}</span>
+              <p className="offers-selection-bar__copy">
+                Showing products attached to <strong>{selectedPromotion.title}</strong>.
+              </p>
+            </div>
+            <button className="btn btn--outline btn--sm" type="button" onClick={clearSelectedPromotion}>
+              Show all campaigns
+            </button>
+          </div>
+        )}
+
+        {activePromotions.length > 0 && (
+          <section className="offers-showcase">
+            <div className="offers-showcase__header">
+              <div>
+                <p className="offers-showcase__eyebrow">Campaigns</p>
+                <h2 className="offers-showcase__title">Offers built to stand apart from the product grid</h2>
+                <p className="offers-showcase__sub">
+                  Each card uses the uploaded campaign image and routes shoppers into the relevant discounted range.
+                </p>
+              </div>
+            </div>
+
+            <div className="promotion-feature-grid">
+              {activePromotions.slice(0, 6).map((promotion, index) => {
+                const matchingDeals = filterProductsByPromotion(allDeals, promotion)
+                return (
+                  <PromotionFeatureCard
+                    key={promotion.id}
+                    href={`/offers?promotion=${promotion.id}`}
+                    image={promotion.image}
+                    badge={promotion.badge}
+                    eyebrow={getPromotionScopeEyebrow(promotion)}
+                    title={promotion.title}
+                    description={buildPromotionSummary(promotion, matchingDeals.length)}
+                    highlights={[
+                      matchingDeals.length > 0
+                        ? `${matchingDeals.length} discounted line${matchingDeals.length === 1 ? '' : 's'}`
+                        : 'Live now',
+                      promotion.code ? `Code ${promotion.code}` : formatOfferDate(promotion.end_date),
+                    ]}
+                    ctaLabel={selectedPromotion?.id === promotion.id ? 'Campaign selected' : 'View this campaign'}
+                    featured={!selectedPromotion && index === 0}
+                    selected={selectedPromotion?.id === promotion.id}
+                  />
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         <div className="plp__layout">
           <aside className="plp__sidebar">
             <div className="filter-panel">
@@ -162,6 +264,7 @@ function OffersPage() {
                       <span>{brand}</span>
                     </label>
                   ))}
+                  {brands.length === 0 && <p className="offers-filter-empty">No brands available for this offer.</p>}
                 </div>
               </div>
             </div>
@@ -239,7 +342,7 @@ function OffersPage() {
                       {addedId === deal.id ? (
                         <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>Added</>
                       ) : (
-                        <>{deal.requiresPrescription ? 'Request with presciption' : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to cart</>}</>
+                        <>{deal.requiresPrescription ? 'Request with prescription' : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to cart</>}</>
                       )}
                     </button>
                   </div>

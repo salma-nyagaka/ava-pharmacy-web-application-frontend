@@ -8,14 +8,12 @@ import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { useAuth } from '../../context/AuthContext'
-import { useSiteSettings } from '../../context/SiteSettingsContext'
 
 function Header() {
   const ALL_CATEGORIES_KEY = 'all'
   const navigate = useNavigate()
   const location = useLocation()
   const { user, isLoggedIn, logout } = useAuth()
-  const { settings } = useSiteSettings()
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/')
@@ -176,7 +174,7 @@ function Header() {
                     <circle cx="5.5" cy="18.5" r="1.5"/>
                     <circle cx="18.5" cy="18.5" r="1.5"/>
                   </svg>
-                  {activeBanner?.message ?? `Free delivery for orders above KSh ${settings.freeDeliveryThreshold.toLocaleString()}`}
+                  {activeBanner?.message ?? `Free delivery for orders above KSh 2500/-`}
                 </span>
               )}
             </div>

@@ -17,6 +17,7 @@ export function mapApiProduct(p: Product): CatalogProduct {
     sku: p.sku,
     name: p.name,
     brand: p.brand_name ?? '',
+    brandSlug: p.brand_slug ?? '',
     category: p.category_name ?? '',
     categorySlug: p.category_slug ?? '',
     subcategorySlugs: [],

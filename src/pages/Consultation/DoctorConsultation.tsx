@@ -151,7 +151,7 @@ function DoctorConsultation() {
       } catch {
         // Ignore transient polling errors; manual refresh paths remain available.
       }
-    }, 5000)
+    }, 2500)
 
     return () => window.clearInterval(timer)
   }, [currentConsultation?.id, currentConsultation?.status])

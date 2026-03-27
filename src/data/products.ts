@@ -18,6 +18,7 @@ export type CatalogProduct = {
   sku: string
   name: string
   brand: string
+  brandSlug?: string
   category: string
   categorySlug: string
   subcategorySlugs: string[]

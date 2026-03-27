@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/apiClient'
+import { apiClient, resolveMediaUrl } from '../lib/apiClient'
 
 export interface ApiCategory {
   id: number
@@ -41,6 +41,7 @@ export interface ApiPromotion {
   title: string
   code: string | null
   description: string
+  image: string | null
   type: PromotionType
   value: string
   scope: PromotionScope
@@ -303,6 +304,13 @@ function unwrapList<T>(res: { data: unknown }): T[] {
   return []
 }
 
+function normalizePromotion<T extends ApiPromotion>(promotion: T): T {
+  return {
+    ...promotion,
+    image: resolveMediaUrl(promotion.image),
+  }
+}
+
 export const adminProductService = {
   async listProducts(params?: Record<string, string>) {
     const res = await apiClient.get('/admin/products/', { params })
@@ -475,10 +483,10 @@ export const adminProductService = {
 
   async listPromotions(params?: Record<string, string>) {
     const res = await apiClient.get('/admin/promotions/', { params })
-    return unwrapList<ApiPromotion>(res)
+    return unwrapList<ApiPromotion>(res).map(normalizePromotion)
   },
 
-  async createPromotion(payload: {
+  async createPromotion(payload: FormData | {
     title: string
     type: PromotionType
     value: number
@@ -491,11 +499,12 @@ export const adminProductService = {
     description?: string
     minimum_order_amount?: number
   }) {
-    const res = await apiClient.post('/admin/promotions/', payload)
-    return unwrap<ApiPromotion>(res)
+    const isFormData = payload instanceof FormData
+    const res = await apiClient.post('/admin/promotions/', payload, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
+    return normalizePromotion(unwrap<ApiPromotion>(res))
   },
 
-  async updatePromotion(id: number, payload: Partial<{
+  async updatePromotion(id: number, payload: FormData | Partial<{
     title: string
     type: PromotionType
     value: number
@@ -508,8 +517,9 @@ export const adminProductService = {
     description: string
     minimum_order_amount: number
   }>) {
-    const res = await apiClient.patch(`/admin/promotions/${id}/`, payload)
-    return unwrap<ApiPromotion>(res)
+    const isFormData = payload instanceof FormData
+    const res = await apiClient.patch(`/admin/promotions/${id}/`, payload, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
+    return normalizePromotion(unwrap<ApiPromotion>(res))
   },
 
   async deletePromotion(id: number) {
