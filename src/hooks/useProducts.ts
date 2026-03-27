@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { fetchProducts, type Product, type ProductFilters } from '../services/productService'
+import { fetchProducts, type FetchProductsOptions, type Product, type ProductFilters } from '../services/productService'
 import type { CatalogProduct } from '../data/products'
 import type { StockSource } from '../data/cart'
 
@@ -37,19 +37,20 @@ export function mapApiProduct(p: Product): CatalogProduct {
   }
 }
 
-export function useProducts(filters: ProductFilters = {}) {
+export function useProducts(filters: ProductFilters = {}, options: FetchProductsOptions = {}) {
   const [products, setProducts] = useState<CatalogProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [meta, setMeta] = useState<Record<string, unknown>>({})
 
   const filtersKey = JSON.stringify(filters)
+  const optionsKey = JSON.stringify(options)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const { data, meta: m } = await fetchProducts(filters)
+      const { data, meta: m } = await fetchProducts(filters, options)
       setProducts(data.map(mapApiProduct))
       setMeta(m)
     } catch (err) {
@@ -58,7 +59,7 @@ export function useProducts(filters: ProductFilters = {}) {
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersKey])
+  }, [filtersKey, optionsKey])
 
   useEffect(() => {
     void load()

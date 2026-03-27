@@ -83,7 +83,7 @@ function ProductListingPage() {
     health_concern: healthConcernParam,
     search: queryFromUrl || undefined,
     page_size: 200,
-  })
+  }, { loadAllPages: true })
 
   const productsWithDeals = products as (ListingProduct & { inStock: boolean; dealLabel?: string | null })[]
 
@@ -122,6 +122,17 @@ function ProductListingPage() {
     refreshWishlist()
     return favouritesService.subscribe(refreshWishlist)
   }, [])
+
+  useEffect(() => {
+    setSearchTerm(queryFromUrl)
+    setMinPrice(0)
+    setMaxPrice(10000)
+    setSelectedBrands([])
+    setMinRating(0)
+    setAvailability('all')
+    setSortBy('recommended')
+    setCurrentPage(1)
+  }, [queryFromUrl, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
 
   const prescriptionPathFor = (product: Pick<ListingProduct, 'id' | 'name'>) =>
     `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`

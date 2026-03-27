@@ -47,6 +47,10 @@ export interface ProductListResponse {
   previous: string | null
 }
 
+export interface FetchProductsOptions {
+  loadAllPages?: boolean
+}
+
 export interface ProductFilters {
   category?: string
   subcategory?: string
@@ -103,7 +107,8 @@ function normalizeProduct(product: Product): Product {
 
 function normalizeProductDetail(product: ProductDetail): ProductDetail {
   return {
-    ...normalizeProduct(product),
+    ...product,
+    image: resolveMediaUrl(product.image),
     brand: {
       ...product.brand,
       logo: resolveMediaUrl(product.brand?.logo),
@@ -114,7 +119,32 @@ function normalizeProductDetail(product: ProductDetail): ProductDetail {
   }
 }
 
-export async function fetchProducts(filters: ProductFilters = {}): Promise<{ data: Product[]; meta: Record<string, unknown> }> {
+function extractProductCollection(raw: unknown): { items: Product[]; meta: Record<string, unknown> } {
+  const response = raw as { data?: unknown; meta?: Record<string, unknown> }
+  const payload = response?.data ?? raw
+  const meta = response?.meta ?? {}
+
+  if (Array.isArray(payload)) {
+    return { items: payload as Product[], meta }
+  }
+
+  if (payload && typeof payload === 'object') {
+    const typedPayload = payload as { products?: Product[]; results?: Product[] }
+    if (Array.isArray(typedPayload.products)) {
+      return { items: typedPayload.products, meta }
+    }
+    if (Array.isArray(typedPayload.results)) {
+      return { items: typedPayload.results, meta }
+    }
+  }
+
+  return { items: [], meta }
+}
+
+export async function fetchProducts(
+  filters: ProductFilters = {},
+  options: FetchProductsOptions = {},
+): Promise<{ data: Product[]; meta: Record<string, unknown> }> {
   const params = Object.fromEntries(
     Object.entries(filters).filter(([, v]) => v !== undefined && v !== '' && v !== null)
   )
@@ -123,11 +153,37 @@ export async function fetchProducts(filters: ProductFilters = {}): Promise<{ dat
     delete params.search
     params.q = filters.search
   }
+
   const res = await apiClient.get(endpoint, { params })
-  const payload = res.data?.data ?? res.data
-  if (Array.isArray(payload)) return { data: payload.map(normalizeProduct), meta: res.data?.meta ?? {} }
-  if (Array.isArray(payload?.products)) return { data: payload.products.map(normalizeProduct), meta: res.data?.meta ?? {} }
-  return { data: [], meta: res.data?.meta ?? {} }
+  const firstPage = extractProductCollection(res.data)
+  const items = [...firstPage.items]
+  let meta = firstPage.meta
+
+  if (options.loadAllPages) {
+    let next = typeof meta.next === 'string' ? meta.next : null
+    let remainingPages = 99
+
+    while (next && remainingPages > 0) {
+      const nextRes = await apiClient.get(next)
+      const nextPage = extractProductCollection(nextRes.data)
+      items.push(...nextPage.items)
+      meta = { ...meta, ...nextPage.meta }
+      next = typeof nextPage.meta.next === 'string' ? nextPage.meta.next : null
+      remainingPages -= 1
+    }
+
+    meta = {
+      ...meta,
+      total: typeof firstPage.meta.total === 'number' ? firstPage.meta.total : items.length,
+      total_pages:
+        typeof firstPage.meta.total_pages === 'number'
+          ? firstPage.meta.total_pages
+          : Math.max(1, Math.ceil(items.length / Math.max(items.length, 1))),
+      next: null,
+    }
+  }
+
+  return { data: items.map(normalizeProduct), meta }
 }
 
 export async function fetchProductBySlug(slug: string): Promise<ProductDetail> {

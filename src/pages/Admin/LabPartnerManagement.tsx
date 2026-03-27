@@ -52,7 +52,20 @@ interface LabPartnerView {
 const payoutMethods = ['M-Pesa', 'Bank Transfer'] as const
 const PAGE_SIZE = 6
 
-const blankPartner = () => ({
+type PartnerDraft = {
+  name: string
+  email: string
+  phone: string
+  location: string
+  contactName: string
+  accreditation: string
+  licenseNumber: string
+  payoutMethod: (typeof payoutMethods)[number]
+  payoutAccount: string
+  notes: string
+}
+
+const blankPartner = (): PartnerDraft => ({
   name: '',
   email: '',
   phone: '',
@@ -63,13 +76,6 @@ const blankPartner = () => ({
   payoutMethod: 'M-Pesa' as const,
   payoutAccount: '',
   notes: '',
-})
-
-const blankTech = () => ({
-  name: '',
-  email: '',
-  phone: '',
-  specialty: '',
 })
 
 const toPartnerStatus = (value?: string): LabPartnerStatus => {
@@ -149,7 +155,6 @@ function LabPartnerManagement() {
   const [managePayoutMethod, setManagePayoutMethod] = useState<'M-Pesa' | 'Bank Transfer'>('M-Pesa')
   const [managePayoutAccount, setManagePayoutAccount] = useState('')
   const [manageNotes, setManageNotes] = useState('')
-  const [techDraft, setTechDraft] = useState(blankTech())
   const [submitting, setSubmitting] = useState(false)
   const [rowLoadingId, setRowLoadingId] = useState<number | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
@@ -222,7 +227,6 @@ function LabPartnerManagement() {
 
   const openManage = (partner: LabPartnerView) => {
     setSelectedPartnerId(partner.id)
-    setTechDraft(blankTech())
     setFieldErrors({})
     setFeedback('')
     setShowManage(true)
@@ -296,28 +300,6 @@ function LabPartnerManagement() {
       setShowManage(false)
     } catch (err) {
       handleApiError(err, 'Unable to update lab partner.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleAddTech = async () => {
-    if (!managePartner) return
-    setSubmitting(true)
-    setFieldErrors({})
-    setError('')
-    try {
-      await adminLabPartnerService.createTechnician(managePartner.id, {
-        name: techDraft.name.trim(),
-        email: techDraft.email.trim(),
-        phone: techDraft.phone.trim(),
-        specialty: techDraft.specialty.trim(),
-      })
-      await loadPartners()
-      setFeedback('Lab technician added.')
-      setTechDraft(blankTech())
-    } catch (err) {
-      handleApiError(err, 'Unable to add lab technician.')
     } finally {
       setSubmitting(false)
     }
@@ -421,6 +403,9 @@ function LabPartnerManagement() {
       </div>
 
       <div className="cm-toolbar">
+        <button className="btn btn--primary btn--sm" type="button" onClick={openAdd}>
+          Add Lab Partner
+        </button>
         <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
           <div className="cm-search-box">
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>

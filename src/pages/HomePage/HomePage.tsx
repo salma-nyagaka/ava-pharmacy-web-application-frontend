@@ -8,9 +8,9 @@ import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
 import { mapApiProduct, useProducts } from '../../hooks/useProducts'
 import { useCatalog } from '../../context/CatalogContext'
-import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { useAuth } from '../../context/AuthContext'
 import type { CatalogProduct } from '../../data/products'
+import { categoryCardImages } from '../../data/categoryCardImages'
 import '../../styles/pages/HomePage.css'
 
 const bannerSlides = [
@@ -39,7 +39,6 @@ function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const navigate = useNavigate()
   const { categories } = useCatalog()
-  const { settings } = useSiteSettings()
   const { isLoggedIn } = useAuth()
   const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
 
@@ -50,7 +49,7 @@ function HomePage() {
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
   ]
 
-  const { products: catalogProducts } = useProducts({ page_size: 200 })
+  const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
   const [featuredProducts, setFeaturedProducts] = useState<CatalogProduct[]>([])
 
   const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name'>) =>
@@ -171,7 +170,7 @@ function HomePage() {
       track.removeEventListener('scroll', updateScrollButtons)
       window.removeEventListener('resize', updateScrollButtons)
     }
-  }, [])
+  }, [categories.length])
 
   useEffect(() => {
     const t = window.setInterval(() => {
@@ -197,7 +196,8 @@ function HomePage() {
     if (!track) return
     const card = track.querySelector<HTMLElement>('.category-card')
     const cardWidth = card?.offsetWidth ?? 200
-    const gap = 24
+    const gapValue = window.getComputedStyle(track).gap || window.getComputedStyle(track).columnGap || '24'
+    const gap = Number.parseFloat(gapValue) || 24
     const amount = (cardWidth + gap) * 2
     track.scrollBy({ left: direction === 'next' ? amount : -amount, behavior: 'smooth' })
   }
@@ -467,30 +467,41 @@ function HomePage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
               </button>
               <div className="categories__track" ref={categoryTrackRef}>
-                {categories.map((cat) => (
-                  <Link key={cat.id} to={cat.path} className="category-card">
-                    <div className={`category-card__image ${cat.image ? 'category-card__image--photo' : 'category-card__image--icon'}`}>
-                      {cat.image ? (
-                        <ImageWithFallback src={cat.image} alt={cat.name} className="category-card__image-media" />
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-                          <path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/>
-                        </svg>
-                      )}
-                    </div>
-                    <div className="category-card__body">
-                      <h3 className="category-card__name">{cat.name}</h3>
-                      <p className="category-card__description">
-                        {cat.description || `Explore trusted ${cat.name.toLowerCase()} picks curated for everyday care.`}
-                      </p>
-                      <span className="category-card__eyebrow">
-                        {cat.subcategories.length > 0
-                          ? `${cat.subcategories.length} ${cat.subcategories.length === 1 ? 'collection' : 'collections'}`
-                          : 'Coming soon'}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
+                {categories.map((cat) => {
+                  const cardImage = categoryCardImages[cat.slug] ?? cat.image
+
+                  return (
+                    <Link key={cat.id} to={cat.path} className="category-card">
+                      <div className={`category-card__image ${cardImage ? 'category-card__image--photo' : 'category-card__image--icon'}`}>
+                        {cardImage ? (
+                          <ImageWithFallback src={cardImage} alt={cat.name} className="category-card__image-media" />
+                        ) : (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+                            <path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/>
+                          </svg>
+                        )}
+                      </div>
+                      <div className="category-card__body">
+                        <span className="category-card__label">Shop by Category</span>
+                        <h3 className="category-card__name">{cat.name}</h3>
+                        <p className="category-card__description">
+                          {cat.description || `Explore trusted ${cat.name.toLowerCase()} picks curated for everyday care.`}
+                        </p>
+                        <div className="category-card__footer">
+                          <span className="category-card__eyebrow">
+                            {cat.subcategories.length > 0
+                              ? `${cat.subcategories.length} ${cat.subcategories.length === 1 ? 'collection' : 'collections'}`
+                              : 'Coming soon'}
+                          </span>
+                          <span className="category-card__cta">
+                            Explore
+                            <span aria-hidden="true">→</span>
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
               </div>
               <button
                 className="carousel__btn carousel__btn--next"

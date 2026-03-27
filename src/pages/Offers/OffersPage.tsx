@@ -24,7 +24,7 @@ const renderStars = (rating: number) => {
 function OffersPage() {
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
-  const { products } = useProducts({ page_size: 200 })
+  const { products } = useProducts({ page_size: 200 }, { loadAllPages: true })
   const allDeals = useMemo(
     () => products.filter((product) => product.stockSource !== 'out' && hasDeal(product.price, product.originalPrice)),
     [products],

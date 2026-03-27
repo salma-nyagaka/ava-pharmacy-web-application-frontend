@@ -1,4 +1,4 @@
-import { apiClient, resolveMediaUrl } from '../lib/apiClient'
+import { apiClient } from '../lib/apiClient'
 
 export interface ApiCategory {
   id: number
@@ -215,27 +215,6 @@ export interface ApiReports {
   low_stock_products: number
   orders_by_status: { status: string; count: number }[]
   top_products: { product_name: string; product_sku: string; quantity_sold: number }[]
-}
-
-
-function normalizeApiBrand<T extends ApiBrand>(brand: T): T {
-  return { ...brand, logo: resolveMediaUrl(brand.logo) } as T
-}
-
-function normalizeApiProduct<T extends ApiProduct>(product: T): T {
-  return {
-    ...product,
-    image: resolveMediaUrl(product.image),
-    brand: product.brand ? normalizeApiBrand(product.brand) : product.brand,
-  } as T
-}
-
-function normalizeApiCategory<T extends ApiProductCategory>(category: T): T {
-  return { ...category, image: resolveMediaUrl(category.image) } as T
-}
-
-function normalizeApiHealthConcern<T extends ApiHealthConcern>(item: T): T {
-  return { ...item, image: resolveMediaUrl(item.image) || '' } as T
 }
 
 export interface ApiOrder {
