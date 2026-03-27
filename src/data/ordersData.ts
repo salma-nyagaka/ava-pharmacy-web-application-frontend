@@ -3,6 +3,8 @@ import type { Order as ApiOrder } from '../services/orderService'
 export type OrderStatus = 'Pending' | 'Confirmed' | 'Processing' | 'In Transit' | 'Delivered' | 'Cancelled' | 'Refunded'
 
 export interface OrderItem {
+  productId: number | null
+  productSlug: string | null
   name: string
   qty: number
   price: number
@@ -132,6 +134,8 @@ export function mapApiOrder(order: ApiOrder): Order {
     trackingNumber: null,
     products: items.map((item) => item.product_name),
     productItems: items.map((item) => ({
+      productId: item.product_id ?? null,
+      productSlug: item.product_slug ?? null,
       name: item.product_name,
       qty: item.quantity,
       price: parseAmount(item.unit_price),

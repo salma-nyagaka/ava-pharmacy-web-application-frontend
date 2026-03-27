@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
 import { fetchOrder, fetchOrderTracking } from '../../services/orderService'
@@ -600,6 +601,8 @@ function OrderTrackingPage() {
           )}
         </div>
       </section>
+
+      <SupportShortcuts />
     </div>
   )
 }

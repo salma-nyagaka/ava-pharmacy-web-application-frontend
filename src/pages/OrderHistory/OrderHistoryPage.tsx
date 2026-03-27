@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { STATUS_CFG, type Order, type OrderStatus } from '../../data/ordersData'
 import { useOrders } from '../../hooks/useOrders'
+import { submitProductReview } from '../../services/productService'
 import '../../styles/pages/OrderHistoryPage.css'
 
 const FILTER_TABS: Array<'All' | OrderStatus> = ['All', 'Pending', 'Confirmed', 'Processing', 'In Transit', 'Delivered', 'Cancelled', 'Refunded']
@@ -98,7 +99,11 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
   const [hover, setHover] = useState(0)
   const [rating, setRating] = useState(0)
   const [text, setText] = useState('')
+  const reviewableItems = order.productItems.filter((item) => item.productId)
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(reviewableItems[0]?.productId ?? null)
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
   const starLabels = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent!']
   const starColors = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e', '#16a34a']
@@ -141,11 +146,30 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
         </div>
 
         <div className="rm-products">
-          <p className="rm-label">Items in this order</p>
+          <p className="rm-label">Select a product to review</p>
           <div className="rm-product-list">
-            {order.products.map((name) => (
-              <div key={name} className="rm-product-chip">💊 {name}</div>
-            ))}
+            {order.productItems.map((item) => {
+              const selectable = !!item.productId
+              const isSelected = selectable && selectedProductId === item.productId
+              return (
+                <button
+                  key={`${item.productId ?? item.name}-${item.qty}`}
+                  type="button"
+                  className="rm-product-chip"
+                  style={{
+                    opacity: selectable ? 1 : 0.6,
+                    borderColor: isSelected ? '#e81750' : undefined,
+                    background: isSelected ? 'rgba(232,23,80,0.08)' : undefined,
+                  }}
+                  onClick={() => {
+                    if (selectable) setSelectedProductId(item.productId)
+                  }}
+                  disabled={!selectable}
+                >
+                  💊 {item.name}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -180,10 +204,24 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
           <p className="rm-char-count">{text.length} / 500</p>
         </div>
 
+        {error && <p className="rm-char-count" style={{ color: '#b91c1c' }}>{error}</p>}
         <div className="rm-modal__footer">
           <button className="rm-cancel-btn" type="button" onClick={onClose}>Cancel</button>
-          <button className="rm-submit-btn" type="button" onClick={() => { if (rating) setSubmitted(true) }} disabled={!rating}>
-            Submit Review
+          <button
+            className="rm-submit-btn"
+            type="button"
+            onClick={() => {
+              if (!rating || !selectedProductId) return
+              setSubmitting(true)
+              setError('')
+              void submitProductReview(selectedProductId, { rating, comment: text.trim() })
+                .then(() => setSubmitted(true))
+                .catch(() => setError('Unable to submit review right now. Confirm the order was delivered and try again.'))
+                .finally(() => setSubmitting(false))
+            }}
+            disabled={!rating || !selectedProductId || submitting}
+          >
+            {submitting ? 'Submitting…' : 'Submit Review'}
           </button>
         </div>
       </div>

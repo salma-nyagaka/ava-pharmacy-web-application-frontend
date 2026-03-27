@@ -2,6 +2,8 @@ import { apiClient } from '../lib/apiClient'
 
 export interface OrderItem {
   id: number
+  product_id?: number | null
+  product_slug?: string | null
   product_name: string
   product_sku: string
   quantity: number

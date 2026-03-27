@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import mapIllustration from '../../assets/images/maps/map-the-hub-karen.svg'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import {
@@ -25,112 +26,41 @@ const heroPills = [
   'Customer-first support',
 ]
 
-const reasons = [
-  {
-    title: 'Thoughtfully curated products',
-    body: 'Beauty, wellness, and daily essentials selected to make healthy routines easier to maintain.',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 12.5 9 16.5 19 6.5" />
-        <path d="M5 6.5h4" />
-        <path d="M5 18.5h8" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Knowledgeable, friendly staff',
-    body: 'Trusted advice and practical support for prescriptions, wellness shopping, and day-to-day care questions.',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="7" r="4" />
-        <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Safe, authentic brands',
-    body: 'A stronger focus on trusted stock, reliable sourcing, and products customers can buy with confidence.',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 21s7-3.5 7-9.5V5.8L12 3 5 5.8v5.7C5 17.5 12 21 12 21Z" />
-        <path d="m9.4 12.3 1.8 1.8 3.6-4" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Customer-first experience',
-    body: 'From browsing to follow-up support, the service is built to feel practical, responsive, and reassuring.',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 20.5c4.6-2.8 7-5.4 7-8.7A4.3 4.3 0 0 0 12 8.8a4.3 4.3 0 0 0-7 3c0 3.3 2.4 5.9 7 8.7Z" />
-      </svg>
-    ),
-  },
+const promisePoints = [
+  'Curated wellness picks',
+  'Friendly expert guidance',
+  'Trusted authentic brands',
+  'A smoother customer experience',
 ]
 
-const categoryGroups = [
+const serviceLines = [
   {
     title: 'Health & Wellness',
-    points: [
-      'Daily vitamins and immune support',
-      'Natural supplements and herbal remedies',
-      'Relaxation and stress-support products',
-      'Women’s and men’s wellness essentials',
-    ],
+    summary: 'Daily essentials for immunity and wellness.',
+    points: ['Daily vitamins', 'Herbal wellness', 'Stress support'],
   },
   {
     title: 'Beauty & Skincare',
-    points: [
-      'Dermatologist-led skincare picks',
-      'Organic and everyday beauty solutions',
-      'Body care and personal hygiene staples',
-      'Hair care for different textures and routines',
-    ],
+    summary: 'Skincare and beauty care you can trust.',
+    points: ['Clinical skincare', 'Beauty essentials', 'Body and hair care'],
   },
   {
     title: 'Mother & Baby Care',
-    points: [
-      'Gentle baby skincare and bath products',
-      'Maternity wellness support items',
-      'Diapers, wipes, and feeding accessories',
-    ],
+    summary: 'Gentle products for growing families.',
+    points: ['Baby bath and skincare', 'Maternity support', 'Diapers and feeding'],
   },
   {
     title: 'Self-Care & Lifestyle',
-    points: [
-      'Aromatherapy and essential oils',
-      'Wellness teas and detox blends',
-      'Fitness and body-toning accessories',
-      'Sustainable personal care tools',
-    ],
+    summary: 'Lifestyle products that support self-care.',
+    points: ['Aromatherapy', 'Wellness teas', 'Fitness accessories'],
   },
 ]
 
-const careJourneys = [
-  {
-    title: 'Doctor consultation',
-    description: 'Start an online consultation and speak with a licensed doctor for quick assessment and treatment guidance.',
-    link: '/doctor-consultation',
-    cta: 'Open consultation',
-  },
-  {
-    title: 'Pediatric care',
-    description: 'Access child-focused consultations for growth checks, everyday symptoms, and family care support.',
-    link: '/pediatric-consultation',
-    cta: 'See pediatric care',
-  },
-  {
-    title: 'Prescription upload',
-    description: 'Send a prescription for pharmacist review, fulfillment, and progress tracking inside the app.',
-    link: '/prescriptions',
-    cta: 'Upload prescription',
-  },
-  {
-    title: 'Lab tests',
-    description: 'Browse diagnostic services, book tests, and manage requests from the same Ava experience.',
-    link: '/lab-tests',
-    cta: 'Browse lab tests',
-  },
+const actionLinks = [
+  { label: 'Browse products', to: '/products' },
+  { label: 'Upload prescription', to: '/prescriptions' },
+  { label: 'Explore health services', to: '/health-services' },
+  { label: 'Contact us', to: '/contact' },
 ]
 
 function withLiveFallback(value: string, defaultValue: string, liveValue: string) {
@@ -170,67 +100,19 @@ function AboutPage() {
     ),
   }
 
-  const signalCards = [
-    {
-      label: 'Storefront',
-      value: 'Karen / The Hub',
-      detail: contact.supportAddress,
-    },
-    {
-      label: 'Availability',
-      value: contact.supportHours,
-      detail: 'Open daily for support, product guidance, and walk-in questions.',
-    },
-    {
-      label: 'Support',
-      value: 'Phone, email & WhatsApp',
-      detail: contact.supportPhone,
-    },
-    {
-      label: 'Focus',
-      value: 'Health, beauty & lifestyle',
-      detail: 'Supplements, skincare, baby care, and self-care essentials.',
-    },
-  ]
-
-  const contactCards = [
-    {
-      label: 'Office address',
-      value: contact.supportAddress,
-    },
-    {
-      label: 'Call us',
-      value: contact.supportPhone,
-      href: `tel:${formatPhoneHref(contact.supportPhone)}`,
-    },
-    {
-      label: 'Email us',
-      value: contact.supportEmail,
-      href: `mailto:${contact.supportEmail}`,
-    },
-    {
-      label: 'Office time',
-      value: contact.supportHours,
-    },
-  ]
-
   return (
     <div className="about-page">
       <section className="about-page__hero">
         <div className="container">
           <div className="about-page__hero-grid">
-            <div className="about-page__hero-card about-page__hero-card--copy">
+            <div className="about-page__hero-copy">
               <span className="about-page__eyebrow">About Ava Pharmacy</span>
               <h1 className="about-page__hero-title">Care You Can Trust</h1>
               <p className="about-page__hero-lead">
-                AVA Pharmacy is built around a simple idea: wellness should feel balanced, practical,
-                and approachable every day.
+                Wellness should feel simple, trusted, and easy to choose.
               </p>
               <p className="about-page__hero-body">
-                We bring together health, beauty, and peace of mind through trusted products,
-                informed support, and a curated mix of everyday essentials. From skincare and
-                supplements to baby care and lifestyle wellness, the goal is to help customers feel
-                their best naturally, affordably, and with confidence.
+                AVA Pharmacy brings health, beauty, and everyday care into one curated experience.
               </p>
 
               <div className="about-page__hero-actions">
@@ -245,7 +127,7 @@ function AboutPage() {
               </div>
             </div>
 
-            <div className="about-page__hero-card about-page__hero-card--media">
+            <div className="about-page__hero-media">
               <div className="about-page__hero-image-wrap">
                 <ImageWithFallback
                   className="about-page__hero-image"
@@ -254,144 +136,118 @@ function AboutPage() {
                 />
               </div>
 
-              <div className="about-page__media-facts">
-                <div className="about-page__media-fact">
-                  <span className="about-page__media-label">Visit us</span>
-                  <strong className="about-page__media-value">Karen / The Hub</strong>
-                  <p className="about-page__media-copy">{contact.supportAddress}</p>
+              <div className="about-page__hero-note">
+                <p>
+                  “True wellness is a balance of health, beauty, and peace of mind.”
+                </p>
+              </div>
+
+              <div className="about-page__hero-meta">
+                <div>
+                  <span className="about-page__meta-label">Visit us</span>
+                  <strong className="about-page__meta-value">Karen / The Hub</strong>
                 </div>
-                <div className="about-page__media-fact">
-                  <span className="about-page__media-label">Open daily</span>
-                  <strong className="about-page__media-value">{contact.supportHours}</strong>
-                  <p className="about-page__media-copy">In-store support for wellness shopping and care questions.</p>
+                <div>
+                  <span className="about-page__meta-label">Open daily</span>
+                  <strong className="about-page__meta-value">{contact.supportHours}</strong>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="about-page__signal-grid">
-            {signalCards.map((card) => (
-              <article key={card.label} className="about-page__signal-card">
-                <span className="about-page__signal-label">{card.label}</span>
-                <strong className="about-page__signal-value">{card.value}</strong>
-                <p className="about-page__signal-detail">{card.detail}</p>
-              </article>
-            ))}
+      <section className="about-page__section about-page__section--story">
+        <div className="container">
+          <div className="about-page__story-grid">
+            <div className="about-page__story-copy">
+              <span className="about-page__section-kicker">Who we are</span>
+              <h2 className="about-page__section-title">A curated pharmacy experience built for everyday wellness.</h2>
+              <p className="about-page__section-subtitle">
+                A modern destination for wellness products, skincare, and everyday health essentials.
+              </p>
+            </div>
+
+            <div className="about-page__promise">
+              <h3 className="about-page__promise-title">Why customers choose AVA</h3>
+              <ul className="about-page__promise-list">
+                {promisePoints.map((point) => (
+                  <li key={point}>{point}</li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="about-page__section about-page__section--soft">
+      <section className="about-page__section about-page__section--services">
         <div className="container">
           <div className="about-page__section-head">
-            <span className="about-page__section-kicker">Why choose us</span>
-            <h2 className="about-page__section-title">A cleaner, more trusted wellness experience.</h2>
+            <span className="about-page__section-kicker">What we offer</span>
+            <h2 className="about-page__section-title">Reliable essentials, indulgent care, and wellness support.</h2>
             <p className="about-page__section-subtitle">
-              The live AVA Pharmacy site emphasizes careful curation, trusted brands, and friendly
-              support. This page now carries those same priorities in a stronger product-style layout.
+              Four simple care lanes that make the range easy to scan at a glance.
             </p>
           </div>
 
-          <div className="about-page__reasons-grid">
-            {reasons.map((reason) => (
-              <article key={reason.title} className="about-page__reason-card">
-                <div className="about-page__reason-icon">{reason.icon}</div>
-                <h3 className="about-page__reason-title">{reason.title}</h3>
-                <p className="about-page__reason-body">{reason.body}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="about-page__section">
-        <div className="container">
-          <div className="about-page__section-head">
-            <span className="about-page__section-kicker">Product mix</span>
-            <h2 className="about-page__section-title">Reliable &amp; high-quality essentials and indulgences.</h2>
-            <p className="about-page__section-subtitle">
-              The storefront combines everyday care items with wellness-led discovery across four core
-              shelves.
-            </p>
-          </div>
-
-          <div className="about-page__category-grid">
-            {categoryGroups.map((group) => (
-              <article key={group.title} className="about-page__category-card">
-                <h3 className="about-page__category-title">{group.title}</h3>
-                <ul className="about-page__category-list">
-                  {group.points.map((point) => (
+          <div className="about-page__service-story">
+            {serviceLines.map((service, index) => (
+              <article key={service.title} className="about-page__service-row">
+                <div className="about-page__service-count">{String(index + 1).padStart(2, '0')}</div>
+                <div className="about-page__service-copy">
+                  <h3 className="about-page__service-title">{service.title}</h3>
+                  <p className="about-page__service-summary">{service.summary}</p>
+                </div>
+                <ul className="about-page__service-points">
+                  {service.points.map((point) => (
                     <li key={point}>{point}</li>
                   ))}
                 </ul>
               </article>
             ))}
           </div>
-        </div>
-      </section>
 
-      <section className="about-page__section about-page__section--soft">
-        <div className="container">
-          <div className="about-page__section-head">
-            <span className="about-page__section-kicker">Care journeys</span>
-            <h2 className="about-page__section-title">The same Ava experience now extends into the app.</h2>
-            <p className="about-page__section-subtitle">
-              Alongside the store story, this frontend already includes consultations, prescriptions,
-              and diagnostics. The About page now surfaces those journeys more clearly.
-            </p>
-          </div>
-
-          <div className="about-page__journey-grid">
-            {careJourneys.map((journey) => (
-              <Link key={journey.title} to={journey.link} className="about-page__journey-card">
-                <span className="about-page__journey-label">Service</span>
-                <h3 className="about-page__journey-title">{journey.title}</h3>
-                <p className="about-page__journey-description">{journey.description}</p>
-                <span className="about-page__journey-cta">{journey.cta}</span>
+          <div className="about-page__actions">
+            {actionLinks.map((action) => (
+              <Link key={action.label} to={action.to} className="about-page__text-link">
+                {action.label}
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="about-page__section about-page__section--compact">
+      <section className="about-page__section about-page__section--contact">
         <div className="container">
-          <div className="about-page__contact-grid">
-            <div className="about-page__contact-panel">
-              <span className="about-page__section-kicker">Get in touch</span>
-              <h2 className="about-page__contact-title">We ensure you will always get the best result.</h2>
+          <div className="about-page__contact-panel">
+            <div className="about-page__contact-copy">
+              <span className="about-page__cta-kicker">Visit or contact us</span>
+              <h2 className="about-page__contact-title">Find AVA at The Hub, Karen.</h2>
               <p className="about-page__contact-subtitle">
-                Have a question? AVA Pharmacy can be reached by phone, email, WhatsApp, or in person at The Hub, Karen.
+                Reach the team by phone, email, or WhatsApp for quick support.
               </p>
 
-              <div className="about-page__contact-cards">
-                {contactCards.map((card) => (
-                  <article key={card.label} className="about-page__contact-card">
-                    <span className="about-page__contact-label">{card.label}</span>
-                    {card.href ? (
-                      <a className="about-page__contact-value about-page__contact-value--link" href={card.href}>
-                        {card.value}
-                      </a>
-                    ) : (
-                      <strong className="about-page__contact-value">{card.value}</strong>
-                    )}
-                  </article>
-                ))}
-              </div>
-            </div>
-
-            <aside className="about-page__cta-panel">
-              <div>
-                <span className="about-page__cta-kicker">Need support now?</span>
-                <h3 className="about-page__cta-title">Talk to the team or continue into a service flow.</h3>
-                <p className="about-page__cta-body">
-                  The page now matches the app’s cleaner dashboard language while still carrying the
-                  live AVA Pharmacy story and store details.
-                </p>
-              </div>
-
-              <div className="about-page__cta-map">
-                <img src={mapIllustration} alt="Map showing Ava Pharmacy at The Hub Karen" />
+              <div className="about-page__contact-list">
+                <div className="about-page__contact-item">
+                  <span className="about-page__contact-label">Address</span>
+                  <strong className="about-page__contact-value">{contact.supportAddress}</strong>
+                </div>
+                <div className="about-page__contact-item">
+                  <span className="about-page__contact-label">Hours</span>
+                  <strong className="about-page__contact-value">{contact.supportHours}</strong>
+                </div>
+                <div className="about-page__contact-item">
+                  <span className="about-page__contact-label">Phone</span>
+                  <a className="about-page__contact-value about-page__contact-value--link" href={`tel:${formatPhoneHref(contact.supportPhone)}`}>
+                    {contact.supportPhone}
+                  </a>
+                </div>
+                <div className="about-page__contact-item">
+                  <span className="about-page__contact-label">Email</span>
+                  <a className="about-page__contact-value about-page__contact-value--link" href={`mailto:${contact.supportEmail}`}>
+                    {contact.supportEmail}
+                  </a>
+                </div>
               </div>
 
               <div className="about-page__cta-actions">
@@ -405,10 +261,18 @@ function AboutPage() {
                   Start WhatsApp chat
                 </a>
               </div>
+            </div>
+
+            <aside className="about-page__contact-aside">
+              <div className="about-page__cta-map">
+                <img src={mapIllustration} alt="Map showing Ava Pharmacy at The Hub Karen" />
+              </div>
             </aside>
           </div>
         </div>
       </section>
+
+      <SupportShortcuts />
     </div>
   )
 }

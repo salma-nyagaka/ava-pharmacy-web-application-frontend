@@ -1,3 +1,4 @@
+import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import '../../styles/pages/ContactPage.css'
 
@@ -86,6 +87,8 @@ function ContactPage() {
           </div>
         </div>
       </section>
+
+      <SupportShortcuts />
     </div>
   )
 }

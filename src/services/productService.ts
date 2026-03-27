@@ -28,16 +28,27 @@ export interface Product {
 }
 
 export interface ProductDetail extends Product {
-  brand: { id: number; name: string; slug: string; logo: string | null }
+  brand: { id: number; name: string; slug: string; logo: string | null; image?: string | null }
   category: { id: number; name: string; slug: string }
   gallery: { id: number; image: string; alt_text: string; order: number }[]
   variants: unknown[]
   description: string
-  features: string
+  features: string[] | string
   directions: string
   warnings: string
   created_at: string
   updated_at: string
+}
+
+export interface ProductReview {
+  id: number
+  user: number
+  user_name: string
+  rating: number
+  comment: string
+  is_approved: boolean
+  is_verified_purchase: boolean
+  created_at: string
 }
 
 export interface ProductListResponse {
@@ -112,6 +123,7 @@ function normalizeProductDetail(product: ProductDetail): ProductDetail {
     brand: {
       ...product.brand,
       logo: resolveMediaUrl(product.brand?.logo),
+      image: resolveMediaUrl(product.brand?.image ?? product.brand?.logo),
     },
     gallery: Array.isArray(product.gallery)
       ? product.gallery.map((item) => ({ ...item, image: resolveMediaUrl(item.image) || item.image }))
@@ -187,12 +199,12 @@ export async function fetchProducts(
 }
 
 export async function fetchProductBySlug(slug: string): Promise<ProductDetail> {
-  const res = await apiClient.get(`/products/${slug}/`)
+  const res = await apiClient.get(`/products/slug/${slug}/`)
   return normalizeProductDetail(res.data?.data ?? res.data)
 }
 
 export async function fetchProductById(id: number): Promise<ProductDetail> {
-  const res = await apiClient.get(`/products/id/${id}/`)
+  const res = await apiClient.get(`/products/${id}/`)
   return normalizeProductDetail(res.data?.data ?? res.data)
 }
 
@@ -340,12 +352,12 @@ export async function fetchBanners(): Promise<unknown[]> {
   return res.data?.data ?? []
 }
 
-export async function fetchProductReviews(productId: number): Promise<unknown[]> {
+export async function fetchProductReviews(productId: number): Promise<ProductReview[]> {
   const res = await apiClient.get(`/products/${productId}/reviews/`)
   return res.data?.data ?? []
 }
 
-export async function submitProductReview(productId: number, payload: { rating: number; comment: string }): Promise<unknown> {
+export async function submitProductReview(productId: number, payload: { rating: number; comment: string }): Promise<ProductReview> {
   const res = await apiClient.post(`/products/${productId}/reviews/`, payload)
   return res.data?.data ?? res.data
 }

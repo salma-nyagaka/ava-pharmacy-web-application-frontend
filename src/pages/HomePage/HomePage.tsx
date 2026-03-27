@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext'
 import type { CatalogProduct } from '../../data/products'
 import { categoryCardImages } from '../../data/categoryCardImages'
 import { buildPromotionSummary, filterProductsByPromotion, getPromotionScopeEyebrow } from '../../services/promotionService'
+import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import '../../styles/pages/HomePage.css'
 
 type HeroPromoSlide = {
@@ -26,6 +27,7 @@ type HeroPromoSlide = {
   image: string
   alt: string
   link: string
+  frameColor: string
 }
 
 type HeroWelcomeSlide = {
@@ -53,6 +55,7 @@ const bannerSlides: HeroSlide[] = [
     image: easterBanner,
     alt: 'Ava Pharmacy uncover skincare banner',
     link: '/products',
+    frameColor: '#c6edf4',
   },
   // {
   //   id: 2,
@@ -81,6 +84,7 @@ const bannerSlides: HeroSlide[] = [
     image: uncoverBanner,
     alt: 'Ava Pharmacy wellness promotion banner',
     link: '/products?category=vitamins-supplements',
+    frameColor: '#d8c19b',
   },
   // {
   //   id: 4,
@@ -170,7 +174,12 @@ function HomePage() {
     void fetchFeaturedProducts()
       .then((items) => {
         if (!isMounted) return
-        setFeaturedProducts(items.map(mapApiProduct).filter(isAvailableProduct).slice(0, 5))
+        setFeaturedProducts(
+          items
+            .map(mapApiProduct)
+            .filter((product) => isAvailableProduct(product) && !product.requiresPrescription)
+            .slice(0, 5),
+        )
       })
       .catch(() => {
         if (!isMounted) return
@@ -447,7 +456,7 @@ function HomePage() {
               title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
               onClick={() => void handleAddToCart(product)}
             >
-              {product.requiresPrescription ? 'Request with presciption' : addedId === product.id ? 'Added!' : 'Add to cart'}
+              {product.requiresPrescription ? 'Request with prescription' : addedId === product.id ? 'Added!' : 'Add to cart'}
             </button>
           </div>
         </div>
@@ -464,7 +473,7 @@ function HomePage() {
       <section className="hero-carousel" id="main-content">
         <div
           className="hero-carousel__track"
-          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          style={{ transform: `translate3d(-${currentSlide * 100}%, 0, 0)` }}
         >
           {bannerSlides.map((slide, index) => (
             slide.kind === 'welcome' ? (
@@ -502,11 +511,16 @@ function HomePage() {
                 </div>
               </div>
             ) : (
-              <Link key={slide.id} to={slide.link} className="hero-carousel__slide hero-carousel__slide--promo">
+              <Link
+                key={slide.id}
+                to={slide.link}
+                className="hero-carousel__slide hero-carousel__slide--promo"
+                style={{ backgroundColor: slide.frameColor }}
+              >
                 <img
                   src={slide.image}
                   alt={slide.alt}
-                  className="hero-carousel__img"
+                  className="hero-carousel__img hero-carousel__img--promo"
                   loading={index === 0 ? 'eager' : 'lazy'}
                   decoding="async"
                   fetchPriority={index === 0 ? 'high' : 'auto'}
@@ -712,11 +726,6 @@ function HomePage() {
               {featuredProducts.map((product) => renderProductCard(product, 'featured'))}
             </div>
           )}
-          <div className="featured-products__cta">
-            <Link to="/products" className="btn btn--primary btn--lg">
-              View All Products
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -812,9 +821,16 @@ function HomePage() {
               {newProducts.map((product) => renderProductCard(product, 'new'))}
             </div>
           )}
+          <div className="featured-products__cta">
+            <Link to="/products" className="btn btn--primary btn--lg">
+              View More
+            </Link>
+          </div>
         </div>
       </section>
 
+
+      <SupportShortcuts />
 
       {/* Newsletter Section */}
       <section className="newsletter">

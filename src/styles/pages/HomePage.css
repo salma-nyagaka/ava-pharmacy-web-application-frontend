@@ -18,8 +18,10 @@
 
 /* ── Full-width Hero Carousel ────────────────────────── */
 .hero-carousel {
+  --hero-banner-height: 600px;
   position: relative;
   width: 100%;
+  min-height: var(--hero-banner-height);
   overflow: hidden;
   background: #fff;
   line-height: 0;
@@ -34,16 +36,20 @@
 .hero-carousel__slide {
   flex: 0 0 100%;
   width: 100%;
+  height: var(--hero-banner-height);
   max-width: 100%;
   display: block;
   text-decoration: none;
+  overflow: hidden;
 }
 .hero-carousel__img {
   width: 100%;
-  height: auto;
-  max-width: 100%;
+  height: 100%;
+  max-width: none;
   display: block;
-  image-rendering: -webkit-optimize-contrast;
+  object-fit: cover;
+  object-position: center center;
+  image-rendering: auto;
   backface-visibility: hidden;
   transform: translateZ(0);
 }
@@ -51,6 +57,17 @@
 .hero-carousel__slide--welcome {
   position: relative;
   overflow: hidden;
+}
+
+.hero-carousel__slide--promo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-carousel__img--promo {
+  object-fit: contain;
+  object-position: center center;
 }
 
 .hero-carousel__welcome-content {
@@ -1797,6 +1814,10 @@
 /* ── Responsive ─────────────────────────── */
 /* Responsive Styles */
 @media (max-width: 1200px) {
+  .hero-carousel {
+    --hero-banner-height: 560px;
+  }
+
   .hero__title {
     font-size: 3rem;
   }
@@ -1825,6 +1846,10 @@
 }
 
 @media (max-width: 1024px) {
+  .hero-carousel {
+    --hero-banner-height: 500px;
+  }
+
   .hero-carousel__welcome-panel {
     width: min(62%, 640px);
   }
@@ -1923,6 +1948,10 @@
 }
 
 @media (max-width: 768px) {
+  .hero-carousel {
+    --hero-banner-height: 380px;
+  }
+
   .hero-carousel__welcome-content {
     align-items: flex-start;
     padding: 1.25rem 1rem 4rem;
@@ -2157,6 +2186,10 @@
 }
 
 @media (max-width: 480px) {
+  .hero-carousel {
+    --hero-banner-height: 320px;
+  }
+
   .hero__headline {
     font-size: 2.05rem;
   }

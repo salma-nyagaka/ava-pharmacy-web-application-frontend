@@ -1,20 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  createSavedPaymentMethod,
+  deleteSavedPaymentMethod,
+  fetchSavedPaymentMethods,
+  updateSavedPaymentMethod,
+  type SavedPaymentMethod,
+} from '../../services/paymentMethodService'
 import '../../styles/pages/AccountPaymentPage.css'
 
 type CardType = 'visa' | 'mastercard' | 'unknown'
-
-interface PaymentCard {
-  id: string
-  type: CardType
-  last4: string
-  expiry: string
-  cardName: string
-  isDefault: boolean
-}
-
-const INITIAL_CARDS: PaymentCard[] = [
-  { id: '1', type: 'visa', last4: '4242', expiry: '08/27', cardName: 'John Doe', isDefault: true },
-]
 
 const EMPTY_FORM = { cardNumber: '', expiry: '', cvv: '', cardName: '' }
 
@@ -35,42 +29,113 @@ function formatExpiry(val: string) {
   return digits
 }
 
+function formatStoredExpiry(method: SavedPaymentMethod) {
+  return `${String(method.expiry_month).padStart(2, '0')}/${String(method.expiry_year).slice(-2)}`
+}
+
+function brandClass(brand: string): CardType {
+  return brand === 'visa' || brand === 'mastercard' ? brand : 'unknown'
+}
+
 function AccountPaymentPage() {
-  const [cards, setCards] = useState<PaymentCard[]>(INITIAL_CARDS)
+  const [cards, setCards] = useState<SavedPaymentMethod[]>([])
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
 
-  const cancel = () => { setShowForm(false); setForm(EMPTY_FORM); setError('') }
+  useEffect(() => {
+    let active = true
+    void fetchSavedPaymentMethods()
+      .then((rows) => {
+        if (!active) return
+        setCards(rows)
+      })
+      .catch(() => {
+        if (!active) return
+        setError('Unable to load saved payment methods.')
+      })
+      .finally(() => {
+        if (active) setIsLoading(false)
+      })
 
-  const save = () => {
-    const clean = form.cardNumber.replace(/\s/g, '')
-    if (clean.length < 16) { setError('Enter a valid 16-digit card number.'); return }
-    if (!form.expiry || form.expiry.length < 5) { setError('Enter a valid expiry date (MM/YY).'); return }
-    if (!form.cardName.trim()) { setError('Cardholder name is required.'); return }
-    const card: PaymentCard = {
-      id: Date.now().toString(),
-      type: detectCardType(clean),
-      last4: clean.slice(-4),
-      expiry: form.expiry,
-      cardName: form.cardName.trim(),
-      isDefault: cards.length === 0,
+    return () => {
+      active = false
     }
-    setCards(prev => [...prev, card])
+  }, [])
+
+  const cancel = () => {
     setShowForm(false)
     setForm(EMPTY_FORM)
     setError('')
   }
 
-  const remove = (id: string) => {
-    setCards(prev => {
-      const next = prev.filter(c => c.id !== id)
-      if (next.length && !next.some(c => c.isDefault)) next[0] = { ...next[0], isDefault: true }
-      return next
-    })
+  const save = async () => {
+    const clean = form.cardNumber.replace(/\s/g, '')
+    if (clean.length < 16) {
+      setError('Enter a valid 16-digit card number.')
+      return
+    }
+    if (!form.expiry || form.expiry.length < 5) {
+      setError('Enter a valid expiry date (MM/YY).')
+      return
+    }
+    if (!form.cardName.trim()) {
+      setError('Cardholder name is required.')
+      return
+    }
+
+    const [monthRaw, yearRaw] = form.expiry.split('/')
+    const expiryMonth = Number.parseInt(monthRaw, 10)
+    const expiryYear = 2000 + Number.parseInt(yearRaw, 10)
+    if (!Number.isFinite(expiryMonth) || !Number.isFinite(expiryYear)) {
+      setError('Enter a valid expiry date (MM/YY).')
+      return
+    }
+
+    setIsSaving(true)
+    setError('')
+    try {
+      await createSavedPaymentMethod({
+        brand: detectCardType(clean),
+        last4: clean.slice(-4),
+        expiry_month: expiryMonth,
+        expiry_year: expiryYear,
+        cardholder_name: form.cardName.trim(),
+        is_default: cards.length === 0,
+      })
+      setCards(await fetchSavedPaymentMethods())
+      setShowForm(false)
+      setForm(EMPTY_FORM)
+    } catch {
+      setError('Unable to save this payment method right now.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const setDefault = (id: string) => setCards(prev => prev.map(c => ({ ...c, isDefault: c.id === id })))
+  const remove = async (id: number) => {
+    setError('')
+    try {
+      await deleteSavedPaymentMethod(id)
+      setCards((prev) => prev.filter((card) => card.id !== id))
+      const refreshed = await fetchSavedPaymentMethods()
+      setCards(refreshed)
+    } catch {
+      setError('Unable to remove this payment method right now.')
+    }
+  }
+
+  const setDefault = async (id: number) => {
+    setError('')
+    try {
+      const updated = await updateSavedPaymentMethod(id, { is_default: true })
+      setCards((prev) => prev.map((card) => ({ ...card, is_default: card.id === updated.id })))
+    } catch {
+      setError('Unable to update the default payment method right now.')
+    }
+  }
 
   const previewType = detectCardType(form.cardNumber)
 
@@ -81,34 +146,37 @@ function AccountPaymentPage() {
           <div>
             <p className="pay-header__eyebrow">My Account</p>
             <h1 className="pay-header__title">Payment Methods</h1>
-            <p className="pay-header__sub">Securely manage your saved cards</p>
+            <p className="pay-header__sub">Securely manage the masked cards you use at checkout</p>
           </div>
         </div>
 
         <div className="pay-layout">
           <div className="pay-cards-col">
-            {cards.map(card => (
+            {isLoading && <p className="pay-form-error">Loading saved payment methods…</p>}
+            {error && <p className="pay-form-error">{error}</p>}
+
+            {cards.map((card) => (
               <div
                 key={card.id}
-                className={`pay-card pay-card--${card.type}${card.isDefault ? ' pay-card--default' : ''}`}
+                className={`pay-card pay-card--${brandClass(card.brand)}${card.is_default ? ' pay-card--default' : ''}`}
               >
                 <div className="pay-card__top">
                   <div className="pay-card__chip" />
-                  {card.isDefault && <span className="pay-card__default-badge">Default</span>}
+                  {card.is_default && <span className="pay-card__default-badge">Default</span>}
                 </div>
                 <div className="pay-card__number">•••• •••• •••• {card.last4}</div>
                 <div className="pay-card__bottom">
                   <div className="pay-card__meta">
                     <span className="pay-card__meta-label">Cardholder</span>
-                    <span className="pay-card__meta-value">{card.cardName}</span>
+                    <span className="pay-card__meta-value">{card.cardholder_name}</span>
                   </div>
                   <div className="pay-card__meta">
                     <span className="pay-card__meta-label">Expires</span>
-                    <span className="pay-card__meta-value">{card.expiry}</span>
+                    <span className="pay-card__meta-value">{formatStoredExpiry(card)}</span>
                   </div>
                   <div className="pay-card__brand">
-                    {card.type === 'visa' && <span className="pay-card__visa">VISA</span>}
-                    {card.type === 'mastercard' && (
+                    {card.brand === 'visa' && <span className="pay-card__visa">VISA</span>}
+                    {card.brand === 'mastercard' && (
                       <span className="pay-card__mc">
                         <span className="pay-card__mc-l" />
                         <span className="pay-card__mc-r" />
@@ -117,17 +185,17 @@ function AccountPaymentPage() {
                   </div>
                 </div>
                 <div className="pay-card__actions">
-                  {!card.isDefault && (
-                    <button className="btn btn--outline btn--sm pay-card__action-btn" type="button" onClick={() => setDefault(card.id)}>
+                  {!card.is_default && (
+                    <button className="btn btn--outline btn--sm pay-card__action-btn" type="button" onClick={() => void setDefault(card.id)}>
                       Set default
                     </button>
                   )}
-                  <button className="pay-card__remove" type="button" onClick={() => remove(card.id)}>
+                  <button className="pay-card__remove" type="button" onClick={() => void remove(card.id)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      <path d="M10 11v6M14 11v6"/>
-                      <path d="M9 6V4h6v2"/>
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6M14 11v6" />
+                      <path d="M9 6V4h6v2" />
                     </svg>
                     Remove
                   </button>
@@ -139,8 +207,8 @@ function AccountPaymentPage() {
               <button className="pay-add-btn" type="button" onClick={() => setShowForm(true)}>
                 <span className="pay-add-btn__icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"/>
-                    <line x1="5" y1="12" x2="19" y2="12"/>
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                 </span>
                 Add payment method
@@ -183,7 +251,7 @@ function AccountPaymentPage() {
                 <label>Card number</label>
                 <input
                   value={form.cardNumber}
-                  onChange={e => setForm(f => ({ ...f, cardNumber: formatCardNumber(e.target.value) }))}
+                  onChange={(event) => setForm((prev) => ({ ...prev, cardNumber: formatCardNumber(event.target.value) }))}
                   placeholder="1234 5678 9012 3456"
                   maxLength={19}
                 />
@@ -193,7 +261,7 @@ function AccountPaymentPage() {
                   <label>Expiry date</label>
                   <input
                     value={form.expiry}
-                    onChange={e => setForm(f => ({ ...f, expiry: formatExpiry(e.target.value) }))}
+                    onChange={(event) => setForm((prev) => ({ ...prev, expiry: formatExpiry(event.target.value) }))}
                     placeholder="MM/YY"
                     maxLength={5}
                   />
@@ -202,24 +270,29 @@ function AccountPaymentPage() {
                   <label>CVV</label>
                   <input
                     value={form.cvv}
-                    onChange={e => setForm(f => ({ ...f, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                    onChange={(event) => setForm((prev) => ({ ...prev, cvv: event.target.value.replace(/\D/g, '').slice(0, 4) }))}
                     placeholder="•••"
                     maxLength={4}
                     type="password"
                   />
+                  <p className="pay-form-error" style={{ marginTop: '0.35rem', color: '#64748b' }}>
+                    CVV is used for validation only and is not stored.
+                  </p>
                 </div>
               </div>
               <div className="pay-form-group">
                 <label>Cardholder name</label>
                 <input
                   value={form.cardName}
-                  onChange={e => setForm(f => ({ ...f, cardName: e.target.value }))}
+                  onChange={(event) => setForm((prev) => ({ ...prev, cardName: event.target.value }))}
                   placeholder="John Doe"
                 />
               </div>
               {error && <p className="pay-form-error">{error}</p>}
               <div className="pay-form-actions">
-                <button className="btn btn--primary btn--sm" type="button" onClick={save}>Save card</button>
+                <button className="btn btn--primary btn--sm" type="button" onClick={() => void save()} disabled={isSaving}>
+                  {isSaving ? 'Saving…' : 'Save card'}
+                </button>
                 <button className="btn btn--outline btn--sm" type="button" onClick={cancel}>Cancel</button>
               </div>
             </div>
