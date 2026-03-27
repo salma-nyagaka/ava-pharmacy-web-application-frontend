@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import backgroundBanner from '../../assets/images/banner/background.jpg'
+import easterBanner from '../../assets/images/banner/easter.png'
+import uncoverBanner from '../../assets/images/banner/uncover.png'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
@@ -11,6 +12,11 @@ import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { useAuth } from '../../context/AuthContext'
 import type { CatalogProduct } from '../../data/products'
 import '../../styles/pages/HomePage.css'
+
+const bannerSlides = [
+  { id: 1, image: easterBanner, alt: 'Ava Pharmacy Easter offers banner', link: '/offers' },
+  { id: 2, image: uncoverBanner, alt: 'Ava Pharmacy uncover skincare banner', link: '/products' },
+]
 
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)
@@ -157,16 +163,24 @@ function HomePage() {
     }
   }, [])
 
-  const bannerSlides = [
-    { id: 1, image: backgroundBanner, alt: 'Coming Soon', link: '/' },
-  ]
-
   useEffect(() => {
     const t = window.setInterval(() => {
       setCurrentSlide(s => (s + 1) % bannerSlides.length)
     }, 5000)
     return () => window.clearInterval(t)
   }, [bannerSlides.length])
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index)
+  }
+
+  const showPreviousSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length)
+  }
+
+  const showNextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % bannerSlides.length)
+  }
 
   const scrollCategories = (direction: 'prev' | 'next') => {
     const track = categoryTrackRef.current
@@ -358,12 +372,48 @@ function HomePage() {
           {bannerSlides.map(slide => (
             <Link key={slide.id} to={slide.link} className="hero-carousel__slide">
               <img src={slide.image} alt={slide.alt} className="hero-carousel__img" />
-              <div className="hero-carousel__coming-soon">
-                <span>Coming Soon</span>
-              </div>
             </Link>
           ))}
         </div>
+
+        {bannerSlides.length > 1 && (
+          <>
+            <button
+              type="button"
+              className="hero-carousel__arrow hero-carousel__arrow--prev"
+              aria-label="Show previous banner"
+              onClick={showPreviousSlide}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              className="hero-carousel__arrow hero-carousel__arrow--next"
+              aria-label="Show next banner"
+              onClick={showNextSlide}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+
+            <div className="hero-carousel__dots" aria-label="Banner navigation">
+              {bannerSlides.map((slide, index) => (
+                <button
+                  key={slide.id}
+                  type="button"
+                  className={`hero-carousel__dot${currentSlide === index ? ' hero-carousel__dot--active' : ''}`}
+                  aria-label={`Show banner ${index + 1}`}
+                  aria-pressed={currentSlide === index}
+                  onClick={() => goToSlide(index)}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
       </section>
 
