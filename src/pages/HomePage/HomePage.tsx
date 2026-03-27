@@ -14,8 +14,18 @@ import type { CatalogProduct } from '../../data/products'
 import '../../styles/pages/HomePage.css'
 
 const bannerSlides = [
-  { id: 1, image: easterBanner, alt: 'Ava Pharmacy Easter offers banner', link: '/offers' },
-  { id: 2, image: uncoverBanner, alt: 'Ava Pharmacy uncover skincare banner', link: '/products' },
+  {
+    id: 1,
+    image: easterBanner,
+    alt: 'Ava Pharmacy Easter offers banner',
+    link: '/offers',
+  },
+  {
+    id: 2,
+    image: uncoverBanner,
+    alt: 'Ava Pharmacy uncover skincare banner',
+    link: '/products',
+  },
 ]
 
 function HomePage() {
@@ -34,7 +44,7 @@ function HomePage() {
   const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
 
   const valueBannerItems = [
-    { key: 'delivery', title: 'Free Delivery',       subtitle: `On orders over KSh ${settings.freeDeliveryThreshold.toLocaleString()}`, link: '/help', color: 'green'  },
+    { key: 'delivery', title: 'Free Delivery',       subtitle: `On orders over KSh 5000/-`, link: '/help', color: 'green'  },
     { key: 'support',  title: 'Expert Pharmacists',  subtitle: 'Professional guidance, 24/7',   link: '/doctor-consultation', color: 'blue'   },
     { key: 'quality',  title: 'Genuine Products',    subtitle: 'Certified & lab-verified stock', link: '/about',               color: 'purple' },
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },

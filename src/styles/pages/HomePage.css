@@ -37,11 +37,19 @@
   display: block;
   text-decoration: none;
 }
-
+1. when i click on all products in the navbar, not all producrts are being displayed.
+2. update the stock of oncover so that it it not out of stock -> this is my backend /Users/salmanyagaka/Downloads/ava-pharmacy-web-application-backend-
+3. on the landing page on shop by ctageory, choose a different cardd design and provide me with samples first
+4. add products with hot offers in the backend so that we can see them on the landingpage
+5. in a website like mydawa, where are they removing their product images? https://mydawa.com/?srsltid=AfmBOorXYhP812pXKyLA4jgVk_jH0xXQfRlZizBhUN88cG_-2YlCIetg
+also checkout goodlife https://www.goodlife.co.ke/
+6. using webscraping from the goodlife website recreate the entire categories, subcategories and products items in the database and also pull the images from the goodlife website, also include some products from the "mydawa website".
+6. the images should fit the card size and not look cropped.
+7. 
 .hero-carousel__img {
   width: 100%;
   height: auto;
-  max-height: 550px;
+  max-height: 590px;
   object-fit: cover;
   display: block;
 }
