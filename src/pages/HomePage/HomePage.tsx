@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import easterBanner from '../../assets/images/banner/easter.png'
-import easterBannerMobile from '../../assets/images/banner/easter2.png'
-import uncoverBanner from '../../assets/images/banner/uncover.png'
-import uncoverBannerMobile from '../../assets/images/banner/uncover2.png'
+import backgroundBanner from '../../assets/images/banner/background.jpg'
+
+// import easterBanner from '../../assets/images/banner/easter.png'
+// import easterBannerMobile from '../../assets/images/banner/easter2.png'
+// import uncoverBanner from '../../assets/images/banner/uncover.png'
+// import uncoverBannerMobile from '../../assets/images/banner/uncover2.png'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
@@ -28,20 +30,20 @@ type HeroSlide = {
 const bannerSlides: HeroSlide[] = [
   {
     id: 1,
-    image: easterBanner,
-    mobileImage: easterBannerMobile,
-    alt: 'Ava Pharmacy Easter offers banner',
-    link: '/offers',
+    image: backgroundBanner,
+    mobileImage: backgroundBanner,
+    alt: 'Coming Soon',
+    link: '/',
     background: '#d8f3fb',
   },
-  {
-    id: 2,
-    image: uncoverBanner,
-    mobileImage: uncoverBannerMobile,
-    alt: 'Ava Pharmacy uncover skincare banner',
-    link: '/products',
-    background: '#e7d3be',
-  },
+  // {
+  //   id: 2,
+  //   image: uncoverBanner,
+  //   mobileImage: uncoverBannerMobile,
+  //   alt: 'Ava Pharmacy uncover skincare banner',
+  //   link: '/products',
+  //   background: '#e7d3be',
+  // },
 ]
 
 const FEATURED_PRODUCTS_LIMIT = 5
@@ -426,6 +428,10 @@ function HomePage() {
                   fetchPriority={index === 0 ? 'high' : 'auto'}
                 />
               </picture>
+              <div className="hero-carousel__overlay">
+                <span className="hero-carousel__eyebrow">Announcement</span>
+                <h1 className="hero-carousel__headline">Coming Soon</h1>
+              </div>
             </Link>
           ))}
         </div>

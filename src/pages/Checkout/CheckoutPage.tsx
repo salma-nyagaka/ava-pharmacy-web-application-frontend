@@ -46,15 +46,6 @@ const MpesaIcon = () => (
   </svg>
 )
 
-const CardIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
-    <rect x="2" y="5" width="20" height="14" rx="2"/>
-    <path d="M2 10h20"/>
-    <circle cx="17" cy="15" r="1.5" fill="currentColor" stroke="none"/>
-    <circle cx="20" cy="15" r="1.5" fill="currentColor" stroke="none" opacity=".5"/>
-  </svg>
-)
-
 const CashIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
     <rect x="2" y="7" width="20" height="14" rx="2"/>
@@ -1061,15 +1052,7 @@ function CheckoutPage() {
                     <div className="co-pm__radio" />
                   </label>
 
-                  <label className={`co-pm ${paymentMethod === 'card' ? 'co-pm--selected co-pm--selected-card' : ''}`}>
-                    <input type="radio" name="payment" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
-                    <div className="co-pm__icon co-pm__icon--card"><CardIcon /></div>
-                    <div className="co-pm__text">
-                      <strong>Credit / Debit Card</strong>
-                      <span>Visa, Mastercard accepted</span>
-                    </div>
-                    <div className="co-pm__radio" />
-                  </label>
+                  {/* Card payment is temporarily hidden from the checkout form. */}
 
                   <label className={`co-pm ${paymentMethod === 'cash' ? 'co-pm--selected co-pm--selected-cash' : ''}`}>
                     <input type="radio" name="payment" checked={paymentMethod === 'cash'} onChange={() => setPaymentMethod('cash')} />

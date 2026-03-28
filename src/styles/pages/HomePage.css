@@ -46,6 +46,7 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  position: relative;
 }
 
 .hero-carousel__picture {
@@ -53,12 +54,53 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  height: 550px;
 }
 
 .hero-carousel__img {
   width: 100%;
-  height: auto;
+  height: 100%;
   display: block;
+  object-fit: cover;
+}
+
+.hero-carousel__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background: linear-gradient(180deg, rgba(3, 27, 78, 0.08) 12%, rgba(3, 27, 78, 0.72) 100%);
+  pointer-events: none;
+}
+
+.hero-carousel__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(6px);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-carousel__headline {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 .hero-carousel__arrow {
@@ -971,9 +1013,12 @@
 }
 
 .home-section--offers {
-  background:
-    linear-gradient(180deg, #eef2f6 0%, #e4eaf0 100%);
-  border-color: rgba(148, 163, 184, 0.1);
+  margin-inline: 0;
+  border-radius: 0;
+  border-color: transparent;
+  box-shadow: none;
+  background: #f3f4f6;
+  padding: 2.5rem 0 2.7rem;
 }
 
 .home-section--featured {
@@ -982,9 +1027,12 @@
 }
 
 .home-section--new {
-  background:
-    linear-gradient(180deg, #edf2f7 0%, #e1e8ef 100%);
-  border-color: rgba(148, 163, 184, 0.1);
+  margin-inline: 0;
+  border-radius: 0;
+  border-color: transparent;
+  box-shadow: none;
+  background: #f3f4f6;
+  padding: 2.5rem 0 2.7rem;
 }
 
 .services-cta {
@@ -1745,14 +1793,19 @@
 }
 
 .hp-services__intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   position: relative;
   overflow: hidden;
   padding: 1.2rem 1.2rem 1.15rem;
   border-radius: 20px;
+  text-align: center;
   background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 30%),
-    linear-gradient(155deg, #2f1e24 0%, #4a2730 100%);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.12), transparent 34%),
+    linear-gradient(155deg, #7f1637 0%, #991b1f 52%, #031b4e 100%);
+  box-shadow: 0 12px 28px rgba(3, 27, 78, 0.12);
 }
 
 .hp-services__eyebrow {
@@ -1767,7 +1820,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #fff1f5;
+  color: #fff5f7;
   margin: 0 0 0.85rem;
 }
 
@@ -1781,7 +1834,7 @@
 
 .hp-services__sub {
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.76);
+  color: rgba(255, 255, 255, 0.82);
   max-width: 24rem;
   margin: 0;
   line-height: 1.5;
@@ -1792,6 +1845,7 @@
   flex-wrap: wrap;
   gap: 0.45rem;
   margin-top: 0.9rem;
+  justify-content: center;
 }
 
 .hp-services__tag {
@@ -1801,9 +1855,9 @@
   min-height: 30px;
   padding: 0.4rem 0.65rem;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
   font-size: 0.72rem;
   font-weight: 600;
 }
@@ -1818,22 +1872,22 @@
 /* Service card base */
 .hp-svc-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.7rem;
-  min-height: 104px;
-  background: #fcfcfd;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  min-height: 88px;
+  background: #fffafb;
+  border: 1px solid rgba(153, 27, 31, 0.08);
   border-radius: 14px;
-  padding: 0.72rem 0.78rem;
+  padding: 0.65rem 0.75rem;
   text-align: left;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 6px 16px rgba(3, 27, 78, 0.05);
 }
 
 .hp-svc-card:hover {
   background: #ffffff;
-  border-color: rgba(15, 23, 42, 0.14);
-  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.06);
+  border-color: rgba(153, 27, 31, 0.16);
+  box-shadow: 0 10px 18px rgba(3, 27, 78, 0.08);
   transform: translateY(-2px);
 }
 
@@ -1854,38 +1908,41 @@
 }
 
 .hp-svc-card--doctor .hp-svc-card__icon-wrap {
-  background: rgba(127, 29, 29, 0.08);
-  border-color: rgba(127, 29, 29, 0.12);
-  color: #8c3545;
+  background: rgba(232, 23, 80, 0.1);
+  border-color: rgba(232, 23, 80, 0.14);
+  color: #b31247;
 }
 
 .hp-svc-card--paed .hp-svc-card__icon-wrap {
-  background: rgba(107, 114, 128, 0.08);
-  border-color: rgba(107, 114, 128, 0.12);
-  color: #6b7280;
+  background: rgba(3, 27, 78, 0.08);
+  border-color: rgba(3, 27, 78, 0.12);
+  color: #031b4e;
 }
 
 .hp-svc-card--rx .hp-svc-card__icon-wrap {
-  background: rgba(190, 24, 93, 0.08);
-  border-color: rgba(190, 24, 93, 0.12);
-  color: #9d174d;
+  background: rgba(153, 27, 31, 0.09);
+  border-color: rgba(153, 27, 31, 0.13);
+  color: #991b1f;
 }
 
 .hp-svc-card--lab .hp-svc-card__icon-wrap {
-  background: rgba(15, 23, 42, 0.06);
-  border-color: rgba(15, 23, 42, 0.1);
-  color: #334155;
+  background: rgba(3, 27, 78, 0.08);
+  border-color: rgba(3, 27, 78, 0.12);
+  color: #1f3b77;
 }
 
 /* Card body */
 .hp-svc-card__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   flex: 1;
   min-width: 0;
 }
 
 .hp-svc-card__eyebrow {
   margin: 0 0 0.22rem;
-  color: #8b4451;
+  color: #991b1f;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -1907,7 +1964,7 @@
 }
 
 .hp-svc-card__arrow {
-  align-self: flex-start;
+  align-self: center;
   color: #98a2b3;
   font-size: 0.82rem;
   font-weight: 700;
@@ -2131,11 +2188,29 @@
 }
 
 @media (max-width: 768px) {
+  .hero-carousel__picture {
+    height: 380px;
+  }
+
+  .hero-carousel__overlay {
+    padding: 1.25rem;
+  }
+
+  .hero-carousel__headline {
+    font-size: 2.15rem;
+  }
+
   .home-section--offers,
   .home-section--featured,
   .home-section--new {
     margin-inline: 0.6rem;
     border-radius: 20px;
+  }
+
+  .home-section--offers,
+  .home-section--new {
+    margin-inline: 0;
+    border-radius: 0;
   }
 
   .home-section--featured,
@@ -2340,6 +2415,20 @@
 }
 
 @media (max-width: 480px) {
+  .hero-carousel__picture {
+    height: 280px;
+  }
+
+  .hero-carousel__eyebrow {
+    min-height: 1.8rem;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.7rem;
+  }
+
+  .hero-carousel__headline {
+    font-size: 1.7rem;
+  }
+
   .hero__headline {
     font-size: 2.05rem;
   }
@@ -2426,7 +2515,7 @@
   }
 
   .hp-svc-card {
-    min-height: 96px;
+    min-height: 84px;
   }
 }
 

@@ -179,6 +179,10 @@ export interface ApiProductVariant {
   barcode?: string | null
   pos_product_id?: string | null
   name: string
+  strength?: string | null
+  dosage_instructions?: string | null
+  directions?: string | null
+  warnings?: string | null
   attributes: Record<string, unknown>
   price: string | null
   cost_price: string | null
@@ -203,6 +207,10 @@ export interface ProductVariantPayload {
   barcode?: string
   pos_product_id?: string
   name: string
+  strength?: string
+  dosage_instructions?: string
+  directions?: string
+  warnings?: string
   attributes?: Record<string, unknown>
   price?: number | null
   cost_price?: number | null
@@ -300,6 +308,15 @@ export interface ProductFormMeta {
   accepts_barcode: boolean
 }
 
+export interface ApiPosProductOption {
+  pos_product_id: string
+  label: string
+  product_name: string
+  variant_name: string
+  sku: string
+  source: 'product' | 'variant'
+}
+
 export interface ApiStockMovement {
   id: number
   movement_type: string
@@ -349,6 +366,11 @@ export const adminProductService = {
   async getProductFormMeta() {
     const res = await apiClient.get('/admin/products/meta/')
     return unwrap<ProductFormMeta>(res)
+  },
+
+  async listPosProductOptions() {
+    const res = await apiClient.get('/admin/products/pos-options/')
+    return unwrapList<ApiPosProductOption>(res)
   },
 
   async updateProduct(id: number, payload: Partial<ProductCreatePayload> | FormData) {

@@ -10,9 +10,7 @@ import {
   ApiHealthConcern,
   ApiProductSubcategory,
   ApiProduct,
-  ApiProductVariant,
   ProductFormMeta,
-  ProductVariantPayload,
   ProductCreatePayload,
 } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
@@ -39,17 +37,6 @@ function compareCreatedAt(left?: string, right?: string): number {
   if (!leftValid) return 1
   if (!rightValid) return -1
   return leftTime - rightTime
-}
-
-function getPosLinkHint(meta: ProductFormMeta | null, entity: 'product' | 'variant'): string {
-  if (!meta) return ''
-  const subject = entity === 'product' ? 'product' : 'variant'
-  const accepted: string[] = []
-  if (meta.accepts_sku) accepted.push('SKU')
-  if (meta.accepts_barcode) accepted.push('barcode')
-  if (meta.requires_pos_product_id) accepted.push('POS product ID')
-  if (accepted.length === 0) return `No specific POS identifiers are required for this ${subject}.`
-  return `Accepted for this ${subject}: ${accepted.join(', ')}.`
 }
 
 function formatCurrency(value?: string | number | null): string {
@@ -161,61 +148,6 @@ type ProductFormPayload =
   Pick<ProductCreatePayload, 'name' | 'slug' | 'sku' | 'is_active' | 'requires_prescription'>
   & Partial<ProductCreatePayload>
 
-const DOSAGE_UNIT_OPTIONS = [
-  'tablet',
-  'tablets',
-  'capsule',
-  'capsules',
-  'ml',
-  'mg',
-  'drop',
-  'drops',
-  'sachet',
-  'application',
-  'spray',
-  'unit',
-] as const
-
-const DOSAGE_FREQUENCY_OPTIONS = [
-  'once_daily',
-  'twice_daily',
-  'three_times_daily',
-  'four_times_daily',
-  'every_4_hours',
-  'every_6_hours',
-  'every_8_hours',
-  'every_12_hours',
-  'weekly',
-  'as_needed',
-  'as_directed',
-] as const
-
-function normalizeDosageUnitValue(value?: string | null): string {
-  if (!value) return ''
-  const normalized = value.trim().toLowerCase()
-  return DOSAGE_UNIT_OPTIONS.find((option) => option === normalized) ?? ''
-}
-
-function normalizeDosageFrequencyValue(value?: string | null): string {
-  if (!value) return ''
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, '_')
-  const aliasMap: Record<string, typeof DOSAGE_FREQUENCY_OPTIONS[number]> = {
-    '1x_daily': 'once_daily',
-    '1_time_daily': 'once_daily',
-    '2x_daily': 'twice_daily',
-    '2_times_daily': 'twice_daily',
-    '3x_daily': 'three_times_daily',
-    '3_times_daily': 'three_times_daily',
-    'four_times_a_day': 'four_times_daily',
-    '4x_daily': 'four_times_daily',
-    '4_times_daily': 'four_times_daily',
-    'prn': 'as_needed',
-  }
-  return DOSAGE_FREQUENCY_OPTIONS.find((option) => option === normalized)
-    ?? aliasMap[normalized]
-    ?? ''
-}
-
 function ProductManagement() {
   const [searchParams] = useSearchParams()
   const [products, setProducts] = useState<ApiProduct[]>([])
@@ -240,8 +172,6 @@ function ProductManagement() {
   const [productSlug, setProductSlug] = useState('')
   const [productSku, setProductSku] = useState('')
   const [productBarcode, setProductBarcode] = useState('')
-  const [productPosProductId, setProductPosProductId] = useState('')
-  const [productStrength, setProductStrength] = useState('')
   const [productSubcategoryId, setProductSubcategoryId] = useState<number | ''>('')
   const [productBrandId, setProductBrandId] = useState<number | ''>('')
   const [productHealthConcernIds, setProductHealthConcernIds] = useState<number[]>([])
@@ -249,31 +179,7 @@ function ProductManagement() {
   const [productRequiresRx, setProductRequiresRx] = useState(false)
   const [productDescription, setProductDescription] = useState('')
   const [productFeaturesText, setProductFeaturesText] = useState('')
-  const [productDirections, setProductDirections] = useState('')
-  const [productWarnings, setProductWarnings] = useState('')
-  const [dosageQuantity, setDosageQuantity] = useState('')
-  const [dosageUnit, setDosageUnit] = useState('')
-  const [dosageFrequency, setDosageFrequency] = useState('')
-  const [dosageNotes, setDosageNotes] = useState('')
   const [formError, setFormError] = useState('')
-  const [variants, setVariants] = useState<ApiProductVariant[]>([])
-  const [variantsLoading, setVariantsLoading] = useState(false)
-  const [variantsError, setVariantsError] = useState('')
-  const [showVariantForm, setShowVariantForm] = useState(false)
-  const [editingVariant, setEditingVariant] = useState<ApiProductVariant | null>(null)
-  const [variantName, setVariantName] = useState('')
-  const [variantSku, setVariantSku] = useState('')
-  const [variantBarcode, setVariantBarcode] = useState('')
-  const [variantPosProductId, setVariantPosProductId] = useState('')
-  const [variantPrice, setVariantPrice] = useState('')
-  const [variantCostPrice, setVariantCostPrice] = useState('')
-  const [variantOriginalPrice, setVariantOriginalPrice] = useState('')
-  const [variantIsActive, setVariantIsActive] = useState(true)
-  const [variantAttributesText, setVariantAttributesText] = useState('{}')
-  const [variantImageFile, setVariantImageFile] = useState<File | null>(null)
-  const [variantImagePreviewSrc, setVariantImagePreviewSrc] = useState<string | null>(null)
-  const [variantSaving, setVariantSaving] = useState(false)
-  const [variantFormError, setVariantFormError] = useState('')
   const [showBrandModal, setShowBrandModal] = useState(false)
   const [brandName, setBrandName] = useState('')
   const [brandDescription, setBrandDescription] = useState('')
@@ -331,7 +237,7 @@ function ProductManagement() {
     const target = products.find((product) => String(product.id) === productId)
     if (!target) return
 
-    openEditModal(target, { openVariantForm: searchParams.get('variant') === 'new' })
+    openEditModal(target)
     setHandledProductQuery(productId)
   }, [activeTab, handledProductQuery, loading, productQueryKey, products, searchParams])
 
@@ -340,8 +246,6 @@ function ProductManagement() {
     setProductSlug('')
     setProductSku('')
     setProductBarcode('')
-    setProductPosProductId('')
-    setProductStrength('')
     setProductSubcategoryId(subcategories[0]?.id ?? '')
     setProductBrandId(brands[0]?.id ?? '')
     setProductHealthConcernIds([])
@@ -349,32 +253,8 @@ function ProductManagement() {
     setProductRequiresRx(false)
     setProductDescription('')
     setProductFeaturesText('')
-    setProductDirections('')
-    setProductWarnings('')
-    setDosageQuantity('')
-    setDosageUnit('')
-    setDosageFrequency('')
-    setDosageNotes('')
     setEditingProduct(null)
     setFormError('')
-    setVariants([])
-    setVariantsLoading(false)
-    setVariantsError('')
-    setShowVariantForm(false)
-    setEditingVariant(null)
-    setVariantName('')
-    setVariantSku('')
-    setVariantBarcode('')
-    setVariantPosProductId('')
-    setVariantPrice('')
-    setVariantCostPrice('')
-    setVariantOriginalPrice('')
-    setVariantIsActive(true)
-    setVariantAttributesText('{}')
-    setVariantImageFile(null)
-    setVariantImagePreviewSrc(null)
-    setVariantSaving(false)
-    setVariantFormError('')
   }
 
   const openAddModal = () => {
@@ -410,7 +290,7 @@ function ProductManagement() {
     setShowBrandModal(true)
   }
 
-  const openEditModal = (product: ApiProduct, options?: { openVariantForm?: boolean }) => {
+  const openEditModal = (product: ApiProduct) => {
     const resolvedBrand = resolveProductBrand(product)
     const resolvedSubcategory = resolveProductSubcategory(product)
 
@@ -418,8 +298,6 @@ function ProductManagement() {
     setProductSlug(product.slug ?? generateSlug(product.name))
     setProductSku(product.sku)
     setProductBarcode(product.barcode ?? '')
-    setProductPosProductId(product.pos_product_id ?? '')
-    setProductStrength(product.strength ?? '')
     setProductSubcategoryId(resolvedSubcategory?.id ?? product.subcategory_id ?? (subcategories[0]?.id ?? ''))
     setProductBrandId(resolvedBrand?.id ?? product.brand?.id ?? (brands[0]?.id ?? ''))
     setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
@@ -427,199 +305,16 @@ function ProductManagement() {
     setProductRequiresRx(product.requires_prescription)
     setProductDescription(product.description ?? '')
     setProductFeaturesText(formatFeatureLines(product.features))
-    setProductDirections(product.directions ?? '')
-    setProductWarnings(product.warnings ?? '')
-    setDosageQuantity(product.dosage_quantity ?? '')
-    setDosageUnit(normalizeDosageUnitValue(product.dosage_unit))
-    setDosageFrequency(normalizeDosageFrequencyValue(product.dosage_frequency))
-    setDosageNotes(product.dosage_notes ?? '')
     setEditingProduct(product)
     setFormError('')
-    setVariants([])
-    setVariantsError('')
-    setShowVariantForm(Boolean(options?.openVariantForm))
-    setEditingVariant(null)
-    void loadVariants(product.id)
     setShowAddModal(true)
-    if (options?.openVariantForm) {
-      resetVariantForm()
-    }
-  }
-
-  const loadVariants = async (productId: number) => {
-    setVariantsLoading(true)
-    setVariantsError('')
-    try {
-      const rows = await adminProductService.listProductVariants(productId)
-      setVariants(rows)
-    } catch {
-      setVariantsError('Failed to load variants.')
-    } finally {
-      setVariantsLoading(false)
-    }
-  }
-
-  const resetVariantForm = () => {
-    setEditingVariant(null)
-    setVariantName('')
-    setVariantSku('')
-    setVariantBarcode('')
-    setVariantPosProductId('')
-    setVariantPrice('')
-    setVariantCostPrice('')
-    setVariantOriginalPrice('')
-    setVariantIsActive(true)
-    setVariantAttributesText('{}')
-    setVariantImageFile(null)
-    setVariantImagePreviewSrc(null)
-    setVariantFormError('')
-  }
-
-  const openAddVariant = () => {
-    resetVariantForm()
-    setShowVariantForm(true)
-  }
-
-  const openEditVariant = (variant: ApiProductVariant) => {
-    setEditingVariant(variant)
-    setVariantName(variant.name ?? '')
-    setVariantSku(variant.sku ?? '')
-    setVariantBarcode(variant.barcode ?? '')
-    setVariantPosProductId(variant.pos_product_id ?? '')
-    setVariantPrice(variant.price ?? '')
-    setVariantCostPrice(variant.cost_price ?? '')
-    setVariantOriginalPrice(variant.original_price ?? '')
-    setVariantIsActive(Boolean(variant.is_active))
-    setVariantAttributesText(JSON.stringify(variant.attributes ?? {}, null, 2))
-    setVariantImageFile(null)
-    setVariantImagePreviewSrc(variant.image ?? null)
-    setVariantFormError('')
-    setShowVariantForm(true)
-  }
-
-  const handleSaveVariant = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!editingProduct) return
-    if (!variantName.trim()) { setVariantFormError('Variant name is required.'); return }
-    if (productFormMeta?.requires_pos_product_id && !variantPosProductId.trim()) {
-      setVariantFormError('POS Product ID is required for this POS link strategy.')
-      return
-    }
-    if (productFormMeta?.requires_barcode && !variantBarcode.trim()) {
-      setVariantFormError('Barcode is required for this POS link strategy.')
-      return
-    }
-
-    let attributes: Record<string, unknown> = {}
-    if (variantAttributesText.trim()) {
-      try {
-        attributes = JSON.parse(variantAttributesText)
-        if (typeof attributes !== 'object' || Array.isArray(attributes) || attributes === null) {
-          setVariantFormError('Attributes must be a JSON object.')
-          return
-        }
-      } catch {
-        setVariantFormError('Attributes must be valid JSON.')
-        return
-      }
-    }
-
-    const skuValue = variantSku.trim() || generateSku(variantName)
-    const priceValue = variantPrice ? Number(variantPrice) : undefined
-    if (!variantPrice.trim() || !Number.isFinite(priceValue)) {
-      setVariantFormError('Variant price must be a valid number.')
-      return
-    }
-    const costPriceValue = variantCostPrice ? Number(variantCostPrice) : undefined
-    if (variantCostPrice && !Number.isFinite(costPriceValue)) {
-      setVariantFormError('Bought at price must be a valid number.')
-      return
-    }
-    const originalPriceValue = variantOriginalPrice ? Number(variantOriginalPrice) : undefined
-    if (variantOriginalPrice && !Number.isFinite(originalPriceValue)) {
-      setVariantFormError('Original price must be a valid number.')
-      return
-    }
-
-    const payload: ProductVariantPayload = {
-      name: variantName.trim(),
-      sku: skuValue,
-      barcode: variantBarcode.trim(),
-      pos_product_id: variantPosProductId.trim(),
-      attributes,
-      price: priceValue,
-      cost_price: costPriceValue,
-      original_price: originalPriceValue,
-      is_active: variantIsActive,
-    }
-
-    const buildVariantFormData = (variantPayload: ProductVariantPayload) => {
-      const formData = new FormData()
-      formData.append('name', variantPayload.name)
-      formData.append('sku', variantPayload.sku)
-      formData.append('barcode', variantPayload.barcode ?? '')
-      formData.append('pos_product_id', variantPayload.pos_product_id ?? '')
-      formData.append('attributes', JSON.stringify(variantPayload.attributes ?? {}))
-      formData.append('price', String(variantPayload.price ?? ''))
-      formData.append('is_active', String(variantPayload.is_active ?? true))
-      if (variantPayload.cost_price !== undefined) formData.append('cost_price', String(variantPayload.cost_price))
-      if (variantPayload.original_price !== undefined) formData.append('original_price', String(variantPayload.original_price))
-      if (variantImageFile) formData.append('image', variantImageFile)
-      return formData
-    }
-
-    setVariantSaving(true)
-    setVariantFormError('')
-    try {
-      const requestPayload = variantImageFile ? buildVariantFormData(payload) : payload
-      if (editingVariant) {
-        const updated = await adminProductService.updateProductVariant(editingProduct.id, editingVariant.id, requestPayload)
-        setVariants((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
-      } else {
-        const created = await adminProductService.createProductVariant(editingProduct.id, requestPayload)
-        setVariants((prev) => [...prev, created])
-      }
-      const refreshedProducts = await adminProductService.listProducts({ product_id: String(editingProduct.id) })
-      const refreshed = refreshedProducts[0]
-      if (refreshed) {
-        setProducts((prev) => prev.map((product) => (product.id === refreshed.id ? refreshed : product)))
-        setEditingProduct(refreshed)
-      }
-      setShowVariantForm(false)
-      resetVariantForm()
-    } catch {
-      setVariantFormError('Failed to save variant.')
-    } finally {
-      setVariantSaving(false)
-    }
-  }
-
-  const handleDeleteVariant = async (variant: ApiProductVariant) => {
-    if (!editingProduct) return
-    if (!window.confirm(`Delete variant "${variant.name}"?`)) return
-    try {
-      await adminProductService.deleteProductVariant(editingProduct.id, variant.id)
-      setVariants((prev) => prev.filter((row) => row.id !== variant.id))
-      const refreshedProducts = await adminProductService.listProducts({ product_id: String(editingProduct.id) })
-      const refreshed = refreshedProducts[0]
-      if (refreshed) {
-        setProducts((prev) => prev.map((product) => (product.id === refreshed.id ? refreshed : product)))
-        setEditingProduct(refreshed)
-      }
-    } catch {
-      setVariantsError('Failed to delete variant.')
-    }
   }
 
   const handleSaveProduct = async (e: FormEvent) => {
     e.preventDefault()
     if (!productName.trim()) { setFormError('Product name is required.'); return }
-    if (productFormMeta?.requires_pos_product_id && !productPosProductId.trim()) {
-      setFormError('POS Product ID is required for this POS link strategy.')
-      return
-    }
-    if (productFormMeta?.requires_barcode && !productBarcode.trim()) {
-      setFormError('Barcode is required for this POS link strategy.')
+    if (productBarcode.trim() === '') {
+      setFormError('Barcode is required.')
       return
     }
     if (productBrandId === '') {
@@ -639,8 +334,6 @@ function ProductManagement() {
       slug,
       sku,
       barcode: productBarcode.trim(),
-      pos_product_id: productPosProductId.trim(),
-      strength: productStrength.trim(),
       brand_id: Number(productBrandId),
       subcategory_id: Number(productSubcategoryId),
       health_concern_ids: productHealthConcernIds,
@@ -648,12 +341,6 @@ function ProductManagement() {
       requires_prescription: productRequiresRx,
       description: productDescription.trim(),
       features,
-      directions: productDirections.trim(),
-      warnings: productWarnings.trim(),
-      dosage_quantity: dosageQuantity.trim(),
-      dosage_unit: dosageUnit.trim(),
-      dosage_frequency: dosageFrequency,
-      dosage_notes: dosageNotes.trim(),
     }
 
     const createPayload: ProductCreatePayload = {
@@ -670,18 +357,10 @@ function ProductManagement() {
       formData.append('slug', payload.slug)
       formData.append('sku', payload.sku)
       formData.append('barcode', payload.barcode ?? '')
-      formData.append('pos_product_id', payload.pos_product_id ?? '')
       formData.append('is_active', String(payload.is_active))
       formData.append('requires_prescription', String(payload.requires_prescription))
-      formData.append('strength', payload.strength ?? '')
       formData.append('description', payload.description ?? '')
       formData.append('features', JSON.stringify(payload.features ?? []))
-      formData.append('directions', payload.directions ?? '')
-      formData.append('warnings', payload.warnings ?? '')
-      formData.append('dosage_quantity', payload.dosage_quantity ?? '')
-      formData.append('dosage_unit', payload.dosage_unit ?? '')
-      formData.append('dosage_frequency', payload.dosage_frequency ?? '')
-      formData.append('dosage_notes', payload.dosage_notes ?? '')
 
       if (payload.brand_id !== null && payload.brand_id !== undefined) formData.append('brand_id', String(payload.brand_id))
       if (payload.subcategory_id !== null && payload.subcategory_id !== undefined) formData.append('subcategory_id', String(payload.subcategory_id))
@@ -700,7 +379,7 @@ function ProductManagement() {
         const requestPayload = buildProductFormData(createPayload)
         const created = await adminProductService.createProduct(requestPayload)
         setProducts((prev) => [created, ...prev])
-        openEditModal(created, { openVariantForm: true })
+        openEditModal(created)
       }
     } catch (err: unknown) {
       type ApiErr = {
@@ -748,32 +427,6 @@ function ProductManagement() {
     } finally {
       setSaving(false)
     }
-  }
-
-  useEffect(() => {
-    if (!variantImageFile) return undefined
-    const url = URL.createObjectURL(variantImageFile)
-    setVariantImagePreviewSrc(url)
-    return () => URL.revokeObjectURL(url)
-  }, [variantImageFile])
-
-  const handleVariantImageChange = async (file: File | null) => {
-    if (!file) {
-      setVariantImageFile(null)
-      if (!editingVariant) setVariantImagePreviewSrc(null)
-      setVariantFormError('')
-      return
-    }
-
-    const validationError = await validateImageFile(file, 'product')
-    if (validationError) {
-      setVariantImageFile(null)
-      setVariantFormError(validationError)
-      return
-    }
-
-    setVariantImageFile(file)
-    setVariantFormError('')
   }
 
   const handleQuickBrandLogoChange = async (file: File | null) => {
@@ -1457,16 +1110,6 @@ function ProductManagement() {
                         }}
                       />
                     </div>
-                    <div className="pf-field pf-field--sm">
-                      <label className="pf-label">Strength <span className="pf-optional">optional</span></label>
-                      <input
-                        className="pf-input"
-                        type="text"
-                        placeholder="e.g. 500mg"
-                        value={productStrength}
-                        onChange={(e) => setProductStrength(e.target.value)}
-                      />
-                    </div>
                   </div>
                   <div className="pf-row">
                     <div className="pf-field">
@@ -1490,23 +1133,6 @@ function ProductManagement() {
                         value={productBarcode}
                         onChange={(e) => setProductBarcode(e.target.value)}
                       />
-                    </div>
-                    <div className="pf-field">
-                      <label className="pf-label">
-                        POS Product ID {productFormMeta?.requires_pos_product_id ? <span className="pf-req">*</span> : <span className="pf-optional">optional</span>}
-                      </label>
-                      <input
-                        className="pf-input"
-                        type="text"
-                        placeholder="POS item identifier"
-                        value={productPosProductId}
-                        onChange={(e) => setProductPosProductId(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="pf-row">
-                    <div className="pf-field">
-                      <span className="pf-hint">{getPosLinkHint(productFormMeta, 'product')}</span>
                     </div>
                   </div>
                   <div className="pf-row">
@@ -1578,346 +1204,19 @@ function ProductManagement() {
                     />
                     <span className="pf-hint">Each line becomes a separate bullet point on the product page.</span>
                   </div>
-                  {/* ── Dosage ── */}
-                  <div className="pf-dosage-section">
-                    <div className="pf-dosage-section__label">Dosage <span className="pf-optional">optional</span></div>
-                    <div className="pf-dosage-grid">
-                      <div className="pf-field">
-                        <label className="pf-label">Quantity</label>
-                        <input
-                          className="pf-input"
-                          type="text"
-                          placeholder="e.g. 1, 2, 1–2"
-                          value={dosageQuantity}
-                          onChange={(e) => setDosageQuantity(e.target.value)}
-                        />
-                      </div>
-                      <div className="pf-field">
-                        <label className="pf-label">Unit</label>
-                        <select className="pf-input" value={dosageUnit} onChange={(e) => setDosageUnit(e.target.value)}>
-                          <option value="">-select_</option>
-                          <option value="tablet">Tablet</option>
-                          <option value="tablets">Tablets</option>
-                          <option value="capsule">Capsule</option>
-                          <option value="capsules">Capsules</option>
-                          <option value="ml">ml</option>
-                          <option value="mg">mg</option>
-                          <option value="drop">Drop</option>
-                          <option value="drops">Drops</option>
-                          <option value="sachet">Sachet</option>
-                          <option value="application">Application</option>
-                          <option value="spray">Spray</option>
-                          <option value="unit">Unit</option>
-                        </select>
-                      </div>
-                      <div className="pf-field">
-                        <label className="pf-label">Frequency</label>
-                        <select className="pf-input" value={dosageFrequency} onChange={(e) => setDosageFrequency(e.target.value)}>
-                          <option value="">-select_</option>
-                          <option value="once_daily">Once daily</option>
-                          <option value="twice_daily">Twice daily</option>
-                          <option value="three_times_daily">3 times daily</option>
-                          <option value="four_times_daily">4 times daily</option>
-                          <option value="every_4_hours">Every 4 hours</option>
-                          <option value="every_6_hours">Every 6 hours</option>
-                          <option value="every_8_hours">Every 8 hours</option>
-                          <option value="every_12_hours">Every 12 hours</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="as_needed">As needed</option>
-                          <option value="as_directed">As directed</option>
-                        </select>
-                      </div>
-                      <div className="pf-field">
-                        <label className="pf-label">Notes</label>
-                        <input
-                          className="pf-input"
-                          type="text"
-                          placeholder="e.g. with food, before meals"
-                          value={dosageNotes}
-                          onChange={(e) => setDosageNotes(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    {dosageQuantity && dosageUnit && dosageFrequency && (
-                      <div className="pf-dosage-preview">
-                        {dosageQuantity} {dosageUnit} · {dosageFrequency.replace(/_/g, ' ')}{dosageNotes ? ` · ${dosageNotes}` : ''}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pf-row">
-                    <div className="pf-field">
-                      <label className="pf-label">Directions <span className="pf-optional">optional</span></label>
-                      <textarea
-                        className="pf-input pf-textarea"
-                        rows={3}
-                        placeholder="How the customer should use the product"
-                        value={productDirections}
-                        onChange={(e) => setProductDirections(e.target.value)}
-                      />
-                    </div>
-                    <div className="pf-field">
-                      <label className="pf-label">Warnings <span className="pf-optional">optional</span></label>
-                      <textarea
-                        className="pf-input pf-textarea"
-                        rows={3}
-                        placeholder="Safety warnings, contraindications, or cautions"
-                        value={productWarnings}
-                        onChange={(e) => setProductWarnings(e.target.value)}
-                      />
-                    </div>
-                  </div>
                 </div>
 
-                <div className="pf-section">
-                  <div className="pf-section__label">Variant Commerce</div>
-                  <div className="pf-row">
-                    <div className="pf-field">
-                      <label className="pf-label">Pricing lives on variants</label>
-                      <span className="pf-hint">Selling price and bought-at price are set per variant. The parent product is just the catalog container.</span>
-                    </div>
-                    <div className="pf-field">
-                      <label className="pf-label">Images live on variants</label>
-                      <span className="pf-hint">Upload sellable images on each variant. Product cards will use a representative variant image automatically.</span>
-                    </div>
-                  </div>
-                  <div className="pf-row">
-                    <div className="pf-field">
-                      <span className="pf-hint">Create the product first, then add one or more variants with price, cost, image, and stock.</span>
-                    </div>
-                  </div>
-                </div>
+      
 
                 <div className="pf-section">
-                  <div className="pf-section__label">Variants</div>
+                  <div className="pf-section__label">Variants and Stock Management</div>
                   {!editingProduct && (
-                    <span className="pf-hint">Save the product first, then add variants (sizes, strengths, packs). Stock is managed from Inventory after the variant exists.</span>
+                    <span className="pf-hint">Save the product first, then use Inventory → New Stock to create variants(tablets, syrup, or sachets) stock, thresholds, backorder rules, and POS sync are managed</span>
                   )}
-                  {editingProduct && (
-                    <div className="pf-variant-panel">
-                      <div className="pf-variant-header">
-                        <div>
-                          <div className="pf-variant-title">Variants</div>
-                          <div className="pf-hint">Variants are different sellable versions of the same product. Use this section for catalog details and manage variant stock from Inventory.</div>
-                        </div>
-                        <button type="button" className="btn btn--ghost pf-variant-btn" onClick={openAddVariant}>Add Variant</button>
-                      </div>
-
-                      {variantsError && (
-                        <div className="form-alert form-alert--error">
-                          <span>{variantsError}</span>
-                        </div>
-                      )}
-
-                      {variantsLoading && <div className="pf-hint">Loading variants…</div>}
-
-                      {!variantsLoading && variants.length === 0 && (
-                        <div className="pf-hint">No variants yet.</div>
-                      )}
-
-                      {!variantsLoading && variants.length > 0 && (
-                        <div className="pf-variant-table-wrap">
-                          <table className="pf-variant-table">
-                            <thead>
-                              <tr>
-                                <th>Name</th>
-                                <th>SKU</th>
-                                <th>Barcode</th>
-                                <th>POS ID</th>
-                                <th>Selling</th>
-                                <th>Bought At</th>
-                                <th>Stock</th>
-                                <th>Status</th>
-                                <th className="pf-variant-actions">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {variants.map((variant) => (
-                                <tr key={variant.id}>
-                                  <td>{variant.name}</td>
-                                  <td>{variant.sku}</td>
-                                  <td>{variant.barcode ?? '—'}</td>
-                                  <td>{variant.pos_product_id ?? '—'}</td>
-                                  <td>{formatCurrency(variant.price ?? variant.effective_price)}</td>
-                                  <td>{formatCurrency(variant.cost_price)}</td>
-                                  <td>{variant.stock_quantity}</td>
-                                  <td>{variant.is_active ? 'Active' : 'Inactive'}</td>
-                                  <td className="pf-variant-actions">
-                                    <button type="button" className="cm-row-btn cm-row-btn--edit" onClick={() => openEditVariant(variant)}>
-                                      Edit
-                                    </button>
-                                    <button type="button" className="cm-row-btn cm-row-btn--delete" onClick={() => handleDeleteVariant(variant)}>
-                                      Delete
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {showVariantForm && (
-                        <form className="pf-variant-form" onSubmit={handleSaveVariant}>
-                          {variantFormError && (
-                            <div className="form-alert form-alert--error">
-                              <span>{variantFormError}</span>
-                            </div>
-                          )}
-
-                          <div className="pf-row">
-                            <div className="pf-field">
-                              <label className="pf-label">Variant Name <span className="pf-req">*</span></label>
-                              <input className="pf-input" type="text" value={variantName} onChange={(e) => setVariantName(e.target.value)} placeholder="e.g. 500mg - 20 tablets" />
-                            </div>
-                            <div className="pf-field">
-                              <label className="pf-label">SKU <span className="pf-optional">optional</span></label>
-                              <input className="pf-input" type="text" value={variantSku} onChange={(e) => setVariantSku(e.target.value)} placeholder="Auto-generated if blank" />
-                            </div>
-                          </div>
-
-                          <div className="pf-row">
-                            <div className="pf-field">
-                              <label className="pf-label">
-                                Barcode {productFormMeta?.requires_barcode ? <span className="pf-req">*</span> : <span className="pf-optional">optional</span>}
-                              </label>
-                              <input className="pf-input" type="text" value={variantBarcode} onChange={(e) => setVariantBarcode(e.target.value)} placeholder="Scan or enter barcode" />
-                            </div>
-                            <div className="pf-field">
-                              <label className="pf-label">
-                                POS Product ID {productFormMeta?.requires_pos_product_id ? <span className="pf-req">*</span> : <span className="pf-optional">optional</span>}
-                              </label>
-                              <input className="pf-input" type="text" value={variantPosProductId} onChange={(e) => setVariantPosProductId(e.target.value)} placeholder="POS item identifier" />
-                            </div>
-                          </div>
-
-                          <div className="pf-row">
-                            <div className="pf-field">
-                              <span className="pf-hint">{getPosLinkHint(productFormMeta, 'variant')}</span>
-                            </div>
-                          </div>
-
-                          <div className="pf-row">
-                            <div className="pf-field">
-                              <label className="pf-label">Selling Price <span className="pf-req">*</span></label>
-                              <div className="pf-prefix-wrap">
-                                <span className="pf-prefix">KSh</span>
-                                <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" value={variantPrice} onChange={(e) => setVariantPrice(e.target.value)} placeholder="0.00" />
-                              </div>
-                            </div>
-                            <div className="pf-field">
-                              <label className="pf-label">Bought At Price <span className="pf-optional">optional</span></label>
-                              <div className="pf-prefix-wrap">
-                                <span className="pf-prefix">KSh</span>
-                                <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" value={variantCostPrice} onChange={(e) => setVariantCostPrice(e.target.value)} placeholder="0.00" />
-                              </div>
-                              <span className="pf-hint">Internal cost used for margin tracking.</span>
-                            </div>
-                          </div>
-
-                          <div className="pf-row">
-                            <div className="pf-field">
-                              <label className="pf-label">Original Price <span className="pf-optional">optional</span></label>
-                              <div className="pf-prefix-wrap">
-                                <span className="pf-prefix">KSh</span>
-                                <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" value={variantOriginalPrice} onChange={(e) => setVariantOriginalPrice(e.target.value)} placeholder="0.00" />
-                              </div>
-                            </div>
-                            <div className="pf-field">
-                              <label className="pf-label">Variant Image <span className="pf-optional">optional</span></label>
-                              <input
-                                className="pf-input"
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => { void handleVariantImageChange(e.currentTarget.files?.[0] ?? null) }}
-                              />
-                              <span className="pf-hint">
-                                {editingVariant ? 'Leave empty to keep the current image.' : 'Upload the sellable image for this variant.'} {getImageUploadHint('product')}
-                              </span>
-                              {variantImagePreviewSrc && (
-                                <div className="cm-brand-preview" style={{ marginTop: '0.5rem' }}>
-                                  <img src={variantImagePreviewSrc} alt="Variant preview" className="cm-brand-preview__img" />
-                                  <div className="cm-brand-preview__meta">
-                                    <span className="cm-brand-preview__label">{variantImageFile ? 'Selected file' : 'Current image'}</span>
-                                    <span className="cm-brand-preview__name">{variantImageFile?.name ?? variantName ?? 'Variant image'}</span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="pf-row">
-                            <div className="pf-field">
-                              <label className="pf-label">Status</label>
-                              <select className="pf-input" value={variantIsActive ? 'active' : 'inactive'} onChange={(e) => setVariantIsActive(e.target.value === 'active')}>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="pf-row">
-                            <div className="pf-field">
-                              <span className="pf-hint">Variant stock, thresholds, backorder, and POS sync are managed from Inventory.</span>
-                            </div>
-                          </div>
-
-                          <div className="pf-field">
-                            <label className="pf-label">Attributes (JSON) <span className="pf-optional">optional</span></label>
-                            <textarea className="pf-input pf-textarea" rows={3} value={variantAttributesText} onChange={(e) => setVariantAttributesText(e.target.value)} />
-                            <span className="pf-hint">Example: {"{\"size\":\"500mg\",\"pack\":\"20\"}"}</span>
-                          </div>
-
-                          <div className="pf-variant-form__actions">
-                            <button type="button" className="btn btn--secondary" onClick={() => { setShowVariantForm(false); resetVariantForm() }}>Cancel</button>
-                            <button type="submit" className="btn btn--primary" disabled={variantSaving}>
-                              {variantSaving ? 'Saving…' : editingVariant ? 'Save Variant' : 'Add Variant'}
-                            </button>
-                          </div>
-                        </form>
-                      )}
-                    </div>
-                  )}
+               
                 </div>
 
-                <div className="pf-section">
-                  <div className="pf-section__label">Stock Management</div>
-                  <div className="pf-field">
-                    <span className="pf-hint">Catalog details live here. Stock, thresholds, backorder rules, and POS sync are managed from Inventory.</span>
-                  </div>
-                  {editingProduct ? (
-                    <>
-                      <div className="pf-row">
-                        <div className="pf-field">
-                          <label className="pf-label">Current stock model</label>
-                          <span className="pf-hint">
-                            {editingProduct.has_variants
-                              ? `Variant-managed with ${getActiveVariantCount(editingProduct)} active variants.`
-                              : `Single SKU with ${getInventoryQuantity(editingProduct, 'branch')} in Main Shop and ${getInventoryQuantity(editingProduct, 'warehouse')} in POS Store.`}
-                          </span>
-                        </div>
-                        <div className="pf-field">
-                          <label className="pf-label">Sellable quantity</label>
-                          <span className="pf-hint">{getSellableQuantity(editingProduct)} available · {formatSellableStatusLabel(editingProduct)}</span>
-                        </div>
-                      </div>
-                      <div className="pf-field">
-                        <Link
-                          className="btn btn--secondary btn--sm"
-                          to={`/admin/inventory?product=${editingProduct.id}`}
-                          onClick={() => setShowAddModal(false)}
-                        >
-                          Manage Stock In Inventory
-                        </Link>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="pf-field">
-                      <span className="pf-hint">Save the product first, then open Inventory to set Main Shop stock, POS-backed stock, or variant stock.</span>
-                    </div>
-                  )}
-                </div>
-
+             
                 <div className="pf-section">
                   <div className="pf-section__label">Access</div>
                   <div className="pf-toggle-row" onClick={() => setProductRequiresRx(!productRequiresRx)}>

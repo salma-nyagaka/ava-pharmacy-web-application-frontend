@@ -5,6 +5,7 @@ import { useSiteSettings } from '../../context/SiteSettingsContext'
 import '../../styles/components/Footer.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import { sortCategoriesByPreferredOrder } from '../../constants/catalog'
+import { NewsletterSubscriptionError, subscribeToNewsletter } from '../../services/newsletterService'
 import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
 
 function Footer() {
@@ -14,6 +15,7 @@ function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('')
   const [newsletterError, setNewsletterError] = useState('')
   const [newsletterSuccess, setNewsletterSuccess] = useState(false)
+  const [isSubmittingNewsletter, setIsSubmittingNewsletter] = useState(false)
 
   const orderedCategories = sortCategoriesByPreferredOrder(categories).slice(0, 4)
   const normalizedSupportPhone = settings.supportPhone.replace(/\D/g, '')
@@ -37,7 +39,7 @@ function Footer() {
     { name: 'FAQs', path: '/help' },
   ]
 
-  const handleNewsletterSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleNewsletterSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setNewsletterError('')
     setNewsletterSuccess(false)
@@ -54,9 +56,21 @@ function Footer() {
       return
     }
 
-    setNewsletterSuccess(true)
-    setNewsletterEmail('')
-    window.setTimeout(() => setNewsletterSuccess(false), 2500)
+    try {
+      setIsSubmittingNewsletter(true)
+      await subscribeToNewsletter(email, 'homepage-footer')
+      setNewsletterSuccess(true)
+      setNewsletterEmail('')
+      window.setTimeout(() => setNewsletterSuccess(false), 4000)
+    } catch (error) {
+      setNewsletterError(
+        error instanceof NewsletterSubscriptionError
+          ? error.message
+          : 'Unable to subscribe to the newsletter right now.',
+      )
+    } finally {
+      setIsSubmittingNewsletter(false)
+    }
   }
 
   return (
@@ -78,6 +92,7 @@ function Footer() {
                   placeholder="Enter your email address"
                   value={newsletterEmail}
                   onChange={(event) => setNewsletterEmail(event.target.value)}
+                  disabled={isSubmittingNewsletter}
                   aria-label="Email address"
                   aria-invalid={!!newsletterError}
                   aria-describedby={newsletterError ? 'footer-newsletter-error' : undefined}
@@ -89,12 +104,16 @@ function Footer() {
                 )}
                 {newsletterSuccess && (
                   <span className="footer__newsletter-success" role="status">
-                    Thank you for subscribing!
+                    Subscription confirmed. Check your email.
                   </span>
                 )}
               </div>
-              <button type="submit" className="btn btn--primary footer__newsletter-button">
-                Subscribe
+              <button
+                type="submit"
+                className="btn btn--primary footer__newsletter-button"
+                disabled={isSubmittingNewsletter}
+              >
+                {isSubmittingNewsletter ? 'Subscribing...' : 'Subscribe'}
               </button>
             </form>
           </section>
