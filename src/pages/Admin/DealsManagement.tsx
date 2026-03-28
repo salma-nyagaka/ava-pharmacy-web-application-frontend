@@ -15,6 +15,7 @@ import '../../styles/admin/DealsManagement.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const PAGE_SIZE = 6
+type SortDirection = 'asc' | 'desc'
 
 const SCOPE_LABELS: Record<PromotionScope, string> = {
   all: 'All products',
@@ -70,6 +71,17 @@ function formatDisplayDate(value: string): string {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return '—'
   return parsed.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function compareCreatedAt(left?: string, right?: string): number {
+  const leftTime = left ? new Date(left).getTime() : Number.NaN
+  const rightTime = right ? new Date(right).getTime() : Number.NaN
+  const leftValid = Number.isFinite(leftTime)
+  const rightValid = Number.isFinite(rightTime)
+  if (!leftValid && !rightValid) return 0
+  if (!leftValid) return 1
+  if (!rightValid) return -1
+  return leftTime - rightTime
 }
 
 function getPromotionStatus(promotion: Pick<ApiPromotion, 'status' | 'start_date' | 'end_date'>, now = new Date()): PromotionDerivedStatus {
@@ -222,6 +234,7 @@ function DealsManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedScope, setSelectedScope] = useState<'all' | 'all-products' | PromotionScope>('all')
   const [selectedStatus, setSelectedStatus] = useState<'all' | PromotionDerivedStatus>('all')
+  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [draft, setDraft] = useState<PromotionDraft>(createBlankDraft())
@@ -258,7 +271,7 @@ function DealsManagement() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedScope, selectedStatus])
+  }, [searchTerm, selectedScope, selectedStatus, createdAtSortDirection])
 
   const categoryOptions = useMemo<TargetOption[]>(
     () => categories.map((category) => ({ value: category.slug, label: category.name })),
@@ -314,10 +327,23 @@ function DealsManagement() {
     })
   }, [promotions, searchTerm, selectedScope, selectedStatus, categoryOptions, brandOptions, productOptions])
 
-  const totalPages = Math.max(1, Math.ceil(filteredPromotions.length / PAGE_SIZE))
+  const sortedPromotions = useMemo(() => {
+    const items = [...filteredPromotions]
+    items.sort((left, right) => {
+      const comparison = compareCreatedAt(left.created_at, right.created_at)
+      return createdAtSortDirection === 'asc' ? comparison : -comparison
+    })
+    return items
+  }, [filteredPromotions, createdAtSortDirection])
+
+  const totalPages = Math.max(1, Math.ceil(sortedPromotions.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
-  const pagedPromotions = filteredPromotions.slice(startIndex, startIndex + PAGE_SIZE)
+  const pagedPromotions = sortedPromotions.slice(startIndex, startIndex + PAGE_SIZE)
   const discountPreview = getDiscountPreview(draft.type, draft.value)
+
+  const toggleCreatedAtSort = () => {
+    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  }
 
   useEffect(() => {
     if (!promotionImageFile) {
@@ -610,7 +636,11 @@ function DealsManagement() {
                   <th>Discount</th>
                   <th>Schedule</th>
                   <th>Status</th>
-                  <th>Created At</th>
+                  <th>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
+                      Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
+                    </button>
+                  </th>
                   <th>Created By</th>
                   <th>Updated By</th>
                   <th className="cm-th-actions">Actions</th>

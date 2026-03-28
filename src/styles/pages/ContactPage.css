@@ -16,7 +16,7 @@
 
 /* ── Info side ─────────────────────────── */
 .contact__info-title {
-  font-family: 'Fraunces', 'Times New Roman', serif;
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
   font-size: clamp(1.75rem, 3vw, 2.5rem);
   font-weight: 800;
   color: #0f172a;

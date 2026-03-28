@@ -5,11 +5,23 @@ import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const PAGE_SIZE = 8
+type SortDirection = 'asc' | 'desc'
 
 function formatDate(value?: string): string {
   if (!value) return '—'
   const d = new Date(value)
   return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function compareCreatedAt(left?: string, right?: string): number {
+  const leftTime = left ? new Date(left).getTime() : Number.NaN
+  const rightTime = right ? new Date(right).getTime() : Number.NaN
+  const leftValid = Number.isFinite(leftTime)
+  const rightValid = Number.isFinite(rightTime)
+  if (!leftValid && !rightValid) return 0
+  if (!leftValid) return 1
+  if (!rightValid) return -1
+  return leftTime - rightTime
 }
 
 function HealthConcernManagement() {
@@ -18,6 +30,7 @@ function HealthConcernManagement() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
+  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
@@ -131,13 +144,22 @@ function HealthConcernManagement() {
     })
   }, [concerns, search, selectedStatus])
 
+  const sortedConcerns = useMemo(() => {
+    const items = [...filtered]
+    items.sort((left, right) => {
+      const comparison = compareCreatedAt(left.created_at, right.created_at)
+      return createdAtSortDirection === 'asc' ? comparison : -comparison
+    })
+    return items
+  }, [filtered, createdAtSortDirection])
+
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, selectedStatus])
+  }, [search, selectedStatus, createdAtSortDirection])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(sortedConcerns.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
-  const pagedConcerns = filtered.slice(startIndex, startIndex + PAGE_SIZE)
+  const pagedConcerns = sortedConcerns.slice(startIndex, startIndex + PAGE_SIZE)
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -151,6 +173,10 @@ function HealthConcernManagement() {
   const clearFilters = () => {
     setSearch('')
     setSelectedStatus('all')
+  }
+
+  const toggleCreatedAtSort = () => {
+    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
   }
 
   return (
@@ -290,7 +316,11 @@ function HealthConcernManagement() {
                     <th>Image</th>
                     <th>Description</th>
                     <th>Status</th>
-                    <th>Created At</th>
+                    <th>
+                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
+                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
+                      </button>
+                    </th>
                     <th>Created By</th>
                     <th>Updated By</th>
                     <th className="cm-th-actions"></th>

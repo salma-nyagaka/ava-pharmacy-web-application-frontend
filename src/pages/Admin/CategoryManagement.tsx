@@ -16,8 +16,20 @@ function formatDate(value?: string): string {
 
 type ViewMode = 'categories' | 'subcategories'
 type ModalMode = 'create-category' | 'create-subcategory' | 'edit-category' | 'edit-subcategory'
+type SortDirection = 'asc' | 'desc'
 
 const PAGE_SIZE = 8
+
+function compareCreatedAt(left?: string, right?: string): number {
+  const leftTime = left ? new Date(left).getTime() : Number.NaN
+  const rightTime = right ? new Date(right).getTime() : Number.NaN
+  const leftValid = Number.isFinite(leftTime)
+  const rightValid = Number.isFinite(rightTime)
+  if (!leftValid && !rightValid) return 0
+  if (!leftValid) return 1
+  if (!rightValid) return -1
+  return leftTime - rightTime
+}
 
 function CategoryManagement() {
   const [categories, setCategories] = useState<ApiProductCategory[]>([])
@@ -28,6 +40,7 @@ function CategoryManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>('all')
+  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
@@ -295,15 +308,33 @@ function CategoryManagement() {
     })
   }, [subcategories, searchTerm, selectedStatus, selectedParentCategory])
 
+  const sortedCategories = useMemo(() => {
+    const items = [...filteredCategories]
+    items.sort((left, right) => {
+      const comparison = compareCreatedAt(left.created_at, right.created_at)
+      return createdAtSortDirection === 'asc' ? comparison : -comparison
+    })
+    return items
+  }, [filteredCategories, createdAtSortDirection])
+
+  const sortedSubcategories = useMemo(() => {
+    const items = [...filteredSubcategories]
+    items.sort((left, right) => {
+      const comparison = compareCreatedAt(left.created_at, right.created_at)
+      return createdAtSortDirection === 'asc' ? comparison : -comparison
+    })
+    return items
+  }, [filteredSubcategories, createdAtSortDirection])
+
   useEffect(() => {
     setCurrentPage(1)
-  }, [viewMode, searchTerm, selectedStatus, selectedParentCategory])
+  }, [viewMode, searchTerm, selectedStatus, selectedParentCategory, createdAtSortDirection])
 
-  const visibleRows = viewMode === 'categories' ? filteredCategories : filteredSubcategories
+  const visibleRows = viewMode === 'categories' ? sortedCategories : sortedSubcategories
   const totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
-  const pagedCategories = filteredCategories.slice(startIndex, startIndex + PAGE_SIZE)
-  const pagedSubcategories = filteredSubcategories.slice(startIndex, startIndex + PAGE_SIZE)
+  const pagedCategories = sortedCategories.slice(startIndex, startIndex + PAGE_SIZE)
+  const pagedSubcategories = sortedSubcategories.slice(startIndex, startIndex + PAGE_SIZE)
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -326,6 +357,10 @@ function CategoryManagement() {
     setSearchTerm('')
     setSelectedStatus('all')
     setSelectedParentCategory('all')
+  }
+
+  const toggleCreatedAtSort = () => {
+    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
   }
 
   return (
@@ -534,7 +569,11 @@ function CategoryManagement() {
                     <th>Image</th>
                     <th>Status</th>
                     <th>Subcategories</th>
-                    <th>Created At</th>
+                    <th>
+                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
+                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
+                      </button>
+                    </th>
                     <th>Created By</th>
                     <th>Updated By</th>
                     <th className="cm-th-actions"></th>
@@ -672,7 +711,11 @@ function CategoryManagement() {
                     <th>Subcategory</th>
                     <th>Parent Category</th>
                     <th>Status</th>
-                    <th>Created At</th>
+                    <th>
+                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
+                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
+                      </button>
+                    </th>
                     <th>Created By</th>
                     <th>Updated By</th>
                     <th className="cm-th-actions"></th>

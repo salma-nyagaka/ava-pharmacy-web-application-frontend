@@ -35,6 +35,14 @@ export interface ApiHealthConcern {
 export type PromotionScope = 'all' | 'category' | 'brand' | 'product'
 export type PromotionType = 'percentage' | 'amount'
 export type PromotionStatus = 'active' | 'draft'
+export type PosLinkStrategy =
+  | 'sku'
+  | 'pos_product_id'
+  | 'barcode'
+  | 'barcode_and_pos_id'
+  | 'sku_or_pos_id'
+  | 'sku_or_barcode'
+  | 'any'
 
 export interface ApiPromotion {
   id: number
@@ -133,10 +141,13 @@ export interface ApiProduct {
   discount_total: string
   active_promotions: ApiProductPromotion[]
   stock_quantity: number
+  available_quantity: number
   low_stock_threshold: number
   stock_source: StockSource
+  inventory_status: string
   max_backorder_quantity: number
   inventories: ApiProductInventory[]
+  variants?: ApiProductVariant[]
   is_active: boolean
   requires_prescription: boolean
   description: string
@@ -153,6 +164,8 @@ export interface ApiProduct {
   brand: ApiBrand | null
   brand_name?: string | null
   allow_backorder: boolean
+  can_purchase?: boolean
+  has_variants?: boolean
   health_concerns: ApiHealthConcern[]
   created_at: string
   updated_at: string
@@ -276,6 +289,14 @@ export interface PosSyncPayload {
   }>
 }
 
+export interface ProductFormMeta {
+  pos_link_strategy: PosLinkStrategy
+  requires_pos_product_id: boolean
+  requires_barcode: boolean
+  accepts_sku: boolean
+  accepts_barcode: boolean
+}
+
 export interface ApiStockMovement {
   id: number
   movement_type: string
@@ -320,6 +341,11 @@ export const adminProductService = {
   async createProduct(payload: ProductCreatePayload | FormData) {
     const res = await apiClient.post('/admin/products/', payload)
     return unwrap<ApiProduct>(res)
+  },
+
+  async getProductFormMeta() {
+    const res = await apiClient.get('/admin/products/meta/')
+    return unwrap<ProductFormMeta>(res)
   },
 
   async updateProduct(id: number, payload: Partial<ProductCreatePayload> | FormData) {
@@ -435,6 +461,18 @@ export const adminProductService = {
     const payload = res.data as { data?: { updated?: ApiInventoryProduct[] } } | { updated?: ApiInventoryProduct[] }
     const updated = (payload as { updated?: ApiInventoryProduct[] }).updated
       ?? (payload as { data?: { updated?: ApiInventoryProduct[] } }).data?.updated
+      ?? []
+    return updated
+  },
+
+  async refreshVariantPosInventory(variantIds: number[], force = true) {
+    const res = await apiClient.post('/admin/inventory/variant-pos-refresh/', {
+      variant_ids: variantIds,
+      force,
+    })
+    const payload = res.data as { data?: { updated?: ApiProductVariant[] } } | { updated?: ApiProductVariant[] }
+    const updated = (payload as { updated?: ApiProductVariant[] }).updated
+      ?? (payload as { data?: { updated?: ApiProductVariant[] } }).data?.updated
       ?? []
     return updated
   },

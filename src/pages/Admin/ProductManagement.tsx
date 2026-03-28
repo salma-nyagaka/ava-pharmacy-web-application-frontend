@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
@@ -11,6 +11,7 @@ import {
   ApiProductSubcategory,
   ApiProduct,
   ApiProductVariant,
+  ProductFormMeta,
   ProductVariantPayload,
   ProductCreatePayload,
 } from '../../services/adminProductService'
@@ -21,11 +22,34 @@ import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/ProductManagement.css'
 
 const PAGE_SIZE = 6
+type SortDirection = 'asc' | 'desc'
 
 function formatDate(value?: string): string {
   if (!value) return '—'
   const d = new Date(value)
   return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function compareCreatedAt(left?: string, right?: string): number {
+  const leftTime = left ? new Date(left).getTime() : Number.NaN
+  const rightTime = right ? new Date(right).getTime() : Number.NaN
+  const leftValid = Number.isFinite(leftTime)
+  const rightValid = Number.isFinite(rightTime)
+  if (!leftValid && !rightValid) return 0
+  if (!leftValid) return 1
+  if (!rightValid) return -1
+  return leftTime - rightTime
+}
+
+function getPosLinkHint(meta: ProductFormMeta | null, entity: 'product' | 'variant'): string {
+  if (!meta) return ''
+  const subject = entity === 'product' ? 'product' : 'variant'
+  const accepted: string[] = []
+  if (meta.accepts_sku) accepted.push('SKU')
+  if (meta.accepts_barcode) accepted.push('barcode')
+  if (meta.requires_pos_product_id) accepted.push('POS product ID')
+  if (accepted.length === 0) return `No specific POS identifiers are required for this ${subject}.`
+  return `Accepted for this ${subject}: ${accepted.join(', ')}.`
 }
 
 function formatCurrency(value?: string | number | null): string {
@@ -85,7 +109,41 @@ function getInventoryQuantity(product: ApiProduct, location: 'branch' | 'warehou
   return getInventoryItem(product, location)?.stock_quantity ?? 0
 }
 
+function getActiveVariantCount(product: ApiProduct): number {
+  return (product.variants ?? []).filter((variant) => variant.is_active).length
+}
+
+function getSellableQuantity(product: ApiProduct): number {
+  return product.available_quantity ?? product.stock_quantity ?? 0
+}
+
+function getSellableStatus(product: ApiProduct): string {
+  return product.inventory_status ?? 'out_of_stock'
+}
+
+function getSellableStatusClass(product: ApiProduct): string {
+  const status = getSellableStatus(product)
+  if (status === 'in_stock') return 'cm-status--active'
+  if (status === 'low_stock' || status === 'backorder') return 'cm-status--scheduled'
+  return 'cm-status--inactive'
+}
+
+function formatSellableStatusLabel(product: ApiProduct): string {
+  const status = getSellableStatus(product)
+  if (status === 'in_stock') return 'In stock'
+  if (status === 'low_stock') return 'Low stock'
+  if (status === 'backorder') return 'Backorder'
+  if (status === 'inactive') return 'Inactive'
+  return 'Out of stock'
+}
+
 function formatInventoryBreakdown(product: ApiProduct): string {
+  if (product.has_variants) {
+    const variantCount = getActiveVariantCount(product)
+    return variantCount > 0
+      ? `Variant-managed · ${variantCount} active variant${variantCount === 1 ? '' : 's'}`
+      : 'Variant-managed'
+  }
   const branchQty = getInventoryQuantity(product, 'branch')
   const warehouseQty = getInventoryQuantity(product, 'warehouse')
   return `Shop:${branchQty} · POS:${warehouseQty}`
@@ -167,10 +225,12 @@ function ProductManagement() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [productFormMeta, setProductFormMeta] = useState<ProductFormMeta | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedSubcat, setSelectedSubcat] = useState('all')
   const [selectedConcern, setSelectedConcern] = useState('all')
+  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null)
@@ -196,10 +256,6 @@ function ProductManagement() {
   const [dosageUnit, setDosageUnit] = useState('')
   const [dosageFrequency, setDosageFrequency] = useState('')
   const [dosageNotes, setDosageNotes] = useState('')
-  const [branchStockQuantity, setBranchStockQuantity] = useState('0')
-  const [branchLowStockThreshold, setBranchLowStockThreshold] = useState('5')
-  const [branchAllowBackorder, setBranchAllowBackorder] = useState(false)
-  const [branchMaxBackorderQuantity, setBranchMaxBackorderQuantity] = useState('0')
   const [productImageFile, setProductImageFile] = useState<File | null>(null)
   const [productImagePreviewSrc, setProductImagePreviewSrc] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
@@ -214,10 +270,6 @@ function ProductManagement() {
   const [variantPosProductId, setVariantPosProductId] = useState('')
   const [variantPrice, setVariantPrice] = useState('')
   const [variantOriginalPrice, setVariantOriginalPrice] = useState('')
-  const [variantStockQuantity, setVariantStockQuantity] = useState('0')
-  const [variantLowStockThreshold, setVariantLowStockThreshold] = useState('5')
-  const [variantAllowBackorder, setVariantAllowBackorder] = useState(false)
-  const [variantMaxBackorderQuantity, setVariantMaxBackorderQuantity] = useState('0')
   const [variantIsActive, setVariantIsActive] = useState(true)
   const [variantAttributesText, setVariantAttributesText] = useState('{}')
   const [variantSaving, setVariantSaving] = useState(false)
@@ -243,18 +295,20 @@ function ProductManagement() {
     setLoading(true)
     setError('')
     try {
-      const [prods, brandList, cats, subs, concerns] = await Promise.all([
+      const [prods, brandList, cats, subs, concerns, formMeta] = await Promise.all([
         adminProductService.listProducts(),
         adminProductService.listBrands(),
         adminProductService.listProductCategories(),
         adminProductService.listProductSubcategories(),
         adminProductService.listHealthConcerns(),
+        adminProductService.getProductFormMeta(),
       ])
       setProducts(prods)
       setBrands(brandList)
       setCategories(cats)
       setSubcategories(subs)
       setAllConcerns(concerns)
+      setProductFormMeta(formMeta)
     } catch {
       setError('Failed to load products.')
     } finally {
@@ -284,10 +338,6 @@ function ProductManagement() {
     setDosageUnit('')
     setDosageFrequency('')
     setDosageNotes('')
-    setBranchStockQuantity('0')
-    setBranchLowStockThreshold('5')
-    setBranchAllowBackorder(false)
-    setBranchMaxBackorderQuantity('0')
     setProductImageFile(null)
     setEditingProduct(null)
     setFormError('')
@@ -302,10 +352,6 @@ function ProductManagement() {
     setVariantPosProductId('')
     setVariantPrice('')
     setVariantOriginalPrice('')
-    setVariantStockQuantity('0')
-    setVariantLowStockThreshold('5')
-    setVariantAllowBackorder(false)
-    setVariantMaxBackorderQuantity('0')
     setVariantIsActive(true)
     setVariantAttributesText('{}')
     setVariantSaving(false)
@@ -370,10 +416,6 @@ function ProductManagement() {
     setDosageUnit(normalizeDosageUnitValue(product.dosage_unit))
     setDosageFrequency(normalizeDosageFrequencyValue(product.dosage_frequency))
     setDosageNotes(product.dosage_notes ?? '')
-    setBranchStockQuantity(String(getInventoryItem(product, 'branch')?.stock_quantity ?? 0))
-    setBranchLowStockThreshold(String(getInventoryItem(product, 'branch')?.low_stock_threshold ?? 5))
-    setBranchAllowBackorder(getInventoryItem(product, 'branch')?.allow_backorder ?? false)
-    setBranchMaxBackorderQuantity(String(getInventoryItem(product, 'branch')?.max_backorder_quantity ?? 0))
     setProductImageFile(null)
     setProductImagePreviewSrc(product.image ?? null)
     setEditingProduct(product)
@@ -407,10 +449,6 @@ function ProductManagement() {
     setVariantPosProductId('')
     setVariantPrice('')
     setVariantOriginalPrice('')
-    setVariantStockQuantity('0')
-    setVariantLowStockThreshold('5')
-    setVariantAllowBackorder(false)
-    setVariantMaxBackorderQuantity('0')
     setVariantIsActive(true)
     setVariantAttributesText('{}')
     setVariantFormError('')
@@ -429,10 +467,6 @@ function ProductManagement() {
     setVariantPosProductId(variant.pos_product_id ?? '')
     setVariantPrice(variant.price ?? '')
     setVariantOriginalPrice(variant.original_price ?? '')
-    setVariantStockQuantity(String(variant.stock_quantity ?? 0))
-    setVariantLowStockThreshold(String(variant.low_stock_threshold ?? 5))
-    setVariantAllowBackorder(Boolean(variant.allow_backorder))
-    setVariantMaxBackorderQuantity(String(variant.max_backorder_quantity ?? 0))
     setVariantIsActive(Boolean(variant.is_active))
     setVariantAttributesText(JSON.stringify(variant.attributes ?? {}, null, 2))
     setVariantFormError('')
@@ -443,7 +477,14 @@ function ProductManagement() {
     e.preventDefault()
     if (!editingProduct) return
     if (!variantName.trim()) { setVariantFormError('Variant name is required.'); return }
-    if (!variantPosProductId.trim()) { setVariantFormError('POS Product ID is required.'); return }
+    if (productFormMeta?.requires_pos_product_id && !variantPosProductId.trim()) {
+      setVariantFormError('POS Product ID is required for this POS link strategy.')
+      return
+    }
+    if (productFormMeta?.requires_barcode && !variantBarcode.trim()) {
+      setVariantFormError('Barcode is required for this POS link strategy.')
+      return
+    }
 
     let attributes: Record<string, unknown> = {}
     if (variantAttributesText.trim()) {
@@ -457,17 +498,6 @@ function ProductManagement() {
         setVariantFormError('Attributes must be valid JSON.')
         return
       }
-    }
-
-    const stockQuantity = Math.max(0, Number.parseInt(variantStockQuantity, 10) || 0)
-    const lowStockThreshold = Math.max(0, Number.parseInt(variantLowStockThreshold, 10) || 0)
-    const maxBackorder = variantAllowBackorder
-      ? Math.max(0, Number.parseInt(variantMaxBackorderQuantity, 10) || 0)
-      : 0
-
-    if (variantAllowBackorder && maxBackorder === 0) {
-      setVariantFormError('Set a max backorder quantity greater than 0 when backorder is enabled.')
-      return
     }
 
     const skuValue = variantSku.trim() || generateSku(variantName)
@@ -490,10 +520,6 @@ function ProductManagement() {
       attributes,
       price: priceValue,
       original_price: originalPriceValue,
-      stock_quantity: stockQuantity,
-      low_stock_threshold: lowStockThreshold,
-      allow_backorder: variantAllowBackorder,
-      max_backorder_quantity: maxBackorder,
       is_active: variantIsActive,
     }
 
@@ -531,7 +557,14 @@ function ProductManagement() {
     e.preventDefault()
     if (!productName.trim()) { setFormError('Product name is required.'); return }
     if (!productPrice) { setFormError('Price is required.'); return }
-    if (!productPosProductId.trim()) { setFormError('POS Product ID is required.'); return }
+    if (productFormMeta?.requires_pos_product_id && !productPosProductId.trim()) {
+      setFormError('POS Product ID is required for this POS link strategy.')
+      return
+    }
+    if (productFormMeta?.requires_barcode && !productBarcode.trim()) {
+      setFormError('Barcode is required for this POS link strategy.')
+      return
+    }
     if (productBrandId === '') {
       setFormError(brands.length === 0 ? 'Create a brand before adding a product.' : 'Brand is required.')
       return
@@ -541,20 +574,6 @@ function ProductManagement() {
       return
     }
     if (!editingProduct && !productImageFile) { setFormError('Product image is required.'); return }
-
-    const branchInventory = {
-      stock_quantity: Math.max(0, Number.parseInt(branchStockQuantity, 10) || 0),
-      low_stock_threshold: Math.max(0, Number.parseInt(branchLowStockThreshold, 10) || 0),
-      allow_backorder: branchAllowBackorder,
-      max_backorder_quantity: branchAllowBackorder
-        ? Math.max(0, Number.parseInt(branchMaxBackorderQuantity, 10) || 0)
-        : 0,
-    }
-
-    if (branchAllowBackorder && branchInventory.max_backorder_quantity === 0) {
-      setFormError('Set a main shop max backorder quantity greater than 0 when main shop backorder is enabled.')
-      return
-    }
 
     const priceValue = Number(productPrice)
     const costPriceValue = productCostPrice ? Number(productCostPrice) : undefined
@@ -583,7 +602,6 @@ function ProductManagement() {
       dosage_unit: dosageUnit.trim(),
       dosage_frequency: dosageFrequency,
       dosage_notes: dosageNotes.trim(),
-      branch_inventory: branchInventory,
     }
 
     const createPayload: ProductCreatePayload = {
@@ -613,7 +631,6 @@ function ProductManagement() {
       formData.append('dosage_unit', payload.dosage_unit ?? '')
       formData.append('dosage_frequency', payload.dosage_frequency ?? '')
       formData.append('dosage_notes', payload.dosage_notes ?? '')
-      formData.append('branch_inventory', JSON.stringify(payload.branch_inventory ?? {}))
 
       if (payload.cost_price !== undefined) formData.append('cost_price', String(payload.cost_price))
       if (payload.brand_id !== null && payload.brand_id !== undefined) formData.append('brand_id', String(payload.brand_id))
@@ -802,7 +819,7 @@ function ProductManagement() {
     }
   }
 
-  useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedCategory, selectedSubcat, selectedConcern])
+  useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedCategory, selectedSubcat, selectedConcern, createdAtSortDirection])
 
   const visibleSubcategories =
     selectedCategory === 'all'
@@ -890,9 +907,27 @@ function ProductManagement() {
     return matchSearch && matchCategory && matchSubcategory && matchConcern
   })
 
+  const sortedProducts = useMemo(() => {
+    const items = [...filteredProducts]
+    items.sort((left, right) => {
+      const comparison = compareCreatedAt(left.created_at, right.created_at)
+      return createdAtSortDirection === 'asc' ? comparison : -comparison
+    })
+    return items
+  }, [filteredProducts, createdAtSortDirection])
+
+  const sortedBrands = useMemo(() => {
+    const items = [...brands]
+    items.sort((left, right) => {
+      const comparison = compareCreatedAt(left.created_at, right.created_at)
+      return createdAtSortDirection === 'asc' ? comparison : -comparison
+    })
+    return items
+  }, [brands, createdAtSortDirection])
+
   const startIndex = (currentPage - 1) * PAGE_SIZE
-  const pagedProducts = filteredProducts.slice(startIndex, startIndex + PAGE_SIZE)
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE))
+  const pagedProducts = sortedProducts.slice(startIndex, startIndex + PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE))
 
   const getProductCatalog = (product: ApiProduct) => {
     const resolvedSubcategory = resolveProductSubcategory(product)
@@ -918,19 +953,20 @@ function ProductManagement() {
 
   const getProductBrandLabel = (product: ApiProduct) => product.brand?.name ?? product.brand_name ?? 'No brand'
 
+  const toggleCreatedAtSort = () => {
+    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  }
+
   return (
     <div className="category-management product-management">
       <div className="category-management__header">
         <div className="cm-title-group">
           <h1>{activeTab === 'brands' ? 'Brands' : 'Products'}</h1>
-          <p className="cm-title-sub">{activeTab === 'brands' ? 'Manage product brands' : 'Manage your product catalog'}</p>
+          <p className="cm-title-sub">{activeTab === 'brands' ? 'Manage product brands' : 'Manage catalog details here. Stock is handled from Inventory.'}</p>
         </div>
         <div className="category-management__actions">
           {activeTab === 'products' ? (
-            <>
-              <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
-              <Link className="btn btn--secondary btn--sm" to="/admin/inventory">Add Inventory</Link>
-            </>
+            <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
           ) : (
             <button className="btn btn--primary btn--sm" onClick={openAddBrand}>+ Add Brand</button>
           )}
@@ -988,12 +1024,17 @@ function ProductManagement() {
                     <th style={{ minWidth: 200 }}>Description</th>
                     <th style={{ minWidth: 80 }}>Products</th>
                     <th style={{ minWidth: 90 }}>Status</th>
+                    <th style={{ minWidth: 120, whiteSpace: 'nowrap' }}>
+                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
+                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
+                      </button>
+                    </th>
                     <th style={{ minWidth: 110 }}>Created By</th>
                     <th className="cm-th-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {brands.map((brand) => (
+                  {sortedBrands.map((brand) => (
                     <tr key={brand.id}>
                       <td>
                         <div className="cm-brand-identity">
@@ -1027,6 +1068,7 @@ function ProductManagement() {
                           {brand.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{formatDate(brand.created_at)}</td>
                       <td>{brand.created_by_name || '—'}</td>
                       <td>
                         <div className="cm-row-actions">
@@ -1171,7 +1213,11 @@ function ProductManagement() {
                 <th style={{ minWidth: 80 }}>Stock</th>
                 <th style={{ minWidth: 110 }}>Prescription</th>
                 <th style={{ minWidth: 90 }}>Status</th>
-                <th style={{ minWidth: 100, whiteSpace: 'nowrap' }}>Created At</th>
+                <th style={{ minWidth: 100, whiteSpace: 'nowrap' }}>
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
+                    Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
+                  </button>
+                </th>
                 <th style={{ minWidth: 100 }}>Created By</th>
                 <th style={{ minWidth: 100 }}>Updated By</th>
                 <th className="cm-th-actions">Actions</th>
@@ -1180,9 +1226,8 @@ function ProductManagement() {
             <tbody>
               {pagedProducts.map((product) => {
                 const margin = getMarginData(product)
-                const stockQty = product.stock_quantity ?? 0
-                const lowThreshold = product.low_stock_threshold ?? 5
-                const stockClass = stockQty === 0 ? 'cm-status--inactive' : stockQty <= lowThreshold ? 'cm-status--scheduled' : 'cm-status--active'
+                const stockQty = getSellableQuantity(product)
+                const stockClass = getSellableStatusClass(product)
                 return (
                 <tr key={product.id}>
                   <td>
@@ -1241,6 +1286,7 @@ function ProductManagement() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                       <span className={`cm-status ${stockClass}`}>{stockQty}</span>
                       <span className="cm-name-cell__id">{formatInventoryBreakdown(product)}</span>
+                      <span className="cm-name-cell__id">{formatSellableStatusLabel(product)}</span>
                     </div>
                   </td>
                   <td>
@@ -1269,11 +1315,11 @@ function ProductManagement() {
                       </button>
                       <Link
                         className="cm-row-btn"
-                        title="View inventory"
+                        title="Manage stock"
                         to={`/admin/inventory?product=${product.id}`}
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                        Inventory
+                        Stock
                       </Link>
                       <button
                         type="button"
@@ -1387,7 +1433,9 @@ function ProductManagement() {
                       />
                     </div>
                     <div className="pf-field">
-                      <label className="pf-label">Barcode <span className="pf-optional">optional</span></label>
+                      <label className="pf-label">
+                        Barcode {productFormMeta?.requires_barcode ? <span className="pf-req">*</span> : <span className="pf-optional">optional</span>}
+                      </label>
                       <input
                         className="pf-input"
                         type="text"
@@ -1397,7 +1445,9 @@ function ProductManagement() {
                       />
                     </div>
                     <div className="pf-field">
-                      <label className="pf-label">POS Product ID <span className="pf-req">*</span></label>
+                      <label className="pf-label">
+                        POS Product ID {productFormMeta?.requires_pos_product_id ? <span className="pf-req">*</span> : <span className="pf-optional">optional</span>}
+                      </label>
                       <input
                         className="pf-input"
                         type="text"
@@ -1409,7 +1459,7 @@ function ProductManagement() {
                   </div>
                   <div className="pf-row">
                     <div className="pf-field">
-                      <span className="pf-hint">POS Product ID is the item identifier in the POS system. We match products to POS items using POS Product ID.</span>
+                      <span className="pf-hint">{getPosLinkHint(productFormMeta, 'product')}</span>
                     </div>
                   </div>
                   <div className="pf-row">
@@ -1623,14 +1673,14 @@ function ProductManagement() {
                 <div className="pf-section">
                   <div className="pf-section__label">Variants</div>
                   {!editingProduct && (
-                    <span className="pf-hint">Save the product first, then add variants (sizes, strengths, packs).</span>
+                    <span className="pf-hint">Save the product first, then add variants (sizes, strengths, packs). Stock is managed from Inventory after the variant exists.</span>
                   )}
                   {editingProduct && (
                     <div className="pf-variant-panel">
                       <div className="pf-variant-header">
                         <div>
                           <div className="pf-variant-title">Variants</div>
-                          <div className="pf-hint">Variants are different sellable versions of the same product. Each variant must have its own POS Product ID for POS matching.</div>
+                          <div className="pf-hint">Variants are different sellable versions of the same product. Use this section for catalog details and manage variant stock from Inventory.</div>
                         </div>
                         <button type="button" className="btn btn--ghost pf-variant-btn" onClick={openAddVariant}>Add Variant</button>
                       </div>
@@ -1708,12 +1758,22 @@ function ProductManagement() {
 
                           <div className="pf-row">
                             <div className="pf-field">
-                              <label className="pf-label">Barcode <span className="pf-optional">optional</span></label>
+                              <label className="pf-label">
+                                Barcode {productFormMeta?.requires_barcode ? <span className="pf-req">*</span> : <span className="pf-optional">optional</span>}
+                              </label>
                               <input className="pf-input" type="text" value={variantBarcode} onChange={(e) => setVariantBarcode(e.target.value)} placeholder="Scan or enter barcode" />
                             </div>
                             <div className="pf-field">
-                              <label className="pf-label">POS Product ID <span className="pf-req">*</span></label>
+                              <label className="pf-label">
+                                POS Product ID {productFormMeta?.requires_pos_product_id ? <span className="pf-req">*</span> : <span className="pf-optional">optional</span>}
+                              </label>
                               <input className="pf-input" type="text" value={variantPosProductId} onChange={(e) => setVariantPosProductId(e.target.value)} placeholder="POS item identifier" />
+                            </div>
+                          </div>
+
+                          <div className="pf-row">
+                            <div className="pf-field">
+                              <span className="pf-hint">{getPosLinkHint(productFormMeta, 'variant')}</span>
                             </div>
                           </div>
 
@@ -1736,31 +1796,17 @@ function ProductManagement() {
 
                           <div className="pf-row">
                             <div className="pf-field">
-                              <label className="pf-label">Stock Quantity</label>
-                              <input className="pf-input" type="number" min="0" value={variantStockQuantity} onChange={(e) => setVariantStockQuantity(e.target.value)} />
-                            </div>
-                            <div className="pf-field">
-                              <label className="pf-label">Low Stock Threshold</label>
-                              <input className="pf-input" type="number" min="0" value={variantLowStockThreshold} onChange={(e) => setVariantLowStockThreshold(e.target.value)} />
-                            </div>
-                          </div>
-
-                          <div className="pf-row">
-                            <div className="pf-field">
-                              <label className="pf-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <input type="checkbox" checked={variantAllowBackorder} onChange={(e) => setVariantAllowBackorder(e.target.checked)} />
-                                Allow Backorder
-                              </label>
-                              {variantAllowBackorder && (
-                                <input className="pf-input" type="number" min="0" value={variantMaxBackorderQuantity} onChange={(e) => setVariantMaxBackorderQuantity(e.target.value)} />
-                              )}
-                            </div>
-                            <div className="pf-field">
                               <label className="pf-label">Status</label>
                               <select className="pf-input" value={variantIsActive ? 'active' : 'inactive'} onChange={(e) => setVariantIsActive(e.target.value === 'active')}>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
                               </select>
+                            </div>
+                          </div>
+
+                          <div className="pf-row">
+                            <div className="pf-field">
+                              <span className="pf-hint">Variant stock, thresholds, backorder, and POS sync are managed from Inventory.</span>
                             </div>
                           </div>
 
@@ -1783,29 +1829,41 @@ function ProductManagement() {
                 </div>
 
                 <div className="pf-section">
-                  <div className="pf-section__label">Inventory</div>
-                  <div className="pf-row">
-                    <div className="pf-field">
-                      <label className="pf-label">Main Shop Stock</label>
-                      <input className="pf-input" type="number" min="0" value={branchStockQuantity} onChange={(e) => setBranchStockQuantity(e.target.value)} />
-                    </div>
-                    <div className="pf-field">
-                      <label className="pf-label">Main Shop Low Stock Threshold</label>
-                      <input className="pf-input" type="number" min="0" value={branchLowStockThreshold} onChange={(e) => setBranchLowStockThreshold(e.target.value)} />
-                    </div>
+                  <div className="pf-section__label">Stock Management</div>
+                  <div className="pf-field">
+                    <span className="pf-hint">Catalog details live here. Stock, thresholds, backorder rules, and POS sync are managed from Inventory.</span>
                   </div>
-                  <div className="pf-row">
+                  {editingProduct ? (
+                    <>
+                      <div className="pf-row">
+                        <div className="pf-field">
+                          <label className="pf-label">Current stock model</label>
+                          <span className="pf-hint">
+                            {editingProduct.has_variants
+                              ? `Variant-managed with ${getActiveVariantCount(editingProduct)} active variants.`
+                              : `Single SKU with ${getInventoryQuantity(editingProduct, 'branch')} in Main Shop and ${getInventoryQuantity(editingProduct, 'warehouse')} in POS Store.`}
+                          </span>
+                        </div>
+                        <div className="pf-field">
+                          <label className="pf-label">Sellable quantity</label>
+                          <span className="pf-hint">{getSellableQuantity(editingProduct)} available · {formatSellableStatusLabel(editingProduct)}</span>
+                        </div>
+                      </div>
+                      <div className="pf-field">
+                        <Link
+                          className="btn btn--secondary btn--sm"
+                          to={`/admin/inventory?product=${editingProduct.id}`}
+                          onClick={() => setShowAddModal(false)}
+                        >
+                          Manage Stock In Inventory
+                        </Link>
+                      </div>
+                    </>
+                  ) : (
                     <div className="pf-field">
-                      <label className="pf-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input type="checkbox" checked={branchAllowBackorder} onChange={(e) => setBranchAllowBackorder(e.target.checked)} />
-                        Allow Main Shop Backorder
-                      </label>
-                      {branchAllowBackorder && (
-                        <input className="pf-input" type="number" min="0" value={branchMaxBackorderQuantity} onChange={(e) => setBranchMaxBackorderQuantity(e.target.value)} />
-                      )}
+                      <span className="pf-hint">Save the product first, then open Inventory to set Main Shop stock, POS-backed stock, or variant stock.</span>
                     </div>
-                  </div>
-                  <span className="pf-hint">Only main shop stock is entered here. POS store stock is synced from the external POS API.</span>
+                  )}
                 </div>
 
                 <div className="pf-section">

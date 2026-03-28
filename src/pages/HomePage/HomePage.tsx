@@ -4,10 +4,6 @@ import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallb
 import PromotionFeatureCard from '../../components/PromotionFeatureCard/PromotionFeatureCard'
 import easterBanner from '../../assets/images/banner/easter.png'
 import uncoverBanner from '../../assets/images/banner/uncover.png'
-// import wellnessBanner from '../../assets/images/banner/wellness-wide-banner.png'
-// import familyCareBanner from '../../assets/images/banner/family-care-wide-banner.png'
-// import devicesBanner from '../../assets/images/banner/devices-wide-banner.png'
-// import welcomeBanner from '../../assets/images/banner/welcome-wide-banner.png'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
@@ -21,92 +17,26 @@ import { buildPromotionSummary, filterProductsByPromotion, getPromotionScopeEyeb
 import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import '../../styles/pages/HomePage.css'
 
-type HeroPromoSlide = {
+type HeroSlide = {
   id: number
-  kind: 'promo'
   image: string
   alt: string
   link: string
-  frameColor: string
 }
-
-type HeroWelcomeSlide = {
-  id: number
-  kind: 'welcome'
-  image: string
-  alt: string
-  eyebrow: string
-  title: string
-  description: string
-  highlights: string[]
-  actions: Array<{
-    label: string
-    to: string
-    tone: 'primary' | 'secondary'
-  }>
-}
-
-type HeroSlide = HeroPromoSlide | HeroWelcomeSlide
 
 const bannerSlides: HeroSlide[] = [
   {
     id: 1,
-    kind: 'promo',
     image: easterBanner,
-    alt: 'Ava Pharmacy uncover skincare banner',
-    link: '/products',
-    frameColor: '#c6edf4',
+    alt: 'Ava Pharmacy Easter offers banner',
+    link: '/offers',
   },
-  // {
-  //   id: 2,
-  //   kind: 'welcome',
-  //   image: welcomeBanner,
-  //   alt: 'Welcome to Ava Pharmacy banner',
-  //   eyebrow: 'Welcome to Ava Pharmacy',
-  //   title: 'Your pharmacy, prescriptions and consultations in one place',
-  //   description:
-  //     'Shop trusted products, upload prescriptions securely, book clinician consultations and manage everyday health support from one account.',
-  //   highlights: [
-  //     'Live medicine catalog',
-  //     'Prescription upload',
-  //     'Doctor consultation',
-  //     'Lab services',
-  //   ],
-  //   actions: [
-  //     { label: 'Upload Prescription', to: '/prescriptions', tone: 'primary' },
-  //     { label: 'Book Consultation', to: '/doctor-consultation', tone: 'secondary' },
-  //     { label: 'Explore Products', to: '/products', tone: 'secondary' },
-  //   ],
-  // },
   {
     id: 2,
-    kind: 'promo',
     image: uncoverBanner,
-    alt: 'Ava Pharmacy wellness promotion banner',
-    link: '/products?category=vitamins-supplements',
-    frameColor: '#d8c19b',
+    alt: 'Ava Pharmacy uncover skincare banner',
+    link: '/products',
   },
-  // {
-  //   id: 4,
-  //   kind: 'promo',
-  //   image: devicesBanner,
-  //   alt: 'Ava Pharmacy medical devices promotion banner',
-  //   link: '/products?category=medical-devices-home-diagnostics',
-  // },
-  // {
-  //   id: 5,
-  //   kind: 'promo',
-  //   image: familyCareBanner,
-  //   alt: 'Ava Pharmacy family care promotion banner',
-  //   link: '/products?category=baby-mother-family-care',
-  // },
-  // {
-  //   id: 6,
-  //   kind: 'promo',
-  //   image: easterBanner,
-  //   alt: 'Ava Pharmacy Easter offers banner',
-  //   link: '/offers',
-  // },
 ]
 
 function HomePage() {
@@ -133,6 +63,11 @@ function HomePage() {
   const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
   const { promotions } = usePromotions()
   const [featuredProducts, setFeaturedProducts] = useState<CatalogProduct[]>([])
+  const visibleCategories = categories.filter((category) => {
+    const normalizedName = category.name.trim().toLowerCase()
+    const normalizedSlug = category.slug.trim().toLowerCase()
+    return normalizedName !== 'collections' && normalizedSlug !== 'collections'
+  })
 
   const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name'>) =>
     `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
@@ -178,7 +113,7 @@ function HomePage() {
           items
             .map(mapApiProduct)
             .filter((product) => isAvailableProduct(product) && !product.requiresPrescription)
-            .slice(0, 5),
+            .slice(0, 8),
         )
       })
       .catch(() => {
@@ -266,7 +201,7 @@ function HomePage() {
       track.removeEventListener('scroll', updateScrollButtons)
       window.removeEventListener('resize', updateScrollButtons)
     }
-  }, [categories.length])
+  }, [visibleCategories.length])
 
   useEffect(() => {
     const t = window.setInterval(() => {
@@ -473,60 +408,19 @@ function HomePage() {
       <section className="hero-carousel" id="main-content">
         <div
           className="hero-carousel__track"
-          style={{ transform: `translate3d(-${currentSlide * 100}%, 0, 0)` }}
+          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
         >
           {bannerSlides.map((slide, index) => (
-            slide.kind === 'welcome' ? (
-              <div key={slide.id} className="hero-carousel__slide hero-carousel__slide--welcome">
-                <img
-                  src={slide.image}
-                  alt={slide.alt}
-                  className="hero-carousel__img"
-                  loading={index === 0 ? 'eager' : 'lazy'}
-                  decoding="async"
-                  fetchPriority={index === 0 ? 'high' : 'auto'}
-                />
-                <div className="hero-carousel__welcome-content">
-                  <div className="hero-carousel__welcome-panel">
-                    <span className="hero-carousel__welcome-eyebrow">{slide.eyebrow}</span>
-                    <h2 className="hero-carousel__welcome-title">{slide.title}</h2>
-                    <p className="hero-carousel__welcome-description">{slide.description}</p>
-                    <div className="hero-carousel__welcome-highlights">
-                      {slide.highlights.map((item) => (
-                        <span key={item} className="hero-carousel__welcome-highlight">{item}</span>
-                      ))}
-                    </div>
-                    <div className="hero-carousel__welcome-actions">
-                      {slide.actions.map((action) => (
-                        <Link
-                          key={action.label}
-                          to={action.to}
-                          className={`hero-carousel__welcome-action hero-carousel__welcome-action--${action.tone}`}
-                        >
-                          {action.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <Link
-                key={slide.id}
-                to={slide.link}
-                className="hero-carousel__slide hero-carousel__slide--promo"
-                style={{ backgroundColor: slide.frameColor }}
-              >
-                <img
-                  src={slide.image}
-                  alt={slide.alt}
-                  className="hero-carousel__img hero-carousel__img--promo"
-                  loading={index === 0 ? 'eager' : 'lazy'}
-                  decoding="async"
-                  fetchPriority={index === 0 ? 'high' : 'auto'}
-                />
-              </Link>
-            )
+            <Link key={slide.id} to={slide.link} className="hero-carousel__slide">
+              <img
+                src={slide.image}
+                alt={slide.alt}
+                className="hero-carousel__img"
+                loading={index === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+                fetchPriority={index === 0 ? 'high' : 'auto'}
+              />
+            </Link>
           ))}
         </div>
 
@@ -592,7 +486,7 @@ function HomePage() {
       </section>
 
       {/* Categories - browse the store */}
-      {categories.length > 0 && (
+      {visibleCategories.length > 0 && (
         <section className="section categories">
           <div className="container">
             <div className="section__header">
@@ -611,7 +505,7 @@ function HomePage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
               </button>
               <div className="categories__track" ref={categoryTrackRef}>
-                {categories.map((cat) => {
+                {visibleCategories.map((cat) => {
                   const cardImage = categoryCardImages[cat.slug] ?? cat.image
 
                   return (
@@ -626,17 +520,16 @@ function HomePage() {
                         )}
                       </div>
                       <div className="category-card__body">
-                        <span className="category-card__label">Shop by Category</span>
                         <h3 className="category-card__name">{cat.name}</h3>
                         <p className="category-card__description">
                           {cat.description || `Explore trusted ${cat.name.toLowerCase()} picks curated for everyday care.`}
                         </p>
                         <div className="category-card__footer">
-                          <span className="category-card__eyebrow">
+                          {/* <span className="category-card__eyebrow">
                             {cat.subcategories.length > 0
                               ? `${cat.subcategories.length} ${cat.subcategories.length === 1 ? 'collection' : 'collections'}`
                               : 'Coming soon'}
-                          </span>
+                          </span> */}
                           <span className="category-card__cta">
                             Explore
                             <span aria-hidden="true">→</span>
@@ -665,7 +558,7 @@ function HomePage() {
 
 
       {/* Hot Offers - urgency / savings */}
-      <section className="section offers-preview">
+      <section className="section offers-preview home-section--offers">
         <div className="container">
           <div className="section__header">
             <h2 className="section__title">Hot Offers</h2>
@@ -709,7 +602,7 @@ function HomePage() {
       </section>
 
       {/* Featured Products - social proof via best sellers */}
-      <section className="section section--alt featured-products">
+      <section className="section featured-products home-section--featured">
         <div className="container">
           <div className="section__header">
             <h2 className="section__title">Featured Products</h2>
@@ -732,75 +625,93 @@ function HomePage() {
       {/* Services Section */}
       <section className="hp-services">
         <div className="container">
-          <div className="hp-services__head">
-            <p className="hp-services__eyebrow">Complete Healthcare</p>
-            <h2 className="hp-services__title">Everything you need, in one place</h2>
-            <p className="hp-services__sub">Prescriptions, consults, and lab tests with licensed support.</p>
+          <div className="hp-services__shell">
+            <div className="hp-services__intro">
+              <h2 className="hp-services__title">Find the right support, faster</h2>
+              <p className="hp-services__sub">
+                Talk to a doctor, book pediatric care, upload a prescription, or arrange lab testing from one place.
+              </p>
+              <div className="hp-services__tags" aria-label="Service highlights">
+                <span className="hp-services__tag">Doctor advice</span>
+                <span className="hp-services__tag">Child health</span>
+                <span className="hp-services__tag">Rx review</span>
+                <span className="hp-services__tag">Lab bookings</span>
+              </div>
+            </div>
+
+            <div className="hp-services__grid">
+              <Link to="/doctor-consultation" className="hp-svc-card hp-svc-card--doctor" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+                <div className="hp-svc-card__icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/>
+                    <path d="M20 21a8 8 0 1 0-16 0"/>
+                    <path d="M16 11v4M14 13h4"/>
+                  </svg>
+                </div>
+                <div className="hp-svc-card__body">
+                  <p className="hp-svc-card__eyebrow">Online doctor</p>
+                  <h3 className="hp-svc-card__title">Doctor Consultation</h3>
+                  <p className="hp-svc-card__desc">Speak to a licensed clinician today.</p>
+                </div>
+                <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
+              </Link>
+
+              <Link to="/pediatric-consultation" className="hp-svc-card hp-svc-card--paed" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+                <div className="hp-svc-card__icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="12" cy="6" r="3"/>
+                    <path d="M9 14c-3 0-5 1.5-5 3v1h16v-1c0-1.5-2-3-5-3"/>
+                    <path d="M8 10c0 0-1 3 4 3s4-3 4-3"/>
+                  </svg>
+                </div>
+                <div className="hp-svc-card__body">
+                  <p className="hp-svc-card__eyebrow">Children&apos;s care</p>
+                  <h3 className="hp-svc-card__title">Pediatric Services</h3>
+                  <p className="hp-svc-card__desc">Specialist support for infants and teens.</p>
+                </div>
+                <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
+              </Link>
+
+              <Link to="/prescriptions" className="hp-svc-card hp-svc-card--rx" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+                <div className="hp-svc-card__icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="9" y1="13" x2="15" y2="13"/>
+                    <line x1="9" y1="17" x2="13" y2="17"/>
+                  </svg>
+                </div>
+                <div className="hp-svc-card__body">
+                  <p className="hp-svc-card__eyebrow">Pharmacy review</p>
+                  <h3 className="hp-svc-card__title">Prescription Upload</h3>
+                  <p className="hp-svc-card__desc">Send your prescription for fast verification.</p>
+                </div>
+                <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
+              </Link>
+
+              <Link to="/laboratory" className="hp-svc-card hp-svc-card--lab" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+                <div className="hp-svc-card__icon-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11M3 9h18M3 9l3 9h12l3-9"/>
+                    <circle cx="12" cy="16" r="1"/>
+                  </svg>
+                </div>
+                <div className="hp-svc-card__body">
+                  <p className="hp-svc-card__eyebrow">Testing</p>
+                  <h3 className="hp-svc-card__title">Lab Tests</h3>
+                  <p className="hp-svc-card__desc">Book diagnostics and sample collection.</p>
+                </div>
+                <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
+              </Link>
+            </div>
           </div>
-          <div className="hp-services__grid">
 
-            <Link to="/doctor-consultation" className="hp-svc-card hp-svc-card--doctor" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-              <div className="hp-svc-card__icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/>
-                  <path d="M20 21a8 8 0 1 0-16 0"/>
-                  <path d="M16 11v4M14 13h4"/>
-                </svg>
-              </div>
-              <div className="hp-svc-card__body">
-                <h3 className="hp-svc-card__title">Consultations</h3>
-                <p className="hp-svc-card__desc">Talk to licensed doctors online.</p>
-              </div>
-            </Link>
-
-            <Link to="/pediatric-consultation" className="hp-svc-card hp-svc-card--paed" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-              <div className="hp-svc-card__icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="12" cy="6" r="3"/>
-                  <path d="M9 14c-3 0-5 1.5-5 3v1h16v-1c0-1.5-2-3-5-3"/>
-                  <path d="M8 10c0 0-1 3 4 3s4-3 4-3"/>
-                </svg>
-              </div>
-              <div className="hp-svc-card__body">
-                <h3 className="hp-svc-card__title">Pediatric Care</h3>
-                <p className="hp-svc-card__desc">Specialist care for infants and children.</p>
-              </div>
-            </Link>
-
-            <Link to="/prescriptions" className="hp-svc-card hp-svc-card--rx" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-              <div className="hp-svc-card__icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="9" y1="13" x2="15" y2="13"/>
-                  <line x1="9" y1="17" x2="13" y2="17"/>
-                </svg>
-              </div>
-              <div className="hp-svc-card__body">
-                <h3 className="hp-svc-card__title">Prescriptions</h3>
-                <p className="hp-svc-card__desc">Upload and get pharmacist review fast.</p>
-              </div>
-            </Link>
-
-            <Link to="/laboratory" className="hp-svc-card hp-svc-card--lab" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-              <div className="hp-svc-card__icon-wrap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11M3 9h18M3 9l3 9h12l3-9"/>
-                  <circle cx="12" cy="16" r="1"/>
-                </svg>
-              </div>
-              <div className="hp-svc-card__body">
-                <h3 className="hp-svc-card__title">Lab Tests</h3>
-                <p className="hp-svc-card__desc">Book diagnostics and sample collection.</p>
-              </div>
-            </Link>
-
-          </div>
+      
         </div>
       </section>
 
       {/* New Products Section */}
-      <section className="section section--alt new-products">
+      <section className="section new-products home-section--new">
         <div className="container">
           <div className="section__header">
             <h2 className="section__title">New Products</h2>

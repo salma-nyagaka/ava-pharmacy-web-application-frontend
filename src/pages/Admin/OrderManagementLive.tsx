@@ -6,10 +6,23 @@ import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const formatCurrency = (value: string | number) => `KSh ${Number(value || 0).toLocaleString()}`
 const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'
+type SortDirection = 'asc' | 'desc'
+
+function compareCreatedAt(left?: string | null, right?: string | null): number {
+  const leftTime = left ? new Date(left).getTime() : Number.NaN
+  const rightTime = right ? new Date(right).getTime() : Number.NaN
+  const leftValid = Number.isFinite(leftTime)
+  const rightValid = Number.isFinite(rightTime)
+  if (!leftValid && !rightValid) return 0
+  if (!leftValid) return 1
+  if (!rightValid) return -1
+  return leftTime - rightTime
+}
 
 function OrderManagementLive() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,9 +64,18 @@ function OrderManagementLive() {
     })
   }, [orders, searchTerm, selectedStatus])
 
+  const sortedOrders = useMemo(() => {
+    const items = [...filteredOrders]
+    items.sort((left, right) => {
+      const comparison = compareCreatedAt(left.created_at, right.created_at)
+      return createdAtSortDirection === 'asc' ? comparison : -comparison
+    })
+    return items
+  }, [filteredOrders, createdAtSortDirection])
+
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedStatus])
+  }, [searchTerm, selectedStatus, createdAtSortDirection])
 
   const syncOrderInState = (updatedOrder: AdminOrder) => {
     setOrders((prev) => prev.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)))
@@ -100,9 +122,13 @@ function OrderManagementLive() {
   }
 
   const PAGE_SIZE = 6
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(sortedOrders.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
-  const pagedOrders = filteredOrders.slice(startIndex, startIndex + PAGE_SIZE)
+  const pagedOrders = sortedOrders.slice(startIndex, startIndex + PAGE_SIZE)
+
+  const toggleCreatedAtSort = () => {
+    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  }
 
   return (
     <div className="category-management order-management">
@@ -217,7 +243,11 @@ function OrderManagementLive() {
                 <tr>
                   <th>Order</th>
                   <th>Customer</th>
-                  <th>Created At</th>
+                  <th>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
+                      Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
+                    </button>
+                  </th>
                   <th>Items</th>
                   <th>Total</th>
                   <th>Payment</th>

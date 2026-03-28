@@ -19,7 +19,7 @@
 .support-shortcuts__title {
   margin: 0.7rem 0 0;
   color: var(--color-text-primary);
-  font-family: var(--font-clinical);
+  font-family: var(--font-ui);
   font-size: clamp(1.6rem, 2.6vw, 2.3rem);
   line-height: 1.08;
 }

@@ -45,6 +45,55 @@
   color: var(--color-text-muted);
 }
 
+.inventory-focus-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.inventory-focus-banner__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.inventory-focus-banner__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inventory-focus-banner__meta {
+  font-size: 0.84rem;
+  color: #64748b;
+}
+
+.inventory-model-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.inventory-model-chip--variant {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .inventory-controls {
   margin-top: 1.25rem;
 }
@@ -200,11 +249,64 @@
   font-size: 0.875rem;
 }
 
+.adjust-callout {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  padding: 0.8rem 0.95rem;
+  color: #9a3412;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
 .adjust-checkbox {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-weight: 600;
+}
+
+.adjust-variant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.adjust-variant-card {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 14px;
+  padding: 0.95rem 1rem;
+}
+
+.adjust-variant-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.adjust-variant-card__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.adjust-variant-card__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.adjust-variant-card__meta {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.adjust-variant-card__footer {
+  margin-top: 0.75rem;
 }
 
 .adjust-pos-card {
@@ -252,7 +354,7 @@
   background: white;
   border-radius: 12px;
   width: 100%;
-  max-width: 640px;
+  max-width: 880px;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -299,6 +401,11 @@
     grid-template-columns: 1fr;
   }
 
+  .inventory-focus-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .inventory-actor select {
     min-width: 220px;
   }
@@ -306,6 +413,15 @@
   .inventory-reservation__row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .adjust-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .adjust-variant-card__header,
+  .adjust-pos-card {
+    flex-direction: column;
   }
 }
 
