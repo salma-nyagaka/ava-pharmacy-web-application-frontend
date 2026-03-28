@@ -569,7 +569,7 @@ function HomePage() {
           ) : (
             <>
               <div className="section__header">
-                <h3 className="section__title" style={{ fontSize: '1.3rem' }}>Products On Offer</h3>
+                <h2 className="section__title" >Products On Offer</h2>
               </div>
               <div className="products__grid products__grid--compact">
                 {spotlightOfferProducts.map((product) => renderProductCard(product, 'deals'))}
@@ -608,15 +608,15 @@ function HomePage() {
         <div className="container">
           <div className="hp-services__shell">
             <div className="hp-services__intro">
-              <h2 className="hp-services__title">Find the right support, faster</h2>
+              <h2 className="hp-services__title">Choose care faster</h2>
               <p className="hp-services__sub">
-                Talk to a doctor, book pediatric care, upload a prescription, or arrange lab testing from one place.
+                Book a doctor, pediatric visit, prescription review, or lab test from one place.
               </p>
               <div className="hp-services__tags" aria-label="Service highlights">
-                <span className="hp-services__tag">Doctor advice</span>
-                <span className="hp-services__tag">Child health</span>
-                <span className="hp-services__tag">Rx review</span>
-                <span className="hp-services__tag">Lab bookings</span>
+                <span className="hp-services__tag">Doctor</span>
+                <span className="hp-services__tag">Pediatrics</span>
+                <span className="hp-services__tag">Prescriptions</span>
+                <span className="hp-services__tag">Lab tests</span>
               </div>
             </div>
 
@@ -630,9 +630,9 @@ function HomePage() {
                   </svg>
                 </div>
                 <div className="hp-svc-card__body">
-                  <p className="hp-svc-card__eyebrow">Online doctor</p>
-                  <h3 className="hp-svc-card__title">Doctor Consultation</h3>
-                  <p className="hp-svc-card__desc">Speak to a licensed clinician today.</p>
+                  <p className="hp-svc-card__eyebrow">Online care</p>
+                  <h3 className="hp-svc-card__title">Speak to a Doctor</h3>
+                  <p className="hp-svc-card__desc">Licensed clinician support online.</p>
                 </div>
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>
@@ -646,9 +646,9 @@ function HomePage() {
                   </svg>
                 </div>
                 <div className="hp-svc-card__body">
-                  <p className="hp-svc-card__eyebrow">Children&apos;s care</p>
-                  <h3 className="hp-svc-card__title">Pediatric Services</h3>
-                  <p className="hp-svc-card__desc">Specialist support for infants and teens.</p>
+                  <p className="hp-svc-card__eyebrow">Pediatrics</p>
+                  <h3 className="hp-svc-card__title">Pediatric Care</h3>
+                  <p className="hp-svc-card__desc">Care for infants, children, and teens.</p>
                 </div>
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>
@@ -663,9 +663,9 @@ function HomePage() {
                   </svg>
                 </div>
                 <div className="hp-svc-card__body">
-                  <p className="hp-svc-card__eyebrow">Pharmacy review</p>
-                  <h3 className="hp-svc-card__title">Prescription Upload</h3>
-                  <p className="hp-svc-card__desc">Send your prescription for fast verification.</p>
+                  <p className="hp-svc-card__eyebrow">Prescription</p>
+                  <h3 className="hp-svc-card__title">Upload Prescription</h3>
+                  <p className="hp-svc-card__desc">Send an Rx for pharmacist review.</p>
                 </div>
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>
@@ -678,9 +678,9 @@ function HomePage() {
                   </svg>
                 </div>
                 <div className="hp-svc-card__body">
-                  <p className="hp-svc-card__eyebrow">Testing</p>
-                  <h3 className="hp-svc-card__title">Lab Tests</h3>
-                  <p className="hp-svc-card__desc">Book diagnostics and sample collection.</p>
+                  <p className="hp-svc-card__eyebrow">Lab testing</p>
+                  <h3 className="hp-svc-card__title">Book Lab Tests</h3>
+                  <p className="hp-svc-card__desc">Schedule tests and sample collection.</p>
                 </div>
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>

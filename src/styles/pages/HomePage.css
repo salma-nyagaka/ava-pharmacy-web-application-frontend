@@ -1733,28 +1733,26 @@
 
 /* ── Services Section ───────────────────── */
 .hp-services {
-  /* background: linear-gradient(180deg, var(--color-white) 0%, var(--color-background-alt) 100%); */
-  background-color: #F9FAFB;
-  padding: 3rem 0 3.25rem;
+  background: #f3f4f6;
+  padding: 2.5rem 0 2.7rem;
 }
 
 .hp-services__shell {
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
-  gap: 1.25rem;
-  align-items: center;
-  margin-bottom: 1.25rem;
+  gap: 0.9rem;
+  align-items: stretch;
 }
 
 .hp-services__intro {
   position: relative;
   overflow: hidden;
-  padding: 1.5rem 1.45rem;
-  border-radius: 28px;
+  padding: 1.2rem 1.2rem 1.15rem;
+  border-radius: 20px;
   background:
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.12), transparent 30%),
-    linear-gradient(145deg, var(--color-secondary) 0%, var(--color-primary) 100%);
-  box-shadow: 0 18px 42px rgba(153, 27, 31, 0.18);
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.08), transparent 30%),
+    linear-gradient(155deg, #2f1e24 0%, #4a2730 100%);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
 }
 
 .hp-services__eyebrow {
@@ -1774,46 +1772,46 @@
 }
 
 .hp-services__title {
-  font-size: clamp(1.45rem, 1.1rem + 1.4vw, 1.9rem);
+  font-size: clamp(1.3rem, 1.02rem + 1vw, 1.65rem);
   font-weight: 800;
   color: #ffffff;
-  line-height: 1.15;
-  margin: 0 0 0.8rem;
+  line-height: 1.08;
+  margin: 0 0 0.55rem;
 }
 
 .hp-services__sub {
-  font-size: 0.9375rem;
-  color: rgba(255, 255, 255, 0.86);
-  max-width: 28rem;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.76);
+  max-width: 24rem;
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .hp-services__tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
-  margin-top: 1.1rem;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
 }
 
 .hp-services__tag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
-  padding: 0.55rem 0.8rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #fff7f9;
-  font-size: 0.8rem;
-  font-weight: 700;
+  min-height: 30px;
+  padding: 0.4rem 0.65rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .hp-services__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
+  gap: 0.65rem;
   align-content: center;
 }
 
@@ -1821,28 +1819,28 @@
 .hp-svc-card {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  min-height: 116px;
-  background: #ffffff;
-  border: 1px solid rgba(232, 23, 80, 0.12);
-  border-radius: 18px;
-  padding: 0.8rem 0.9rem;
+  gap: 0.7rem;
+  min-height: 104px;
+  background: #fcfcfd;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  padding: 0.72rem 0.78rem;
   text-align: left;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-  box-shadow: 0 14px 30px rgba(153, 27, 31, 0.06);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
 }
 
 .hp-svc-card:hover {
-  background: #fff8fa;
-  border-color: rgba(232, 23, 80, 0.24);
-  box-shadow: 0 18px 36px rgba(232, 23, 80, 0.1);
-  transform: translateY(-3px);
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.06);
+  transform: translateY(-2px);
 }
 
 .hp-svc-card__icon-wrap {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1851,32 +1849,32 @@
 }
 
 .hp-svc-card__icon-wrap svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .hp-svc-card--doctor .hp-svc-card__icon-wrap {
-  background: rgba(232, 23, 80, 0.1);
-  border-color: rgba(232, 23, 80, 0.18);
-  color: var(--color-primary);
+  background: rgba(127, 29, 29, 0.08);
+  border-color: rgba(127, 29, 29, 0.12);
+  color: #8c3545;
 }
 
 .hp-svc-card--paed .hp-svc-card__icon-wrap {
-  background: rgba(153, 27, 31, 0.1);
-  border-color: rgba(153, 27, 31, 0.16);
-  color: var(--color-secondary);
+  background: rgba(107, 114, 128, 0.08);
+  border-color: rgba(107, 114, 128, 0.12);
+  color: #6b7280;
 }
 
 .hp-svc-card--rx .hp-svc-card__icon-wrap {
-  background: rgba(255, 77, 122, 0.12);
-  border-color: rgba(232, 23, 80, 0.18);
-  color: var(--color-primary-dark);
+  background: rgba(190, 24, 93, 0.08);
+  border-color: rgba(190, 24, 93, 0.12);
+  color: #9d174d;
 }
 
 .hp-svc-card--lab .hp-svc-card__icon-wrap {
-  background: rgba(3, 27, 78, 0.08);
-  border-color: rgba(3, 27, 78, 0.12);
-  color: var(--color-text-primary);
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: #334155;
 }
 
 /* Card body */
@@ -1886,33 +1884,33 @@
 }
 
 .hp-svc-card__eyebrow {
-  margin: 0 0 0.28rem;
-  color: var(--color-primary);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  margin: 0 0 0.22rem;
+  color: #8b4451;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .hp-svc-card__title {
-  font-size: 0.9rem;
-  font-weight: 800;
+  font-size: 0.84rem;
+  font-weight: 700;
   color: var(--color-text-primary);
-  margin: 0 0 0.22rem;
+  margin: 0 0 0.16rem;
 }
 
 .hp-svc-card__desc {
   margin: 0;
-  color: #64748b;
-  font-size: 0.76rem;
-  line-height: 1.38;
+  color: #667085;
+  font-size: 0.72rem;
+  line-height: 1.42;
 }
 
 .hp-svc-card__arrow {
   align-self: flex-start;
-  color: var(--color-primary);
-  font-size: 0.92rem;
-  font-weight: 800;
+  color: #98a2b3;
+  font-size: 0.82rem;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -2183,7 +2181,7 @@
   }
 
   .hp-services {
-    padding: 3.5rem 0;
+    padding: 2.15rem 0 2.3rem;
   }
 
   .hero__slideshow {
@@ -2424,11 +2422,11 @@
 
   .hp-services__intro,
   .hp-services__advisor {
-    padding: 1rem;
+    padding: 0.9rem;
   }
 
   .hp-svc-card {
-    min-height: 108px;
+    min-height: 96px;
   }
 }
 
