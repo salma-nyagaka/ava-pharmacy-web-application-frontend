@@ -138,6 +138,12 @@ function CheckoutPage() {
 
   const applyRestoredPaymentState = (order: Order, latestIntent: PaymentIntent | null) => {
     setPaymentIntent(latestIntent)
+    if (order.payment_method === 'cash_on_delivery') {
+      setPaymentStatus('idle')
+      setPaymentNotice('Cash on delivery selected. You can place the order without prepayment.')
+      setCurrentStep(3)
+      return
+    }
     if (latestIntent?.provider === 'paybill' || order.payment_method === 'mpesa_paybill') {
       setMpesaFlow('paybill')
     } else if (order.payment_method === 'mpesa_stk' || latestIntent?.provider === 'mpesa') {
@@ -266,7 +272,7 @@ function CheckoutPage() {
     const hasCardCallback = !!searchParams.get('tx_ref') && !!searchParams.get('transaction_id')
     if (hasCardCallback) return
     if (paymentMethod === 'cash') {
-      setPaymentStatus('confirmed')
+      setPaymentStatus('idle')
       setPaymentNotice(
         deliveryMethod === 'store_pickup'
           ? 'Cash selected. Payment will be collected when you pick up your order.'
@@ -625,6 +631,12 @@ function CheckoutPage() {
     setCurrentStep(2)
   }
 
+  const handlePaymentMethodChange = (method: 'mpesa' | 'card' | 'cash') => {
+    setPaymentMethod(method)
+    setPaymentNotice('')
+    setValidationError('')
+  }
+
   const buildCheckoutPayload = () => ({
     first_name: firstName.trim(),
     last_name: lastName.trim(),
@@ -797,7 +809,36 @@ function CheckoutPage() {
     if (!validateStepOne()) return
     setIsSubmitting(true)
     try {
-      const order = draftOrder ?? await ensureDraftOrder()
+      let order = draftOrder
+      const requiresConfirmedOnlinePayment = paymentMethod === 'mpesa' || paymentMethod === 'card'
+
+      if (!order || !requiresConfirmedOnlinePayment) {
+        order = await ensureDraftOrder()
+      }
+
+      if (requiresConfirmedOnlinePayment) {
+        if (!order) {
+          setValidationError('Unable to find the order linked to this payment. Please try again.')
+          return
+        }
+        order = await fetchOrder(order.id)
+        let latestIntent = order.payment_intents?.[0] ?? paymentIntent
+
+        if (latestIntent?.id && latestIntent.status !== 'succeeded' && order.payment_status !== 'paid') {
+          latestIntent = await syncPaymentIntent(latestIntent.id)
+          setPaymentIntent(latestIntent)
+          order = await fetchOrder(order.id)
+        }
+
+        setDraftOrder(order)
+        applyRestoredPaymentState(order, order.payment_intents?.[0] ?? latestIntent ?? null)
+
+        if (order.payment_status !== 'paid' && (order.payment_intents?.[0]?.status ?? latestIntent?.status) !== 'succeeded') {
+          setValidationError('Payment is still being confirmed. Please wait a moment and try again.')
+          return
+        }
+      }
+
       const finalized = await finalizeCheckout(order.id)
       setDraftOrder(finalized)
       window.localStorage.removeItem(CHECKOUT_ORDER_STORAGE_KEY)
@@ -1090,7 +1131,7 @@ function CheckoutPage() {
 
                 <div className="co-payment-methods">
                   <label className={`co-pm ${paymentMethod === 'mpesa' ? 'co-pm--selected co-pm--selected-mpesa' : ''}`}>
-                    <input type="radio" name="payment" checked={paymentMethod === 'mpesa'} onChange={() => setPaymentMethod('mpesa')} />
+                    <input type="radio" name="payment" checked={paymentMethod === 'mpesa'} onChange={() => handlePaymentMethodChange('mpesa')} />
                     <div className="co-pm__icon co-pm__icon--mpesa"><MpesaIcon /></div>
                     <div className="co-pm__text">
                       <strong>M-Pesa</strong>
@@ -1102,7 +1143,7 @@ function CheckoutPage() {
                   {/* Card payment is temporarily hidden from the checkout form. */}
 
                   <label className={`co-pm ${paymentMethod === 'cash' ? 'co-pm--selected co-pm--selected-cash' : ''}`}>
-                    <input type="radio" name="payment" checked={paymentMethod === 'cash'} onChange={() => setPaymentMethod('cash')} />
+                    <input type="radio" name="payment" checked={paymentMethod === 'cash'} onChange={() => handlePaymentMethodChange('cash')} />
                     <div className="co-pm__icon co-pm__icon--cash"><CashIcon /></div>
                     <div className="co-pm__text">
                       <strong>Cash on Delivery</strong>

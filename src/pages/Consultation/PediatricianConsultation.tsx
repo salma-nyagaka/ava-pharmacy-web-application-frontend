@@ -465,7 +465,6 @@ function PediatricianConsultation() {
           <div className="page-hero__pills">
             <span className="page-hero__pill page-hero__pill--teal">Child Specialists</span>
             <span className="page-hero__pill page-hero__pill--teal">Ages 0-18</span>
-            <span className="page-hero__pill page-hero__pill--teal">{pediatricians.length} pediatricians available</span>
           </div>
         </div>
       </section>

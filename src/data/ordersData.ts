@@ -150,6 +150,10 @@ export function mapApiOrder(order: ApiOrder): Order {
   }
 }
 
+export function isPlacedApiOrder(order: ApiOrder) {
+  return String(order.status).toLowerCase() !== 'draft'
+}
+
 export function getRelativeTime(dateStr: string) {
   const date = new Date(dateStr)
   const now = new Date()

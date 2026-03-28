@@ -60,15 +60,34 @@ function unwrap<T>(res: { data?: { data?: T } & T }): T {
   return (root?.data ?? root) as T
 }
 
-function unwrapList<T>(res: { data?: { data?: T[] } | T[] }): T[] {
+function unwrapList<T>(res: { data?: { data?: T[]; results?: T[] } | T[] }): T[] {
   const root = res.data
   if (Array.isArray(root)) return root
-  return root?.data ?? []
+  if (Array.isArray(root?.data)) return root.data
+  if (Array.isArray(root?.results)) return root.results
+  return []
 }
 
 export async function listAdminOrders(params?: Record<string, string>): Promise<AdminOrder[]> {
-  const res = await apiClient.get('/admin/orders/', { params })
-  return unwrapList<AdminOrder>(res)
+  const firstResponse = await apiClient.get('/admin/orders/', { params })
+  const firstPage = firstResponse.data
+  const firstItems = unwrapList<AdminOrder>(firstResponse)
+
+  if (!firstPage || Array.isArray(firstPage) || !Array.isArray(firstPage.results) || !firstPage.next) {
+    return firstItems
+  }
+
+  const orders = [...firstItems]
+  let nextUrl: string | null = typeof firstPage.next === 'string' ? firstPage.next : null
+
+  while (nextUrl) {
+    const response = await apiClient.get(nextUrl)
+    const page = response.data
+    orders.push(...unwrapList<AdminOrder>(response))
+    nextUrl = typeof page?.next === 'string' ? page.next : null
+  }
+
+  return orders
 }
 
 export async function fetchAdminOrder(id: number | string): Promise<AdminOrder> {

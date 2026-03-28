@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchOrders } from '../services/orderService'
-import { mapApiOrder, type Order } from '../data/ordersData'
+import { isPlacedApiOrder, mapApiOrder, type Order } from '../data/ordersData'
 
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -16,7 +16,7 @@ export function useOrders() {
 
     fetchOrders()
       .then(({ data }) => {
-        setOrders(data.map(mapApiOrder))
+        setOrders(data.filter(isPlacedApiOrder).map(mapApiOrder))
       })
       .catch(() => {
         setError('Failed to load orders.')

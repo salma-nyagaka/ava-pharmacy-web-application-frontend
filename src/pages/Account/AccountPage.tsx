@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { fetchOrders, type Order as ApiOrder } from '../../services/orderService'
+import { isPlacedApiOrder } from '../../data/ordersData'
 import '../../styles/pages/AccountPage.css'
 
 type DashboardOrderStatusTone = {
@@ -72,7 +73,7 @@ function AccountPage() {
       try {
         const { data } = await fetchOrders()
         if (!isMounted) return
-        setOrders(sortOrders(data))
+        setOrders(sortOrders(data.filter(isPlacedApiOrder)))
       } catch {
         if (!isMounted) return
         setError('Unable to load your recent orders right now.')

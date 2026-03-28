@@ -1,5 +1,6 @@
 .page-hero {
-  padding: 3.5rem 0 3rem;
+  /* padding: 3.5rem 0 3rem; */
+  padding: 1.5rem 0 1rem;
   background: linear-gradient(135deg, #fef5f7 0%, #fff 60%);
   border-bottom: 1px solid var(--color-border-light);
 }

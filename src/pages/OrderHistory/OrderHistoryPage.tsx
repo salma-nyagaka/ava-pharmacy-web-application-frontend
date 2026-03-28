@@ -95,6 +95,10 @@ function downloadReceipt(order: Order) {
   }
 }
 
+function canShowReceipt(order: Order) {
+  return order.payment.startsWith('M-Pesa') && ['Paid', 'Refunded'].includes(order.paymentStatus)
+}
+
 function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) {
   const [hover, setHover] = useState(0)
   const [rating, setRating] = useState(0)
@@ -326,14 +330,16 @@ function OrderHistoryPage() {
                     <span className="ohp-row__total">{formatPrice(order.total)}</span>
                     <div className="ohp-row__actions">
                       <Link to={`/account/orders/${order.apiId}`} className="ohp-row__view">View</Link>
-                      <button className="ohp-row__receipt" type="button" onClick={() => downloadReceipt(order)} title="Download receipt">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                          <polyline points="7 10 12 15 17 10"/>
-                          <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                        Receipt
-                      </button>
+                      {canShowReceipt(order) && (
+                        <button className="ohp-row__receipt" type="button" onClick={() => downloadReceipt(order)} title="Download receipt">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                          </svg>
+                          Receipt
+                        </button>
+                      )}
                       {order.status === 'Delivered' && (
                         <button className="ohp-row__review" type="button" onClick={() => setReviewOrder(order)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

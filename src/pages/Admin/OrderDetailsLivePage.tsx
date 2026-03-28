@@ -29,6 +29,53 @@ const STATUS_LABELS: Record<string, string> = {
   refunded: 'Refunded',
 }
 
+const STATUS_ACTION_LABELS: Record<string, string> = {
+  processing: 'Process order',
+  shipped: 'Dispatch order',
+  delivered: 'Mark delivered',
+}
+
+function buildTrackingSteps(order: AdminOrder) {
+  const currentIndex = STATUS_FLOW.indexOf(order.status as FlowStatus)
+  return STATUS_FLOW.map((status, index) => {
+    const statusEvent = order.events.find((event) => event.event_type === `status_${status}`)
+    return {
+      status,
+      label: STATUS_LABELS[status] ?? status,
+      isDone: currentIndex > index || order.status === 'delivered' && index === STATUS_FLOW.length - 1,
+      isCurrent: currentIndex === index && order.status !== 'delivered',
+      at: statusEvent?.created_at ?? (index === 0 ? order.created_at : null),
+    }
+  })
+}
+
+function nextOrderStatus(order: AdminOrder) {
+  if (order.status === 'pending' || order.status === 'paid') return 'processing'
+  if (order.status === 'processing') return 'shipped'
+  if (order.status === 'shipped') return 'delivered'
+  return null
+}
+
+function buildTimelineEntries(order: AdminOrder) {
+  if (order.events.length > 0) {
+    return order.events.map((event, index) => ({
+      id: event.id,
+      title: event.event_type.replace(/_/g, ' '),
+      description: event.message,
+      when: event.created_at,
+      tone: index === 0 ? 'current' : 'done',
+    }))
+  }
+
+  return buildTrackingSteps(order).map((step, index) => ({
+    id: `${step.status}-${index}`,
+    title: step.label,
+    description: step.at ? 'Step completed.' : 'Awaiting update.',
+    when: step.at,
+    tone: step.isCurrent ? 'current' : step.isDone ? 'done' : 'upcoming',
+  }))
+}
+
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'
@@ -170,6 +217,12 @@ function OrderDetailsLivePage() {
 
   const flowIndex = STATUS_FLOW.indexOf(order.status as FlowStatus)
   const isTerminal = order.status === 'cancelled' || order.status === 'refunded'
+  const trackingSteps = buildTrackingSteps(order)
+  const timelineEntries = buildTimelineEntries(order)
+  const upcomingStatus = nextOrderStatus(order)
+  const customerName = order.customer_name || `${order.shipping_first_name} ${order.shipping_last_name}`.trim() || 'Guest customer'
+  const customerEmail = order.customer_email || order.shipping_email || '—'
+  const customerPhone = order.customer_phone || order.shipping_phone || '—'
 
   return (
     <div className="admin-page od-page">
@@ -216,39 +269,79 @@ function OrderDetailsLivePage() {
         </div>
       )}
 
+      <div className="od-overview-strip">
+        <div className="od-overview-card">
+          <span className="od-overview-card__label">Customer</span>
+          <strong>{customerName}</strong>
+          <span>{customerEmail}</span>
+        </div>
+        <div className="od-overview-card">
+          <span className="od-overview-card__label">Payment</span>
+          <strong>{order.payment_method.replace(/_/g, ' ')}</strong>
+          <span>{order.payment_status.replace(/_/g, ' ')}</span>
+        </div>
+        <div className="od-overview-card">
+          <span className="od-overview-card__label">Items</span>
+          <strong>{order.items.reduce((sum, item) => sum + item.quantity, 0)} items</strong>
+          <span>Total {formatCurrency(order.total)}</span>
+        </div>
+      </div>
+
       <div className="od-grid">
-        <div className="od-card">
-          <p className="od-card__title">Order Items</p>
-          <div className="od-items">
-            {order.items.map((item) => (
-              <div key={item.id} className="od-item">
-                <div className="od-item__icon">{item.product_name[0]}</div>
-                <div className="od-item__info">
-                  <span className="od-item__name">{item.product_name}</span>
-                  <span className="od-item__qty">{item.quantity} × {formatCurrency(item.unit_price)}</span>
+        <div className="od-main">
+          <div className="od-card">
+            <div className="od-card__header">
+              <p className="od-card__title">Order Items</p>
+              <span className="od-card__meta">{order.items.length} line items</span>
+            </div>
+            <div className="od-items">
+              {order.items.map((item) => (
+                <div key={item.id} className="od-item">
+                  <div className="od-item__icon">{item.product_name[0]}</div>
+                  <div className="od-item__info">
+                    <span className="od-item__name">{item.product_name}</span>
+                    <span className="od-item__qty">{item.quantity} × {formatCurrency(item.unit_price)}</span>
+                  </div>
+                  <span className="od-item__total">{formatCurrency(item.subtotal)}</span>
                 </div>
-                <span className="od-item__total">{formatCurrency(item.subtotal)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="od-summary">
-            <div className="od-summary__row"><span>Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div>
-            <div className="od-summary__row"><span>Shipping</span><span>{formatCurrency(order.shipping_fee)}</span></div>
-            <div className="od-summary__row od-summary__row--total"><span>Total</span><span>{formatCurrency(order.total)}</span></div>
+              ))}
+            </div>
+            <div className="od-summary">
+              <div className="od-summary__row"><span>Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div>
+              <div className="od-summary__row"><span>Shipping</span><span>{formatCurrency(order.shipping_fee)}</span></div>
+              <div className="od-summary__row od-summary__row--total"><span>Total</span><span>{formatCurrency(order.total)}</span></div>
+            </div>
           </div>
 
-          <div className="od-card" style={{ marginTop: '1rem', padding: '1rem' }}>
-            <p className="od-card__title">Order Events & Logs</p>
-            <div className="od-log-list">
-              {order.events.length === 0 ? (
-                <p className="od-info-text">No events recorded yet.</p>
-              ) : order.events.map((event) => (
-                <div key={event.id} className="od-log-item">
-                  <div>
-                    <strong>{event.event_type.replace(/_/g, ' ')}</strong>
-                    <p>{event.message}</p>
+          <div className="od-card">
+            <div className="od-card__header">
+              <p className="od-card__title">Fulfilment Activity</p>
+              <span className="od-card__meta">{timelineEntries.length} updates</span>
+            </div>
+            <div className="od-staff-track od-staff-track--compact">
+              {trackingSteps.map((step, index) => (
+                <div
+                  key={step.status}
+                  className={`od-staff-track__step ${step.isDone ? 'od-staff-track__step--done' : ''} ${step.isCurrent ? 'od-staff-track__step--current' : ''}`}
+                >
+                  <div className="od-staff-track__dot">
+                    {step.isDone ? '✓' : step.isCurrent ? '●' : index + 1}
                   </div>
-                  <span>{formatDate(event.created_at)}</span>
+                  <div className="od-staff-track__copy">
+                    <strong>{step.label}</strong>
+                    <span>{formatDate(step.at)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="od-activity-list">
+              {timelineEntries.map((entry) => (
+                <div key={entry.id} className={`od-activity-item od-activity-item--${entry.tone}`}>
+                  <div className="od-activity-item__copy">
+                    <strong>{entry.title}</strong>
+                    <p>{entry.description}</p>
+                  </div>
+                  <span>{formatDate(entry.when)}</span>
                 </div>
               ))}
             </div>
@@ -256,95 +349,132 @@ function OrderDetailsLivePage() {
         </div>
 
         <div className="od-side">
+          <div className="od-card od-card--sticky">
+            <div className="od-card__header">
+              <p className="od-card__title">Actions</p>
+              <span className="od-card__meta">Update without leaving the page</span>
+            </div>
+            <div className="od-actions-panel">
+              {upcomingStatus && (
+                <button className="btn btn--primary btn--sm od-actions-panel__primary" type="button" disabled={isSaving} onClick={() => void updateOrderStatus(upcomingStatus)}>
+                  {STATUS_ACTION_LABELS[upcomingStatus]}
+                </button>
+              )}
+              <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowInvoice(true)}>
+                Download invoice
+              </button>
+              {!['cancelled', 'refunded', 'delivered'].includes(order.status) && (
+                <button className="btn btn--outline btn--sm od-btn--cancel" type="button" onClick={() => setShowCancel(true)}>
+                  Cancel order
+                </button>
+              )}
+              {order.payment_status === 'paid' && order.status !== 'refunded' && (
+                <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowRefund(true)}>
+                  Issue refund
+                </button>
+              )}
+            </div>
+            <div className="form-group od-note-form">
+              <label htmlFor="admin-note">Add note</label>
+              <textarea id="admin-note" value={newNote} onChange={(event) => setNewNote(event.target.value)} rows={3} placeholder="Add fulfilment or customer-service context…" />
+            </div>
+            <button className="btn btn--primary btn--sm" type="button" disabled={isSaving || !newNote.trim()} onClick={() => void handleAddNote()}>
+              Save note
+            </button>
+          </div>
+
           <div className="od-card">
-            <p className="od-card__title">Customer</p>
+            <div className="od-card__header">
+              <p className="od-card__title">Customer & Delivery</p>
+            </div>
             <div className="od-customer">
-              <div className="od-customer__avatar">{getInitials(order.customer_name || order.shipping_first_name)}</div>
+              <div className="od-customer__avatar">{getInitials(customerName)}</div>
               <div>
-                <p className="od-customer__name">{order.customer_name || `${order.shipping_first_name} ${order.shipping_last_name}`}</p>
-                <a className="od-customer__contact" href={`mailto:${order.customer_email || order.shipping_email}`}>{order.customer_email || order.shipping_email}</a>
-                <a className="od-customer__contact" href={`tel:${order.customer_phone || order.shipping_phone}`}>{order.customer_phone || order.shipping_phone}</a>
+                <p className="od-customer__name">{customerName}</p>
+                {customerEmail !== '—' ? (
+                  <a className="od-customer__contact" href={`mailto:${customerEmail}`}>{customerEmail}</a>
+                ) : (
+                  <span className="od-customer__contact">—</span>
+                )}
+                {customerPhone !== '—' ? (
+                  <a className="od-customer__contact" href={`tel:${customerPhone}`}>{customerPhone}</a>
+                ) : (
+                  <span className="od-customer__contact">—</span>
+                )}
               </div>
+            </div>
+            <div className="od-detail-list">
+              <div className="od-detail-row"><span>Address</span><strong>{order.shipping_address}</strong></div>
+              <div className="od-detail-row"><span>Delivery method</span><strong>{order.delivery_method.replace(/_/g, ' ')}</strong></div>
             </div>
           </div>
 
           <div className="od-card">
-            <p className="od-card__title">Delivery address</p>
-            <p className="od-info-text">{order.shipping_address}</p>
-          </div>
-
-          <div className="od-card">
-            <p className="od-card__title">Payment</p>
-            <div className="od-payment"><span className="od-payment__icon">💳</span><span>{order.payment_method.replace(/_/g, ' ')}</span></div>
-            <p className="od-info-text" style={{ marginTop: '0.75rem' }}>Status: <strong>{order.payment_status.replace(/_/g, ' ')}</strong></p>
-            <p className="od-info-text">Reference: <strong>{order.payment_reference || '—'}</strong></p>
-            {order.payment_method === 'mpesa_paybill' && (
-              <div style={{ marginTop: '0.75rem' }}>
-                <p className="od-info-text">Paybill Number: <strong>{order.paybill_number || '—'}</strong></p>
-                <p className="od-info-text">{order.paybill_account_label || 'Account Number'}: <strong>{order.paybill_account_reference || '—'}</strong></p>
-              </div>
-            )}
+            <div className="od-card__header">
+              <p className="od-card__title">Payment</p>
+            </div>
+            <div className="od-detail-list">
+              <div className="od-detail-row"><span>Method</span><strong>{order.payment_method.replace(/_/g, ' ')}</strong></div>
+              <div className="od-detail-row"><span>Status</span><strong>{order.payment_status.replace(/_/g, ' ')}</strong></div>
+              <div className="od-detail-row"><span>Reference</span><strong>{order.payment_reference || '—'}</strong></div>
+              {order.payment_method === 'mpesa_paybill' && (
+                <>
+                  <div className="od-detail-row"><span>Paybill</span><strong>{order.paybill_number || '—'}</strong></div>
+                  <div className="od-detail-row"><span>{order.paybill_account_label || 'Account Number'}</span><strong>{order.paybill_account_reference || '—'}</strong></div>
+                </>
+              )}
+            </div>
           </div>
 
           {pendingPaybillIntent && (
             <div className="od-card">
-              <p className="od-card__title">Paybill Confirmation</p>
-              <p className="od-info-text">Submitted reference: <strong>{pendingPaybillIntent.submitted_reference || pendingPaybillIntent.provider_reference || '—'}</strong></p>
-              <p className="od-info-text">Payer phone: <strong>{pendingPaybillIntent.phone_number || '—'}</strong></p>
-              <div className="action-buttons" style={{ marginTop: '1rem' }}>
-                <button className="btn-sm btn--primary" type="button" disabled={isSaving} onClick={() => void handlePaybillDecision(pendingPaybillIntent, 'succeeded')}>
+              <div className="od-card__header">
+                <p className="od-card__title">Paybill Confirmation</p>
+              </div>
+              <div className="od-detail-list">
+                <div className="od-detail-row"><span>Submitted reference</span><strong>{pendingPaybillIntent.submitted_reference || pendingPaybillIntent.provider_reference || '—'}</strong></div>
+                <div className="od-detail-row"><span>Payer phone</span><strong>{pendingPaybillIntent.phone_number || '—'}</strong></div>
+              </div>
+              <div className="od-actions-panel od-actions-panel--split">
+                <button className="btn btn--primary btn--sm" type="button" disabled={isSaving} onClick={() => void handlePaybillDecision(pendingPaybillIntent, 'succeeded')}>
                   Confirm paybill
                 </button>
-                <button className="btn-sm btn--danger" type="button" disabled={isSaving} onClick={() => void handlePaybillDecision(pendingPaybillIntent, 'failed')}>
+                <button className="btn btn--outline btn--sm od-btn--cancel" type="button" disabled={isSaving} onClick={() => void handlePaybillDecision(pendingPaybillIntent, 'failed')}>
                   Reject paybill
                 </button>
               </div>
             </div>
           )}
 
-          <div className="od-card">
-            <p className="od-card__title">Payment Intents & Errors</p>
-            <div className="od-log-list">
-              {order.payment_intents.length === 0 ? (
-                <p className="od-info-text">No payment attempts recorded yet.</p>
-              ) : order.payment_intents.map((intent) => (
-                <div key={intent.id} className="od-payment-log">
-                  <div className="od-payment-log__head">
-                    <strong>{intent.provider}</strong>
-                    <span className={`status status--${intent.status}`}>{intent.status.replace(/_/g, ' ')}</span>
-                  </div>
-                  <p>Reference: <strong>{intent.reference}</strong></p>
-                  <p>Provider Ref: <strong>{intent.provider_reference || '—'}</strong></p>
-                  <p>Created: <strong>{formatDate(intent.created_at)}</strong></p>
-                  {intent.last_error && <p className="od-payment-log__error">Latest error: {intent.last_error}</p>}
-                  {(intent.error_logs ?? []).length > 0 && (
-                    <details>
-                      <summary>View error log</summary>
-                      <pre>{JSON.stringify(intent.error_logs, null, 2)}</pre>
-                    </details>
-                  )}
+          {(order.notes.length > 0 || order.payment_intents.length > 0) && (
+            <div className="od-card">
+              <div className="od-card__header">
+                <p className="od-card__title">Notes & Payment Logs</p>
+              </div>
+              {order.notes.length > 0 && (
+                <ul className="od-notes">
+                  {order.notes.map((note) => (
+                    <li key={note.id}>{note.content}</li>
+                  ))}
+                </ul>
+              )}
+              {order.payment_intents.length > 0 && (
+                <div className="od-log-list">
+                  {order.payment_intents.map((intent) => (
+                    <div key={intent.id} className="od-payment-log">
+                      <div className="od-payment-log__head">
+                        <strong>{intent.provider}</strong>
+                        <span className={`status status--${intent.status}`}>{intent.status.replace(/_/g, ' ')}</span>
+                      </div>
+                      <p>Reference: <strong>{intent.reference}</strong></p>
+                      <p>Provider Ref: <strong>{intent.provider_reference || '—'}</strong></p>
+                      {intent.last_error && <p className="od-payment-log__error">Latest error: {intent.last_error}</p>}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-
-          <div className="od-card">
-            <p className="od-card__title">Admin Notes</p>
-            <div className="od-notes">
-              {order.notes.map((note) => (
-                <li key={note.id}>{note.content}</li>
-              ))}
-            </div>
-            <div className="form-group" style={{ marginTop: '1rem' }}>
-              <label htmlFor="admin-note">Add note</label>
-              <textarea id="admin-note" value={newNote} onChange={(event) => setNewNote(event.target.value)} rows={3} />
-            </div>
-            <div className="modal__footer" style={{ padding: '0', marginTop: '0.75rem' }}>
-              <button className="btn btn--primary btn--sm" type="button" disabled={isSaving || !newNote.trim()} onClick={() => void handleAddNote()}>
-                Save note
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

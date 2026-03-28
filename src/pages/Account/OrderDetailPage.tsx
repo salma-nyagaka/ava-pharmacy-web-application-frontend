@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { cancelOrder, fetchOrder } from '../../services/orderService'
-import { STATUS_CFG, TRACK_STEPS, getRelativeTime, mapApiOrder, type Order } from '../../data/ordersData'
+import { cartService } from '../../services/cartService'
+import { STATUS_CFG, TRACK_STEPS, getRelativeTime, isPlacedApiOrder, mapApiOrder, type Order } from '../../data/ordersData'
 import '../../styles/pages/OrderDetailPage.css'
 
 function downloadReceipt(order: Order) {
@@ -90,6 +91,10 @@ function downloadReceipt(order: Order) {
   }
 }
 
+function canShowReceipt(order: Order) {
+  return order.payment.startsWith('M-Pesa') && ['Paid', 'Refunded'].includes(order.paymentStatus)
+}
+
 function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -98,6 +103,7 @@ function OrderDetailPage() {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
+  const [isReordering, setIsReordering] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -117,6 +123,11 @@ function OrderDetailPage() {
       try {
         const data = await fetchOrder(numericId)
         if (!isMounted) return
+        if (!isPlacedApiOrder(data)) {
+          setOrder(null)
+          setError('Order not found.')
+          return
+        }
         setOrder(mapApiOrder(data))
       } catch {
         if (!isMounted) return
@@ -158,6 +169,34 @@ function OrderDetailPage() {
       setError('Unable to cancel this order right now.')
     } finally {
       setIsCancelling(false)
+    }
+  }
+
+  const handleReorder = async () => {
+    if (!order) return
+
+    const reorderableItems = order.productItems.filter((item) => item.productId)
+    if (reorderableItems.length === 0) {
+      setError('These order items cannot be reordered automatically right now.')
+      return
+    }
+
+    setIsReordering(true)
+    setError('')
+    try {
+      for (const item of reorderableItems) {
+        await cartService.add({
+          id: item.productId as number,
+          name: item.name,
+          brand: 'Reorder',
+          price: item.price,
+        }, item.qty)
+      }
+      navigate('/cart')
+    } catch {
+      setError('We could not add these items to your cart right now.')
+    } finally {
+      setIsReordering(false)
     }
   }
 
@@ -382,8 +421,8 @@ function OrderDetailPage() {
               <h2 className="od-section-title">What would you like to do?</h2>
               <div className="od-actions">
                 {order.status === 'Delivered' && (
-                  <button className="btn btn--primary od-action-btn" type="button" onClick={() => navigate('/cart')}>
-                    🔄 Reorder these items
+                  <button className="btn btn--primary od-action-btn" type="button" onClick={() => void handleReorder()} disabled={isReordering}>
+                    {isReordering ? 'Adding items…' : '🔄 Reorder these items'}
                   </button>
                 )}
                 {order.canCancel && (
@@ -391,9 +430,11 @@ function OrderDetailPage() {
                     {isCancelling ? 'Cancelling…' : 'Cancel order'}
                   </button>
                 )}
-                <button className="btn btn--outline od-action-btn" type="button" onClick={() => downloadReceipt(order)}>
-                  📄 Download receipt
-                </button>
+                {canShowReceipt(order) && (
+                  <button className="btn btn--outline od-action-btn" type="button" onClick={() => downloadReceipt(order)}>
+                    📄 Download receipt
+                  </button>
+                )}
                 <Link to="/help" className="btn btn--ghost od-action-btn">🙋 Get help with this order</Link>
               </div>
             </div>

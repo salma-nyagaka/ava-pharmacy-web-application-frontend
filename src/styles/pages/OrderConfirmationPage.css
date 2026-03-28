@@ -88,6 +88,46 @@
   letter-spacing: 0.02em;
 }
 
+.oc-banner__order-no-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.oc-copy-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(20, 83, 45, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #166534;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.oc-copy-btn:hover {
+  background: #ffffff;
+  border-color: rgba(22, 163, 74, 0.32);
+  transform: translateY(-1px);
+}
+
+.oc-copy-btn:active {
+  transform: translateY(0);
+}
+
+.oc-banner__copy-state {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #16a34a;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 /* ── Two-column layout ──────────────────────────────────────── */
 .oc-layout {
   display: grid;

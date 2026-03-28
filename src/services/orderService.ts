@@ -82,6 +82,65 @@ export interface Order {
   updated_at: string
 }
 
+export interface TrackingStep {
+  status: string
+  label: string
+  completed_at: string | null
+  is_done: boolean
+  is_current: boolean
+}
+
+export interface TrackingEvent {
+  id: number
+  event_type: string
+  message: string
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
+export interface PublicTrackingOrderItem {
+  id: number
+  product_name: string
+  variant_name: string
+  quantity: number
+  subtotal: string
+}
+
+export interface PublicTrackingOrder {
+  id: number
+  order_number: string
+  status: string
+  status_label: string
+  payment_method: string
+  payment_method_label: string
+  payment_status: string
+  payment_status_label: string
+  delivery_method: string
+  delivery_notes: string
+  subtotal: string
+  shipping_fee: string
+  total: string
+  placed_at: string
+  updated_at: string
+  shipping_first_name: string
+  shipping_last_name: string
+  shipping_email: string
+  shipping_phone: string
+  shipping_address: string
+  items: PublicTrackingOrderItem[]
+}
+
+export interface OrderTrackingResult {
+  order_id: string
+  order_number: string
+  current_status: string
+  current_status_label: string
+  estimated_delivery: string | null
+  tracking_steps: TrackingStep[]
+  events: TrackingEvent[]
+  order: PublicTrackingOrder
+}
+
 export interface CheckoutDraftPayload {
   first_name: string
   last_name: string
@@ -115,8 +174,13 @@ export async function cancelOrder(id: number): Promise<Order> {
   return res.data?.data ?? res.data
 }
 
-export async function fetchOrderTracking(id: number): Promise<unknown> {
+export async function fetchOrderTracking(id: number): Promise<OrderTrackingResult> {
   const res = await apiClient.get(`/orders/${id}/tracking/`)
+  return res.data?.data ?? res.data
+}
+
+export async function lookupOrderTracking(payload: { order_number: string; contact: string }): Promise<OrderTrackingResult> {
+  const res = await apiClient.post('/orders/tracking/lookup/', payload)
   return res.data?.data ?? res.data
 }
 

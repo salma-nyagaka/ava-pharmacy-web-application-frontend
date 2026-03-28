@@ -1,41 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
-import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
-import { fetchOrder, fetchOrderTracking } from '../../services/orderService'
 import { useInterval } from '../../hooks/useInterval'
+import { type OrderTrackingResult, lookupOrderTracking } from '../../services/orderService'
+import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
 import '../../styles/pages/OrderTrackingPage.css'
-
-interface OrderEvent {
-  id: number
-  status: string
-  note: string
-  created_at: string
-}
-
-interface LiveOrder {
-  id: number
-  order_number: string
-  status: string
-  total: string
-  items: Array<{ product_name: string; quantity: number; subtotal: string }>
-  events: OrderEvent[]
-}
 
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
       <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  )
-}
-
-function TruckIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
-      <rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 5v4h-7V8z" />
-      <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
     </svg>
   )
 }
@@ -57,18 +32,11 @@ function CheckIcon({ size = 16 }: { size?: number }) {
   )
 }
 
-function PillIcon({ size = 16 }: { size?: number }) {
+function TruckIcon({ size = 16 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
-      <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /><line x1="8.5" y1="8.5" x2="15.5" y2="15.5" />
-    </svg>
-  )
-}
-
-function ClipboardIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
-      <rect x="9" y="2" width="6" height="4" rx="1" /><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" />
+      <rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 5v4h-7V8z" />
+      <circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
     </svg>
   )
 }
@@ -81,10 +49,10 @@ function MapPinIcon({ size = 16 }: { size?: number }) {
   )
 }
 
-function BellIcon({ size = 16 }: { size?: number }) {
+function ClipboardIcon({ size = 16 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      <rect x="9" y="2" width="6" height="4" rx="1" /><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2" />
     </svg>
   )
 }
@@ -113,30 +81,6 @@ function MailIcon({ size = 16 }: { size?: number }) {
   )
 }
 
-function LinkIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width={size} height={size}>
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </svg>
-  )
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  )
-}
-
-function ChevronUpIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-      <polyline points="18 15 12 9 6 15" />
-    </svg>
-  )
-}
-
 function ArrowRightIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
@@ -145,18 +89,54 @@ function ArrowRightIcon() {
   )
 }
 
-const STEP_ICONS: Record<string, React.ReactNode> = {
-  'Order confirmed': <CheckIcon size={16} />,
-  'Prescription verified': <PillIcon size={16} />,
-  'Packed & ready': <PackageIcon size={16} />,
-  'Out for delivery': <TruckIcon size={16} />,
-  'Delivered': <MapPinIcon size={16} />,
+const HERO_TIPS = [
+  'Use the order number from your confirmation email or SMS.',
+  'Enter the phone number or email address used at checkout.',
+  'We refresh active orders automatically while this page is open.',
+]
+
+function getBannerConfig(status: string) {
+  if (status === 'delivered') {
+    return { className: 'track-banner--delivered', icon: <CheckIcon size={22} /> }
+  }
+  if (status === 'cancelled' || status === 'refunded') {
+    return { className: 'track-banner--cancelled', icon: <ClipboardIcon size={22} /> }
+  }
+  if (status === 'processing' || status === 'paid') {
+    return { className: 'track-banner--processing', icon: <PackageIcon size={22} /> }
+  }
+  return { className: 'track-banner--transit', icon: <TruckIcon size={22} /> }
 }
 
-const BANNER_CFG: Record<string, { cls: string; icon: React.ReactNode }> = {
-  'Out for delivery': { cls: 'track-banner--transit', icon: <TruckIcon size={22} /> },
-  'Delivered': { cls: 'track-banner--delivered', icon: <CheckIcon size={22} /> },
-  'Processing': { cls: 'track-banner--processing', icon: <PackageIcon size={22} /> },
+function isTerminalStatus(status: string) {
+  return status === 'delivered' || status === 'cancelled' || status === 'refunded'
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return 'Not available'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Not available'
+  return new Intl.DateTimeFormat('en-KE', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+function formatMoney(value: string | null | undefined) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return value ? `KSh ${value}` : 'KSh 0'
+  return new Intl.NumberFormat('en-KE', {
+    style: 'currency',
+    currency: 'KES',
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+function fallbackTimelineLabel(eventType: string) {
+  return eventType
+    .replace(/^status_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 function OrderTrackingPage() {
@@ -164,400 +144,345 @@ function OrderTrackingPage() {
   const normalizedSupportPhone = settings.supportPhone.replace(/\D/g, '')
   const normalizedWhatsappPhone = settings.whatsappPhone.replace(/\D/g, '')
   const hasDistinctWhatsapp = Boolean(normalizedWhatsappPhone) && normalizedWhatsappPhone !== normalizedSupportPhone
-  const [orderId, setOrderId] = useState('')
-  const [phone, setPhone] = useState('')
+  const [searchParams] = useSearchParams()
+  const [orderNumber, setOrderNumber] = useState(searchParams.get('order') ?? '')
+  const [contact, setContact] = useState('')
   const [error, setError] = useState('')
-  const [isTracking, setIsTracking] = useState(false)
-  const [resultReady, setResultReady] = useState(false)
-  const [expandedStep, setExpandedStep] = useState<number | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [tracking, setTracking] = useState<OrderTrackingResult | null>(null)
+  const [activeLookup, setActiveLookup] = useState<{ order_number: string; contact: string } | null>(null)
   const [copyStatus, setCopyStatus] = useState('')
-  const [deliveryNote, setDeliveryNote] = useState('')
-  const [noteSaved, setNoteSaved] = useState(false)
-  const [notifyPrefs, setNotifyPrefs] = useState({ sms: true, whatsapp: false, email: true })
-  const [liveOrder, setLiveOrder] = useState<LiveOrder | null>(null)
-  const [liveOrderId, setLiveOrderId] = useState<number | null>(null)
 
-  const fetchLiveOrder = useCallback(() => {
-    if (!liveOrderId) return
-    void Promise.all([
-      fetchOrder(liveOrderId),
-      fetchOrderTracking(liveOrderId),
-    ]).then(([order, tracking]) => {
-      const events = Array.isArray(tracking)
-        ? (tracking as OrderEvent[])
-        : (tracking as { events?: OrderEvent[] })?.events ?? []
-      setLiveOrder({
-        id: order.id,
-        order_number: order.order_number,
-        status: order.status,
-        total: order.total,
-        items: order.items.map((i) => ({
-          product_name: i.product_name,
-          quantity: i.quantity,
-          subtotal: i.subtotal,
-        })),
-        events,
-      })
-    }).catch(() => {
-      // silently keep previous data on poll failure
-    })
-  }, [liveOrderId])
-
-  useEffect(() => { fetchLiveOrder() }, [fetchLiveOrder])
-  useInterval(fetchLiveOrder, liveOrderId ? 30000 : null)
-
-  const sampleOrder = useMemo(() => ({
-    id: 'ORD-007',
-    status: 'Out for delivery',
-    eta: 'Today, 5:00 PM – 7:00 PM',
-    method: 'Same-day courier',
-    rider: { name: 'Kevin Mutiso', phone: '+254701222444', displayPhone: '+254 701 222 444' },
-    address: '24 Mombasa Road, Nairobi, Kenya',
-    payment: 'M-Pesa',
-    lastUpdated: '2 mins ago',
-    steps: [
-      { title: 'Order confirmed', body: 'Payment received and order approved by pharmacy.', time: '10:15 AM', status: 'done' as const },
-      { title: 'Prescription verified', body: 'Pharmacist verified your prescription and dosage.', time: '11:00 AM', status: 'done' as const },
-      { title: 'Packed & ready', body: 'Items packed at Nairobi CBD branch.', time: '11:30 AM', status: 'done' as const },
-      { title: 'Out for delivery', body: 'Courier picked up your package and is heading to you.', time: '1:05 PM', status: 'current' as const },
-      { title: 'Delivered', body: 'Order delivered to your doorstep.', time: 'Expected 6:10 PM', status: 'upcoming' as const },
-    ],
-    items: [
-      { name: 'Digital Thermometer', qty: 1, price: 'KSh 950' },
-      { name: 'Vitamin C 1000mg', qty: 1, price: 'KSh 1,200' },
-      { name: 'Paracetamol 500mg', qty: 2, price: 'KSh 500' },
-    ],
-  }), [])
-
-  const steps = sampleOrder.steps
-  const currentStepIndex = steps.findIndex((s) => s.status === 'current')
-  const bannerCfg = BANNER_CFG[sampleOrder.status] ?? { cls: 'track-banner--transit', icon: <TruckIcon size={22} /> }
-
-  const handleTrack = () => {
-    setError('')
-    if (!orderId.trim() && !phone.trim()) {
-      setError('Please enter your Order ID or the phone number you used when ordering.')
-      return
+  useEffect(() => {
+    const presetOrder = searchParams.get('order')
+    if (presetOrder && !orderNumber) {
+      setOrderNumber(presetOrder)
     }
-    setIsTracking(true)
-    setResultReady(false)
-    const numericId = Number(orderId.trim())
-    if (Number.isFinite(numericId) && numericId > 0) {
-      setLiveOrderId(numericId)
-      setIsTracking(false)
-      setResultReady(true)
-    } else {
-      window.setTimeout(() => { setIsTracking(false); setResultReady(true) }, 900)
+  }, [searchParams, orderNumber])
+
+  async function runLookup(payload: { order_number: string; contact: string }, options?: { silent?: boolean }) {
+    const silent = options?.silent ?? false
+    if (!silent) {
+      setIsSubmitting(true)
+      setError('')
+    }
+
+    try {
+      const result = await lookupOrderTracking(payload)
+      setTracking(result)
+      setActiveLookup(payload)
+      if (!silent) setError('')
+    } catch (lookupError: any) {
+      if (silent) return
+      setTracking(null)
+      setActiveLookup(null)
+      const message = lookupError?.response?.data?.error?.message || 'We could not find an order matching those details.'
+      setError(message)
+    } finally {
+      if (!silent) setIsSubmitting(false)
     }
   }
 
-  const applySample = () => { setOrderId(sampleOrder.id); setPhone('+254 700 000 000'); setError('') }
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const nextOrderNumber = orderNumber.trim()
+    const nextContact = contact.trim()
+    if (!nextOrderNumber || !nextContact) {
+      setError('Enter your order number and the phone number or email address used at checkout.')
+      return
+    }
+    void runLookup({ order_number: nextOrderNumber, contact: nextContact })
+  }
 
-  const toggleStep = (index: number) => setExpandedStep((prev) => (prev === index ? null : index))
-
-  const handleCopy = async () => {
+  async function handleCopyLink() {
+    if (!tracking) return
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}/track-order?order=${sampleOrder.id}`)
-      setCopyStatus('Copied!')
-    } catch { setCopyStatus('Failed') }
+      await navigator.clipboard.writeText(`${window.location.origin}/track-order?order=${tracking.order_number}`)
+      setCopyStatus('Copied')
+    } catch {
+      setCopyStatus('Copy failed')
+    }
     window.setTimeout(() => setCopyStatus(''), 2000)
   }
 
-  const handleSaveNote = () => { setNoteSaved(true); window.setTimeout(() => setNoteSaved(false), 2000) }
+  useInterval(
+    () => {
+      if (activeLookup) {
+        void runLookup(activeLookup, { silent: true })
+      }
+    },
+    activeLookup && tracking && !isTerminalStatus(tracking.current_status) ? 30000 : null,
+  )
+
+  const banner = getBannerConfig(tracking?.current_status ?? '')
+  const trackingSteps = tracking?.tracking_steps ?? []
+  const completedSteps = trackingSteps.filter((step) => step.is_done).length
+  const progressRatio = trackingSteps.length > 0
+    ? Math.max(1, completedSteps + (trackingSteps.some((step) => step.is_current) ? 1 : 0)) / trackingSteps.length
+    : 0
+  const order = tracking?.order ?? null
 
   return (
     <div className="tracking-page">
       <section className="page">
         <div className="container">
-
-          {/* Breadcrumbs */}
           <nav className="track-breadcrumbs">
             <Link to="/">Home</Link>
-            <span>›</span>
-            <Link to="/account/orders">Orders</Link>
             <span>›</span>
             <span>Track order</span>
           </nav>
 
           <div className="track-page-header">
             <h1>Track your order</h1>
-            <p>See exactly where your medicines are_ from pharmacy shelf to your door.</p>
+            <p>Check your order status, item summary, and delivery progress from one place.</p>
           </div>
 
-          {/* ── Search card ─────────────────────────────── */}
-          <div className="track-card track-card--hero">
-            <div>
-              <div className="track-card__head">
-                <span className="track-card__icon">
-                  <SearchIcon />
-                </span>
-                <h2 className="track-card__title">Where is my order?</h2>
-              </div>
-              <p className="track-card__subtitle">You only need <strong>one</strong> of the fields below_ your Order ID or phone number.</p>
-            </div>
-
-            <div className="track-form">
-              <div className="track-form__row">
-                <div className="form-group">
-                  <label htmlFor="order-id">
-                    <span className="form-label__main">Order ID</span>
-                    <span className="form-label__hint">Looks like: ORD-2026-1042</span>
-                  </label>
-                  <input
-                    id="order-id"
-                    type="text"
-                    placeholder="ORD-2026-1042"
-                    value={orderId}
-                    onChange={(e) => { setOrderId(e.target.value); setError('') }}
-                  />
-                </div>
-                <div className="track-form__or"><span>or</span></div>
-                <div className="form-group">
-                  <label htmlFor="order-phone">
-                    <span className="form-label__main">Phone number</span>
-                    <span className="form-label__hint">Number used when ordering</span>
-                  </label>
-                  <input
-                    id="order-phone"
-                    type="tel"
-                    placeholder="+254 700 000 000"
-                    value={phone}
-                    onChange={(e) => { setPhone(e.target.value); setError('') }}
-                  />
-                </div>
-              </div>
-              {error && <p className="track-error">{error}</p>}
-              <div className="track-actions">
-                <button className="btn btn--primary track-btn--main" type="button" onClick={handleTrack} disabled={isTracking}>
-                  {isTracking
-                    ? 'Finding your order…'
-                    : <><SearchIcon /> Track my order</>
-                  }
-                </button>
-                <button className="btn btn--ghost btn--sm" type="button" onClick={applySample}>Try a demo</button>
-                <button className="btn btn--ghost btn--sm" type="button">Need help?</button>
-              </div>
-            </div>
-
-            {/* How it works */}
-            <div className="track-how">
-              <div className="track-how__step">
-                <div className="track-how__num">1</div>
-                <p>Enter your Order ID <em>or</em> phone number above</p>
-              </div>
-              <div className="track-how__line" />
-              <div className="track-how__step">
-                <div className="track-how__num">2</div>
-                <p>Tap <strong>"Track my order"</strong></p>
-              </div>
-              <div className="track-how__line" />
-              <div className="track-how__step">
-                <div className="track-how__num">3</div>
-                <p>See live updates and delivery info instantly</p>
-              </div>
-            </div>
-          </div>
-
-          {resultReady && (
-            <>
-              {/* ── Status banner ────────────────────── */}
-              <div className={`track-banner ${bannerCfg.cls}`}>
-                <div className="track-banner__icon">{bannerCfg.icon}</div>
-                <div className="track-banner__info">
-                  <p className="track-banner__status">{sampleOrder.status}</p>
-                  <p className="track-banner__eta">{sampleOrder.eta}</p>
-                  <p className="track-banner__meta">Updated {sampleOrder.lastUpdated} · {sampleOrder.payment}</p>
-                </div>
-                <div className="track-banner__courier">
-                  <p className="track-banner__courier-label">Your courier</p>
-                  <p className="track-banner__courier-name">{sampleOrder.rider.name}</p>
-                  <a href={`tel:${sampleOrder.rider.phone}`} className="btn track-banner__call">
-                    <PhoneIcon size={14} /> Call {sampleOrder.rider.name.split(' ')[0]}
-                  </a>
-                </div>
-              </div>
-
-              {/* ── Progress strip ───────────────────────── */}
-              <div className="track-progress">
-                {steps.map((step, index) => (
-                  <div key={step.title} className={`track-progress__step track-progress__step--${step.status}`}>
-                    <div className="track-progress__dot">
-                      {step.status === 'done' ? '✓' : step.status === 'current' ? '●' : index + 1}
-                    </div>
-                    <div>
-                      <p>{step.title}</p>
-                      <span>{step.time}</span>
-                    </div>
+          <div className="track-card track-hero">
+            <div className="track-hero__intro">
+              <span className="track-chip">Live order updates</span>
+              <h2>Find an order using the same details used at checkout</h2>
+              <p>Enter your order number together with your phone number or email address. We use both details to show the correct order without forcing sign-in.</p>
+              {searchParams.get('order') && (
+                <p className="track-inline-help">Your order number was pre-filled from the confirmation page.</p>
+              )}
+              <div className="track-hero__tips">
+                {HERO_TIPS.map((tip, index) => (
+                  <div key={tip} className="track-tip">
+                    <span className="track-tip__num">{index + 1}</span>
+                    <p>{tip}</p>
                   </div>
                 ))}
-                <div className="track-progress__bar">
-                  <span style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }} />
+              </div>
+            </div>
+
+            <form className="track-form" onSubmit={handleSubmit}>
+              <div className="track-form__grid">
+                <div className="form-group">
+                  <label htmlFor="order-number">
+                    <span className="form-label__main">Order number</span>
+                    <span className="form-label__hint">Example: ORD-1A2B3C4D</span>
+                  </label>
+                  <input
+                    id="order-number"
+                    type="text"
+                    placeholder="ORD-1A2B3C4D"
+                    value={orderNumber}
+                    onChange={(event) => {
+                      setOrderNumber(event.target.value)
+                      setError('')
+                    }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="order-contact">
+                    <span className="form-label__main">Phone number or email</span>
+                    <span className="form-label__hint">Use the same contact detail entered during checkout</span>
+                  </label>
+                  <input
+                    id="order-contact"
+                    type="text"
+                    placeholder="+254 700 000 000 or customer@email.com"
+                    value={contact}
+                    onChange={(event) => {
+                      setContact(event.target.value)
+                      setError('')
+                    }}
+                  />
                 </div>
               </div>
 
-              {/* ── Two-column layout ────────────────────── */}
+              {error && <p className="track-error">{error}</p>}
+
+              <div className="track-actions">
+                <button className="btn btn--primary track-btn--main" type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Checking order...' : <><SearchIcon /> Track order</>}
+                </button>
+                <Link to="/contact" className="btn btn--ghost btn--sm">Need help?</Link>
+              </div>
+            </form>
+          </div>
+
+          {!tracking && (
+            <div className="track-card track-empty">
+              <div className="track-card__head">
+                <span className="track-card__icon">
+                  <ClipboardIcon />
+                </span>
+                <h2 className="track-card__title">Where to find your order number</h2>
+              </div>
+              <p className="track-card__subtitle">Check your confirmation email, SMS, or the order confirmation screen after checkout. If you still cannot find it, use the contact page and support can help you locate the order.</p>
+              <Link to="/contact" className="btn btn--outline btn--sm">Go to Contact Us</Link>
+            </div>
+          )}
+
+          {tracking && order && (
+            <>
+              <div className={`track-banner ${banner.className}`}>
+                <div className="track-banner__icon">{banner.icon}</div>
+                <div className="track-banner__info">
+                  <p className="track-banner__status">{tracking.current_status_label}</p>
+                  <p className="track-banner__eta">
+                    {tracking.estimated_delivery || `Delivery method: ${order.delivery_method.replace(/_/g, ' ')}`}
+                  </p>
+                  <p className="track-banner__meta">
+                    Order {tracking.order_number} · Updated {formatDateTime(order.updated_at)}
+                  </p>
+                </div>
+                <div className="track-banner__actions">
+                  <button className="btn btn--ghost btn--sm" type="button" onClick={handleCopyLink}>
+                    {copyStatus || 'Copy tracking link'}
+                  </button>
+                  <Link to="/contact" className="btn btn--outline btn--sm">Contact support</Link>
+                </div>
+              </div>
+
+              {trackingSteps.length > 0 && (
+                <div className="track-progress">
+                  {trackingSteps.map((step, index) => (
+                    <div
+                      key={`${step.status}-${index}`}
+                      className={[
+                        'track-progress__step',
+                        step.is_done ? 'track-progress__step--done' : '',
+                        step.is_current ? 'track-progress__step--current' : '',
+                      ].join(' ').trim()}
+                    >
+                      <div className="track-progress__dot">
+                        {step.is_done ? '✓' : step.is_current ? '●' : index + 1}
+                      </div>
+                      <div>
+                        <p>{step.label}</p>
+                        <span>{step.completed_at ? formatDateTime(step.completed_at) : 'Pending'}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="track-progress__bar">
+                    <span style={{ width: `${Math.min(progressRatio * 100, 100)}%` }} />
+                  </div>
+                </div>
+              )}
+
               <div className="track-layout">
                 <div className="track-left">
-
-                  {/* Timeline */}
                   <div className="track-card">
                     <div className="track-card__head">
                       <span className="track-card__icon">
                         <TruckIcon />
                       </span>
-                      <h2 className="track-card__title">Delivery timeline</h2>
-                      <button className="btn btn--ghost btn--sm" type="button" onClick={handleCopy}>
-                        <LinkIcon size={14} /> {copyStatus || 'Share link'}
-                      </button>
+                      <h2 className="track-card__title">Tracking timeline</h2>
                     </div>
-                    <p className="track-card__subtitle">Tap any step to see more details.</p>
-                    {liveOrder && liveOrder.events.length > 0 && (
-                      <div className="timeline">
-                        {liveOrder.events.map((event, index) => (
-                          <button
-                            key={event.id}
-                            className={`timeline__item timeline__item--${index === 0 ? 'current' : 'done'}`}
-                            type="button"
-                            onClick={() => toggleStep(1000 + index)}
-                            aria-expanded={expandedStep === 1000 + index}
-                          >
-                            <div className="timeline__icon"><CheckIcon size={16} /></div>
-                            <div className="timeline__content">
-                              <div className="timeline__title">{event.status.replace(/_/g, ' ')}</div>
-                              {event.note && <div className="timeline__body">{event.note}</div>}
-                              <div className="timeline__time">
-                                {new Date(event.created_at).toLocaleString('en-KE')}
-                              </div>
-                            </div>
-                            <span className="timeline__chevron">
-                              {expandedStep === 1000 + index ? <ChevronUpIcon /> : <ChevronDownIcon />}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {(!liveOrder || liveOrder.events.length === 0) && (
+                    <p className="track-card__subtitle">Latest events from your order appear here.</p>
                     <div className="timeline">
-                      {steps.map((step, index) => (
-                        <button
-                          key={step.title}
-                          className={`timeline__item timeline__item--${step.status}`}
-                          type="button"
-                          onClick={() => toggleStep(index)}
-                          aria-expanded={expandedStep === index}
-                        >
-                          <div className="timeline__icon">
-                            {STEP_ICONS[step.title] ?? <PackageIcon />}
+                      {(tracking.events.length > 0 ? tracking.events : trackingSteps).map((entry, index) => {
+                        const isEvent = 'event_type' in entry
+                        const title = isEvent
+                          ? fallbackTimelineLabel(entry.event_type)
+                          : entry.label
+                        const body = isEvent
+                          ? entry.message || 'Order activity recorded.'
+                          : entry.completed_at
+                            ? 'Step completed.'
+                            : 'Waiting for this step.'
+                        const createdAt = isEvent
+                          ? entry.created_at
+                          : entry.completed_at
+                        const state = isEvent
+                          ? index === 0 ? 'current' : 'done'
+                          : entry.is_current ? 'current' : entry.is_done ? 'done' : 'upcoming'
+
+                        return (
+                          <div key={`${title}-${index}`} className={`timeline__item timeline__item--${state}`}>
+                            <div className="timeline__icon">
+                              {state === 'done' ? <CheckIcon size={16} /> : state === 'current' ? <TruckIcon size={16} /> : <PackageIcon size={16} />}
+                            </div>
+                            <div className="timeline__content">
+                              <div className="timeline__title">{title}</div>
+                              <div className="timeline__body">{body}</div>
+                              <div className="timeline__time">{createdAt ? formatDateTime(createdAt) : 'Awaiting update'}</div>
+                            </div>
                           </div>
-                          <div className="timeline__content">
-                            <div className="timeline__title">{step.title}</div>
-                            <div className="timeline__body">{step.body}</div>
-                            <div className="timeline__time">{step.time}</div>
-                            {expandedStep === index && (
-                              <div className="timeline__detail">
-                                Location: Nairobi CBD hub · Handler: {sampleOrder.rider.name}
-                              </div>
-                            )}
-                          </div>
-                          <span className="timeline__chevron">
-                            {expandedStep === index ? <ChevronUpIcon /> : <ChevronDownIcon />}
-                          </span>
-                        </button>
-                      ))}
+                        )
+                      })}
                     </div>
-                    )}
                   </div>
 
-                  {/* Delivery notes */}
                   <div className="track-card">
                     <div className="track-card__head">
                       <span className="track-card__icon">
-                        <ClipboardIcon />
+                        <MapPinIcon />
                       </span>
-                      <h3 className="track-card__title">Leave a note for your courier</h3>
+                      <h3 className="track-card__title">Delivery details</h3>
                     </div>
-                    <p className="track-card__subtitle">Gate locked? Prefer a specific time? Let them know here.</p>
-                    <textarea
-                      className="track-note"
-                      rows={3}
-                      value={deliveryNote}
-                      onChange={(e) => setDeliveryNote(e.target.value)}
-                      placeholder="e.g. Please call on arrival. Gate code is 1234. Leave with security if I'm not home."
-                    />
-                    <div className="track-actions" style={{ marginTop: '0.75rem' }}>
-                      <button className="btn btn--outline btn--sm" type="button" onClick={handleSaveNote}>Save note</button>
-                      {noteSaved && <span className="track-toast">Note saved!</span>}
+                    <div className="track-detail-list">
+                      <div>
+                        <span>Recipient</span>
+                        <strong>{`${order.shipping_first_name} ${order.shipping_last_name}`.trim() || 'Customer'}</strong>
+                      </div>
+                      <div>
+                        <span>Address</span>
+                        <strong>{order.shipping_address || 'Not available'}</strong>
+                      </div>
+                      <div>
+                        <span>Placed</span>
+                        <strong>{formatDateTime(order.placed_at)}</strong>
+                      </div>
+                      <div>
+                        <span>Delivery note</span>
+                        <strong>{order.delivery_notes || 'No delivery note was added for this order.'}</strong>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="track-right">
-
-                  {/* Order summary */}
                   <div className="track-card">
                     <div className="track-card__head">
                       <span className="track-card__icon">
                         <PackageIcon />
                       </span>
-                      <h3 className="track-card__title">What's in this order?</h3>
+                      <h3 className="track-card__title">Order summary</h3>
                     </div>
-                    <div className="track-detail">
-                      <div><span>Order ID</span><strong>{sampleOrder.id}</strong></div>
-                      <div><span>Delivery address</span><strong>{sampleOrder.address}</strong></div>
-                      <div><span>Payment method</span><strong>{sampleOrder.payment}</strong></div>
+                    <div className="track-summary-grid">
+                      <div className="track-summary-row">
+                        <span>Order number</span>
+                        <strong>{order.order_number}</strong>
+                      </div>
+                      <div className="track-summary-row">
+                        <span>Payment</span>
+                        <strong>{order.payment_method_label} · {order.payment_status_label}</strong>
+                      </div>
+                      <div className="track-summary-row">
+                        <span>Subtotal</span>
+                        <strong>{formatMoney(order.subtotal)}</strong>
+                      </div>
+                      <div className="track-summary-row">
+                        <span>Shipping</span>
+                        <strong>{formatMoney(order.shipping_fee)}</strong>
+                      </div>
+                      <div className="track-summary-row track-summary-row--total">
+                        <span>Total</span>
+                        <strong>{formatMoney(order.total)}</strong>
+                      </div>
                     </div>
+
                     <div className="track-items">
-                      {sampleOrder.items.map((item) => (
-                        <div key={item.name} className="track-item">
-                          <span className="track-item__name"><PillIcon size={13} /> {item.name}</span>
-                          <span>{item.qty}× · {item.price}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Notification toggles */}
-                  <div className="track-card">
-                    <div className="track-card__head">
-                      <span className="track-card__icon">
-                        <BellIcon />
-                      </span>
-                      <h3 className="track-card__title">Delivery alerts</h3>
-                    </div>
-                    <p className="track-card__subtitle">Choose how we notify you when your order moves.</p>
-                    <div className="track-toggles">
-                      {([
-                        { key: 'sms', icon: <PhoneIcon size={15} />, label: 'SMS', desc: 'Text message' },
-                        { key: 'whatsapp', icon: <MessageIcon size={15} />, label: 'WhatsApp', desc: 'Chat message' },
-                        { key: 'email', icon: <MailIcon size={15} />, label: 'Email', desc: 'Email message' },
-                      ] as const).map(({ key, icon, label, desc }) => (
-                        <div key={key} className="track-toggle-row">
-                          <div className="track-toggle-row__info">
-                            <span className="track-toggle-row__icon">{icon}</span>
-                            <div>
-                              <p className="track-toggle-row__label">{label}</p>
-                              <p className="track-toggle-row__desc">{desc}</p>
-                            </div>
+                      <div className="track-items__header">
+                        <span>Items</span>
+                        <strong>{order.items.length}</strong>
+                      </div>
+                      {order.items.map((item) => (
+                        <div key={item.id} className="track-item">
+                          <div className="track-item__copy">
+                            <span className="track-item__name">{item.product_name}</span>
+                            {item.variant_name && <span className="track-item__variant">{item.variant_name}</span>}
                           </div>
-                          <button
-                            role="switch"
-                            aria-checked={notifyPrefs[key]}
-                            className={`track-toggle-switch ${notifyPrefs[key] ? 'track-toggle-switch--on' : ''}`}
-                            onClick={() => setNotifyPrefs((prev) => ({ ...prev, [key]: !prev[key] }))}
-                            type="button"
-                            aria-label={`${label} updates`}
-                          >
-                            <span className="track-toggle-switch__thumb" />
-                          </button>
+                          <span>{item.quantity} x {formatMoney(item.subtotal)}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="track-actions" style={{ marginTop: '1rem' }}>
-                      <button className="btn btn--primary btn--sm" type="button">Save preferences</button>
-                    </div>
                   </div>
 
-                  {/* Help */}
                   <div className="track-card">
                     <div className="track-card__head">
                       <span className="track-card__icon track-card__icon--blue">
@@ -565,26 +490,34 @@ function OrderTrackingPage() {
                       </span>
                       <h3 className="track-card__title">Need help?</h3>
                     </div>
-                    <p className="track-card__subtitle">Our support team is here for you.</p>
+                    <p className="track-card__subtitle">If the details here do not look right, or you need help with delivery, use any of the support options below.</p>
                     <div className="track-help-links">
+                      <Link to="/contact" className="track-help-link">
+                        <span className="track-help-link__icon"><ClipboardIcon /></span>
+                        <div>
+                          <p className="track-help-link__label">Contact us</p>
+                          <p className="track-help-link__value">Open the support page</p>
+                        </div>
+                        <span className="track-help-link__arrow"><ArrowRightIcon /></span>
+                      </Link>
+                      <a href={`tel:${formatPhoneHref(settings.supportPhone)}`} className="track-help-link">
+                        <span className="track-help-link__icon"><PhoneIcon /></span>
+                        <div>
+                          <p className="track-help-link__label">Call us</p>
+                          <p className="track-help-link__value">{settings.supportPhone}</p>
+                        </div>
+                        <span className="track-help-link__arrow"><ArrowRightIcon /></span>
+                      </a>
                       {hasDistinctWhatsapp && (
-                        <a href={`tel:${formatPhoneHref(settings.supportPhone)}`} className="track-help-link">
-                          <span className="track-help-link__icon"><PhoneIcon /></span>
+                        <a href={`https://wa.me/${formatWhatsAppHref(settings.whatsappPhone)}`} className="track-help-link" target="_blank" rel="noreferrer">
+                          <span className="track-help-link__icon"><MessageIcon /></span>
                           <div>
-                            <p className="track-help-link__label">Call us</p>
-                            <p className="track-help-link__value">{settings.supportPhone}</p>
+                            <p className="track-help-link__label">WhatsApp</p>
+                            <p className="track-help-link__value">{settings.whatsappPhone}</p>
                           </div>
                           <span className="track-help-link__arrow"><ArrowRightIcon /></span>
                         </a>
                       )}
-                      <a href={`https://wa.me/${formatWhatsAppHref(settings.whatsappPhone)}`} className="track-help-link" target="_blank" rel="noreferrer">
-                        <span className="track-help-link__icon"><MessageIcon /></span>
-                        <div>
-                          <p className="track-help-link__label">WhatsApp</p>
-                          <p className="track-help-link__value">Chat with us now</p>
-                        </div>
-                        <span className="track-help-link__arrow"><ArrowRightIcon /></span>
-                      </a>
                       <a href={`mailto:${settings.supportEmail}`} className="track-help-link">
                         <span className="track-help-link__icon"><MailIcon /></span>
                         <div>

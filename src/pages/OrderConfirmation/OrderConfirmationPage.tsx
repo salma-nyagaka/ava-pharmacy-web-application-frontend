@@ -68,6 +68,7 @@ function OrderConfirmationPage() {
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [copiedOrderNumber, setCopiedOrderNumber] = useState(false)
 
   useEffect(() => {
     const stateId = (location.state as { orderId?: number } | null)?.orderId
@@ -121,6 +122,16 @@ function OrderConfirmationPage() {
     .filter(Boolean)
     .join(' ')
 
+  const handleCopyOrderNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(order.order_number)
+      setCopiedOrderNumber(true)
+      window.setTimeout(() => setCopiedOrderNumber(false), 1800)
+    } catch {
+      setCopiedOrderNumber(false)
+    }
+  }
+
   return (
     <div className="oc-page">
       <div className="container">
@@ -147,7 +158,22 @@ function OrderConfirmationPage() {
           </div>
           <div className="oc-banner__order-no">
             <span>Order number</span>
-            <strong>{order.order_number}</strong>
+            <div className="oc-banner__order-no-row">
+              <strong>{order.order_number}</strong>
+              <button
+                type="button"
+                className="oc-copy-btn"
+                onClick={() => void handleCopyOrderNumber()}
+                aria-label="Copy order number"
+                title="Copy order number"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="16" height="16">
+                  <rect x="9" y="9" width="10" height="10" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              </button>
+            </div>
+            {copiedOrderNumber && <small className="oc-banner__copy-state">Copied</small>}
           </div>
         </div>
 

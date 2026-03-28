@@ -1,6 +1,11 @@
-
 import { apiClient } from '../lib/apiClient'
-import { PrescriptionAuditEntry, PrescriptionRecord, createUploadedPrescription, loadPrescriptionRecords, savePrescriptionRecords } from '../data/prescriptions'
+import {
+  PrescriptionAuditEntry,
+  PrescriptionRecord,
+  createUploadedPrescription,
+  loadPrescriptionRecords,
+  savePrescriptionRecords,
+} from '../data/prescriptions'
 import { cartService } from './cartService'
 
 type UploadPayload = {
@@ -32,6 +37,15 @@ type ApiPrescriptionAudit = {
   timestamp: string
 }
 
+type ApiClarificationMessage = {
+  id: number
+  sender_role: 'patient' | 'pharmacist' | 'admin' | 'system'
+  sender_name?: string
+  sender_display?: string
+  message: string
+  created_at: string
+}
+
 type ApiPrescription = {
   id: number
   reference: string
@@ -45,6 +59,8 @@ type ApiPrescription = {
   files: ApiPrescriptionFile[]
   items: ApiPrescriptionItem[]
   notes: string
+  clarification_message?: string
+  clarification_messages?: ApiClarificationMessage[]
   audit_logs: ApiPrescriptionAudit[]
 }
 
@@ -128,6 +144,15 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
       qty: item.quantity ?? 0,
     })),
     notes: record.notes || '',
+    clarificationMessage: record.clarification_message || '',
+    clarificationMessages: (record.clarification_messages || []).map((entry) => ({
+      id: entry.id,
+      senderRole: entry.sender_role,
+      senderName: entry.sender_name || '',
+      senderDisplay: entry.sender_display || entry.sender_name || 'Care team',
+      message: entry.message,
+      createdAt: entry.created_at,
+    })),
     audit: (record.audit_logs || []).map((entry) => ({
       time: entry.timestamp,
       action: entry.action,
@@ -265,6 +290,10 @@ export const prescriptionService = {
     const formData = new FormData()
     files.forEach((file) => formData.append('files', file))
     await apiClient.patch(`/prescriptions/${backendId}/resubmit/`, formData)
+    return prescriptionService.list()
+  },
+  replyToClarification: async (backendId: number, message: string) => {
+    await apiClient.post(`/prescriptions/${backendId}/clarification-replies/`, { message })
     return prescriptionService.list()
   },
   pharmacistAssign: async (backendId: number) => {
