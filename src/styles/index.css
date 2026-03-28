@@ -372,17 +372,11 @@ input, textarea, select {
 }
 
 .section__title {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 1.15rem + 1vw, 1.85rem);
   font-weight: 700;
   color: var(--color-text-primary);
   margin-bottom: 0.75rem;
-}
-
-.section__subtitle {
-  font-size: 1.0625rem;
-  color: var(--color-text-secondary);
-  max-width: 600px;
-  margin: 0 auto;
+  line-height: 1.2;
 }
 
 /* Responsive breakpoints reference:
@@ -405,6 +399,6 @@ input, textarea, select {
   }
 
   .section__title {
-    font-size: 1.75rem;
+    font-size: 1.4rem;
   }
 }

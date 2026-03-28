@@ -1,52 +1,58 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import PromotionFeatureCard from '../../components/PromotionFeatureCard/PromotionFeatureCard'
 import easterBanner from '../../assets/images/banner/easter.png'
+import easterBannerMobile from '../../assets/images/banner/easter2.png'
 import uncoverBanner from '../../assets/images/banner/uncover.png'
+import uncoverBannerMobile from '../../assets/images/banner/uncover2.png'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
 import { mapApiProduct, useProducts } from '../../hooks/useProducts'
-import { usePromotions } from '../../hooks/usePromotions'
 import { useCatalog } from '../../context/CatalogContext'
 import { useAuth } from '../../context/AuthContext'
 import type { CatalogProduct } from '../../data/products'
 import { categoryCardImages } from '../../data/categoryCardImages'
-import { buildPromotionSummary, filterProductsByPromotion, getPromotionScopeEyebrow } from '../../services/promotionService'
 import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import '../../styles/pages/HomePage.css'
 
 type HeroSlide = {
   id: number
   image: string
+  mobileImage: string
   alt: string
   link: string
+  background: string
 }
 
 const bannerSlides: HeroSlide[] = [
   {
     id: 1,
     image: easterBanner,
+    mobileImage: easterBannerMobile,
     alt: 'Ava Pharmacy Easter offers banner',
     link: '/offers',
+    background: '#d8f3fb',
   },
   {
     id: 2,
     image: uncoverBanner,
+    mobileImage: uncoverBannerMobile,
     alt: 'Ava Pharmacy uncover skincare banner',
     link: '/products',
+    background: '#e7d3be',
   },
 ]
+
+const FEATURED_PRODUCTS_LIMIT = 5
+const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
+const isEligibleFeaturedProduct = (product: CatalogProduct) => isAvailableProduct(product) && !product.requiresPrescription
 
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)
   const [addedId, setAddedId] = useState<number | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
-  const [newsletterEmail, setNewsletterEmail] = useState('')
-  const [newsletterError, setNewsletterError] = useState('')
-  const [newsletterSuccess, setNewsletterSuccess] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
   const navigate = useNavigate()
   const { categories } = useCatalog()
@@ -61,8 +67,7 @@ function HomePage() {
   ]
 
   const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
-  const { promotions } = usePromotions()
-  const [featuredProducts, setFeaturedProducts] = useState<CatalogProduct[]>([])
+  const [featuredSeedProducts, setFeaturedSeedProducts] = useState<CatalogProduct[]>([])
   const visibleCategories = categories.filter((category) => {
     const normalizedName = category.name.trim().toLowerCase()
     const normalizedSlug = category.slug.trim().toLowerCase()
@@ -72,7 +77,6 @@ function HomePage() {
   const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name'>) =>
     `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
 
-  const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
   const isDealProduct = (product: CatalogProduct) => product.originalPrice !== null && product.originalPrice > product.price
   const getDealSavings = (product: CatalogProduct) => (product.originalPrice ?? product.price) - product.price
   const getProductBadge = (product: CatalogProduct, section: 'deals' | 'featured' | 'new') => {
@@ -109,16 +113,15 @@ function HomePage() {
     void fetchFeaturedProducts()
       .then((items) => {
         if (!isMounted) return
-        setFeaturedProducts(
+        setFeaturedSeedProducts(
           items
             .map(mapApiProduct)
-            .filter((product) => isAvailableProduct(product) && !product.requiresPrescription)
-            .slice(0, 8),
+            .filter(isEligibleFeaturedProduct),
         )
       })
       .catch(() => {
         if (!isMounted) return
-        setFeaturedProducts([])
+        setFeaturedSeedProducts([])
       })
 
     return () => {
@@ -126,28 +129,37 @@ function HomePage() {
     }
   }, [])
 
+  const featuredProducts = (() => {
+    const seen = new Set<number>()
+    const merged: CatalogProduct[] = []
+
+    const appendUnique = (products: CatalogProduct[]) => {
+      products.forEach((product) => {
+        if (seen.has(product.id) || !isEligibleFeaturedProduct(product)) return
+        seen.add(product.id)
+        merged.push(product)
+      })
+    }
+
+    appendUnique(featuredSeedProducts)
+    appendUnique(catalogProducts)
+
+    return merged.slice(0, FEATURED_PRODUCTS_LIMIT)
+  })()
+
   const featuredProductIds = new Set(featuredProducts.map((product) => product.id))
 
   const newProducts = catalogProducts
-    .filter((product) => isAvailableProduct(product) && !featuredProductIds.has(product.id))
+    .filter((product) => isAvailableProduct(product) && !featuredProductIds.has(product.id) && !isDealProduct(product))
     .slice(0, 5)
 
   const offerDeals = [...catalogProducts]
     .filter((product) => isAvailableProduct(product) && isDealProduct(product))
     .sort((a, b) => getDealSavings(b) - getDealSavings(a))
-  const featuredPromotions = [...promotions]
-    .filter((promotion) => promotion.image)
-    .sort((a, b) => b.priority - a.priority || a.end_date.localeCompare(b.end_date))
-    .slice(0, 4)
+  const spotlightOfferProducts = offerDeals.slice(0, 5)
 
   const formatPrice = (price: number) => {
     return `KSh ${price.toLocaleString()}`
-  }
-
-  const formatOfferDate = (value: string) => {
-    const parsed = new Date(value)
-    if (Number.isNaN(parsed.getTime())) return 'Ends soon'
-    return `Ends ${parsed.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}`
   }
 
   const renderStars = (rating: number) => {
@@ -238,28 +250,6 @@ function HomePage() {
       event.preventDefault()
       scrollCategories(direction)
     }
-  }
-
-  const handleNewsletterSubmit = (event: React.FormEvent) => {
-    event.preventDefault()
-    setNewsletterError('')
-    setNewsletterSuccess(false)
-
-    const email = newsletterEmail.trim()
-    if (!email) {
-      setNewsletterError('Email is required')
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      setNewsletterError('Please enter a valid email address')
-      return
-    }
-
-    setNewsletterSuccess(true)
-    setNewsletterEmail('')
-    setTimeout(() => setNewsletterSuccess(false), 2500)
   }
 
   const handleAddToCart = async (product: CatalogProduct) => {
@@ -385,14 +375,22 @@ function HomePage() {
                 <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
               )}
             </div>
-            <button
-              className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`}
-              type="button"
-              title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
-              onClick={() => void handleAddToCart(product)}
-            >
-              {product.requiresPrescription ? 'Request with prescription' : addedId === product.id ? 'Added!' : 'Add to cart'}
+            <div className="product-card__buttons">
+              <Link
+                to={`/product/${product.id}`}
+                className="product-card__view-details"
+              >
+                View details
+              </Link>
+              <button
+                className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`}
+                type="button"
+                title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
+                onClick={() => void handleAddToCart(product)}
+              >
+              {product.requiresPrescription ? 'Add Prescription' : addedId === product.id ? 'Added!' : 'Add to cart'}
             </button>
+            </div>
           </div>
         </div>
       </article>
@@ -411,15 +409,23 @@ function HomePage() {
           style={{ transform: `translateX(-${currentSlide * 100}%)` }}
         >
           {bannerSlides.map((slide, index) => (
-            <Link key={slide.id} to={slide.link} className="hero-carousel__slide">
-              <img
-                src={slide.image}
-                alt={slide.alt}
-                className="hero-carousel__img"
-                loading={index === 0 ? 'eager' : 'lazy'}
-                decoding="async"
-                fetchPriority={index === 0 ? 'high' : 'auto'}
-              />
+            <Link
+              key={slide.id}
+              to={slide.link}
+              className="hero-carousel__slide"
+              style={{ background: slide.background }}
+            >
+              <picture className="hero-carousel__picture">
+                <source media="(max-width: 768px)" srcSet={slide.mobileImage} />
+                <img
+                  src={slide.image}
+                  alt={slide.alt}
+                  className="hero-carousel__img"
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  fetchPriority={index === 0 ? 'high' : 'auto'}
+                />
+              </picture>
             </Link>
           ))}
         </div>
@@ -491,7 +497,6 @@ function HomePage() {
           <div className="container">
             <div className="section__header">
               <h2 className="section__title">Shop by Category</h2>
-              <p className="section__subtitle">Browse our wide range of healthcare products and find what you need</p>
             </div>
             <div className="categories__carousel">
               <button
@@ -521,9 +526,9 @@ function HomePage() {
                       </div>
                       <div className="category-card__body">
                         <h3 className="category-card__name">{cat.name}</h3>
-                        <p className="category-card__description">
+                        {/* <p className="category-card__description">
                           {cat.description || `Explore trusted ${cat.name.toLowerCase()} picks curated for everyday care.`}
-                        </p>
+                        </p> */}
                         <div className="category-card__footer">
                           {/* <span className="category-card__eyebrow">
                             {cat.subcategories.length > 0
@@ -554,49 +559,28 @@ function HomePage() {
           </div>
         </section>
       )}
-
-
-
-      {/* Hot Offers - urgency / savings */}
       <section className="section offers-preview home-section--offers">
         <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">Hot Offers</h2>
-            <p className="section__subtitle">
-              This week&apos;s strongest pharmacy savings, refreshed from the live campaigns in Deals.
-            </p>
-          </div>
-          {featuredPromotions.length === 0 ? (
+          {/* Hot Offers campaign header and promotion cards are intentionally hidden for now. */}
+          {spotlightOfferProducts.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-state__message">No live offer campaigns are available right now.</p>
+              <p className="empty-state__message">No live offers are available right now.</p>
             </div>
           ) : (
-            <div className="promotion-feature-grid">
-              {featuredPromotions.map((promotion) => {
-                const matchingDeals = filterProductsByPromotion(offerDeals, promotion)
-                return (
-                  <PromotionFeatureCard
-                    key={promotion.id}
-                    href={`/offers?promotion=${promotion.id}`}
-                    image={promotion.image}
-                    badge={promotion.badge}
-                    eyebrow={getPromotionScopeEyebrow(promotion)}
-                    title={promotion.title}
-                    description={buildPromotionSummary(promotion, matchingDeals.length)}
-                    highlights={[
-                      matchingDeals.length > 0
-                        ? `${matchingDeals.length} discounted line${matchingDeals.length === 1 ? '' : 's'}`
-                        : 'Live now',
-                      promotion.code ? `Code ${promotion.code}` : formatOfferDate(promotion.end_date),
-                    ]}
-                    ctaLabel="Shop now"
-                  />
-                )
-              })}
-            </div>
+            <>
+              <div className="section__header">
+                <h3 className="section__title" style={{ fontSize: '1.3rem' }}>Products On Offer</h3>
+              </div>
+              <div className="products__grid products__grid--compact">
+                {spotlightOfferProducts.map((product) => renderProductCard(product, 'deals'))}
+              </div>
+            </>
           )}
           <div className="featured-products__cta">
-            <Link to="/offers" className="btn btn--outline btn--lg">View All Offers</Link>
+            <Link to="/offers" className="featured-products__link-cta">
+              View All Offers
+              <span aria-hidden="true">→</span>
+            </Link>
           </div>
         </div>
       </section>
@@ -605,14 +589,11 @@ function HomePage() {
       <section className="section featured-products home-section--featured">
         <div className="container">
           <div className="section__header">
-            <h2 className="section__title">Featured Products</h2>
-            <p className="section__subtitle">
-              Top-rated favourites customers trust most, with bestsellers filling in when reviews are still building.
-            </p>
+            <h2 className="section__title">Top Rated Products</h2>
           </div>
           {featuredProducts.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-state__message">No featured products available at the moment.</p>
+              <p className="empty-state__message">No top rated products available at the moment.</p>
             </div>
           ) : (
             <div className="products__grid">
@@ -715,9 +696,6 @@ function HomePage() {
         <div className="container">
           <div className="section__header">
             <h2 className="section__title">New Products</h2>
-            <p className="section__subtitle">
-              Latest arrivals added to the catalog, separate from featured picks.
-            </p>
           </div>
           {newProducts.length === 0 ? (
             <div className="empty-state">
@@ -729,8 +707,9 @@ function HomePage() {
             </div>
           )}
           <div className="featured-products__cta">
-            <Link to="/products" className="btn btn--primary btn--lg">
-              View More
+            <Link to="/products" className="featured-products__link-cta">
+              View All New Products
+              <span aria-hidden="true">→</span>
             </Link>
           </div>
         </div>
@@ -738,47 +717,6 @@ function HomePage() {
 
 
       <SupportShortcuts />
-
-      {/* Newsletter Section */}
-      <section className="newsletter">
-        <div className="container">
-          <div className="newsletter__content">
-            <div className="newsletter__text">
-              <h2 className="newsletter__title">Subscribe to Our Newsletter</h2>
-              <p className="newsletter__description">
-                Get exclusive offers and new product updates delivered straight to your inbox
-              </p>
-            </div>
-            <form className="newsletter__form" onSubmit={handleNewsletterSubmit}>
-              <div className="newsletter__input-wrapper">
-                <input
-                  type="email"
-                  placeholder="Enter your email address"
-                  className="newsletter__input"
-                  value={newsletterEmail}
-                  onChange={(e) => setNewsletterEmail(e.target.value)}
-                  aria-label="Email address"
-                  aria-invalid={!!newsletterError}
-                  aria-describedby={newsletterError ? 'newsletter-error' : undefined}
-                />
-                {newsletterError && (
-                  <span className="newsletter__error" id="newsletter-error" role="alert">
-                    {newsletterError}
-                  </span>
-                )}
-                {newsletterSuccess && (
-                  <span className="newsletter__success" role="status">
-                    Thank you for subscribing!
-                  </span>
-                )}
-              </div>
-              <button type="submit" className="btn btn--primary">
-                Subscribe
-              </button>
-            </form>
-          </div>
-        </div>
-      </section>
 
       {/* WhatsApp FAB */}
       <a

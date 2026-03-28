@@ -14,6 +14,93 @@
   padding: 3.5rem 0 3rem;
 }
 
+.footer__newsletter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem 2rem;
+  margin-bottom: 2.5rem;
+  padding: 1.4rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(8px);
+}
+
+.footer__newsletter-copy {
+  max-width: 34rem;
+}
+
+.footer__newsletter-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.footer__newsletter-description {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.footer__newsletter-form {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: min(100%, 480px);
+}
+
+.footer__newsletter-input-wrap {
+  position: relative;
+  flex: 1;
+}
+
+.footer__newsletter-input {
+  width: 100%;
+  min-height: 46px;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  outline: none;
+}
+
+.footer__newsletter-input::placeholder {
+  color: #64748b;
+}
+
+.footer__newsletter-input:focus {
+  border-color: rgba(232, 23, 80, 0.5);
+  box-shadow: 0 0 0 3px rgba(232, 23, 80, 0.12);
+}
+
+.footer__newsletter-error,
+.footer__newsletter-success {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.footer__newsletter-error {
+  color: #fecaca;
+}
+
+.footer__newsletter-success {
+  color: #bbf7d0;
+}
+
+.footer__newsletter-button {
+  min-height: 46px;
+  flex-shrink: 0;
+}
+
 .footer__grid {
   display: grid;
   grid-template-columns: 1.6fr 1fr 1fr 1.2fr;
@@ -231,6 +318,15 @@ a.footer__contact-item:hover {
 
 /* Responsive */
 @media (max-width: 1024px) {
+  .footer__newsletter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .footer__newsletter-form {
+    width: 100%;
+  }
+
   .footer__grid {
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
@@ -257,6 +353,19 @@ a.footer__contact-item:hover {
 @media (max-width: 768px) {
   .footer__main {
     padding: 2.5rem 0 2rem;
+  }
+
+  .footer__newsletter {
+    padding: 1.15rem;
+    margin-bottom: 2rem;
+  }
+
+  .footer__newsletter-form {
+    flex-direction: column;
+  }
+
+  .footer__newsletter-button {
+    width: 100%;
   }
 
   .footer__grid {

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
 import { SearchableMultiSelect } from '../../components/SearchableMultiSelect/SearchableMultiSelect'
@@ -158,7 +158,7 @@ function isFieldErrorMap(value: unknown): value is Record<string, string | strin
 }
 
 type ProductFormPayload =
-  Pick<ProductCreatePayload, 'name' | 'slug' | 'sku' | 'price' | 'is_active' | 'requires_prescription'>
+  Pick<ProductCreatePayload, 'name' | 'slug' | 'sku' | 'is_active' | 'requires_prescription'>
   & Partial<ProductCreatePayload>
 
 const DOSAGE_UNIT_OPTIONS = [
@@ -217,6 +217,7 @@ function normalizeDosageFrequencyValue(value?: string | null): string {
 }
 
 function ProductManagement() {
+  const [searchParams] = useSearchParams()
   const [products, setProducts] = useState<ApiProduct[]>([])
   const [brands, setBrands] = useState<ApiBrand[]>([])
   const [categories, setCategories] = useState<ApiProductCategory[]>([])
@@ -241,8 +242,6 @@ function ProductManagement() {
   const [productBarcode, setProductBarcode] = useState('')
   const [productPosProductId, setProductPosProductId] = useState('')
   const [productStrength, setProductStrength] = useState('')
-  const [productPrice, setProductPrice] = useState('')
-  const [productCostPrice, setProductCostPrice] = useState('')
   const [productSubcategoryId, setProductSubcategoryId] = useState<number | ''>('')
   const [productBrandId, setProductBrandId] = useState<number | ''>('')
   const [productHealthConcernIds, setProductHealthConcernIds] = useState<number[]>([])
@@ -256,8 +255,6 @@ function ProductManagement() {
   const [dosageUnit, setDosageUnit] = useState('')
   const [dosageFrequency, setDosageFrequency] = useState('')
   const [dosageNotes, setDosageNotes] = useState('')
-  const [productImageFile, setProductImageFile] = useState<File | null>(null)
-  const [productImagePreviewSrc, setProductImagePreviewSrc] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
   const [variants, setVariants] = useState<ApiProductVariant[]>([])
   const [variantsLoading, setVariantsLoading] = useState(false)
@@ -269,9 +266,12 @@ function ProductManagement() {
   const [variantBarcode, setVariantBarcode] = useState('')
   const [variantPosProductId, setVariantPosProductId] = useState('')
   const [variantPrice, setVariantPrice] = useState('')
+  const [variantCostPrice, setVariantCostPrice] = useState('')
   const [variantOriginalPrice, setVariantOriginalPrice] = useState('')
   const [variantIsActive, setVariantIsActive] = useState(true)
   const [variantAttributesText, setVariantAttributesText] = useState('{}')
+  const [variantImageFile, setVariantImageFile] = useState<File | null>(null)
+  const [variantImagePreviewSrc, setVariantImagePreviewSrc] = useState<string | null>(null)
   const [variantSaving, setVariantSaving] = useState(false)
   const [variantFormError, setVariantFormError] = useState('')
   const [showBrandModal, setShowBrandModal] = useState(false)
@@ -285,11 +285,17 @@ function ProductManagement() {
   const [deleteError, setDeleteError] = useState('')
   const [activeTab, setActiveTab] = useState<'products' | 'brands'>('products')
   const [editingBrand, setEditingBrand] = useState<ApiBrand | null>(null)
+  const [handledProductQuery, setHandledProductQuery] = useState('')
+  const productQueryKey = searchParams.toString()
 
 
   useEffect(() => {
     loadAll()
   }, [])
+
+  useEffect(() => {
+    setHandledProductQuery('')
+  }, [productQueryKey])
 
   async function loadAll() {
     setLoading(true)
@@ -316,6 +322,19 @@ function ProductManagement() {
     }
   }
 
+  useEffect(() => {
+    if (loading || activeTab !== 'products') return
+
+    const productId = searchParams.get('product')
+    if (!productId || handledProductQuery === productId) return
+
+    const target = products.find((product) => String(product.id) === productId)
+    if (!target) return
+
+    openEditModal(target, { openVariantForm: searchParams.get('variant') === 'new' })
+    setHandledProductQuery(productId)
+  }, [activeTab, handledProductQuery, loading, productQueryKey, products, searchParams])
+
   const resetForm = () => {
     setProductName('')
     setProductSlug('')
@@ -323,8 +342,6 @@ function ProductManagement() {
     setProductBarcode('')
     setProductPosProductId('')
     setProductStrength('')
-    setProductPrice('')
-    setProductCostPrice('')
     setProductSubcategoryId(subcategories[0]?.id ?? '')
     setProductBrandId(brands[0]?.id ?? '')
     setProductHealthConcernIds([])
@@ -338,7 +355,6 @@ function ProductManagement() {
     setDosageUnit('')
     setDosageFrequency('')
     setDosageNotes('')
-    setProductImageFile(null)
     setEditingProduct(null)
     setFormError('')
     setVariants([])
@@ -351,9 +367,12 @@ function ProductManagement() {
     setVariantBarcode('')
     setVariantPosProductId('')
     setVariantPrice('')
+    setVariantCostPrice('')
     setVariantOriginalPrice('')
     setVariantIsActive(true)
     setVariantAttributesText('{}')
+    setVariantImageFile(null)
+    setVariantImagePreviewSrc(null)
     setVariantSaving(false)
     setVariantFormError('')
   }
@@ -391,7 +410,7 @@ function ProductManagement() {
     setShowBrandModal(true)
   }
 
-  const openEditModal = (product: ApiProduct) => {
+  const openEditModal = (product: ApiProduct, options?: { openVariantForm?: boolean }) => {
     const resolvedBrand = resolveProductBrand(product)
     const resolvedSubcategory = resolveProductSubcategory(product)
 
@@ -401,8 +420,6 @@ function ProductManagement() {
     setProductBarcode(product.barcode ?? '')
     setProductPosProductId(product.pos_product_id ?? '')
     setProductStrength(product.strength ?? '')
-    setProductPrice(product.price)
-    setProductCostPrice(product.cost_price ?? '')
     setProductSubcategoryId(resolvedSubcategory?.id ?? product.subcategory_id ?? (subcategories[0]?.id ?? ''))
     setProductBrandId(resolvedBrand?.id ?? product.brand?.id ?? (brands[0]?.id ?? ''))
     setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
@@ -416,16 +433,17 @@ function ProductManagement() {
     setDosageUnit(normalizeDosageUnitValue(product.dosage_unit))
     setDosageFrequency(normalizeDosageFrequencyValue(product.dosage_frequency))
     setDosageNotes(product.dosage_notes ?? '')
-    setProductImageFile(null)
-    setProductImagePreviewSrc(product.image ?? null)
     setEditingProduct(product)
     setFormError('')
     setVariants([])
     setVariantsError('')
-    setShowVariantForm(false)
+    setShowVariantForm(Boolean(options?.openVariantForm))
     setEditingVariant(null)
     void loadVariants(product.id)
     setShowAddModal(true)
+    if (options?.openVariantForm) {
+      resetVariantForm()
+    }
   }
 
   const loadVariants = async (productId: number) => {
@@ -448,9 +466,12 @@ function ProductManagement() {
     setVariantBarcode('')
     setVariantPosProductId('')
     setVariantPrice('')
+    setVariantCostPrice('')
     setVariantOriginalPrice('')
     setVariantIsActive(true)
     setVariantAttributesText('{}')
+    setVariantImageFile(null)
+    setVariantImagePreviewSrc(null)
     setVariantFormError('')
   }
 
@@ -466,9 +487,12 @@ function ProductManagement() {
     setVariantBarcode(variant.barcode ?? '')
     setVariantPosProductId(variant.pos_product_id ?? '')
     setVariantPrice(variant.price ?? '')
+    setVariantCostPrice(variant.cost_price ?? '')
     setVariantOriginalPrice(variant.original_price ?? '')
     setVariantIsActive(Boolean(variant.is_active))
     setVariantAttributesText(JSON.stringify(variant.attributes ?? {}, null, 2))
+    setVariantImageFile(null)
+    setVariantImagePreviewSrc(variant.image ?? null)
     setVariantFormError('')
     setShowVariantForm(true)
   }
@@ -502,8 +526,13 @@ function ProductManagement() {
 
     const skuValue = variantSku.trim() || generateSku(variantName)
     const priceValue = variantPrice ? Number(variantPrice) : undefined
-    if (variantPrice && !Number.isFinite(priceValue)) {
+    if (!variantPrice.trim() || !Number.isFinite(priceValue)) {
       setVariantFormError('Variant price must be a valid number.')
+      return
+    }
+    const costPriceValue = variantCostPrice ? Number(variantCostPrice) : undefined
+    if (variantCostPrice && !Number.isFinite(costPriceValue)) {
+      setVariantFormError('Bought at price must be a valid number.')
       return
     }
     const originalPriceValue = variantOriginalPrice ? Number(variantOriginalPrice) : undefined
@@ -519,19 +548,42 @@ function ProductManagement() {
       pos_product_id: variantPosProductId.trim(),
       attributes,
       price: priceValue,
+      cost_price: costPriceValue,
       original_price: originalPriceValue,
       is_active: variantIsActive,
+    }
+
+    const buildVariantFormData = (variantPayload: ProductVariantPayload) => {
+      const formData = new FormData()
+      formData.append('name', variantPayload.name)
+      formData.append('sku', variantPayload.sku)
+      formData.append('barcode', variantPayload.barcode ?? '')
+      formData.append('pos_product_id', variantPayload.pos_product_id ?? '')
+      formData.append('attributes', JSON.stringify(variantPayload.attributes ?? {}))
+      formData.append('price', String(variantPayload.price ?? ''))
+      formData.append('is_active', String(variantPayload.is_active ?? true))
+      if (variantPayload.cost_price !== undefined) formData.append('cost_price', String(variantPayload.cost_price))
+      if (variantPayload.original_price !== undefined) formData.append('original_price', String(variantPayload.original_price))
+      if (variantImageFile) formData.append('image', variantImageFile)
+      return formData
     }
 
     setVariantSaving(true)
     setVariantFormError('')
     try {
+      const requestPayload = variantImageFile ? buildVariantFormData(payload) : payload
       if (editingVariant) {
-        const updated = await adminProductService.updateProductVariant(editingProduct.id, editingVariant.id, payload)
+        const updated = await adminProductService.updateProductVariant(editingProduct.id, editingVariant.id, requestPayload)
         setVariants((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
       } else {
-        const created = await adminProductService.createProductVariant(editingProduct.id, payload)
+        const created = await adminProductService.createProductVariant(editingProduct.id, requestPayload)
         setVariants((prev) => [...prev, created])
+      }
+      const refreshedProducts = await adminProductService.listProducts({ product_id: String(editingProduct.id) })
+      const refreshed = refreshedProducts[0]
+      if (refreshed) {
+        setProducts((prev) => prev.map((product) => (product.id === refreshed.id ? refreshed : product)))
+        setEditingProduct(refreshed)
       }
       setShowVariantForm(false)
       resetVariantForm()
@@ -548,6 +600,12 @@ function ProductManagement() {
     try {
       await adminProductService.deleteProductVariant(editingProduct.id, variant.id)
       setVariants((prev) => prev.filter((row) => row.id !== variant.id))
+      const refreshedProducts = await adminProductService.listProducts({ product_id: String(editingProduct.id) })
+      const refreshed = refreshedProducts[0]
+      if (refreshed) {
+        setProducts((prev) => prev.map((product) => (product.id === refreshed.id ? refreshed : product)))
+        setEditingProduct(refreshed)
+      }
     } catch {
       setVariantsError('Failed to delete variant.')
     }
@@ -556,7 +614,6 @@ function ProductManagement() {
   const handleSaveProduct = async (e: FormEvent) => {
     e.preventDefault()
     if (!productName.trim()) { setFormError('Product name is required.'); return }
-    if (!productPrice) { setFormError('Price is required.'); return }
     if (productFormMeta?.requires_pos_product_id && !productPosProductId.trim()) {
       setFormError('POS Product ID is required for this POS link strategy.')
       return
@@ -573,10 +630,7 @@ function ProductManagement() {
       setFormError(subcategories.length === 0 ? 'Create a subcategory before adding a product.' : 'Subcategory is required.')
       return
     }
-    if (!editingProduct && !productImageFile) { setFormError('Product image is required.'); return }
 
-    const priceValue = Number(productPrice)
-    const costPriceValue = productCostPrice ? Number(productCostPrice) : undefined
     const features = parseFeatureLines(productFeaturesText)
     const sku = productSku.trim() || generateSku(productName)
     const slug = productSlug.trim() || generateSlug(productName)
@@ -587,8 +641,6 @@ function ProductManagement() {
       barcode: productBarcode.trim(),
       pos_product_id: productPosProductId.trim(),
       strength: productStrength.trim(),
-      price: priceValue,
-      cost_price: costPriceValue,
       brand_id: Number(productBrandId),
       subcategory_id: Number(productSubcategoryId),
       health_concern_ids: productHealthConcernIds,
@@ -619,7 +671,6 @@ function ProductManagement() {
       formData.append('sku', payload.sku)
       formData.append('barcode', payload.barcode ?? '')
       formData.append('pos_product_id', payload.pos_product_id ?? '')
-      formData.append('price', String(payload.price))
       formData.append('is_active', String(payload.is_active))
       formData.append('requires_prescription', String(payload.requires_prescription))
       formData.append('strength', payload.strength ?? '')
@@ -632,11 +683,9 @@ function ProductManagement() {
       formData.append('dosage_frequency', payload.dosage_frequency ?? '')
       formData.append('dosage_notes', payload.dosage_notes ?? '')
 
-      if (payload.cost_price !== undefined) formData.append('cost_price', String(payload.cost_price))
       if (payload.brand_id !== null && payload.brand_id !== undefined) formData.append('brand_id', String(payload.brand_id))
       if (payload.subcategory_id !== null && payload.subcategory_id !== undefined) formData.append('subcategory_id', String(payload.subcategory_id))
       productHealthConcernIds.forEach((id) => formData.append('health_concern_ids', String(id)))
-      if (productImageFile) formData.append('image', productImageFile)
       return formData
     }
 
@@ -644,15 +693,15 @@ function ProductManagement() {
     setFormError('')
     try {
       if (editingProduct) {
-        const requestPayload = productImageFile ? buildProductFormData(updatePayload) : updatePayload
-        const updated = await adminProductService.updateProduct(editingProduct.id, requestPayload)
+        const updated = await adminProductService.updateProduct(editingProduct.id, updatePayload)
         setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? updated : p)))
+        setShowAddModal(false)
       } else {
         const requestPayload = buildProductFormData(createPayload)
         const created = await adminProductService.createProduct(requestPayload)
         setProducts((prev) => [created, ...prev])
+        openEditModal(created, { openVariantForm: true })
       }
-      setShowAddModal(false)
     } catch (err: unknown) {
       type ApiErr = {
         response?: {
@@ -702,31 +751,29 @@ function ProductManagement() {
   }
 
   useEffect(() => {
-    if (!productImageFile) {
-      setProductImagePreviewSrc(editingProduct?.image ?? null)
-      return
-    }
-    const url = URL.createObjectURL(productImageFile)
-    setProductImagePreviewSrc(url)
+    if (!variantImageFile) return undefined
+    const url = URL.createObjectURL(variantImageFile)
+    setVariantImagePreviewSrc(url)
     return () => URL.revokeObjectURL(url)
-  }, [editingProduct, productImageFile])
+  }, [variantImageFile])
 
-  const handleProductImageChange = async (file: File | null) => {
+  const handleVariantImageChange = async (file: File | null) => {
     if (!file) {
-      setProductImageFile(null)
-      setFormError('')
+      setVariantImageFile(null)
+      if (!editingVariant) setVariantImagePreviewSrc(null)
+      setVariantFormError('')
       return
     }
 
     const validationError = await validateImageFile(file, 'product')
     if (validationError) {
-      setProductImageFile(null)
-      setFormError(validationError)
+      setVariantImageFile(null)
+      setVariantFormError(validationError)
       return
     }
 
-    setProductImageFile(file)
-    setFormError('')
+    setVariantImageFile(file)
+    setVariantFormError('')
   }
 
   const handleQuickBrandLogoChange = async (file: File | null) => {
@@ -1207,9 +1254,9 @@ function ProductManagement() {
                 <th style={{ minWidth: 220 }}>Product</th>
                 <th style={{ minWidth: 120 }}>Brand</th>
                 <th style={{ minWidth: 130 }}>Subcategory</th>
-                <th style={{ minWidth: 90 }}>Selling</th>
+                <th style={{ minWidth: 110 }}>Lead Variant Price</th>
                 <th style={{ minWidth: 140 }}>Active Deal</th>
-                <th style={{ minWidth: 90 }}>Margin</th>
+                <th style={{ minWidth: 100 }}>Lead Margin</th>
                 <th style={{ minWidth: 80 }}>Stock</th>
                 <th style={{ minWidth: 110 }}>Prescription</th>
                 <th style={{ minWidth: 90 }}>Status</th>
@@ -1620,52 +1667,23 @@ function ProductManagement() {
                       />
                     </div>
                   </div>
-                  <div className="pf-field">
-                    <label className="pf-label">Product Image <span className="pf-req">*</span></label>
-                    <input
-                      className="pf-input"
-                      type="file"
-                      accept="image/*"
-                      required={!editingProduct}
-                      onChange={(e) => { void handleProductImageChange(e.currentTarget.files?.[0] ?? null) }}
-                    />
-                    <span className="pf-hint">
-                      {editingProduct ? 'Leave empty to keep the current image.' : 'Upload the main product image.'} {getImageUploadHint('product')}
-                    </span>
-                    {productImagePreviewSrc && (
-                      <div className="cm-brand-preview" style={{ marginTop: '0.5rem' }}>
-                        <img src={productImagePreviewSrc} alt="Product preview" className="cm-brand-preview__img" />
-                        <div className="cm-brand-preview__meta">
-                          <span className="cm-brand-preview__label">{productImageFile ? 'Selected file' : 'Current image'}</span>
-                          <span className="cm-brand-preview__name">{productImageFile?.name ?? editingProduct?.name ?? 'Product image'}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 <div className="pf-section">
-                  <div className="pf-section__label">Pricing</div>
+                  <div className="pf-section__label">Variant Commerce</div>
                   <div className="pf-row">
                     <div className="pf-field">
-                      <label className="pf-label">Selling Price <span className="pf-req">*</span></label>
-                      <div className="pf-prefix-wrap">
-                        <span className="pf-prefix">KSh</span>
-                        <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" placeholder="0.00" value={productPrice} onChange={(e) => setProductPrice(e.target.value)} />
-                      </div>
+                      <label className="pf-label">Pricing lives on variants</label>
+                      <span className="pf-hint">Selling price and bought-at price are set per variant. The parent product is just the catalog container.</span>
                     </div>
                     <div className="pf-field">
-                      <label className="pf-label">Bought At Price <span className="pf-optional">optional</span></label>
-                      <div className="pf-prefix-wrap">
-                        <span className="pf-prefix">KSh</span>
-                        <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" placeholder="0.00" value={productCostPrice} onChange={(e) => setProductCostPrice(e.target.value)} />
-                      </div>
-                      <span className="pf-hint">Internal cost price for margin tracking. This is not shown to customers.</span>
+                      <label className="pf-label">Images live on variants</label>
+                      <span className="pf-hint">Upload sellable images on each variant. Product cards will use a representative variant image automatically.</span>
                     </div>
                   </div>
                   <div className="pf-row">
                     <div className="pf-field">
-                      <span className="pf-hint">Customer-facing discounts and deal badges are created from Deals, not on the product record.</span>
+                      <span className="pf-hint">Create the product first, then add one or more variants with price, cost, image, and stock.</span>
                     </div>
                   </div>
                 </div>
@@ -1706,7 +1724,8 @@ function ProductManagement() {
                                 <th>SKU</th>
                                 <th>Barcode</th>
                                 <th>POS ID</th>
-                                <th>Price</th>
+                                <th>Selling</th>
+                                <th>Bought At</th>
                                 <th>Stock</th>
                                 <th>Status</th>
                                 <th className="pf-variant-actions">Actions</th>
@@ -1720,6 +1739,7 @@ function ProductManagement() {
                                   <td>{variant.barcode ?? '—'}</td>
                                   <td>{variant.pos_product_id ?? '—'}</td>
                                   <td>{formatCurrency(variant.price ?? variant.effective_price)}</td>
+                                  <td>{formatCurrency(variant.cost_price)}</td>
                                   <td>{variant.stock_quantity}</td>
                                   <td>{variant.is_active ? 'Active' : 'Inactive'}</td>
                                   <td className="pf-variant-actions">
@@ -1779,18 +1799,50 @@ function ProductManagement() {
 
                           <div className="pf-row">
                             <div className="pf-field">
-                              <label className="pf-label">Variant Price <span className="pf-optional">optional</span></label>
+                              <label className="pf-label">Selling Price <span className="pf-req">*</span></label>
                               <div className="pf-prefix-wrap">
                                 <span className="pf-prefix">KSh</span>
                                 <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" value={variantPrice} onChange={(e) => setVariantPrice(e.target.value)} placeholder="0.00" />
                               </div>
                             </div>
                             <div className="pf-field">
+                              <label className="pf-label">Bought At Price <span className="pf-optional">optional</span></label>
+                              <div className="pf-prefix-wrap">
+                                <span className="pf-prefix">KSh</span>
+                                <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" value={variantCostPrice} onChange={(e) => setVariantCostPrice(e.target.value)} placeholder="0.00" />
+                              </div>
+                              <span className="pf-hint">Internal cost used for margin tracking.</span>
+                            </div>
+                          </div>
+
+                          <div className="pf-row">
+                            <div className="pf-field">
                               <label className="pf-label">Original Price <span className="pf-optional">optional</span></label>
                               <div className="pf-prefix-wrap">
                                 <span className="pf-prefix">KSh</span>
                                 <input className="pf-input pf-input--prefixed" type="number" min="0" step="0.01" value={variantOriginalPrice} onChange={(e) => setVariantOriginalPrice(e.target.value)} placeholder="0.00" />
                               </div>
+                            </div>
+                            <div className="pf-field">
+                              <label className="pf-label">Variant Image <span className="pf-optional">optional</span></label>
+                              <input
+                                className="pf-input"
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => { void handleVariantImageChange(e.currentTarget.files?.[0] ?? null) }}
+                              />
+                              <span className="pf-hint">
+                                {editingVariant ? 'Leave empty to keep the current image.' : 'Upload the sellable image for this variant.'} {getImageUploadHint('product')}
+                              </span>
+                              {variantImagePreviewSrc && (
+                                <div className="cm-brand-preview" style={{ marginTop: '0.5rem' }}>
+                                  <img src={variantImagePreviewSrc} alt="Variant preview" className="cm-brand-preview__img" />
+                                  <div className="cm-brand-preview__meta">
+                                    <span className="cm-brand-preview__label">{variantImageFile ? 'Selected file' : 'Current image'}</span>
+                                    <span className="cm-brand-preview__name">{variantImageFile?.name ?? variantName ?? 'Variant image'}</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
 

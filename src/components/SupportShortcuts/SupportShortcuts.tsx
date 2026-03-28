@@ -52,26 +52,31 @@ function HealthIcon() {
 const shortcuts = [
   {
     label: 'FAQ',
+    description: 'Find quick answers',
     path: '/help',
     icon: <ChatIcon />,
   },
   {
     label: 'Track Order',
+    description: 'Check delivery status',
     path: '/track-order',
     icon: <TrackIcon />,
   },
   {
     label: 'Prescription Upload',
+    description: 'Send your prescription',
     path: '/prescriptions',
     icon: <PrescriptionIcon />,
   },
   {
     label: 'Health Services',
+    description: 'Book care and tests',
     path: '/health-services',
     icon: <HealthIcon />,
   },
   {
     label: 'Contact Us',
+    description: 'Talk to our team',
     path: '/contact',
     icon: <PhoneIcon />,
   },
@@ -85,15 +90,8 @@ function SupportShortcuts() {
   const location = useLocation()
 
   return (
-    <section className="support-shortcuts" aria-labelledby="support-shortcuts-title">
+    <section className="support-shortcuts" aria-label="Quick support links">
       <div className="container">
-        <div className="support-shortcuts__heading">
-          <h2 className="support-shortcuts__title" id="support-shortcuts-title">
-            Need help fast?
-          </h2>
-        
-        </div>
-
         <div className="support-shortcuts__actions">
           {shortcuts.map((shortcut) => {
             const isActive = matchesPath(location.pathname, shortcut.path)
@@ -106,7 +104,10 @@ function SupportShortcuts() {
                 aria-current={isActive ? 'page' : undefined}
               >
                 <span className="support-shortcuts__icon">{shortcut.icon}</span>
-                <span className="support-shortcuts__label">{shortcut.label}</span>
+                <span className="support-shortcuts__content">
+                  <span className="support-shortcuts__label">{shortcut.label}</span>
+                  <span className="support-shortcuts__description">{shortcut.description}</span>
+                </span>
               </Link>
             )
           })}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { adminProductService, ApiInventoryProduct, ApiProductVariant } from '../../services/adminProductService'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/InventoryManagement.css'
@@ -723,6 +723,9 @@ function InventoryManagement() {
                           <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => handleAdjustOpen(item)}>
                             Adjust Stock
                           </button>
+                          <Link className="cm-row-btn" to={`/admin/products?product=${item.id}${variantMode ? '' : '&variant=new'}`}>
+                            {variantMode ? 'Edit Variants' : 'Add Variant'}
+                          </Link>
                           <button
                             className="cm-row-btn cm-row-btn--warn"
                             type="button"
@@ -915,6 +918,13 @@ function InventoryManagement() {
                 <>
                   <div className="adjust-section">
                     <div className="adjust-section__title">Main Shop Stock</div>
+                    <div className="adjust-grid adjust-grid--single">
+                      <div className="adjust-field">
+                        <span className="adjust-hint">
+                          Need per-pack price or image? <Link to={`/admin/products?product=${adjustItem.id}&variant=new`} onClick={closeAdjustModal}>Add a variant in Products</Link>.
+                        </span>
+                      </div>
+                    </div>
                     <div className="adjust-grid">
                       <div className="adjust-field">
                         <label>Available stock</label>

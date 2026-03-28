@@ -181,6 +181,7 @@ export interface ApiProductVariant {
   name: string
   attributes: Record<string, unknown>
   price: string | null
+  cost_price: string | null
   original_price: string | null
   effective_price: string
   image: string | null
@@ -204,6 +205,7 @@ export interface ProductVariantPayload {
   name: string
   attributes?: Record<string, unknown>
   price?: number | null
+  cost_price?: number | null
   original_price?: number | null
   stock_quantity?: number
   low_stock_threshold?: number
@@ -211,6 +213,7 @@ export interface ProductVariantPayload {
   max_backorder_quantity?: number
   is_active?: boolean
   sort_order?: number
+  image?: File | null
 }
 
 export interface ApiInventoryProduct extends ApiProduct {
@@ -247,7 +250,7 @@ export interface ProductCreatePayload {
   barcode?: string
   pos_product_id?: string
   strength?: string
-  price: number
+  price?: number
   cost_price?: number
   branch_inventory?: InventoryLocationPayload
   warehouse_inventory?: InventoryLocationPayload
@@ -362,12 +365,12 @@ export const adminProductService = {
     return unwrapList<ApiProductVariant>(res)
   },
 
-  async createProductVariant(productId: number, payload: ProductVariantPayload) {
+  async createProductVariant(productId: number, payload: ProductVariantPayload | FormData) {
     const res = await apiClient.post(`/admin/products/${productId}/variants/`, payload)
     return unwrap<ApiProductVariant>(res)
   },
 
-  async updateProductVariant(productId: number, variantId: number, payload: Partial<ProductVariantPayload>) {
+  async updateProductVariant(productId: number, variantId: number, payload: Partial<ProductVariantPayload> | FormData) {
     const res = await apiClient.patch(`/admin/products/${productId}/variants/${variantId}/`, payload)
     return unwrap<ApiProductVariant>(res)
   },

@@ -1,3 +1,4 @@
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useCatalog } from '../../context/CatalogContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
@@ -10,6 +11,9 @@ function Footer() {
   const currentYear = new Date().getFullYear()
   const { categories } = useCatalog()
   const { settings } = useSiteSettings()
+  const [newsletterEmail, setNewsletterEmail] = useState('')
+  const [newsletterError, setNewsletterError] = useState('')
+  const [newsletterSuccess, setNewsletterSuccess] = useState(false)
 
   const orderedCategories = sortCategoriesByPreferredOrder(categories).slice(0, 4)
   const normalizedSupportPhone = settings.supportPhone.replace(/\D/g, '')
@@ -33,10 +37,68 @@ function Footer() {
     { name: 'FAQs', path: '/help' },
   ]
 
+  const handleNewsletterSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setNewsletterError('')
+    setNewsletterSuccess(false)
+
+    const email = newsletterEmail.trim()
+    if (!email) {
+      setNewsletterError('Email is required')
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setNewsletterError('Please enter a valid email address')
+      return
+    }
+
+    setNewsletterSuccess(true)
+    setNewsletterEmail('')
+    window.setTimeout(() => setNewsletterSuccess(false), 2500)
+  }
+
   return (
     <footer className="footer">
       <div className="footer__main">
         <div className="container">
+          <section className="footer__newsletter" aria-labelledby="footer-newsletter-title">
+            <div className="footer__newsletter-copy">
+              <h2 className="footer__newsletter-title" id="footer-newsletter-title">Subscribe to Our Newsletter</h2>
+              <p className="footer__newsletter-description">
+                Get exclusive offers and new product updates delivered straight to your inbox
+              </p>
+            </div>
+            <form className="footer__newsletter-form" onSubmit={handleNewsletterSubmit}>
+              <div className="footer__newsletter-input-wrap">
+                <input
+                  type="email"
+                  className="footer__newsletter-input"
+                  placeholder="Enter your email address"
+                  value={newsletterEmail}
+                  onChange={(event) => setNewsletterEmail(event.target.value)}
+                  aria-label="Email address"
+                  aria-invalid={!!newsletterError}
+                  aria-describedby={newsletterError ? 'footer-newsletter-error' : undefined}
+                />
+                {newsletterError && (
+                  <span className="footer__newsletter-error" id="footer-newsletter-error" role="alert">
+                    {newsletterError}
+                  </span>
+                )}
+                {newsletterSuccess && (
+                  <span className="footer__newsletter-success" role="status">
+                    Thank you for subscribing!
+                  </span>
+                )}
+              </div>
+              <button type="submit" className="btn btn--primary footer__newsletter-button">
+                Subscribe
+              </button>
+            </form>
+          </section>
+
           <div className="footer__grid">
 
             {/* Brand Column */}

@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import mapIllustration from '../../assets/images/maps/map-the-hub-karen.svg'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import {
@@ -20,47 +19,49 @@ const LIVE_SITE_CONTACT = {
 
 const ABOUT_IMAGE_URL = 'https://avapharmacy.co.ke/img/about-4.jpg'
 
-const heroPills = [
-  'Care you can trust',
-  'Authentic brands',
-  'Customer-first support',
+const reasons = [
+  'Thoughtfully curated beauty and wellness products',
+  'Knowledgeable and friendly staff',
+  'Safe, authentic, and trusted brands',
+  'A customer-first experience in every visit',
 ]
 
-const promisePoints = [
-  'Curated wellness picks',
-  'Friendly expert guidance',
-  'Trusted authentic brands',
-  'A smoother customer experience',
-]
-
-const serviceLines = [
+const serviceGroups = [
   {
     title: 'Health & Wellness',
-    summary: 'Daily essentials for immunity and wellness.',
-    points: ['Daily vitamins', 'Herbal wellness', 'Stress support'],
+    items: [
+      'Immune boosters and daily vitamins',
+      'Natural supplements and herbal remedies',
+      'Stress relief and relaxation products',
+      'Women’s and men’s wellness essentials',
+    ],
   },
   {
     title: 'Beauty & Skincare',
-    summary: 'Skincare and beauty care you can trust.',
-    points: ['Clinical skincare', 'Beauty essentials', 'Body and hair care'],
+    items: [
+      'Dermatologist-recommended skincare',
+      'Organic beauty solutions',
+      'Body care and personal hygiene',
+      'Hair care for all types and textures',
+    ],
   },
   {
     title: 'Mother & Baby Care',
-    summary: 'Gentle products for growing families.',
-    points: ['Baby bath and skincare', 'Maternity support', 'Diapers and feeding'],
+    items: [
+      'Safe baby skincare and bath products',
+      'Maternity wellness items',
+      'Diapers, wipes, and baby feeding accessories',
+    ],
   },
   {
     title: 'Self-Care & Lifestyle',
-    summary: 'Lifestyle products that support self-care.',
-    points: ['Aromatherapy', 'Wellness teas', 'Fitness accessories'],
+    items: [
+      'Aromatherapy and essential oils',
+      'Wellness teas and detox blends',
+      'Fitness and body-toning accessories',
+      'Sustainable personal care tools',
+    ],
   },
-]
-
-const actionLinks = [
-  { label: 'Browse products', to: '/products' },
-  { label: 'Upload prescription', to: '/prescriptions' },
-  { label: 'Explore health services', to: '/health-services' },
-  { label: 'Contact us', to: '/contact' },
 ]
 
 function withLiveFallback(value: string, defaultValue: string, liveValue: string) {
@@ -103,176 +104,136 @@ function AboutPage() {
   return (
     <div className="about-page">
       <section className="about-page__hero">
-        <div className="container">
-          <div className="about-page__hero-grid">
-            <div className="about-page__hero-copy">
-              <span className="about-page__eyebrow">About Ava Pharmacy</span>
-              <h1 className="about-page__hero-title">Care You Can Trust</h1>
-              <p className="about-page__hero-lead">
-                Wellness should feel simple, trusted, and easy to choose.
-              </p>
-              <p className="about-page__hero-body">
-                AVA Pharmacy brings health, beauty, and everyday care into one curated experience.
-              </p>
-
-              <div className="about-page__hero-actions">
-                <Link to="/products" className="btn btn--primary btn--lg">Browse products</Link>
-                <Link to="/health-services" className="btn btn--outline btn--lg">Explore services</Link>
-              </div>
-
-              <div className="about-page__hero-pills" aria-label="Ava Pharmacy strengths">
-                {heroPills.map((item) => (
-                  <span key={item} className="about-page__hero-pill">{item}</span>
-                ))}
-              </div>
+        <div className="container about-page__hero-grid">
+          <div className="about-page__hero-copy">
+            <span className="about-page__eyebrow">About Ava Pharmacy</span>
+            <h1>Care You Can Trust</h1>
+            <p className="about-page__lead">
+              AVA Pharmacy is a curated wellness destination built around health, beauty, and peace of mind.
+            </p>
+            <p>
+              We make it easier to shop trusted everyday essentials, skincare, supplements, baby care, and lifestyle
+              wellness products in one place.
+            </p>
+            <div className="about-page__actions">
+              <Link to="/products" className="btn btn--primary btn--lg">Browse products</Link>
+              <Link to="/contact" className="btn btn--outline btn--lg">Contact us</Link>
             </div>
+          </div>
 
-            <div className="about-page__hero-media">
-              <div className="about-page__hero-image-wrap">
-                <ImageWithFallback
-                  className="about-page__hero-image"
-                  src={ABOUT_IMAGE_URL}
-                  alt="Ava Pharmacy about section visual"
-                />
-              </div>
-
-              <div className="about-page__hero-note">
-                <p>
-                  “True wellness is a balance of health, beauty, and peace of mind.”
-                </p>
-              </div>
-
-              <div className="about-page__hero-meta">
-                <div>
-                  <span className="about-page__meta-label">Visit us</span>
-                  <strong className="about-page__meta-value">Karen / The Hub</strong>
-                </div>
-                <div>
-                  <span className="about-page__meta-label">Open daily</span>
-                  <strong className="about-page__meta-value">{contact.supportHours}</strong>
-                </div>
-              </div>
-            </div>
+          <div className="about-page__hero-media">
+            <ImageWithFallback
+              className="about-page__hero-image"
+              src={ABOUT_IMAGE_URL}
+              alt="Ava Pharmacy about section visual"
+            />
           </div>
         </div>
       </section>
 
-      <section className="about-page__section about-page__section--story">
-        <div className="container">
-          <div className="about-page__story-grid">
-            <div className="about-page__story-copy">
-              <span className="about-page__section-kicker">Who we are</span>
-              <h2 className="about-page__section-title">A curated pharmacy experience built for everyday wellness.</h2>
-              <p className="about-page__section-subtitle">
-                A modern destination for wellness products, skincare, and everyday health essentials.
-              </p>
-            </div>
-
-            <div className="about-page__promise">
-              <h3 className="about-page__promise-title">Why customers choose AVA</h3>
-              <ul className="about-page__promise-list">
-                {promisePoints.map((point) => (
-                  <li key={point}>{point}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="about-page__section about-page__section--services">
-        <div className="container">
-          <div className="about-page__section-head">
-            <span className="about-page__section-kicker">What we offer</span>
-            <h2 className="about-page__section-title">Reliable essentials, indulgent care, and wellness support.</h2>
-            <p className="about-page__section-subtitle">
-              Four simple care lanes that make the range easy to scan at a glance.
+      <section className="about-page__section">
+        <div className="container about-page__split">
+          <div className="about-page__content">
+            <span className="about-page__section-kicker">Who we are</span>
+            <h2>A simple pharmacy experience centered on everyday wellness.</h2>
+            <p>
+              At AVA Pharmacy, we believe wellness should feel clear, practical, and reassuring. Our focus is to offer
+              reliable products, trusted guidance, and a smoother shopping experience for daily care.
+            </p>
+            <p>
+              From skincare and supplements to mother and baby essentials, we help customers choose products they can
+              feel confident about.
             </p>
           </div>
 
-          <div className="about-page__service-story">
-            {serviceLines.map((service, index) => (
-              <article key={service.title} className="about-page__service-row">
-                <div className="about-page__service-count">{String(index + 1).padStart(2, '0')}</div>
-                <div className="about-page__service-copy">
-                  <h3 className="about-page__service-title">{service.title}</h3>
-                  <p className="about-page__service-summary">{service.summary}</p>
-                </div>
-                <ul className="about-page__service-points">
-                  {service.points.map((point) => (
-                    <li key={point}>{point}</li>
+          <div className="about-page__content">
+            <span className="about-page__section-kicker">Why choose AVA</span>
+            <h2>Trusted products, real support, and a customer-first approach.</h2>
+            <ul className="about-page__list">
+              {reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="about-page__section about-page__section--muted">
+        <div className="container">
+          <div className="about-page__section-head">
+            <span className="about-page__section-kicker">What we offer</span>
+            <h2>Reliable essentials and indulgent care in one place.</h2>
+            <p>
+              The product mix follows the same simple structure highlighted on the live AVA site, without the extra
+              card-heavy presentation.
+            </p>
+          </div>
+
+          <div className="about-page__services">
+            {serviceGroups.map((group) => (
+              <div key={group.title} className="about-page__service-group">
+                <h3>{group.title}</h3>
+                <ul className="about-page__list">
+                  {group.items.map((item) => (
+                    <li key={item}>{item}</li>
                   ))}
                 </ul>
-              </article>
-            ))}
-          </div>
-
-          <div className="about-page__actions">
-            {actionLinks.map((action) => (
-              <Link key={action.label} to={action.to} className="about-page__text-link">
-                {action.label}
-              </Link>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="about-page__section about-page__section--contact">
-        <div className="container">
-          <div className="about-page__contact-panel">
-            <div className="about-page__contact-copy">
-              <span className="about-page__cta-kicker">Visit or contact us</span>
-              <h2 className="about-page__contact-title">Find AVA at The Hub, Karen.</h2>
-              <p className="about-page__contact-subtitle">
-                Reach the team by phone, email, or WhatsApp for quick support.
-              </p>
+      <section className="about-page__section">
+        <div className="container about-page__contact-grid">
+          <div className="about-page__content">
+            <span className="about-page__section-kicker">Visit or contact us</span>
+            <h2>Find Ava Pharmacy at The Hub, Karen.</h2>
+            <p>
+              Have a question? Reach the team by phone, email, or WhatsApp for quick support during business hours.
+            </p>
 
-              <div className="about-page__contact-list">
-                <div className="about-page__contact-item">
-                  <span className="about-page__contact-label">Address</span>
-                  <strong className="about-page__contact-value">{contact.supportAddress}</strong>
-                </div>
-                <div className="about-page__contact-item">
-                  <span className="about-page__contact-label">Hours</span>
-                  <strong className="about-page__contact-value">{contact.supportHours}</strong>
-                </div>
-                <div className="about-page__contact-item">
-                  <span className="about-page__contact-label">Phone</span>
-                  <a className="about-page__contact-value about-page__contact-value--link" href={`tel:${formatPhoneHref(contact.supportPhone)}`}>
-                    {contact.supportPhone}
-                  </a>
-                </div>
-                <div className="about-page__contact-item">
-                  <span className="about-page__contact-label">Email</span>
-                  <a className="about-page__contact-value about-page__contact-value--link" href={`mailto:${contact.supportEmail}`}>
-                    {contact.supportEmail}
-                  </a>
-                </div>
+            <dl className="about-page__contact-list">
+              <div>
+                <dt>Address</dt>
+                <dd>{contact.supportAddress}</dd>
               </div>
+              <div>
+                <dt>Office time</dt>
+                <dd>{contact.supportHours}</dd>
+              </div>
+              <div>
+                <dt>Call us</dt>
+                <dd>
+                  <a href={`tel:${formatPhoneHref(contact.supportPhone)}`}>{contact.supportPhone}</a>
+                </dd>
+              </div>
+              <div>
+                <dt>Email</dt>
+                <dd>
+                  <a href={`mailto:${contact.supportEmail}`}>{contact.supportEmail}</a>
+                </dd>
+              </div>
+            </dl>
 
-              <div className="about-page__cta-actions">
-                <Link to="/contact" className="btn btn--primary btn--lg">Contact us</Link>
-                <a
-                  className="btn btn--outline btn--lg"
-                  href={`https://wa.me/${formatWhatsAppHref(contact.whatsappPhone)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Start WhatsApp chat
-                </a>
-              </div>
+            <div className="about-page__actions">
+              <Link to="/contact" className="btn btn--primary btn--lg">Contact us</Link>
+              <a
+                className="btn btn--outline btn--lg"
+                href={`https://wa.me/${formatWhatsAppHref(contact.whatsappPhone)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                WhatsApp
+              </a>
             </div>
+          </div>
 
-            <aside className="about-page__contact-aside">
-              <div className="about-page__cta-map">
-                <img src={mapIllustration} alt="Map showing Ava Pharmacy at The Hub Karen" />
-              </div>
-            </aside>
+          <div className="about-page__map">
+            <img src={mapIllustration} alt="Map showing Ava Pharmacy at The Hub Karen" />
           </div>
         </div>
       </section>
-
-      <SupportShortcuts />
     </div>
   )
 }
