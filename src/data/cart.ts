@@ -2,6 +2,7 @@ export type StockSource = 'branch' | 'warehouse' | 'out'
 
 export interface CartItem {
   id: number
+  serverItemId?: number
   name: string
   brand: string
   price: number

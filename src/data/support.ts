@@ -1,4 +1,4 @@
-export type SupportChannel = 'Order' | 'Prescription' | 'Consultation'
+export type SupportChannel = 'Order' | 'Prescription' | 'Consultation' | 'General'
 export type SupportPriority = 'Low' | 'Medium' | 'High'
 export type SupportStatus = 'Open' | 'In Progress' | 'Resolved'
 

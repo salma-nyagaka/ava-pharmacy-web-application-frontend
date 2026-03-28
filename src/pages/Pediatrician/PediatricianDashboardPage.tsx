@@ -17,8 +17,10 @@ import {
   saveDoctorMessages,
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
-import '../Doctor/DoctorDashboardPage.css'
-import './PediatricianDashboardPage.css'
+import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/portals/DoctorDashboardPage.css'
+import '../../styles/portals/PediatricianDashboardPage.css'
 
 type PediatricTab = 'queue' | 'messages' | 'consents' | 'prescriptions' | 'profiles' | 'earnings'
 
@@ -54,6 +56,114 @@ function consultStep(status: Consultation['status']) {
 }
 
 const CONSULT_STEPS = ['Waiting', 'In progress', 'Completed']
+
+function getAgeBandInfo(ageYears: number | undefined, ageMonths?: number): { label: string; color: string; bg: string } {
+  const totalMonths = ageYears !== undefined ? ageYears * 12 + (ageMonths || 0) : 0
+  if (totalMonths < 24) return { label: 'Infant', color: '#f97316', bg: '#fff7ed' }
+  if (totalMonths < 60) return { label: 'Toddler', color: '#f59e0b', bg: '#fffbeb' }
+  if (totalMonths < 144) return { label: 'Child', color: '#3b82f6', bg: '#eff6ff' }
+  return { label: 'Teen', color: '#8b5cf6', bg: '#f5f3ff' }
+}
+
+function AgeBand({ ageYears, ageMonths }: { ageYears?: number; ageMonths?: number }) {
+  const band = getAgeBandInfo(ageYears, ageMonths)
+  return (
+    <span className="ped-age-band" style={{ color: band.color, background: band.bg }}>
+      {band.label}
+    </span>
+  )
+}
+
+function formatPediatricAge(ageYears?: number, ageMonths?: number): string {
+  const totalMonths = (ageYears || 0) * 12 + (ageMonths || 0)
+  if (totalMonths < 24) return `${totalMonths} months`
+  if (totalMonths < 36) return `${ageYears}y ${ageMonths || 0}m`
+  return `${ageYears} years`
+}
+
+const WHO_WEIGHT_PERCENTILES = {
+  p3:  [3.4,4.4,5.1,5.7,6.2,6.7,7.1,7.4,7.7,8.0,8.2,8.4,8.6,8.9,9.2,9.5,9.7,9.9,10.1,10.3,10.5,10.7,10.9,11.1,11.3],
+  p50: [3.3,4.5,5.6,6.4,7.0,7.5,7.9,8.3,8.6,8.9,9.2,9.4,9.6,9.9,10.1,10.3,10.5,10.7,10.9,11.1,11.3,11.5,11.8,12.0,12.2],
+  p97: [4.2,5.7,6.9,7.7,8.4,9.0,9.5,9.9,10.3,10.7,11.0,11.3,11.6,12.0,12.3,12.6,12.9,13.2,13.5,13.8,14.1,14.4,14.7,15.0,15.3],
+}
+
+function GrowthChart({ weightKg, ageMonths }: { weightKg?: number; ageMonths?: number }) {
+  if (!weightKg || ageMonths === undefined) return null
+  const months = Math.min(ageMonths, 24)
+  const maxIdx = WHO_WEIGHT_PERCENTILES.p3.length - 1
+  const idx = Math.min(months, maxIdx)
+  const p3 = WHO_WEIGHT_PERCENTILES.p3[idx]
+  const p50 = WHO_WEIGHT_PERCENTILES.p50[idx]
+  const p97 = WHO_WEIGHT_PERCENTILES.p97[idx]
+  const minW = 2.5, maxW = 16
+  const toY = (w: number) => 120 - ((w - minW) / (maxW - minW)) * 100
+  const patientY = toY(Math.min(maxW, Math.max(minW, weightKg)))
+  const allMonths = Array.from({ length: maxIdx + 1 }, (_, i) => i)
+  void allMonths
+  const toX = (m: number) => (m / maxIdx) * 220 + 20
+  const path = (arr: number[]) => arr.map((w, i) => `${i === 0 ? 'M' : 'L'}${toX(i)},${toY(w)}`).join(' ')
+  return (
+    <div className="ped-growth-chart">
+      <p className="ped-growth-chart__title">Weight-for-Age (WHO 0–24 months)</p>
+      <svg viewBox="0 0 260 140" width="100%" style={{ maxWidth: 320 }}>
+        <path d={path(WHO_WEIGHT_PERCENTILES.p97)} fill="none" stroke="#bfdbfe" strokeWidth="1.5" />
+        <path d={path(WHO_WEIGHT_PERCENTILES.p50)} fill="none" stroke="#93c5fd" strokeWidth="2" />
+        <path d={path(WHO_WEIGHT_PERCENTILES.p3)} fill="none" stroke="#bfdbfe" strokeWidth="1.5" />
+        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p97[maxIdx])} fontSize="7" fill="#93c5fd">P97</text>
+        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p50[maxIdx])} fontSize="7" fill="#3b82f6">P50</text>
+        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p3[maxIdx])} fontSize="7" fill="#93c5fd">P3</text>
+        {ageMonths <= 24 && (
+          <circle cx={toX(months)} cy={patientY} r="5" fill="#ef4444" stroke="#fff" strokeWidth="2" />
+        )}
+        <text x={toX(0)} y="138" fontSize="7" fill="#94a3b8">0m</text>
+        <text x={toX(12)} y="138" fontSize="7" fill="#94a3b8">12m</text>
+        <text x={toX(24)} y="138" fontSize="7" fill="#94a3b8">24m</text>
+      </svg>
+      <p className="ped-growth-chart__meta">
+        {weightKg}kg at {ageMonths}m_ {
+          weightKg < p3 ? 'Below P3 (underweight)' :
+          weightKg > p97 ? 'Above P97 (overweight)' :
+          weightKg >= p50 ? `Above median (P50: ${p50}kg)` :
+          `Below median (P50: ${p50}kg)`
+        }
+      </p>
+    </div>
+  )
+}
+
+function DosingCalculator({ weightKg }: { weightKg?: number }) {
+  const [drug, setDrug] = useState('')
+  const [mgPerKg, setMgPerKg] = useState('')
+  const dose = weightKg && mgPerKg ? (weightKg * parseFloat(mgPerKg)).toFixed(1) : null
+  return (
+    <div className="ped-dosing-calc">
+      <p className="ped-dosing-calc__title">Dosing Calculator</p>
+      <div className="ped-dosing-calc__row">
+        <input
+          placeholder="Drug name"
+          value={drug}
+          onChange={e => setDrug(e.target.value)}
+          className="ped-dosing-calc__input"
+        />
+        <input
+          type="number"
+          placeholder="mg/kg"
+          value={mgPerKg}
+          onChange={e => setMgPerKg(e.target.value)}
+          className="ped-dosing-calc__input"
+          min="0"
+          step="0.1"
+        />
+      </div>
+      {dose && (
+        <p className="ped-dosing-calc__result">
+          {drug || 'Dose'}: <strong>{dose} mg</strong>
+          {weightKg && <span> ({weightKg}kg × {mgPerKg} mg/kg)</span>}
+        </p>
+      )}
+    </div>
+  )
+}
 
 // ── Data seeding ─────────────────────────────────────────────────────────────
 
@@ -151,7 +261,7 @@ const createInitialPediatricEarnings = (): DoctorEarning[] => {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 function PediatricianDashboardPage() {
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const [activeTab, setActiveTab] = useState<PediatricTab>('queue')
   const [doctors] = useState(loadDoctorProfiles())
   const [activeDoctorId, setActiveDoctorId] = useState(() => {
@@ -287,6 +397,76 @@ function PediatricianDashboardPage() {
   )
 
   const doctorFirstName = doctor?.name.replace(/^Dr\.\s*/i, '').split(' ')[0] ?? 'Doctor'
+  const navigationItems = [
+    {
+      id: 'queue',
+      label: 'Queue',
+      badge: stats.waiting,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        </svg>
+      ),
+    },
+    {
+      id: 'messages',
+      label: 'Family messages',
+      badge: unreadCount,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'consents',
+      label: 'Consents',
+      badge: stats.consents,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 11l3 3L22 4" />
+          <circle cx="12" cy="12" r="10" />
+        </svg>
+      ),
+    },
+    {
+      id: 'prescriptions',
+      label: 'Prescriptions',
+      badge: 0,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+      ),
+    },
+    {
+      id: 'profiles',
+      label: 'Child profiles',
+      badge: stats.alerts,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="9" cy="7" r="4" />
+          <path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2" />
+          <path d="M19 8l2 2 4-4" />
+        </svg>
+      ),
+    },
+    {
+      id: 'earnings',
+      label: 'Earnings',
+      badge: 0,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      ),
+    },
+  ] as const
 
   const greeting = () => {
     const h = new Date().getHours()
@@ -429,66 +609,28 @@ function PediatricianDashboardPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="dd-module">
-
-      {/* ── Header ── */}
-      <header className="dd-header">
-        <div className="dd-header__inner">
-          <div className="dd-header__brand">ava<span>pharmacy</span></div>
-          <span className="dd-header__role">
-            <span className="dd-header__dot" />
-            Pediatrician Portal
-          </span>
-          <div className="dd-header__spacer" />
-          <div className="dd-header__right">
-            <select
-              value={activeDoctorId}
-              onChange={(e) => setActiveDoctorId(e.target.value)}
-              className="dd-header__select"
-            >
-              {pediatricDoctors.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-            <div className="dd-header__avatar">{doctor ? initials(doctor.name) : 'PD'}</div>
-            <span className="dd-header__name">{doctor?.name ?? 'Pediatrician'}</span>
-            <button className="dd-header__logout" type="button" onClick={logout}>Sign out</button>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Tab nav ── */}
-      <div className="dd-tabs">
-        <div className="dd-tabs__inner">
-          {([
-            { id: 'queue' as PediatricTab, label: 'Queue', badge: stats.waiting,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
-            { id: 'messages' as PediatricTab, label: 'Family messages', badge: unreadCount,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-            { id: 'consents' as PediatricTab, label: 'Consents', badge: stats.consents,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><circle cx="12" cy="12" r="10"/></svg> },
-            { id: 'prescriptions' as PediatricTab, label: 'Prescriptions', badge: 0,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
-            { id: 'profiles' as PediatricTab, label: 'Child profiles', badge: stats.alerts,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M19 8l2 2 4-4"/></svg> },
-            { id: 'earnings' as PediatricTab, label: 'Earnings', badge: 0,
-              icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-          ] as const).map((tab) => (
-            <button
-              key={tab.id}
-              className={`dd-tab ${activeTab === tab.id ? 'dd-tab--active' : ''}`}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.icon}
-              {tab.label}
-              {tab.badge > 0 && <span className="dd-tab__badge">{tab.badge}</span>}
-            </button>
+    <ProfessionalPortalShell
+      accentColor="#0ea5e9"
+      activeItemId={activeTab}
+      navItems={navigationItems}
+      onNavChange={(itemId) => setActiveTab(itemId as PediatricTab)}
+      onLogout={() => { void logout() }}
+      roleLabel="Pediatrician"
+      sidebarHeaderContent={(
+        <select
+          value={activeDoctorId}
+          onChange={(e) => setActiveDoctorId(e.target.value)}
+          className="portal-shell__select"
+        >
+          {pediatricDoctors.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
           ))}
-        </div>
-      </div>
-
-      {/* ── Page content ── */}
+        </select>
+      )}
+      userInitials={doctor ? initials(doctor.name) : 'PD'}
+      userMeta={doctor?.specialty || 'Pediatrician Portal'}
+      userName={user?.name || doctor?.name || 'Pediatrician'}
+    >
       <div className="dd-content">
 
         {/* ── QUEUE TAB ── */}
@@ -501,41 +643,51 @@ function PediatricianDashboardPage() {
               </div>
             </div>
 
-            <div className="dd-stats">
-              <div className="dd-stat dd-stat--total">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div className="cm-kpi-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
-                <p className="dd-stat__value">{stats.total}</p>
-                <p className="dd-stat__label">Total today</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">Total today</span>
+                  <strong className="cm-kpi-card__value">{stats.total}</strong>
+                </div>
               </div>
-              <div className="dd-stat dd-stat--waiting">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
-                <p className="dd-stat__value">{stats.waiting}</p>
-                <p className="dd-stat__label">Waiting</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">Waiting</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.waiting}</strong>
+                </div>
               </div>
-              <div className="dd-stat dd-stat--active">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><circle cx="12" cy="12" r="10"/></svg>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M9 11l3 3L22 4"/><circle cx="12" cy="12" r="10"/></svg>
                 </div>
-                <p className="dd-stat__value">{stats.consents}</p>
-                <p className="dd-stat__label">Consents pending</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">Consents pending</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.consents}</strong>
+                </div>
               </div>
-              <div className="dd-stat dd-stat--done">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 </div>
-                <p className="dd-stat__value">{stats.alerts}</p>
-                <p className="dd-stat__label">Dosage alerts</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">Dosage alerts</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--red">{stats.alerts}</strong>
+                </div>
               </div>
-              <div className="dd-stat dd-stat--revenue">
-                <div className="dd-stat__icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
-                <p className="dd-stat__value">KSh {stats.totalRevenue.toLocaleString()}</p>
-                <p className="dd-stat__label">Total revenue</p>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">Total revenue</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--purple">KSh {stats.totalRevenue.toLocaleString()}</strong>
+                </div>
               </div>
             </div>
 
@@ -555,8 +707,8 @@ function PediatricianDashboardPage() {
                 <span className="dd-count">{queueItems.length} consultation{queueItems.length !== 1 ? 's' : ''}</span>
               </div>
 
-              <div className="dd-table-wrap">
-                <table className="dd-table">
+              <div className="cm-panel cm-table-wrap dd-table-wrap">
+                <table className="cm-table dd-table">
                   <thead>
                     <tr>
                       <th>Child / Guardian</th>
@@ -580,9 +732,15 @@ function PediatricianDashboardPage() {
                             <div>
                               <p className="dd-td-patient__name">
                                 {item.childName ?? '-'}
-                                {item.childAge ? <span className="pd-age-tag">, {item.childAge}y</span> : null}
+                                {item.childAge ? <span className="pd-age-tag">, {formatPediatricAge(item.childAge)}</span> : null}
                                 {item.dosageAlert && <span className="pd-alert-dot" title="Dosage alert" />}
                               </p>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
+                                <AgeBand ageYears={item.childAge} />
+                                {item.consentStatus !== 'Granted' && (
+                                  <span className="ped-consent-warn">⚠ Consent pending</span>
+                                )}
+                              </div>
                               <p className="dd-td-patient__id">Guardian: {item.guardianName ?? '-'}</p>
                             </div>
                           </div>
@@ -817,8 +975,8 @@ function PediatricianDashboardPage() {
                 New prescription
               </button>
             </div>
-            <div className="dd-table-wrap">
-              <table className="dd-table">
+            <div className="cm-panel cm-table-wrap dd-table-wrap">
+              <table className="cm-table dd-table">
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -915,7 +1073,7 @@ function PediatricianDashboardPage() {
                     <div className="pd-profile-card__avatar">{initials(p.child)}</div>
                     <div className="pd-profile-card__body">
                       <p className="pd-profile-card__name">{p.child}</p>
-                      <p className="pd-profile-card__age">Age {p.age}</p>
+                      <p className="pd-profile-card__age">{formatPediatricAge(p.age)} <AgeBand ageYears={p.age} /></p>
                     </div>
                     <div className="pd-profile-card__meta">
                       <div className="pd-profile-card__row">
@@ -972,8 +1130,8 @@ function PediatricianDashboardPage() {
               <div className="dd-toolbar">
                 <h3 className="dd-toolbar__title">Monthly breakdown</h3>
               </div>
-              <div className="dd-table-wrap">
-                <table className="dd-table">
+              <div className="cm-panel cm-table-wrap dd-table-wrap">
+                <table className="cm-table dd-table">
                   <thead>
                     <tr>
                       <th>Period</th>
@@ -1136,9 +1294,14 @@ function PediatricianDashboardPage() {
                       <div className="dd-sp-patient__avatar">{initials(selectedConsult.childName ?? selectedConsult.patientName)}</div>
                       <div>
                         <p className="dd-sp-patient__name">{selectedConsult.childName ?? '-'}</p>
-                        <p className="dd-sp-patient__meta">Age {selectedConsult.childAge} · {selectedConsult.weightKg} kg</p>
+                        <p className="dd-sp-patient__meta">{formatPediatricAge(selectedConsult.childAge)} · {selectedConsult.weightKg} kg</p>
+                        <div style={{ marginTop: '0.3rem' }}>
+                          <AgeBand ageYears={selectedConsult.childAge} />
+                        </div>
                       </div>
                     </div>
+                    <GrowthChart weightKg={selectedConsult.weightKg} ageMonths={selectedConsult.childAge !== undefined ? selectedConsult.childAge * 12 : undefined} />
+                    <DosingCalculator weightKg={selectedConsult.weightKg} />
                   </div>
 
                   <div className="dd-sp-section">
@@ -1273,7 +1436,7 @@ function PediatricianDashboardPage() {
           </aside>
         </>
       )}
-    </div>
+    </ProfessionalPortalShell>
   )
 }
 

@@ -1,23 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import './Header.css'
+import '../../styles/components/Header.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
-import brandPanadol from '../../assets/images/brands/panadol.jpeg'
-import brandNivea from '../../assets/images/brands/nivea.png'
-import brandCerave from '../../assets/images/brands/cerave.png'
-import brandDurex from '../../assets/images/brands/durex.png'
-import brandEucerin from '../../assets/images/brands/eucerin.png'
-import brandVichy from '../../assets/images/brands/vichy.png'
-import brandCentrum from '../../assets/images/brands/centrum.jpeg'
-import brandSebamed from '../../assets/images/brands/sebamed.png'
-import brandHuggies from '../../assets/images/brands/huggies.jpeg'
-import brandAccuChek from '../../assets/images/brands/accu-check.png'
-import { loadCategories } from '../../data/categories'
-import { loadHealthConcerns } from '../../data/healthConcerns'
+import { sortCategoriesByPreferredOrder } from '../../constants/catalog'
+import { useCatalog } from '../../context/CatalogContext'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
-import { getFavouriteCount } from '../../data/favourites'
 import { useAuth } from '../../context/AuthContext'
 
 function Header() {
@@ -69,30 +58,26 @@ function Header() {
   }, [])
 
   useEffect(() => {
-    setFavCount(getFavouriteCount())
-    return favouritesService.subscribe(() => setFavCount(getFavouriteCount()))
+    const refresh = () => {
+      void favouritesService.count().then((response) => setFavCount(response.data))
+    }
+    refresh()
+    return favouritesService.subscribe(refresh)
   }, [])
 
-  const [categories] = useState(() => loadCategories())
-  const [healthConcerns] = useState(() => loadHealthConcerns())
-  const defaultCategorySlug = categories[0]?.slug ?? ALL_CATEGORIES_KEY
+  const { categories, brands, healthConcerns } = useCatalog()
+  const orderedCategories = useMemo(
+    () => sortCategoriesByPreferredOrder(categories),
+    [categories]
+  )
+  const defaultCategorySlug = orderedCategories[0]?.slug ?? ALL_CATEGORIES_KEY
 
   const [activeCategory, setActiveCategory] = useState(defaultCategorySlug)
   const banners = loadBanners()
   const activeBanner = banners.find((banner) => banner.status === 'active')
 
-  const brands = [
-    { name: 'Panadol', path: '/brands/panadol', logo: brandPanadol },
-    { name: 'Nivea', path: '/brands/nivea', logo: brandNivea },
-    { name: 'CeraVe', path: '/brands/cerave', logo: brandCerave },
-    { name: 'Durex', path: '/brands/durex', logo: brandDurex },
-    { name: 'Eucerin', path: '/brands/eucerin', logo: brandEucerin },
-    { name: 'Vichy', path: '/brands/vichy', logo: brandVichy },
-    { name: 'Centrum', path: '/brands/centrum', logo: brandCentrum },
-    { name: 'Sebamed', path: '/brands/sebamed', logo: brandSebamed },
-    { name: 'Huggies', path: '/brands/huggies', logo: brandHuggies },
-    { name: 'Accu-chek', path: '/brands/accu-chek', logo: brandAccuChek },
-  ]
+
+
 
   const handleToggleMenu = (menuKey: string) => {
     setActiveMenu((prev) => (prev === menuKey ? null : menuKey))
@@ -111,29 +96,29 @@ function Header() {
     openCategoryMenu()
   }
 
-  const buildSubcategoryPath = (categoryPath: string, subSlug: string) =>
-    `${categoryPath}?subcategory=${encodeURIComponent(subSlug)}`
+  const buildSubcategoryPath = (categorySlug: string, subSlug: string) =>
+    `/products?category=${encodeURIComponent(categorySlug)}&subcategory=${encodeURIComponent(subSlug)}`
 
   const activeCategoryData =
     activeCategory === ALL_CATEGORIES_KEY
-      ? categories[0]
-      : categories.find((category) => category.slug === activeCategory) || categories[0]
+      ? orderedCategories[0]
+      : orderedCategories.find((category) => category.slug === activeCategory) || orderedCategories[0]
   const activeCategoryLabel = activeCategory === ALL_CATEGORIES_KEY ? 'All Products' : activeCategoryData?.name ?? 'Shop by Category'
   const megaPanelItems =
     activeCategory === ALL_CATEGORIES_KEY
-      ? categories.flatMap((category) =>
+      ? orderedCategories.flatMap((category) =>
           category.subcategories.map((item) => ({
             id: `${category.slug}-${item.slug}`,
             name: item.name,
             categoryName: category.name,
-            path: buildSubcategoryPath(category.path, item.slug),
+            path: buildSubcategoryPath(category.slug, item.slug),
           }))
         )
       : (activeCategoryData?.subcategories ?? []).map((item) => ({
           id: item.slug,
           name: item.name,
           categoryName: null,
-          path: buildSubcategoryPath(activeCategoryData.path, item.slug),
+          path: buildSubcategoryPath(activeCategoryData.slug, item.slug),
         }))
   const itemsSplitIndex = Math.ceil(megaPanelItems.length / 2)
   const itemsColumnOne = megaPanelItems.slice(0, itemsSplitIndex)
@@ -146,6 +131,15 @@ function Header() {
     setIsMenuOpen(false)
     setActiveCategory(defaultCategorySlug)
   }
+
+  useEffect(() => {
+    if (!orderedCategories.length) return
+    setActiveCategory((current) =>
+      current === ALL_CATEGORIES_KEY || orderedCategories.some((category) => category.slug === current)
+        ? current
+        : orderedCategories[0].slug
+    )
+  }, [orderedCategories])
 
   const submitSearch = () => {
     const query = searchQuery.trim()
@@ -180,7 +174,7 @@ function Header() {
                     <circle cx="5.5" cy="18.5" r="1.5"/>
                     <circle cx="18.5" cy="18.5" r="1.5"/>
                   </svg>
-                  {activeBanner?.message ?? 'Free delivery for orders above KSh 2,500'}
+                  {activeBanner?.message ?? `Free delivery for orders above KSh 2500/-`}
                 </span>
               )}
             </div>
@@ -228,6 +222,18 @@ function Header() {
 
             {/* Actions */}
             <div className="header__actions">
+              {isLoggedIn && user?.role === 'admin' && (
+                <Link to="/admin" className="header__action-btn header__action-btn--admin">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/>
+                  </svg>
+                  <span className="header__action-text">Admin Dashboard</span>
+                </Link>
+              )}
+
               <button className="header__action-btn header__action-btn--search-mobile" onClick={toggleSearch}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"/>
@@ -367,7 +373,7 @@ function Header() {
                       {categories.map((category) => (
                         <li key={category.slug}>
                           <Link
-                            to={category.path}
+                            to={`/products?category=${encodeURIComponent(category.slug)}`}
                             onMouseEnter={() => setActiveCategory(category.slug)}
                             onFocus={() => setActiveCategory(category.slug)}
                             onClick={closeMenus}
@@ -382,32 +388,50 @@ function Header() {
                   </div>
                   <div className="mega-panel__col mega-panel__values">
                     <h4>{activeCategoryLabel}</h4>
-                    <div className="mega-panel__values-grid">
-                      <ul className="mega-panel__values-list">
-                        {itemsColumnOne.map((item) => (
-                          <li key={item.id}>
-                            <Link to={item.path} onClick={closeMenus}>
-                              <span>{item.name}</span>
-                              {activeCategory === ALL_CATEGORIES_KEY && item.categoryName && (
-                                <small className="mega-panel__item-category">{item.categoryName}</small>
-                              )}
+                    {activeCategory === ALL_CATEGORIES_KEY ? (
+                      <div className="mega-panel__all-grid">
+                        {categories.filter((cat) => cat.subcategories.length > 0).map((cat) => (
+                          <div key={cat.slug} className="mega-panel__cat-group">
+                            <Link
+                              to={`/products?category=${encodeURIComponent(cat.slug)}`}
+                              onClick={closeMenus}
+                              className="mega-panel__cat-group-title"
+                            >
+                              {cat.name}
                             </Link>
-                          </li>
+                            <ul className="mega-panel__cat-group-list">
+                              {cat.subcategories.map((sub) => (
+                                <li key={sub.slug}>
+                                  <Link
+                                    to={buildSubcategoryPath(cat.slug, sub.slug)}
+                                    onClick={closeMenus}
+                                  >
+                                    {sub.name}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         ))}
-                      </ul>
-                      <ul className="mega-panel__values-list">
-                        {itemsColumnTwo.map((item) => (
-                          <li key={item.id}>
-                            <Link to={item.path} onClick={closeMenus}>
-                              <span>{item.name}</span>
-                              {activeCategory === ALL_CATEGORIES_KEY && item.categoryName && (
-                                <small className="mega-panel__item-category">{item.categoryName}</small>
-                              )}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="mega-panel__values-grid">
+                        <ul className="mega-panel__values-list">
+                          {itemsColumnOne.map((item) => (
+                            <li key={item.id}>
+                              <Link to={item.path} onClick={closeMenus}>{item.name}</Link>
+                            </li>
+                          ))}
+                        </ul>
+                        <ul className="mega-panel__values-list">
+                          {itemsColumnTwo.map((item) => (
+                            <li key={item.id}>
+                              <Link to={item.path} onClick={closeMenus}>{item.name}</Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                   <div className="mega-panel__col mega-panel__cta">
                     <div className="advisor-card">
@@ -439,7 +463,7 @@ function Header() {
                   {healthConcerns.map((condition) => (
                     <Link
                       key={condition.slug}
-                      to={condition.path}
+                      to={`/products?health_concern=${encodeURIComponent(condition.slug)}`}
                       onClick={closeMenus}
                       className="conditions-panel__card"
                     >
@@ -474,9 +498,9 @@ function Header() {
                 </div>
                 <div className="brands-panel__grid">
                   {brands.map((brand) => (
-                    <Link key={brand.name} to={brand.path} onClick={closeMenus} className="brands-panel__card">
+                    <Link key={brand.id} to={`/products?brand=${encodeURIComponent(brand.slug)}`} onClick={closeMenus} className="brands-panel__card">
                       <span className="brands-panel__logo">
-                        <img src={brand.logo} alt={`${brand.name} logo`} className="brands-panel__logo-img" />
+                        {brand.logo ? (<img src={brand.logo} alt={`${brand.name} logo`} className="brands-panel__logo-img" />) : (<span className="brands-panel__logo-img" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{brand.name.charAt(0)}</span>)}
                       </span>
                       <span>{brand.name}</span>
                     </Link>

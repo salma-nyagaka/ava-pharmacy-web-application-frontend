@@ -1,3 +1,5 @@
+import { apiClient } from '../lib/apiClient'
+
 export type HealthConcern = {
   slug: string
   name: string
@@ -62,6 +64,38 @@ export function loadHealthConcerns(): HealthConcern[] {
     })
   } catch {
     return healthConcerns
+  }
+}
+
+type BackendHealthConcern = {
+  id: number
+  name: string
+  slug: string
+  is_active: boolean
+}
+
+export async function fetchHealthConcernsFromBackend(): Promise<HealthConcern[]> {
+  try {
+    const res = await apiClient.get('/admin/health-concerns/')
+    const raw: BackendHealthConcern[] = Array.isArray(res.data?.data)
+      ? res.data.data
+      : Array.isArray(res.data?.results)
+        ? res.data.results
+        : Array.isArray(res.data)
+          ? res.data
+          : []
+
+    return raw
+      .filter((concern) => concern.is_active)
+      .map((concern) => {
+        const slug = concern.slug || slugifyName(concern.name)
+        const existing = healthConcerns.find(
+          (item) => item.slug === slug || item.name.toLowerCase() === concern.name.toLowerCase(),
+        )
+        return existing ?? buildConcern(slug, concern.name, [], [])
+      })
+  } catch {
+    return []
   }
 }
 

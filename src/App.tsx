@@ -1,7 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { CatalogProvider } from './context/CatalogContext'
+import { SiteSettingsProvider } from './context/SiteSettingsContext'
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import AdminRoute from './components/ProtectedRoute/AdminRoute'
+import AdminLayout from './components/AdminLayout/AdminLayout'
 import Layout from './components/Layout/Layout'
 import HomePage from './pages/HomePage/HomePage'
 import ProductListingPage from './pages/ProductListing/ProductListingPage'
@@ -21,12 +24,15 @@ import DoctorConsultation from './pages/Consultation/DoctorConsultation'
 import PediatricianConsultation from './pages/Consultation/PediatricianConsultation'
 import AdminDashboard from './pages/Admin/AdminDashboard'
 import ProductManagement from './pages/Admin/ProductManagement'
+import CategoryManagement from './pages/Admin/CategoryManagement'
+import HealthConcernManagement from './pages/Admin/HealthConcernManagement'
+import BrandManagement from './pages/Admin/BrandManagement'
 import UserManagement from './pages/Admin/UserManagement'
 import UserDetailsPage from './pages/Admin/UserDetailsPage'
-import UserCreatePage from './pages/Admin/UserCreatePage'
-import OrderManagement from './pages/Admin/OrderManagement'
-import OrderDetailsPage from './pages/Admin/OrderDetailsPage'
+import OrderManagement from './pages/Admin/OrderManagementLive'
+import OrderDetailsPage from './pages/Admin/OrderDetailsLivePage'
 import Reports from './pages/Admin/Reports'
+import Invoices from './pages/Admin/Invoices'
 import DealsManagement from './pages/Admin/DealsManagement'
 import PayoutManagement from './pages/Admin/PayoutManagement'
 import LabTestManagement from './pages/Admin/LabTestManagement'
@@ -36,6 +42,9 @@ import LabTechPortal from './pages/LabTech/LabTechPortal'
 import SupportManagement from './pages/Admin/SupportManagement'
 import LoginPage from './pages/Auth/LoginPage'
 import RegisterPage from './pages/Auth/RegisterPage'
+import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage'
+import ResetPasswordPage from './pages/Auth/ResetPasswordPage'
+import StaffActivatePage from './pages/Auth/StaffActivatePage'
 import OrderTrackingPage from './pages/OrderTracking/OrderTrackingPage'
 import OrderConfirmationPage from './pages/OrderConfirmation/OrderConfirmationPage'
 import WishlistPage from './pages/Wishlist/WishlistPage'
@@ -55,6 +64,7 @@ import AccountConsultationsPage from './pages/Account/AccountConsultationsPage'
 import AccountLabTestsPage from './pages/Account/AccountLabTestsPage'
 import AccountFavouritesPage from './pages/Account/AccountFavouritesPage'
 import DoctorDashboardPage from './pages/Doctor/DoctorDashboardPage'
+import DoctorOnboardingPage from './pages/Doctor/DoctorOnboardingPage'
 import PediatricianDashboardPage from './pages/Pediatrician/PediatricianDashboardPage'
 import PharmacistDashboardPage from './pages/Pharmacist/PharmacistDashboardPage'
 import LabServicesPage from './pages/Lab/LabServicesPage'
@@ -69,99 +79,126 @@ import BrandsPage from './pages/Brands/BrandsPage'
 import ConditionsPage from './pages/Conditions/ConditionsPage'
 import HealthServicesPage from './pages/HealthServices/HealthServicesPage'
 
+
+function LegacyLabDashboardRedirect() {
+  const location = useLocation()
+  const target = location.pathname.includes('labtech') ? '/labtech/dashboard' : '/lab/dashboard'
+  return <Navigate to={target} replace />
+}
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="products" element={<ProductListingPage />} />
-          <Route path="category/:category" element={<ProductListingPage />} />
-          <Route path="product/:id" element={<ProductDetailPage />} />
-          <Route path="cart" element={<CartPage />} />
-          <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
-          <Route path="account" element={<AccountLayout />}>
-            <Route index element={<AccountPage />} />
-            <Route path="orders" element={<OrderHistoryPage />} />
-            <Route path="orders/:id" element={<OrderDetailPage />} />
-            <Route path="addresses" element={<AccountAddressesPage />} />
-            <Route path="payment" element={<AccountPaymentPage />} />
-            <Route path="settings" element={<AccountSettingsPage />} />
-            <Route path="edit" element={<AccountEditPage />} />
-            <Route path="prescriptions" element={<PrescriptionHistoryPage />} />
-            <Route path="consultations" element={<AccountConsultationsPage />} />
-            <Route path="lab-tests" element={<AccountLabTestsPage />} />
-            <Route path="favourites" element={<AccountFavouritesPage />} />
-          </Route>
-          <Route path="orders" element={<OrderHistoryPage />} />
-          <Route path="prescriptions" element={<ProtectedRoute><PrescriptionUploadPage /></ProtectedRoute>} />
-          <Route path="prescriptions/history" element={<PrescriptionHistoryPage />} />
-          <Route path="consultation" element={<Navigate to="/doctor-consultation" replace />} />
-          <Route path="doctor" element={<Navigate to="/doctor-consultation" replace />} />
-          <Route path="doctor-consultation" element={<ProtectedRoute><DoctorConsultation /></ProtectedRoute>} />
-          <Route path="pediatrician" element={<Navigate to="/pediatric-consultation" replace />} />
-          <Route path="paedetrician" element={<Navigate to="/pediatric-consultation" replace />} />
-          <Route path="pediatric-consultation" element={<ProtectedRoute><PediatricianConsultation /></ProtectedRoute>} />
-          <Route path="login" element={<LoginPage />} />
-          <Route path="register" element={<RegisterPage />} />
-          <Route path="order-confirmation" element={<OrderConfirmationPage />} />
-          <Route path="track-order" element={<OrderTrackingPage />} />
-          <Route path="wishlist" element={<WishlistPage />} />
-          <Route path="returns" element={<ReturnsPage />} />
-          <Route path="help" element={<HelpPage />} />
-          <Route path="offers" element={<OffersPage />} />
-          <Route path="store-locator" element={<StoreLocatorPage />} />
-          <Route path="brands" element={<BrandsPage />} />
-          <Route path="conditions" element={<ConditionsPage />} />
-          <Route path="health-services" element={<HealthServicesPage />} />
-          <Route path="brands/:brand" element={<BrandsPage />} />
-          <Route path="conditions/:condition" element={<ConditionsPage />} />
-          <Route path="about" element={<AboutPage />} />
-          <Route path="contact" element={<ContactPage />} />
-          <Route path="careers" element={<CareersPage />} />
-          <Route path="blog" element={<BlogPage />} />
-          <Route path="privacy" element={<PrivacyPage />} />
-          <Route path="terms" element={<TermsPage />} />
-          <Route path="cookies" element={<CookiesPage />} />
-          <Route path="professional/register" element={<ProfessionalRegisterPage />} />
-          <Route path="doctor/register" element={<ProfessionalRegisterPage />} />
-          <Route path="doctor/dashboard" element={<DoctorDashboardPage />} />
-          <Route path="pediatrician/register" element={<ProfessionalRegisterPage />} />
-          <Route path="pediatrician/dashboard" element={<PediatricianDashboardPage />} />
-          <Route path="pharmacist/dashboard" element={<PharmacistDashboardPage />} />
-          <Route path="lab-tests" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
-          <Route path="laboratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
-          <Route path="labaratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
-          <Route path="lab/dashboard" element={<LabDashboardPage />} />
-          <Route path="laboratory/dashboard" element={<LabDashboardPage />} />
-          <Route path="labaratory/dashboard" element={<LabDashboardPage />} />
-          <Route path="inventory" element={<InventoryOverviewPage />} />
-          <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-          <Route path="admin/products" element={<AdminRoute><ProductManagement /></AdminRoute>} />
-          <Route path="admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
-          <Route path="admin/users/pharmacist/new" element={<AdminRoute><UserCreatePage /></AdminRoute>} />
-          <Route path="admin/users/:id" element={<AdminRoute><UserDetailsPage /></AdminRoute>} />
-          <Route path="admin/orders" element={<AdminRoute><OrderManagement /></AdminRoute>} />
-          <Route path="admin/orders/:id" element={<AdminRoute><OrderDetailsPage /></AdminRoute>} />
-          <Route path="admin/inventory" element={<AdminRoute><InventoryManagement /></AdminRoute>} />
-          <Route path="admin/prescriptions" element={<AdminRoute><PrescriptionManagement /></AdminRoute>} />
-          <Route path="admin/doctors" element={<AdminRoute><DoctorManagement /></AdminRoute>} />
-          <Route path="admin/reports" element={<AdminRoute><Reports /></AdminRoute>} />
-          <Route path="admin/deals" element={<AdminRoute><DealsManagement /></AdminRoute>} />
-          <Route path="admin/payouts" element={<AdminRoute><PayoutManagement /></AdminRoute>} />
-          <Route path="admin/lab-tests" element={<AdminRoute><LabTestManagement /></AdminRoute>} />
-          <Route path="admin/lab-requests" element={<AdminRoute><LabRequestManagement /></AdminRoute>} />
-          <Route path="admin/lab-partners" element={<AdminRoute><LabPartnerManagement /></AdminRoute>} />
-          <Route path="labtech/dashboard" element={<LabTechPortal />} />
-          <Route path="admin/support" element={<AdminRoute><SupportManagement /></AdminRoute>} />
-          <Route path="admin/settings" element={<AdminRoute><Settings /></AdminRoute>} />
-          <Route path="*" element={<div style={{padding: '4rem 0', textAlign: 'center'}}>
-            <h1>Page Coming Soon</h1>
-            <p>This page is under construction</p>
-          </div>} />
-        </Route>
-      </Routes>
+        <SiteSettingsProvider>
+          <CatalogProvider>
+            <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<HomePage />} />
+              <Route path="products" element={<ProductListingPage />} />
+              <Route path="category/:category" element={<ProductListingPage />} />
+              <Route path="product/:id" element={<ProductDetailPage />} />
+              <Route path="cart" element={<CartPage />} />
+              <Route path="checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+              <Route path="account" element={<ProtectedRoute><AccountLayout /></ProtectedRoute>}>
+                <Route index element={<AccountPage />} />
+                <Route path="orders" element={<OrderHistoryPage />} />
+                <Route path="orders/:id" element={<OrderDetailPage />} />
+                <Route path="addresses" element={<AccountAddressesPage />} />
+                <Route path="payment" element={<AccountPaymentPage />} />
+                <Route path="settings" element={<AccountSettingsPage />} />
+                <Route path="edit" element={<AccountEditPage />} />
+                <Route path="prescriptions" element={<PrescriptionHistoryPage />} />
+                <Route path="consultations" element={<AccountConsultationsPage />} />
+                <Route path="lab-tests" element={<AccountLabTestsPage />} />
+                <Route path="favourites" element={<AccountFavouritesPage />} />
+              </Route>
+              <Route path="orders" element={<OrderHistoryPage />} />
+              <Route path="prescriptions" element={<ProtectedRoute><PrescriptionUploadPage /></ProtectedRoute>} />
+              <Route path="prescriptions/history" element={<PrescriptionHistoryPage />} />
+              <Route path="consultation" element={<Navigate to="/doctor-consultation" replace />} />
+              <Route path="doctor" element={<Navigate to="/doctor-consultation" replace />} />
+              <Route path="doctor-consultation" element={<ProtectedRoute><DoctorConsultation /></ProtectedRoute>} />
+              <Route path="pediatrician" element={<Navigate to="/pediatric-consultation" replace />} />
+              <Route path="paedetrician" element={<Navigate to="/pediatric-consultation" replace />} />
+              <Route path="pediatric-consultation" element={<ProtectedRoute><PediatricianConsultation /></ProtectedRoute>} />
+              <Route path="login" element={<LoginPage />} />
+              <Route path="register" element={<RegisterPage />} />
+              <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="reset-password" element={<ResetPasswordPage />} />
+              <Route path="auth/professional/activate" element={<StaffActivatePage />} />
+              <Route path="order-confirmation" element={<OrderConfirmationPage />} />
+              <Route path="track-order" element={<OrderTrackingPage />} />
+              <Route path="wishlist" element={<WishlistPage />} />
+              <Route path="returns" element={<ReturnsPage />} />
+              <Route path="help" element={<HelpPage />} />
+              <Route path="offers" element={<OffersPage />} />
+              <Route path="store-locator" element={<StoreLocatorPage />} />
+              <Route path="brands" element={<BrandsPage />} />
+              <Route path="conditions" element={<ConditionsPage />} />
+              <Route path="health-services" element={<HealthServicesPage />} />
+              <Route path="brands/:brand" element={<BrandsPage />} />
+              <Route path="conditions/:condition" element={<ConditionsPage />} />
+              <Route path="about" element={<AboutPage />} />
+              <Route path="contact" element={<ContactPage />} />
+              <Route path="careers" element={<CareersPage />} />
+              <Route path="blog" element={<BlogPage />} />
+              <Route path="privacy" element={<PrivacyPage />} />
+              <Route path="terms" element={<TermsPage />} />
+              <Route path="cookies" element={<CookiesPage />} />
+              <Route path="professional/register" element={<ProfessionalRegisterPage />} />
+              <Route path="doctor/register" element={<ProfessionalRegisterPage />} />
+              <Route path="pediatrician/register" element={<ProfessionalRegisterPage />} />
+              <Route path="lab-tests" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
+              <Route path="laboratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
+              <Route path="labaratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
+              <Route path="inventory" element={<InventoryOverviewPage />} />
+              <Route path="*" element={<div style={{ padding: '4rem 0', textAlign: 'center' }}>
+                <h1>Page Coming Soon</h1>
+                <p>This page is under construction</p>
+              </div>} />
+            </Route>
+
+            <Route path="doctor/dashboard" element={<DoctorDashboardPage />} />
+            <Route path="doctor/onboarding" element={<ProtectedRoute><DoctorOnboardingPage /></ProtectedRoute>} />
+            <Route path="pediatrician/dashboard" element={<PediatricianDashboardPage />} />
+            <Route path="paedetrician/dashboard" element={<Navigate to="/pediatrician/dashboard" replace />} />
+            <Route path="pharmacist/dashboard" element={<PharmacistDashboardPage />} />
+            <Route path="lab/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
+            <Route path="ab/dashboard" element={<ProtectedRoute><LegacyLabDashboardRedirect /></ProtectedRoute>} />
+            <Route path="laboratory/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
+            <Route path="labaratory/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
+            <Route path="//ab/dashboard" element={<ProtectedRoute><LegacyLabDashboardRedirect /></ProtectedRoute>} />
+            <Route path="labtech/dashboard" element={<ProtectedRoute><LabTechPortal /></ProtectedRoute>} />
+
+            <Route path="admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="products" element={<ProductManagement />} />
+              <Route path="categories" element={<CategoryManagement />} />
+              <Route path="health-concerns" element={<HealthConcernManagement />} />
+              <Route path="brands" element={<BrandManagement />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="users/:id" element={<UserDetailsPage />} />
+              <Route path="orders" element={<OrderManagement />} />
+              <Route path="orders/:id" element={<OrderDetailsPage />} />
+              <Route path="inventory" element={<InventoryManagement />} />
+              <Route path="prescriptions" element={<PrescriptionManagement />} />
+              <Route path="doctors" element={<DoctorManagement />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="invoices" element={<Invoices />} />
+              <Route path="deals" element={<DealsManagement />} />
+              <Route path="payouts" element={<PayoutManagement />} />
+              <Route path="lab-tests" element={<LabTestManagement />} />
+              <Route path="lab-requests" element={<LabRequestManagement />} />
+              <Route path="lab-partners" element={<LabPartnerManagement />} />
+              <Route path="support" element={<SupportManagement />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+            </Route>
+            </Routes>
+          </CatalogProvider>
+        </SiteSettingsProvider>
       </AuthProvider>
     </BrowserRouter>
   )

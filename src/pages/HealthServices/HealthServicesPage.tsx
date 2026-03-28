@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
-import './HealthServicesPage.css'
+import '../../styles/pages/HealthServicesPage.css'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
+import { formatWhatsAppHref } from '../../services/siteSettingsService'
 
 const services = [
   {
@@ -9,7 +11,7 @@ const services = [
     path: '/doctor-consultation',
     cta: 'Book a Consultation',
     color: 'blue',
-    features: ['Same day appointments', 'Digital prescriptions issued', 'Follow up support included'],
+    features: ['Same day appointments', 'Secure chat consultations', 'Digital prescriptions issued'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
@@ -23,7 +25,7 @@ const services = [
     path: '/pediatric-consultation',
     cta: 'Book for Your Child',
     color: 'green',
-    features: ['Ages 0 to 18 covered', 'Vaccination guidance', 'Growth and development tracking'],
+    features: ['Ages 0 to 18 covered', 'Guardian consent captured', 'Growth and vaccination guidance'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -35,11 +37,11 @@ const services = [
   {
     key: 'lab',
     title: 'Laboratory Services',
-    desc: 'Book diagnostics online, visit a nearby partner lab, and receive certified results digitally. Blood panels, urinalysis, imaging and more.',
+    desc: 'Book diagnostics online, visit a nearby partner lab, and receive certified results digitally. Blood panels, urinalysis and more.',
     path: '/lab-tests',
     cta: 'Book a Lab Test',
     color: 'purple',
-    features: ['200+ tests available', 'Results in 24 to 48 hours', 'Home sample collection'],
+    features: ['Live test catalogue', 'Secure result delivery', 'Track request status online'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M14.5 2v14.5a4.5 4.5 0 0 1-9 0V2"/>
@@ -55,7 +57,7 @@ const services = [
     path: '/prescriptions',
     cta: 'Upload Prescription',
     color: 'amber',
-    features: ['Instant pharmacist review', 'Medication delivery available', 'Secure and confidential'],
+    features: ['Instant pharmacist review', 'Prescription validation', 'Medication delivery available'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -69,17 +71,17 @@ const services = [
 ]
 
 const steps = [
-  { n: '01', title: 'Choose a Service',  desc: 'Select from consultations, lab tests, or prescription uploads.' },
-  { n: '02', title: 'Book or Upload',    desc: 'Pick a time slot, answer a short health form, or upload your documents.' },
-  { n: '03', title: 'Get Expert Care',   desc: 'Connect with a licensed professional or receive certified lab results.' },
-  { n: '04', title: 'Receive Treatment', desc: 'Get prescriptions, medication delivery, or a referral, all in one place.' },
+  { n: '01', title: 'Choose a Service', desc: 'Select a consultation, lab test, or prescription workflow.' },
+  { n: '02', title: 'Submit Your Details', desc: 'Provide your health details, book a test, or upload your prescription.' },
+  { n: '03', title: 'Get Reviewed', desc: 'A licensed clinician, lab team, or pharmacist reviews your request.' },
+  { n: '04', title: 'Continue Care', desc: 'Receive a consultation, results, or approved medication fulfilment.' },
 ]
 
 function HealthServicesPage() {
+  const { settings } = useSiteSettings()
+
   return (
     <div className="hs-page">
-
-      {/* Services */}
       <section className="hs-services">
         <div className="container">
           <div className="hs-section-head">
@@ -88,25 +90,25 @@ function HealthServicesPage() {
             <p className="hs-section-sub">Everything you need to manage your health in one platform.</p>
           </div>
           <div className="hs-services__grid">
-            {services.map((s) => (
-              <div key={s.key} className={`hs-service-card hs-service-card--${s.color}`}>
+            {services.map((service) => (
+              <div key={service.key} className={`hs-service-card hs-service-card--${service.color}`}>
                 <div className="hs-service-card__top">
-                  <span className="hs-service-card__icon">{s.icon}</span>
-                  <h3 className="hs-service-card__title">{s.title}</h3>
-                  <p className="hs-service-card__desc">{s.desc}</p>
+                  <span className="hs-service-card__icon">{service.icon}</span>
+                  <h3 className="hs-service-card__title">{service.title}</h3>
+                  <p className="hs-service-card__desc">{service.desc}</p>
                 </div>
                 <ul className="hs-service-card__features">
-                  {s.features.map((f) => (
-                    <li key={f}>
+                  {service.features.map((feature) => (
+                    <li key={feature}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
-                      {f}
+                      {feature}
                     </li>
                   ))}
                 </ul>
-                <Link to={s.path} className="hs-service-card__cta">
-                  {s.cta}
+                <Link to={service.path} className="hs-service-card__cta">
+                  {service.cta}
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                   </svg>
@@ -117,7 +119,6 @@ function HealthServicesPage() {
         </div>
       </section>
 
-      {/* How it works */}
       <section className="hs-how">
         <div className="container">
           <div className="hs-section-head">
@@ -126,10 +127,10 @@ function HealthServicesPage() {
             <p className="hs-section-sub">From booking to treatment in four simple steps.</p>
           </div>
           <div className="hs-how__steps">
-            {steps.map((step, i) => (
+            {steps.map((step, index) => (
               <div key={step.n} className="hs-step">
                 <div className="hs-step__number">{step.n}</div>
-                {i < steps.length - 1 && <div className="hs-step__connector" />}
+                {index < steps.length - 1 && <div className="hs-step__connector" />}
                 <h4 className="hs-step__title">{step.title}</h4>
                 <p className="hs-step__desc">{step.desc}</p>
               </div>
@@ -138,17 +139,16 @@ function HealthServicesPage() {
         </div>
       </section>
 
-      {/* Bottom CTA */}
       <section className="hs-cta">
         <div className="container">
           <div className="hs-cta__inner">
             <div>
               <h2 className="hs-cta__title">Not sure where to start?</h2>
-              <p className="hs-cta__sub">Speak with a pharmacist — we'll guide you to the right service.</p>
+              <p className="hs-cta__sub">Speak with a pharmacist and we will guide you to the right service.</p>
             </div>
             <div className="hs-cta__actions">
               <a
-                href="https://wa.me/254715737330"
+                href={`https://wa.me/${formatWhatsAppHref(settings.whatsappPhone)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hs-cta__wa"
@@ -163,7 +163,6 @@ function HealthServicesPage() {
           </div>
         </div>
       </section>
-
     </div>
   )
 }

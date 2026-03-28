@@ -2,7 +2,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:800
 
 const REGISTRATION_ENDPOINT = `${API_BASE_URL}/professionals/register/`
 
-export type ProfessionalRegistrationType = 'doctor' | 'pediatrician' | 'lab_partner' | 'lab_technician'
+export type ProfessionalRegistrationType = 'doctor' | 'pediatrician' | 'lab_partner'
 
 export interface LabPartnerOption {
   id: number

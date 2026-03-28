@@ -1,6 +1,9 @@
 import PageHeader from '../../components/PageHeader/PageHeader'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
 
 function ReturnsPage() {
+  const { settings } = useSiteSettings()
+
   return (
     <div>
       <PageHeader
@@ -47,7 +50,7 @@ function ReturnsPage() {
               <div style={{ marginTop: '1.5rem' }}>
                 <span className="badge badge--info">Need help?</span>
                 <p className="card__meta" style={{ marginTop: '0.5rem' }}>
-                  Email support@avapharmacy.co.ke or call +254 700 000 000.
+                  Email {settings.supportEmail} or call {settings.supportPhone}.
                 </p>
               </div>
             </div>

@@ -2,7 +2,12 @@ export type PrescriptionStatus = 'Pending' | 'Approved' | 'Clarification' | 'Rej
 export type DispatchStatus = 'Not started' | 'Queued' | 'Packed' | 'Dispatched' | 'Delivered'
 
 export interface PrescriptionItem {
+  backendId?: number
   name: string
+  productId?: number | null
+  productName?: string
+  productSlug?: string
+  productImage?: string | null
   dose: string
   frequency: string
   qty: number
@@ -13,7 +18,17 @@ export interface PrescriptionAuditEntry {
   action: string
 }
 
+export interface PrescriptionClarificationMessage {
+  id: number
+  senderRole: 'patient' | 'pharmacist' | 'admin' | 'system'
+  senderName: string
+  senderDisplay: string
+  message: string
+  createdAt: string
+}
+
 export interface PrescriptionRecord {
+  backendId?: number
   id: string
   patient: string
   pharmacist: string
@@ -24,6 +39,8 @@ export interface PrescriptionRecord {
   files: string[]
   items: PrescriptionItem[]
   notes: string
+  clarificationMessage: string
+  clarificationMessages: PrescriptionClarificationMessage[]
   audit: PrescriptionAuditEntry[]
 }
 
@@ -44,6 +61,8 @@ const defaultRecords: PrescriptionRecord[] = [
       { name: 'Vitamin C 1000mg', dose: '1 tablet', frequency: '1x daily', qty: 10 },
     ],
     notes: 'Patient requested delivery after 6 PM.',
+    clarificationMessage: '',
+    clarificationMessages: [],
     audit: [
       { time: '2026-01-21 09:12', action: 'Approved by Grace N.' },
       { time: '2026-01-21 09:20', action: 'Queued for dispatch' },
@@ -64,6 +83,8 @@ const defaultRecords: PrescriptionRecord[] = [
       { name: 'Ibuprofen 400mg', dose: '1 tablet', frequency: '3x daily', qty: 21 },
     ],
     notes: 'Needs clarification on dosage duration.',
+    clarificationMessage: '',
+    clarificationMessages: [],
     audit: [{ time: '2026-01-22 10:05', action: 'Assigned to John K.' }],
   },
   {
@@ -80,6 +101,17 @@ const defaultRecords: PrescriptionRecord[] = [
       { name: 'Cough Syrup', dose: '10 ml', frequency: '3x daily', qty: 1 },
     ],
     notes: 'Waiting on updated prescription image.',
+    clarificationMessage: 'Please upload a clearer copy and confirm the cough syrup dosage.',
+    clarificationMessages: [
+      {
+        id: 1,
+        senderRole: 'pharmacist',
+        senderName: 'Grace N.',
+        senderDisplay: 'Grace N.',
+        message: 'Please upload a clearer copy and confirm the cough syrup dosage.',
+        createdAt: '2026-01-20T15:40:00Z',
+      },
+    ],
     audit: [{ time: '2026-01-20 15:40', action: 'Clarification requested' }],
   },
 ]
@@ -142,6 +174,8 @@ export const createUploadedPrescription = (
       { name: 'Pending pharmacist review', dose: '-', frequency: '-', qty: 0 },
     ],
     notes: payload.notes || 'Uploaded from customer portal',
+    clarificationMessage: '',
+    clarificationMessages: [],
     audit: [{ time: toAuditTime(), action: `Uploaded ${payload.files.length} file(s) by customer` }],
   }
 

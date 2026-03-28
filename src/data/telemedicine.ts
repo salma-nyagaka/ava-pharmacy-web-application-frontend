@@ -88,6 +88,7 @@ export interface DoctorPrescriptionItem {
 
 export interface DoctorPrescription {
   id: string
+  backendId?: number
   doctorId: string
   patientName: string
   createdAt: string

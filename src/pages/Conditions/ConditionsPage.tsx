@@ -1,11 +1,12 @@
-import { ReactNode, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
-import { getHealthConcernBySlug, healthConcerns, matchesHealthConcern } from '../../data/healthConcerns'
+import { fetchHealthConcernsFromBackend, type HealthConcern, matchesHealthConcern } from '../../data/healthConcerns'
 import { loadCatalogProducts } from '../../data/products'
-import './ConditionsPage.css'
-import '../ProductListing/ProductListingPage.css'
+import '../../styles/pages/ConditionsPage.css'
+import '../../styles/pages/ProductListingPage.css'
+import { useAuth } from '../../context/AuthContext'
 
 type ConditionMeta = { color: string; desc: string; icon: ReactNode }
 
@@ -37,8 +38,31 @@ const renderStars = (rating: number) => {
 
 function ConditionsPage() {
   const { condition } = useParams()
+  const navigate = useNavigate()
+  const { isLoggedIn } = useAuth()
   const products = loadCatalogProducts()
-  const selectedConcern = getHealthConcernBySlug(condition)
+  const [healthConcerns, setHealthConcerns] = useState<HealthConcern[]>([])
+  const [concernsLoading, setConcernsLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setConcernsLoading(true)
+    fetchHealthConcernsFromBackend()
+      .then((items) => {
+        if (!cancelled) setHealthConcerns(items)
+      })
+      .finally(() => {
+        if (!cancelled) setConcernsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const selectedConcern = useMemo(
+    () => healthConcerns.find((concernItem) => concernItem.slug === condition),
+    [condition, healthConcerns],
+  )
 
   const [searchTerm, setSearchTerm]     = useState('')
   const [minPrice, setMinPrice]         = useState(0)
@@ -97,6 +121,11 @@ function ConditionsPage() {
 
   const handleAddToCart = (product: typeof products[0]) => {
     if (product.stockSource === 'out') return
+    if (product.requiresPrescription) {
+      const prescriptionPath = `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+      navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
+      return
+    }
     void cartService.add({ id: product.id, name: product.name, brand: product.brand, price: product.price, image: product.image, stockSource: product.stockSource })
     setAddedId(product.id)
     window.setTimeout(() => setAddedId((prev) => prev === product.id ? null : prev), 1200)
@@ -115,7 +144,11 @@ function ConditionsPage() {
         </div>
         <div className="container">
           <div className="cond-grid">
-            {healthConcerns.map((concern) => {
+            {concernsLoading ? (
+              <p style={{ color: '#6b7280' }}>Loading health concerns…</p>
+            ) : healthConcerns.length === 0 ? (
+              <p style={{ color: '#6b7280' }}>No health concerns have been created yet.</p>
+            ) : healthConcerns.map((concern) => {
               const meta = conditionMeta[concern.slug]
               const count = products.filter((p) => matchesHealthConcern(p, concern)).length
               return (
@@ -264,9 +297,9 @@ function ConditionsPage() {
                     {product.stockSource !== 'out' ? (
                       <button className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
                         {addedId === product.id ? (
-                          <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>Added</>
+                          <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>Added</>
                         ) : (
-                          <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to Cart</>
+                          <>{product.requiresPrescription ? 'Request with presciption' : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to cart</>}</>
                         )}
                       </button>
                     ) : (

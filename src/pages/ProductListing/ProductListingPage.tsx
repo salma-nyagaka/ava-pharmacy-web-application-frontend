@@ -1,14 +1,15 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import { getCategoryBySlug, getSubcategoryBySlug } from '../../data/categories'
-import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
+import { useCategories } from '../../hooks/useCategories'
 import { StockSource } from '../../data/cart'
-import { CatalogProduct, loadCatalogProducts } from '../../data/products'
+import { CatalogProduct } from '../../data/products'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
-import { loadFavourites } from '../../data/favourites'
-import './ProductListingPage.css'
+import { useProducts } from '../../hooks/useProducts'
+import { useAuth } from '../../context/AuthContext'
+import { fetchBrandBySlug, type PublicBrand } from '../../services/productService'
+import '../../styles/pages/ProductListingPage.css'
 
 type ListingProduct = CatalogProduct
 
@@ -21,22 +22,36 @@ const getStockLabel = (stockSource: StockSource) => {
 }
 
 function ProductListingPage() {
+  const navigate = useNavigate()
+  const { isLoggedIn } = useAuth()
   const [searchParams] = useSearchParams()
   const { category: categoryParam } = useParams()
-  const categorySlug = categoryParam || searchParams.get('category') || 'all'
-  const activeCategory = getCategoryBySlug(categorySlug)
+  const categories = useCategories()
+  const categorySlug = (categoryParam || searchParams.get('category') || 'all').split(/[?&]/)[0]
+  const activeCategory = categories.find((category) => category.slug === categorySlug)
   const activeSubcategorySlug = searchParams.get('subcategory')
-  const activeSubcategory = getSubcategoryBySlug(activeCategory?.slug, activeSubcategorySlug)
+  const activeSubcategory = activeCategory?.subcategories.find((subcategory) => subcategory.slug === activeSubcategorySlug)
   const queryFromUrl = searchParams.get('query') ?? ''
+  const brandParam = searchParams.get('brand') ?? undefined
+  const healthConcernParam = searchParams.get('health_concern') ?? undefined
 
   const formatSlug = (value: string) =>
     value
       .replace(/-/g, ' ')
       .replace(/\b\w/g, (match) => match.toUpperCase())
 
-  const categoryTitle = activeCategory?.name ?? (categorySlug === 'all' ? 'All Products' : formatSlug(categorySlug))
-  const categoryPath = activeCategory?.path ?? '/products'
-  const subcategories = activeCategory?.subcategories ?? []
+  const categoryTitle = brandParam
+    ? formatSlug(brandParam)
+    : healthConcernParam
+      ? formatSlug(healthConcernParam)
+      : activeCategory?.name ?? (categorySlug === 'all' ? 'All Products' : formatSlug(categorySlug))
+
+  const [brandData, setBrandData] = useState<PublicBrand | null>(null)
+
+  useEffect(() => {
+    if (!brandParam) { setBrandData(null); return }
+    void fetchBrandBySlug(brandParam).then(setBrandData)
+  }, [brandParam])
 
   const [searchTerm, setSearchTerm] = useState(queryFromUrl)
   const [minPrice, setMinPrice] = useState(0)
@@ -49,22 +64,28 @@ function ProductListingPage() {
   const [addedProductId, setAddedProductId] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const buildWishlistMap = () => {
-    const map: Record<number, boolean> = {}
-    loadFavourites().forEach((f) => { map[f.id] = true })
-    return map
+  const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
+
+  const refreshWishlist = () => {
+    void favouritesService.list().then((response) => {
+      const map: Record<number, boolean> = {}
+      response.data.forEach((item) => {
+        map[item.id] = true
+      })
+      setWishlist(map)
+    })
   }
-  const [wishlist, setWishlist] = useState<Record<number, boolean>>(buildWishlistMap)
 
-  const products: ListingProduct[] = loadCatalogProducts()
+  const { products } = useProducts({
+    category: categorySlug !== 'all' ? categorySlug : undefined,
+    subcategory: activeSubcategorySlug || undefined,
+    brand: brandParam,
+    health_concern: healthConcernParam,
+    search: queryFromUrl || undefined,
+    page_size: 200,
+  }, { loadAllPages: true })
 
-  const promotions = loadPromotions()
-  const productsWithDeals = products.map((product) =>
-    applyPromotionsToProduct(
-      { ...product, inStock: product.stockSource !== 'out' },
-      promotions
-    ) as ListingProduct & { inStock: boolean; dealLabel?: string | null }
-  )
+  const productsWithDeals = products as (ListingProduct & { inStock: boolean; dealLabel?: string | null })[]
 
   const brands = Array.from(new Set(products.map((product) => product.brand))).sort((a, b) => a.localeCompare(b))
 
@@ -98,11 +119,29 @@ function ProductListingPage() {
   }
 
   useEffect(() => {
-    return favouritesService.subscribe(() => setWishlist(buildWishlistMap()))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    refreshWishlist()
+    return favouritesService.subscribe(refreshWishlist)
   }, [])
 
+  useEffect(() => {
+    setSearchTerm(queryFromUrl)
+    setMinPrice(0)
+    setMaxPrice(10000)
+    setSelectedBrands([])
+    setMinRating(0)
+    setAvailability('all')
+    setSortBy('recommended')
+    setCurrentPage(1)
+  }, [queryFromUrl, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
+
+  const prescriptionPathFor = (product: Pick<ListingProduct, 'id' | 'name'>) =>
+    `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+
   const toggleWishlist = (product: ListingProduct) => {
+    if (!isLoggedIn) {
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+      return
+    }
     void favouritesService.toggle({
       id: product.id,
       name: product.name,
@@ -117,8 +156,6 @@ function ProductListingPage() {
   const filteredProducts = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
     return productsWithDeals.filter((product) => {
-      const categoryMatches = categorySlug === 'all' || !activeCategory || product.category === activeCategory.name
-      const subcategoryMatches = !activeSubcategory || product.subcategorySlugs.includes(activeSubcategory.slug)
       const queryMatches =
         !query ||
         [product.name, product.brand, product.category].some((value) => value.toLowerCase().includes(query))
@@ -130,15 +167,7 @@ function ProductListingPage() {
         (availability === 'in_stock' && product.stockSource !== 'out') ||
         (availability === 'out_of_stock' && product.stockSource === 'out')
 
-      return (
-        categoryMatches &&
-        subcategoryMatches &&
-        queryMatches &&
-        priceMatches &&
-        brandMatches &&
-        ratingMatches &&
-        availabilityMatches
-      )
+      return queryMatches && priceMatches && brandMatches && ratingMatches && availabilityMatches
     })
   }, [
     productsWithDeals,
@@ -172,9 +201,16 @@ function ProductListingPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, minPrice, maxPrice, selectedBrands, minRating, availability, sortBy])
+  }, [searchTerm, minPrice, maxPrice, selectedBrands, minRating, availability, sortBy, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
 
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE))
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
   const paginatedProducts = useMemo(
     () => sortedProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
     [sortedProducts, currentPage]
@@ -213,6 +249,11 @@ function ProductListingPage() {
 
   const handleAddToCart = (product: ListingProduct) => {
     if (product.stockSource === 'out') return
+    if (product.requiresPrescription) {
+      const prescriptionPath = prescriptionPathFor(product)
+      navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
+      return
+    }
     void cartService.add({
       id: product.id,
       name: product.name,
@@ -234,52 +275,24 @@ function ProductListingPage() {
   return (
     <div className="plp">
       <div className="container">
-        <nav className="breadcrumbs">
-          <Link to="/">Home</Link>
-          <span>/</span>
-          {activeCategory ? (
-            activeSubcategory ? (
-              <>
-                <Link to={categoryPath}>{categoryTitle}</Link>
-                <span>/</span>
-                <span>{activeSubcategory.name}</span>
-              </>
-            ) : (
-              <span>{categoryTitle}</span>
-            )
-          ) : (
-            <span>{categoryTitle}</span>
-          )}
-        </nav>
-
         <div className="plp__header">
           <div className="plp__header-top">
-            <div>
-              <h1 className="plp__title">{categoryTitle}</h1>
-              <p className="plp__subtitle">
-                {activeSubcategory ? activeSubcategory.name : 'Explore curated picks, essentials, and best sellers.'}
-              </p>
+            <div className="plp__title-row">
+              {brandParam && brandData?.logo && (
+                <img
+                  src={brandData.logo}
+                  alt={brandData.name}
+                  className="plp__brand-logo"
+                />
+              )}
+              <div>
+                <h1 className="plp__title">{categoryTitle}</h1>
+                <p className="plp__subtitle">
+                  {activeSubcategory ? activeSubcategory.name : 'Explore curated picks, essentials, and best sellers.'}
+                </p>
+              </div>
             </div>
           </div>
-          {subcategories.length > 0 && (
-            <div className="plp__subcategories">
-              <Link
-                to={categoryPath}
-                className={`plp__subcategory ${!activeSubcategory ? 'is-active' : ''}`}
-              >
-                All {categoryTitle}
-              </Link>
-              {subcategories.map((subcategory) => (
-                <Link
-                  key={subcategory.slug}
-                  to={`${categoryPath}?subcategory=${encodeURIComponent(subcategory.slug)}`}
-                  className={`plp__subcategory ${activeSubcategorySlug === subcategory.slug ? 'is-active' : ''}`}
-                >
-                  {subcategory.name}
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
 
         {activeFilterCount > 0 && (
@@ -546,23 +559,7 @@ function ProductListingPage() {
 
                     {product.stockSource !== 'out' ? (
                       <button className={`product-card__add-to-cart ${addedProductId === product.id ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
-                        {addedProductId === product.id ? (
-                          <>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            Added
-                          </>
-                        ) : (
-                          <>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="9" cy="21" r="1"/>
-                              <circle cx="20" cy="21" r="1"/>
-                              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                            </svg>
-                            Add to Cart
-                          </>
-                        )}
+                        {product.requiresPrescription ? 'Request with presciption' : addedProductId === product.id ? 'Added!' : 'Add to cart'}
                       </button>
                     ) : (
                       <button

@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { useAuth } from '../../context/AuthContext'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { CartItem } from '../../data/cart'
 import { cartService } from '../../services/cartService'
-import './CartPage.css'
-
-const FREE_DELIVERY_THRESHOLD = 3000
-const DELIVERY_FEE = 300
+import '../../styles/pages/CartPage.css'
 
 function CartPage() {
+  const { isLoggedIn } = useAuth()
+  const { settings } = useSiteSettings()
   const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [movedId, setMovedId] = useState<number | null>(null)
 
   useEffect(() => {
     const refresh = () => { void cartService.list().then((r) => setCartItems(r.data)) }
@@ -18,19 +20,28 @@ function CartPage() {
   }, [])
 
   const subtotal = useMemo(() => cartItems.reduce((s, i) => s + i.price * i.quantity, 0), [cartItems])
-  const delivery = subtotal >= FREE_DELIVERY_THRESHOLD || cartItems.length === 0 ? 0 : DELIVERY_FEE
+  const delivery = subtotal >= settings.freeDeliveryThreshold || cartItems.length === 0 ? 0 : settings.baseDeliveryFee
   const total = subtotal + delivery
-  const deliveryProgress = Math.min(100, (subtotal / FREE_DELIVERY_THRESHOLD) * 100)
-  const amountToFree = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal)
+  const deliveryProgress = settings.freeDeliveryThreshold > 0
+    ? Math.min(100, (subtotal / settings.freeDeliveryThreshold) * 100)
+    : 100
+  const amountToFree = Math.max(0, settings.freeDeliveryThreshold - subtotal)
   const itemCount = cartItems.reduce((s, i) => s + i.quantity, 0)
+  const prescriptionItemCount = cartItems.filter((item) => !!item.prescriptionId).length
 
   const fmt = (n: number) => `KSh ${n.toLocaleString()}`
 
   const changeQty = (item: CartItem, next: number) =>
-    void cartService.updateQuantity(item.id, next, item.prescriptionId).then((r) => setCartItems(r.data))
+    void cartService.updateQuantity(item.serverItemId ?? item.id, next, item.prescriptionId).then((r) => setCartItems(r.data))
 
   const removeItem = (item: CartItem) =>
-    void cartService.remove(item.id, item.prescriptionId).then((r) => setCartItems(r.data))
+    void cartService.remove(item.serverItemId ?? item.id, item.prescriptionId).then((r) => setCartItems(r.data))
+
+  const moveToWishlist = (item: CartItem) => {
+    setMovedId(item.id)
+    void cartService.moveToWishlist(item).then((r) => setCartItems(r.data))
+    window.setTimeout(() => setMovedId(null), 1500)
+  }
 
   return (
     <div className="cart-page">
@@ -72,9 +83,22 @@ function CartPage() {
           </div>
         ) : (
           <div className="cart-layout">
-
-            {/* Items */}
             <div className="cart-items">
+              {prescriptionItemCount > 0 && (
+                <div className="cart-rx-banner">
+                  <div className="cart-rx-banner__icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2v20M7 7h6a4 4 0 0 1 0 8H7l10 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="cart-rx-banner__title">Prescription-linked items in cart</p>
+                    <p className="cart-rx-banner__text">
+                      These items were added from an approved prescription and stay tied to the prescription reference shown on each line item.
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="cart-items__head">
                 <span>Product</span>
                 <span>Qty</span>
@@ -82,7 +106,7 @@ function CartPage() {
               </div>
 
               {cartItems.map((item) => (
-                <div key={`${item.id}-${item.prescriptionId ?? 'direct'}`} className="cart-item">
+                <div key={`${item.serverItemId ?? item.id}-${item.prescriptionId ?? 'direct'}`} className="cart-item">
                   <Link to={`/product/${item.id}`} className="cart-item__img-wrap">
                     <ImageWithFallback src={item.image} alt={item.name} className="cart-item__image" />
                   </Link>
@@ -113,19 +137,23 @@ function CartPage() {
 
                   <div className="cart-item__right">
                     <span className="cart-item__total">{fmt(item.price * item.quantity)}</span>
-                    <button className="cart-item__remove" type="button" onClick={() => removeItem(item)} aria-label="Remove">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                        <path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                      </svg>
-                    </button>
+                    <div className="cart-item__action-row">
+                      <button className={`cart-item__move ${movedId === item.id ? 'cart-item__move--done' : ''}`} type="button" onClick={() => moveToWishlist(item)}>
+                        {movedId === item.id ? 'Moved' : 'Move to favourites'}
+                      </button>
+                      <button className="cart-item__remove" type="button" onClick={() => removeItem(item)} aria-label="Remove">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                          <path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Summary */}
             <div className="cart-summary">
               <h2 className="cart-summary__title">Order Summary</h2>
 
@@ -160,17 +188,34 @@ function CartPage() {
                 </div>
               </div>
 
-              <Link to="/checkout" className="btn btn--primary btn--lg cart-summary__cta">
-                Proceed to Checkout
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </Link>
+              {isLoggedIn ? (
+                <Link to="/checkout" className="btn btn--primary btn--lg cart-summary__cta">
+                  Proceed to Checkout
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </Link>
+              ) : (
+                <div className="cart-auth-gate">
+                  <p className="cart-auth-gate__title">Sign in to continue to checkout</p>
+                  <p className="cart-auth-gate__text">Use your AVA Health account or create one to continue with delivery and payment.</p>
+                  <div className="cart-auth-gate__actions">
+                    <Link to="/login?redirect=%2Fcheckout" className="btn btn--primary btn--lg cart-summary__cta">
+                      Sign In
+                    </Link>
+                    <Link to="/register?redirect=%2Fcheckout" className="btn btn--outline btn--lg">
+                      Create Account
+                    </Link>
+                  </div>
+                </div>
+              )}
 
               <p className="cart-summary__note">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 Items reserved for 30 minutes during checkout
               </p>
+              <p className="cart-summary__note cart-summary__note--rx">
+                Need a prescription medicine? Upload your prescription first, then continue once it has been approved.
+              </p>
             </div>
-
           </div>
         )}
       </div>

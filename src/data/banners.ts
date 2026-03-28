@@ -10,7 +10,7 @@ const STORAGE_KEY = 'ava_banners'
 const defaultBanners: Banner[] = [
   {
     id: 'banner-001',
-    message: 'Free delivery for orders above KSh 2,500',
+    message: 'Free delivery for orders above KSh 2500/-',
     link: '/offers',
     status: 'active',
   },

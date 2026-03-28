@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import './AdminShared.css'
-import './JourneyChecklistPage.css'
+import { Link } from 'react-router-dom'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/JourneyChecklistPage.css'
 
 type ChecklistStatus = 'Ready' | 'Mock Ready' | 'Needs Backend'
 
@@ -128,7 +128,6 @@ const readState = () => {
 }
 
 function JourneyChecklistPage() {
-  const navigate = useNavigate()
   const [checks, setChecks] = useState<Record<string, boolean>>(() => readState())
 
   useEffect(() => {
@@ -144,14 +143,6 @@ function JourneyChecklistPage() {
     const percent = totalSteps === 0 ? 0 : Math.round((completedSteps / totalSteps) * 100)
     return { totalSteps, completedSteps, percent }
   }, [checks])
-
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1)
-      return
-    }
-    navigate('/admin')
-  }
 
   const toggleCheck = (key: string) => {
     setChecks((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -171,9 +162,6 @@ function JourneyChecklistPage() {
     <div className="admin-page journey-checklist">
       <div className="admin-page__header">
         <div>
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleBack}>
-            Back
-          </button>
           <h1>Journey Checklist</h1>
           <p className="journey-checklist__subtitle">
             End-to-end validation board for Admin, Pediatrician, Laboratory, Pharmacy, Prescription, and E-commerce journeys.

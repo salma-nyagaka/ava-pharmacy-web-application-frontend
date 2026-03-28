@@ -1,6 +1,10 @@
-import './ContactPage.css'
+import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
+import '../../styles/pages/ContactPage.css'
 
 function ContactPage() {
+  const { settings } = useSiteSettings()
+
   return (
     <div className="contact">
       <section className="contact__hero">
@@ -21,8 +25,8 @@ function ContactPage() {
                     </svg>
                   </span>
                   <div>
-                    <strong>Office Address</strong>
-                    <span>Karen / The Hub, Karen, Nairobi, Kenya</span>
+                    <strong>Store Location</strong>
+                    <span>{settings.supportAddress}</span>
                   </div>
                 </div>
 
@@ -34,7 +38,20 @@ function ContactPage() {
                   </span>
                   <div>
                     <strong>Call Us</strong>
-                    <span>+254 (0) 715 737 330</span>
+                    <span>{settings.supportPhone}</span>
+                  </div>
+                </div>
+
+                <div className="contact__detail">
+                  <span className="contact__detail-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </span>
+                  <div>
+                    <strong>Email Us</strong>
+                    <span>{settings.supportEmail}</span>
                   </div>
                 </div>
 
@@ -47,7 +64,7 @@ function ContactPage() {
                   </span>
                   <div>
                     <strong>Office Hours</strong>
-                    <span>Mon – Sun: 09am – 5pm</span>
+                    <span>{settings.supportHours}</span>
                   </div>
                 </div>
               </div>
@@ -70,6 +87,8 @@ function ContactPage() {
           </div>
         </div>
       </section>
+
+      <SupportShortcuts />
     </div>
   )
 }

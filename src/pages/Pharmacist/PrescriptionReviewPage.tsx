@@ -1,9 +1,11 @@
+
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
+import { PrescriptionItem, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
+import { fetchProducts, Product } from '../../services/productService'
 import { prescriptionService } from '../../services/prescriptionService'
-import './PrescriptionReviewPage.css'
+import '../../styles/portals/PrescriptionReviewPage.css'
 
 function statusBarClass(status: string) {
   if (status === 'Approved') return 'prx-status-bar prx-status-bar--approved'
@@ -41,16 +43,23 @@ function statusDescription(status: string) {
   return 'This prescription is waiting for your review and decision.'
 }
 
+function createEmptyItem(): PrescriptionItem {
+  return { name: '', dose: '', frequency: '', qty: 1, productId: null, productName: '' }
+}
+
 function PrescriptionReviewPage() {
   const navigate = useNavigate()
   const { id = '' } = useParams()
   const { user } = useAuth()
   const [records, setRecords] = useState<PrescriptionRecord[]>([])
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([])
+  const [editableItems, setEditableItems] = useState<PrescriptionItem[]>([])
   const [reviewNotes, setReviewNotes] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
     void prescriptionService.list().then((response) => setRecords(response.data))
+    void fetchProducts({ page_size: 100, ordering: 'name' }).then((response) => setCatalogProducts(response.data))
   }, [])
 
   const prescription = useMemo(
@@ -58,21 +67,56 @@ function PrescriptionReviewPage() {
     [records, id]
   )
 
+  useEffect(() => {
+    if (!prescription) return
+    setEditableItems(
+      prescription.items.length
+        ? prescription.items.map((item) => ({ ...item }))
+        : [createEmptyItem()]
+    )
+  }, [prescription])
+
   const handleSetStatus = async (status: PrescriptionStatus) => {
     if (!prescription) return
     const pharmacistName = user?.name ?? 'Pharmacist'
     const updates = {
       status,
       pharmacist: pharmacistName,
+      items: editableItems,
       dispatchStatus: status === 'Approved' ? prescription.dispatchStatus : 'Not started' as const,
     }
     const action = reviewNotes.trim()
       ? `${pharmacistName} set status to ${status}: ${reviewNotes.trim()}`
       : `${pharmacistName} set status to ${status}`
-    const response = await prescriptionService.update(prescription.id, updates, action)
-    setRecords(response.data)
-    setMessage(`Status updated to "${status}" successfully.`)
-    setReviewNotes('')
+    try {
+      const response = await prescriptionService.update(prescription.id, updates, action)
+      setRecords(response.data)
+      setMessage(`Status updated to "${status}" successfully.`)
+      setReviewNotes('')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to update prescription.')
+    }
+  }
+
+  const handleItemChange = (index: number, patch: Partial<PrescriptionItem>) => {
+    setEditableItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item))
+  }
+
+  const handleProductSelect = (index: number, productId: number) => {
+    const match = catalogProducts.find((product) => product.id === productId)
+    handleItemChange(index, {
+      productId: productId || null,
+      productName: match?.name || '',
+      productSlug: match?.slug || '',
+    })
+  }
+
+  const handleAddItemRow = () => {
+    setEditableItems((current) => [...current, createEmptyItem()])
+  }
+
+  const handleRemoveItemRow = (index: number) => {
+    setEditableItems((current) => current.filter((_, itemIndex) => itemIndex !== index))
   }
 
   const handleBack = () => {
@@ -104,11 +148,10 @@ function PrescriptionReviewPage() {
 
   if (!prescription) return null
 
-  const hasIncomplete = prescription.items.some((item) => item.dose === '-' || item.qty <= 0)
+  const hasIncomplete = editableItems.some((item) => !item.name.trim() || item.qty <= 0 || !item.productId)
 
   return (
     <div className="prx-page">
-      {/* ── Top bar ── */}
       <div className="prx-topbar">
         <div className="prx-topbar__inner">
           <button className="prx-back-btn" type="button" onClick={handleBack}>
@@ -122,20 +165,16 @@ function PrescriptionReviewPage() {
         </div>
       </div>
 
-      {/* ── Status banner ── */}
       <div className={statusBarClass(prescription.status)}>
         <div className="prx-status-bar__inner">
           <div className="prx-status-icon"><StatusIcon status={prescription.status} /></div>
           <span className="prx-status-label">Status: {prescription.status}</span>
-          <span className="prx-status-desc">— {statusDescription(prescription.status)}</span>
+          <span className="prx-status-desc">-{statusDescription(prescription.status)}</span>
         </div>
       </div>
 
-      {/* ── Body ── */}
       <div className="prx-body">
-        {/* Left column */}
         <div>
-          {/* Patient & prescription info */}
           <div className="prx-card">
             <div className="prx-card__header">
               <div className="prx-card__header-icon" style={{ background: '#e0e7ff', color: '#4338ca' }}>
@@ -147,35 +186,16 @@ function PrescriptionReviewPage() {
             </div>
             <div className="prx-card__body">
               <div className="prx-meta-grid">
-                <div>
-                  <p className="prx-meta-item__label">Patient name</p>
-                  <p className="prx-meta-item__value">{prescription.patient}</p>
-                </div>
-                <div>
-                  <p className="prx-meta-item__label">Prescribing doctor</p>
-                  <p className="prx-meta-item__value">{prescription.doctor || '—'}</p>
-                </div>
-                <div>
-                  <p className="prx-meta-item__label">Date submitted</p>
-                  <p className="prx-meta-item__value">{prescription.submitted}</p>
-                </div>
-                <div>
-                  <p className="prx-meta-item__label">Handled by</p>
-                  <p className="prx-meta-item__value">{prescription.pharmacist || 'Not yet assigned'}</p>
-                </div>
-                <div>
-                  <p className="prx-meta-item__label">Current status</p>
-                  <span className={statusBadgeClass(prescription.status)}>{prescription.status}</span>
-                </div>
-                <div>
-                  <p className="prx-meta-item__label">Dispatch stage</p>
-                  <span className="prx-badge prx-badge--dispatch">{prescription.dispatchStatus}</span>
-                </div>
+                <div><p className="prx-meta-item__label">Patient name</p><p className="prx-meta-item__value">{prescription.patient}</p></div>
+                <div><p className="prx-meta-item__label">Prescribing doctor</p><p className="prx-meta-item__value">{prescription.doctor || '—'}</p></div>
+                <div><p className="prx-meta-item__label">Date submitted</p><p className="prx-meta-item__value">{prescription.submitted}</p></div>
+                <div><p className="prx-meta-item__label">Handled by</p><p className="prx-meta-item__value">{prescription.pharmacist || 'Not yet assigned'}</p></div>
+                <div><p className="prx-meta-item__label">Current status</p><span className={statusBadgeClass(prescription.status)}>{prescription.status}</span></div>
+                <div><p className="prx-meta-item__label">Dispatch stage</p><span className="prx-badge prx-badge--dispatch">{prescription.dispatchStatus}</span></div>
               </div>
             </div>
           </div>
 
-          {/* Medications */}
           <div className="prx-card">
             <div className="prx-card__header">
               <div className="prx-card__header-icon" style={{ background: '#fce7f3', color: '#be185d' }}>
@@ -183,29 +203,30 @@ function PrescriptionReviewPage() {
                   <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.5 4.04 3 5.5l7 7Z"/>
                 </svg>
               </div>
-              <h2 className="prx-card__title">Medication Items ({prescription.items.length})</h2>
+              <h2 className="prx-card__title">Medication Items ({editableItems.length})</h2>
             </div>
             <div className="prx-card__body">
-              <div className="prx-med-list">
-                {prescription.items.map((item) => (
-                  <div key={`${item.name}-${item.dose}`} className="prx-med-item">
-                    <div className="prx-med-item__icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.5 4.04 3 5.5l7 7Z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="prx-med-item__name">{item.name}</p>
-                      <p className="prx-med-item__detail">{item.dose} · {item.frequency}</p>
-                    </div>
-                    <span className="prx-med-item__qty">Qty: {item.qty}</span>
+              <div className="prx-item-editor">
+                {editableItems.map((item, index) => (
+                  <div key={`${item.backendId || index}-${item.name || 'item'}`} className="prx-item-editor__row">
+                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Medication name" value={item.name} onChange={(event) => handleItemChange(index, { name: event.target.value })} />
+                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Dose" value={item.dose} onChange={(event) => handleItemChange(index, { dose: event.target.value })} />
+                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Frequency" value={item.frequency} onChange={(event) => handleItemChange(index, { frequency: event.target.value })} />
+                    <input className="prx-textarea prx-item-editor__input prx-item-editor__qty" type="number" min="1" value={item.qty} onChange={(event) => handleItemChange(index, { qty: Number(event.target.value) || 1 })} />
+                    <select className="prx-textarea prx-item-editor__select" value={item.productId || ''} onChange={(event) => handleProductSelect(index, Number(event.target.value))}>
+                      <option value="">Map to product…</option>
+                      {catalogProducts.map((product) => (
+                        <option key={product.id} value={product.id}>{product.name} · {product.sku}</option>
+                      ))}
+                    </select>
+                    <button className="prx-item-editor__remove" type="button" onClick={() => handleRemoveItemRow(index)} disabled={editableItems.length === 1}>Remove</button>
                   </div>
                 ))}
+                <button className="prx-nextstep-btn" type="button" onClick={handleAddItemRow}>Add medication item</button>
               </div>
             </div>
           </div>
 
-          {/* Safety checks */}
           <div className="prx-card">
             <div className="prx-card__header">
               <div className="prx-card__header-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
@@ -220,7 +241,7 @@ function PrescriptionReviewPage() {
                 {hasIncomplete && (
                   <div className="prx-safety-item prx-safety-item--warn">
                     <span className="prx-safety-item__icon">⚠️</span>
-                    <span>One or more medication details are incomplete (missing dose or quantity). Review carefully before approving.</span>
+                    <span>Each item needs a name, quantity, and mapped product before this prescription can be approved.</span>
                   </div>
                 )}
                 {prescription.status === 'Clarification' && (
@@ -236,7 +257,7 @@ function PrescriptionReviewPage() {
                 {!hasIncomplete && prescription.status !== 'Clarification' && (
                   <div className="prx-safety-item prx-safety-item--ok">
                     <span className="prx-safety-item__icon">✅</span>
-                    <span>No blocking safety issues detected. Prescription looks complete.</span>
+                    <span>All fulfilment items are mapped and ready for approval.</span>
                   </div>
                 )}
               </div>
@@ -244,9 +265,7 @@ function PrescriptionReviewPage() {
           </div>
         </div>
 
-        {/* Right column */}
         <aside>
-          {/* Uploaded files */}
           <div className="prx-card">
             <div className="prx-card__header">
               <div className="prx-card__header-icon" style={{ background: '#dbeafe', color: '#2563eb' }}>
@@ -280,7 +299,6 @@ function PrescriptionReviewPage() {
             </div>
           </div>
 
-          {/* Audit trail */}
           <div className="prx-card">
             <div className="prx-card__header">
               <div className="prx-card__header-icon" style={{ background: '#f3e8ff', color: '#7c3aed' }}>
@@ -311,7 +329,6 @@ function PrescriptionReviewPage() {
             </div>
           </div>
 
-          {/* Decision */}
           <div className="prx-card">
             <div className="prx-card__header">
               <div className="prx-card__header-icon" style={{ background: '#d1fae5', color: '#059669' }}>
@@ -323,67 +340,37 @@ function PrescriptionReviewPage() {
             </div>
             <div className="prx-card__body">
               <label className="prx-decision-label" htmlFor="review-notes">
-                Add notes (optional — explain your decision)
+                Add notes (optional_ explain your decision)
               </label>
-              <textarea
-                id="review-notes"
-                className="prx-textarea"
-                rows={3}
-                placeholder="e.g. Dosage confirmed with prescriber, approved for dispensing…"
-                value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
-              />
+              <textarea id="review-notes" className="prx-textarea" rows={3} placeholder="e.g. Dosage confirmed with prescriber, approved for dispensing…" value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} />
               <div className="prx-decision-btns">
                 <button className="prx-decision-btn prx-decision-btn--approve" type="button" onClick={() => void handleSetStatus('Approved')}>
-                  <span className="prx-decision-btn__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-                  </span>
-                  <span className="prx-decision-btn__text">
-                    <span className="prx-decision-btn__label">Approve</span>
-                    <span className="prx-decision-btn__desc">Allow dispensing to begin</span>
-                  </span>
+                  <span className="prx-decision-btn__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg></span>
+                  <span className="prx-decision-btn__text"><span className="prx-decision-btn__label">Approve</span><span className="prx-decision-btn__desc">Allow dispensing to begin</span></span>
                 </button>
                 <button className="prx-decision-btn prx-decision-btn--clarify" type="button" onClick={() => void handleSetStatus('Clarification')}>
-                  <span className="prx-decision-btn__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  </span>
-                  <span className="prx-decision-btn__text">
-                    <span className="prx-decision-btn__label">Request clarification</span>
-                    <span className="prx-decision-btn__desc">Ask patient or doctor for more info</span>
-                  </span>
+                  <span className="prx-decision-btn__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+                  <span className="prx-decision-btn__text"><span className="prx-decision-btn__label">Request clarification</span><span className="prx-decision-btn__desc">Ask patient or doctor for more info</span></span>
                 </button>
                 <button className="prx-decision-btn prx-decision-btn--reject" type="button" onClick={() => void handleSetStatus('Rejected')}>
-                  <span className="prx-decision-btn__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </span>
-                  <span className="prx-decision-btn__text">
-                    <span className="prx-decision-btn__label">Reject</span>
-                    <span className="prx-decision-btn__desc">Decline this prescription</span>
-                  </span>
+                  <span className="prx-decision-btn__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+                  <span className="prx-decision-btn__text"><span className="prx-decision-btn__label">Reject</span><span className="prx-decision-btn__desc">Decline this prescription</span></span>
                 </button>
               </div>
-              {message && (
-                <div className="prx-feedback">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg>
-                  {message}
-                </div>
-              )}
+              {message && <div className="prx-feedback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg>{message}</div>}
             </div>
           </div>
 
-          {/* Next step */}
           <div className="prx-card">
             <div className="prx-card__header">
               <div className="prx-card__header-icon" style={{ background: '#f1f5f9', color: '#475569' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-                </svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
               </div>
               <h3 className="prx-card__title">After Approval</h3>
             </div>
             <div className="prx-card__body">
               <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                Once approved, go to the dispatch workflow to manage delivery stages.
+                Once approved, the patient can add the mapped items straight to cart from prescription history.
               </p>
               <button className="prx-nextstep-btn" type="button" onClick={() => navigate('/admin/prescriptions')}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">

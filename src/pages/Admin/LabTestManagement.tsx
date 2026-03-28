@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   LabCategoryDef,
   LabTest,
@@ -11,8 +11,9 @@ import {
   saveSampleTypes,
 } from '../../data/labs'
 import { logAdminAction } from '../../data/adminAudit'
-import './AdminShared.css'
-import './LabTestManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/LabTestManagement.css'
 
 const PAGE_SIZE = 8
 
@@ -50,7 +51,6 @@ const nextId = (tests: LabTest[]) => {
 }
 
 function LabTestManagement() {
-  const navigate = useNavigate()
   const [tests, setTests] = useState<LabTest[]>(() => loadLabTests())
   const [categories, setCategories] = useState<LabCategoryDef[]>(() => loadLabCategoryDefs())
   const [sampleTypes, setSampleTypes] = useState<string[]>(() => loadSampleTypes())
@@ -173,13 +173,10 @@ function LabTestManagement() {
     setDraft((p) => ({ ...p, [k]: e.target.value }))
 
   return (
-    <div className="admin-page">
+    <div className="category-management admin-page">
       {/* Header */}
       <div className="admin-page__header">
         <div>
-          <button className="pm-back-btn" type="button" onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/admin')}>
-            ← Back
-          </button>
           <h1>Lab Tests</h1>
           <p className="lt-subtitle">Manage the catalogue of available diagnostic tests.</p>
         </div>
@@ -245,8 +242,9 @@ function LabTestManagement() {
       </div>
 
       {/* Table */}
-      <div className="admin-page__table">
-        <table>
+      <div className="cm-panel">
+        <div className="cm-table-wrap">
+        <table className="cm-table">
           <thead>
             <tr>
               <th>Test</th>
@@ -254,7 +252,7 @@ function LabTestManagement() {
               <th>Sample</th>
               <th>Turnaround</th>
               <th>Price</th>
-              <th></th>
+              <th className="cm-th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -279,9 +277,9 @@ function LabTestManagement() {
                 </td>
                 <td><span className="lt-price">KSh {t.price.toLocaleString()}</span></td>
                 <td>
-                  <div className="lt-actions">
-                    <button className="btn btn--outline btn--sm" type="button" onClick={() => openEdit(t)}>Edit</button>
-                    <button className="lt-del-btn" type="button" onClick={() => setDeleteTarget(t)}>Delete</button>
+                  <div className="cm-row-actions">
+                    <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => openEdit(t)}>Edit</button>
+                    <button className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => setDeleteTarget(t)}>Delete</button>
                   </div>
                 </td>
               </tr>
@@ -303,6 +301,7 @@ function LabTestManagement() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}

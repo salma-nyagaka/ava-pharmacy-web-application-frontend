@@ -1,69 +1,160 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
-import { loadCatalogProducts } from '../../data/products'
-import { applyPromotionsToProduct, loadPromotions } from '../../data/promotions'
-import './OffersPage.css'
-import '../ProductListing/ProductListingPage.css'
+import { useProducts } from '../../hooks/useProducts'
+import { usePromotions } from '../../hooks/usePromotions'
+import { buildPromotionSummary, filterProductsByPromotion } from '../../services/promotionService'
+import '../../styles/pages/OffersPage.css'
+import '../../styles/pages/ProductListingPage.css'
+import { useAuth } from '../../context/AuthContext'
 
 const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
+const hasDeal = (price: number, originalPrice: number | null) => (originalPrice ?? price) > price
+const getSavings = (price: number, originalPrice: number | null) => (originalPrice ?? price) - price
+const getDiscountPercent = (price: number, originalPrice: number | null) => {
+  const baselinePrice = originalPrice ?? price
+  if (baselinePrice <= 0 || baselinePrice <= price) return 0
+  return ((baselinePrice - price) / baselinePrice) * 100
+}
+const ITEMS_PER_PAGE = 12
 
 const renderStars = (rating: number) => {
   const full = Math.min(5, Math.max(0, Math.round(rating)))
   return Array.from({ length: 5 }, (_, i) =>
     i < full
       ? <svg key={i} className="star star--filled" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-      : <svg key={i} className="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      : <svg key={i} className="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>,
   )
 }
 
 function OffersPage() {
-  const promotions = loadPromotions()
-  const allDeals = useMemo(() =>
-    loadCatalogProducts()
-      .map((p) => applyPromotionsToProduct(p, promotions))
-      .filter((p) => p.stockSource !== 'out' && (p.originalPrice ?? p.price) > p.price),
-    [promotions]
+  const navigate = useNavigate()
+  const { isLoggedIn } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { products } = useProducts({ page_size: 200 }, { loadAllPages: true })
+  const { promotions, loading: promotionsLoading } = usePromotions()
+  const allDeals = useMemo(
+    () => products.filter((product) => product.stockSource !== 'out' && hasDeal(product.price, product.originalPrice)),
+    [products],
+  )
+
+  const selectedPromotionId = Number(searchParams.get('promotion') ?? '') || null
+  const selectedPromotion = useMemo(
+    () => promotions.find((promotion) => promotion.id === selectedPromotionId) ?? null,
+    [promotions, selectedPromotionId],
+  )
+  const promotionScopedDeals = useMemo(
+    () => filterProductsByPromotion(allDeals, selectedPromotion),
+    [allDeals, selectedPromotion],
   )
 
   const [searchTerm, setSearchTerm] = useState('')
   const [minPrice, setMinPrice] = useState(0)
   const [maxPrice, setMaxPrice] = useState(10000)
+  const [minDiscount, setMinDiscount] = useState(0)
+  const [maxDiscount, setMaxDiscount] = useState(100)
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [sortBy, setSortBy] = useState('savings')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [addedId, setAddedId] = useState<number | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   const brands = useMemo(
-    () => Array.from(new Set(allDeals.map((p) => p.brand))).sort((a, b) => a.localeCompare(b)),
-    [allDeals]
+    () => Array.from(new Set(promotionScopedDeals.map((product) => product.brand).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [promotionScopedDeals],
   )
 
   const filteredDeals = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
-    let list = allDeals.filter((p) => {
-      const queryMatch = !query || [p.name, p.brand, p.category].some((v) => v.toLowerCase().includes(query))
-      const priceMatch = p.price >= minPrice && p.price <= maxPrice
-      const brandMatch = selectedBrands.length === 0 || selectedBrands.includes(p.brand)
-      return queryMatch && priceMatch && brandMatch
+    let list = promotionScopedDeals.filter((product) => {
+      const queryMatch = !query || [product.name, product.brand, product.category].some((value) => value.toLowerCase().includes(query))
+      const priceMatch = product.price >= minPrice && product.price <= maxPrice
+      const discountPercent = getDiscountPercent(product.price, product.originalPrice)
+      const discountMatch = discountPercent >= minDiscount && discountPercent <= maxDiscount
+      const brandMatch = selectedBrands.length === 0 || selectedBrands.includes(product.brand)
+      return queryMatch && priceMatch && discountMatch && brandMatch
     })
-    if (sortBy === 'savings') list = [...list].sort((a, b) => ((b.originalPrice ?? b.price) - b.price) - ((a.originalPrice ?? a.price) - a.price))
+    if (sortBy === 'savings') list = [...list].sort((a, b) => getSavings(b.price, b.originalPrice) - getSavings(a.price, a.originalPrice))
     if (sortBy === 'price-low') list = [...list].sort((a, b) => a.price - b.price)
     if (sortBy === 'price-high') list = [...list].sort((a, b) => b.price - a.price)
     return list
-  }, [allDeals, searchTerm, minPrice, maxPrice, selectedBrands, sortBy])
+  }, [promotionScopedDeals, searchTerm, minPrice, maxPrice, minDiscount, maxDiscount, selectedBrands, sortBy])
 
-  const activeFilterCount = selectedBrands.length + (minPrice > 0 || maxPrice < 10000 ? 1 : 0)
+  const pageTitle = selectedPromotion?.title ?? 'Latest Offers'
+  const pageSubtitle = selectedPromotion
+    ? `${buildPromotionSummary(selectedPromotion, promotionScopedDeals.length)} ${promotionScopedDeals.length} discounted product${promotionScopedDeals.length === 1 ? '' : 's'} currently match this offer.`
+    : `${allDeals.length} discounted product${allDeals.length === 1 ? '' : 's'} available now across medicines, wellness, beauty and everyday essentials.`
+
+  const activeFilterCount =
+    (searchTerm ? 1 : 0) +
+    selectedBrands.length +
+    (minPrice > 0 || maxPrice < 10000 ? 1 : 0) +
+    (minDiscount > 0 || maxDiscount < 100 ? 1 : 0)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedPromotionId, searchTerm, minPrice, maxPrice, minDiscount, maxDiscount, selectedBrands, sortBy])
+
+  useEffect(() => {
+    if (!searchParams.get('promotion') || selectedPromotion || promotionsLoading) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('promotion')
+    setSearchParams(next, { replace: true })
+  }, [promotionsLoading, searchParams, selectedPromotion, setSearchParams])
+
+  const totalPages = Math.max(1, Math.ceil(filteredDeals.length / ITEMS_PER_PAGE))
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const paginatedDeals = useMemo(
+    () => filteredDeals.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [filteredDeals, currentPage],
+  )
+
+  const startItem = filteredDeals.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, filteredDeals.length)
+
+  const getPageNumbers = (): (number | '...')[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const pages: (number | '...')[] = [1]
+    if (currentPage > 3) pages.push('...')
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i)
+    }
+    if (currentPage < totalPages - 2) pages.push('...')
+    pages.push(totalPages)
+    return pages
+  }
 
   const clearAllFilters = () => {
-    setSearchTerm(''); setMinPrice(0); setMaxPrice(10000); setSelectedBrands([])
+    setSearchTerm('')
+    setMinPrice(0)
+    setMaxPrice(10000)
+    setMinDiscount(0)
+    setMaxDiscount(100)
+    setSelectedBrands([])
+  }
+
+  const clearSelectedPromotion = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('promotion')
+    setSearchParams(next)
   }
 
   const toggleBrand = (brand: string) =>
-    setSelectedBrands((prev) => prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand])
+    setSelectedBrands((prev) => prev.includes(brand) ? prev.filter((item) => item !== brand) : [...prev, brand])
 
-  const handleAddToCart = (deal: typeof allDeals[0]) => {
+  const handleAddToCart = (deal: typeof allDeals[number]) => {
+    if (deal.requiresPrescription) {
+      const prescriptionPath = `/prescriptions?product_id=${deal.id}&product_name=${encodeURIComponent(deal.name)}`
+      navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
+      return
+    }
     void cartService.add({
       id: deal.id,
       name: deal.name,
@@ -77,19 +168,88 @@ function OffersPage() {
   }
 
   return (
-    <div className="cond-page">
-      <div className="offers-hero">
-        <div className="container">
-          <p className="offers-hero__eyebrow">Promotions</p>
-          <h1 className="offers-hero__title">Latest Offers</h1>
-          <p className="offers-hero__sub">Save on essentials, wellness products, and daily healthcare items. {allDeals.length} active deals.</p>
-        </div>
-      </div>
-
+    <div className="plp offers-page">
       <div className="container">
-        <div className="plp__layout">
+        <div className="plp__header offers-page__header">
+          <div className="breadcrumbs">
+            <Link to="/">Home</Link>
+            <span>/</span>
+            {selectedPromotion ? <Link to="/offers">Offers</Link> : <span>Offers</span>}
+            {selectedPromotion && (
+              <>
+                <span>/</span>
+                <span>{selectedPromotion.title}</span>
+              </>
+            )}
+          </div>
 
-          {/* Sidebar */}
+          <div className="plp__header-top">
+            <div className="plp__title-row">
+              <div>
+                <p className="offers-page__eyebrow">{selectedPromotion ? 'Promotion' : 'Deals'}</p>
+                <h1 className="plp__title">{pageTitle}</h1>
+                <p className="plp__subtitle offers-page__subtitle">{pageSubtitle}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {selectedPromotion && (
+          <div className="offers-selection-bar">
+            <div>
+              <span className="offers-selection-bar__eyebrow">{selectedPromotion.badge}</span>
+              <p className="offers-selection-bar__copy">
+                Showing discounted products attached to <strong>{selectedPromotion.title}</strong>.
+              </p>
+            </div>
+            <button className="btn btn--outline btn--sm" type="button" onClick={clearSelectedPromotion}>
+              Show all offers
+            </button>
+          </div>
+        )}
+
+        {(selectedPromotion || activeFilterCount > 0) && (
+          <div className="plp__filter-chips">
+            <span className="plp__filter-chips__label">Active filters:</span>
+            {selectedPromotion && (
+              <span className="plp__chip plp__chip--promotion">
+                Offer: {selectedPromotion.title}
+                <button className="plp__chip__remove" type="button" onClick={clearSelectedPromotion}>×</button>
+              </span>
+            )}
+            {searchTerm && (
+              <span className="plp__chip">
+                Search: &ldquo;{searchTerm}&rdquo;
+                <button className="plp__chip__remove" type="button" onClick={() => setSearchTerm('')}>×</button>
+              </span>
+            )}
+            {selectedBrands.map((brand) => (
+              <span key={brand} className="plp__chip">
+                {brand}
+                <button className="plp__chip__remove" type="button" onClick={() => toggleBrand(brand)}>×</button>
+              </span>
+            ))}
+            {(minPrice > 0 || maxPrice < 10000) && (
+              <span className="plp__chip">
+                KSh {minPrice.toLocaleString()}–{maxPrice.toLocaleString()}
+                <button className="plp__chip__remove" type="button" onClick={() => { setMinPrice(0); setMaxPrice(10000) }}>×</button>
+              </span>
+            )}
+            {(minDiscount > 0 || maxDiscount < 100) && (
+              <span className="plp__chip">
+                Discount {minDiscount}%–{maxDiscount}%
+                <button className="plp__chip__remove" type="button" onClick={() => { setMinDiscount(0); setMaxDiscount(100) }}>×</button>
+              </span>
+            )}
+            {activeFilterCount > 0 && (
+              <button className="plp__chip plp__chip--clear" type="button" onClick={clearAllFilters}>
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="plp__layout">
           <aside className="plp__sidebar">
             <div className="filter-panel">
               <div className="filter-panel__header">
@@ -111,6 +271,31 @@ function OffersPage() {
                 </div>
               </div>
 
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Discount Range</h4>
+                <div className="price-inputs">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="Min %"
+                    className="price-input"
+                    value={minDiscount}
+                    onChange={(e) => setMinDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                  />
+                  <span className="price-sep">–</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="Max %"
+                    className="price-input"
+                    value={maxDiscount}
+                    onChange={(e) => setMaxDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                  />
+                </div>
+              </div>
+
               <div className="filter-panel__section filter-panel__section--last">
                 <h4 className="filter-panel__heading">Brands</h4>
                 <div className="filter-options">
@@ -120,18 +305,18 @@ function OffersPage() {
                       <span>{brand}</span>
                     </label>
                   ))}
+                  {brands.length === 0 && <p className="offers-filter-empty">No brands available for this offer.</p>}
                 </div>
               </div>
             </div>
           </aside>
 
-          {/* Main */}
           <main className="plp__main">
             <div className="plp__toolbar">
               <p className="plp__results-count">
                 {filteredDeals.length === 0
                   ? 'No offers found'
-                  : `Showing ${filteredDeals.length} offer${filteredDeals.length !== 1 ? 's' : ''}`}
+                  : `Showing ${startItem}–${endItem} of ${filteredDeals.length} offer${filteredDeals.length !== 1 ? 's' : ''}`}
               </p>
               <div className="plp__toolbar-right">
                 <div className="plp__search-wrap">
@@ -166,15 +351,12 @@ function OffersPage() {
             </div>
 
             <div className={`products-grid ${viewMode === 'list' ? 'products-grid--list' : ''}`}>
-              {filteredDeals.map((deal) => (
+              {paginatedDeals.map((deal) => (
                 <article key={deal.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
                   <Link to={`/product/${deal.id}`} className="product-card__image">
                     {deal.badge && (
                       <span className={`product-card__badge ${deal.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>{deal.badge}</span>
                     )}
-                    <span className="product-card__badge product-card__badge--sale offers-saving-badge">
-                      Save {formatPrice((deal.originalPrice ?? deal.price) - deal.price)}
-                    </span>
                     <ImageWithFallback src={deal.image} alt={deal.name} />
                   </Link>
                   <div className="product-card__content">
@@ -192,15 +374,16 @@ function OffersPage() {
                         <span className="product-card__original-price">{formatPrice(deal.originalPrice)}</span>
                       )}
                     </div>
+                    <p className="product-card__deal-copy">Save {formatPrice(getSavings(deal.price, deal.originalPrice))} today</p>
                     <button
                       className={`product-card__add-to-cart ${addedId === deal.id ? 'product-card__add-to-cart--added' : ''}`}
                       type="button"
                       onClick={() => handleAddToCart(deal)}
                     >
                       {addedId === deal.id ? (
-                        <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>Added</>
+                        <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>Added</>
                       ) : (
-                        <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to Cart</>
+                        <>{deal.requiresPrescription ? 'Request with prescription' : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to cart</>}</>
                       )}
                     </button>
                   </div>
@@ -210,15 +393,65 @@ function OffersPage() {
               {filteredDeals.length === 0 && (
                 <div className="empty-state">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  <p className="empty-state__message">No offers match your filters</p>
+                  <p className="empty-state__title">No offers match your filters</p>
+                  <p className="empty-state__sub">Try a broader search, remove brand filters, or clear the current offer filter.</p>
                   {activeFilterCount > 0 && (
                     <button className="btn btn--outline btn--sm" type="button" onClick={clearAllFilters}>Clear filters</button>
                   )}
                 </div>
               )}
             </div>
-          </main>
 
+            {totalPages > 1 && (
+              <div className="pagination-wrap">
+                <p className="pagination-info">
+                  Showing <strong>{startItem}–{endItem}</strong> of <strong>{filteredDeals.length}</strong> results
+                </p>
+                <div className="pagination">
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    aria-label="Previous page"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                    Prev
+                  </button>
+
+                  <div className="pagination__pages">
+                    {getPageNumbers().map((page, idx) =>
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="pagination__ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={page}
+                          className={`pagination__btn pagination__btn--page ${currentPage === page ? 'pagination__btn--active' : ''}`}
+                          onClick={() => setCurrentPage(page)}
+                          aria-current={currentPage === page ? 'page' : undefined}
+                        >
+                          {page}
+                        </button>
+                      ),
+                    )}
+                  </div>
+
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    aria-label="Next page"
+                  >
+                    Next
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </main>
         </div>
       </div>
     </div>

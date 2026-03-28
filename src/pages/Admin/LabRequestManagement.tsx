@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -20,8 +19,9 @@ import {
   upsertLabResult,
 } from '../../data/labs'
 import { LabPartner, loadLabPartners } from '../../data/labPartners'
-import './AdminShared.css'
-import './LabRequestManagement.css'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/LabRequestManagement.css'
 
 const PAGE_SIZE = 10
 
@@ -43,7 +43,6 @@ const STATUS_COLOR: Record<LabRequestStatus, string> = {
 }
 
 function LabRequestManagement() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const actor = user?.name ?? 'Admin'
 
@@ -195,23 +194,11 @@ function LabRequestManagement() {
   const stepIndex = (status: LabRequestStatus) => STATUS_STEPS.indexOf(status)
 
   return (
-    <div className={`lrm-root ${panelId ? 'lrm-root--panel-open' : ''}`}>
+    <div className={`category-management lrm-root ${panelId ? 'lrm-root--panel-open' : ''}`}>
       <PageHeader
         title="Lab requests"
         subtitle="Review and manage all patient-submitted lab test requests."
         badge="Admin"
-        actions={(
-          <button
-            className="btn btn--outline btn--sm"
-            type="button"
-            onClick={() => {
-              if (window.history.length > 1) { navigate(-1); return }
-              navigate('/admin/lab-tests')
-            }}
-          >
-            ← Back
-          </button>
-        )}
       />
 
       <section className="page">
@@ -319,8 +306,9 @@ function LabRequestManagement() {
           </div>
 
           {/* Table */}
-          <div className="lrm-table-wrap">
-            <table className="lrm-table">
+          <div className="cm-panel">
+            <div className="cm-table-wrap lrm-table-wrap">
+            <table className="cm-table lrm-table">
               <thead>
                 <tr>
                   <th>Request</th>
@@ -330,7 +318,7 @@ function LabRequestManagement() {
                   <th>Technician</th>
                   <th>Status</th>
                   <th>Payment</th>
-                  <th>Actions</th>
+                  <th className="cm-th-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -422,6 +410,7 @@ function LabRequestManagement() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Pagination */}

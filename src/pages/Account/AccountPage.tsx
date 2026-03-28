@@ -1,62 +1,218 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import './AccountPage.css'
+import { useAuth } from '../../context/AuthContext'
+import { fetchOrders, type Order as ApiOrder } from '../../services/orderService'
+import { isPlacedApiOrder } from '../../data/ordersData'
+import '../../styles/pages/AccountPage.css'
+
+type DashboardOrderStatusTone = {
+  label: string
+  color: string
+  bg: string
+}
+
+const FALLBACK_STATUS: DashboardOrderStatusTone = {
+  label: 'Updated',
+  color: '#64748b',
+  bg: '#f1f5f9',
+}
+
+function formatPrice(price: number) {
+  return `KSh ${price.toLocaleString()}`
+}
+
+function parseAmount(value: string | null | undefined) {
+  const parsed = Number.parseFloat(value ?? '0')
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function getOrderStatusTone(status: string): DashboardOrderStatusTone {
+  switch (status) {
+    case 'delivered':
+      return { label: 'Delivered', color: '#16a34a', bg: 'rgba(22,163,74,0.1)' }
+    case 'shipped':
+      return { label: 'In transit', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' }
+    case 'processing':
+      return { label: 'Processing', color: '#d97706', bg: 'rgba(217,119,6,0.1)' }
+    case 'paid':
+      return { label: 'Confirmed', color: '#0f766e', bg: 'rgba(15,118,110,0.1)' }
+    case 'pending':
+      return { label: 'Pending', color: '#7c3aed', bg: 'rgba(124,58,237,0.1)' }
+    case 'cancelled':
+      return { label: 'Cancelled', color: '#dc2626', bg: 'rgba(220,38,38,0.1)' }
+    case 'refunded':
+      return { label: 'Refunded', color: '#475569', bg: 'rgba(71,85,105,0.12)' }
+    default:
+      return FALLBACK_STATUS
+  }
+}
+
+function sortOrders(items: ApiOrder[]) {
+  return [...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+}
 
 function AccountPage() {
-  const recentOrders = [
-    { id: 'ORD-001', date: 'Jan 20, 2026', total: 7000, status: 'Delivered', items: 3 },
-    { id: 'ORD-002', date: 'Jan 15, 2026', total: 3200, status: 'In Transit', items: 2 },
-    { id: 'ORD-003', date: 'Jan 10, 2026', total: 4500, status: 'Processing', items: 5 },
+  const { user } = useAuth()
+  const [orders, setOrders] = useState<ApiOrder[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadOrders = async () => {
+      setIsLoading(true)
+      setError('')
+      try {
+        const { data } = await fetchOrders()
+        if (!isMounted) return
+        setOrders(sortOrders(data.filter(isPlacedApiOrder)))
+      } catch {
+        if (!isMounted) return
+        setError('Unable to load your recent orders right now.')
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+
+    void loadOrders()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const recentOrders = useMemo(() => orders.slice(0, 5), [orders])
+
+  const stats = useMemo(() => {
+    const totalOrders = orders.length
+    const activeOrders = orders.filter((order) => ['pending', 'paid', 'processing', 'shipped'].includes(order.status)).length
+    const deliveredOrders = orders.filter((order) => order.status === 'delivered').length
+    const totalSpend = orders
+      .filter((order) => order.status !== 'cancelled')
+      .reduce((sum, order) => sum + parseAmount(order.total), 0)
+
+    return {
+      totalOrders,
+      activeOrders,
+      deliveredOrders,
+      totalSpend,
+    }
+  }, [orders])
+
+  const summaryCards = [
+    {
+      label: 'Total orders',
+      value: String(stats.totalOrders),
+      tone: 'blue',
+      meta: stats.totalOrders === 1 ? '1 order placed' : `${stats.totalOrders} orders placed`,
+    },
+    {
+      label: 'Active orders',
+      value: String(stats.activeOrders),
+      tone: 'amber',
+      meta: stats.activeOrders > 0 ? 'Orders in progress' : 'No active deliveries',
+    },
+    {
+      label: 'Delivered',
+      value: String(stats.deliveredOrders),
+      tone: 'green',
+      meta: stats.deliveredOrders > 0 ? 'Completed deliveries' : 'Nothing delivered yet',
+    },
+    {
+      label: 'Total spend',
+      value: formatPrice(stats.totalSpend),
+      tone: 'rose',
+      meta: 'Across completed and active orders',
+    },
   ]
-
-  const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
-
-  const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-    Delivered:    { label: 'Delivered',  color: '#16a34a', bg: 'rgba(22,163,74,0.1)' },
-    'In Transit': { label: 'In Transit', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
-    Processing:   { label: 'Processing', color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
-    Cancelled:    { label: 'Cancelled',  color: '#dc2626', bg: 'rgba(220,38,38,0.1)' },
-  }
 
   return (
     <div className="account-dashboard">
+      <div className="account-dashboard__intro">
+        <div>
+          <p className="account-dashboard__eyebrow">Account overview</p>
+          <h1 className="account-dashboard__title">Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</h1>
+          <p className="account-dashboard__sub">Track your orders, continue care, and pick up where you left off.</p>
+        </div>
+      </div>
+
+      <div className="account-summary-grid">
+        {summaryCards.map((card) => (
+          <div key={card.label} className={`account-summary-card account-summary-card--${card.tone}`}>
+            <p className="account-summary-card__label">{card.label}</p>
+            <p className="account-summary-card__value">{card.value}</p>
+            <p className="account-summary-card__meta">{card.meta}</p>
+          </div>
+        ))}
+      </div>
 
       <div className="account-orders-section">
         <div className="account-orders-header">
           <div>
             <h2 className="account-orders-title">Recent Orders</h2>
-            <p className="account-orders-sub">Your last {recentOrders.length} orders</p>
+            <p className="account-orders-sub">{recentOrders.length} most recent orders from your account</p>
           </div>
           <Link to="/account/orders" className="account-orders-viewall">See all →</Link>
         </div>
 
-        <ul className="account-orders-list">
-          {recentOrders.map((order) => {
-            const cfg = statusConfig[order.status] ?? { label: order.status, color: '#64748b', bg: '#f1f5f9' }
-            return (
-              <li key={order.id} className="account-order-row">
-                <div className="account-order-row__left">
-                  <div className="account-order-row__icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-                      <rect x="9" y="3" width="6" height="4" rx="1"/>
-                    </svg>
+        {error && (
+          <div className="account-orders-empty">
+            <p className="account-orders-empty__title">Unable to load orders</p>
+            <p className="account-orders-empty__sub">{error}</p>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="account-orders-empty">
+            <p className="account-orders-empty__title">Loading recent orders…</p>
+            <p className="account-orders-empty__sub">Please wait while we fetch your order activity.</p>
+          </div>
+        ) : recentOrders.length === 0 ? (
+          <div className="account-orders-empty">
+            <p className="account-orders-empty__title">No orders yet</p>
+            <p className="account-orders-empty__sub">Once you place an order, it will appear here for quick access.</p>
+            <Link to="/products" className="btn btn--primary btn--sm" style={{ marginTop: '0.75rem' }}>
+              Start shopping
+            </Link>
+          </div>
+        ) : (
+          <ul className="account-orders-list">
+            {recentOrders.map((order) => {
+              const tone = getOrderStatusTone(order.status)
+              const itemCount = order.items.length
+              return (
+                <li key={order.id} className="account-order-row">
+                  <div className="account-order-row__left">
+                    <div className="account-order-row__icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                        <rect x="9" y="3" width="6" height="4" rx="1"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="account-order-row__id">{order.order_number}</p>
+                      <p className="account-order-row__meta">{formatDate(order.created_at)} · {itemCount} item{itemCount === 1 ? '' : 's'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="account-order-row__id">{order.id}</p>
-                    <p className="account-order-row__meta">{order.date} · {order.items} item{order.items > 1 ? 's' : ''}</p>
+                  <div className="account-order-row__right">
+                    <span className="account-order-row__status" style={{ color: tone.color, background: tone.bg }}>
+                      {tone.label}
+                    </span>
+                    <span className="account-order-row__total">{formatPrice(parseAmount(order.total))}</span>
+                    <Link to={`/account/orders/${order.id}`} className="account-order-row__link">View</Link>
                   </div>
-                </div>
-                <div className="account-order-row__right">
-                  <span className="account-order-row__status" style={{ color: cfg.color, background: cfg.bg }}>
-                    {cfg.label}
-                  </span>
-                  <span className="account-order-row__total">{formatPrice(order.total)}</span>
-                  <Link to={`/account/orders/${order.id}`} className="account-order-row__link">View</Link>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                </li>
+              )
+            })}
+          </ul>
+        )}
 
         <div className="account-orders-footer">
           <p className="account-orders-hint">
@@ -90,7 +246,6 @@ function AccountPage() {
           </Link>
         </div>
       </div>
-
     </div>
   )
 }

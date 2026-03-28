@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import './AdminShared.css'
-import './DoctorManagement.css'
+import { useSearchParams } from 'react-router-dom'
+import '../../styles/admin/AdminShared.css'
+import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/DoctorManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
 import {
   DoctorDocument,
@@ -119,7 +120,6 @@ const mapDoctor = (api: AdminDoctorApi): DoctorProfile => {
 }
 
 function DoctorManagement() {
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [doctors, setDoctors] = useState<DoctorProfile[]>([])
   const [loading, setLoading] = useState(true)
@@ -200,11 +200,6 @@ function DoctorManagement() {
       setSelectedType('Pediatrician')
     }
   }, [searchParams])
-
-  const handleBack = () => {
-    if (window.history.length > 1) { navigate(-1); return }
-    navigate('/admin')
-  }
 
   const specialties = useMemo(
     () => Array.from(new Set(doctors.map((d) => d.specialty).filter(Boolean))),
@@ -318,11 +313,10 @@ function DoctorManagement() {
   }
 
   return (
-    <div className="admin-page dm-page">
+    <div className="category-management admin-page dm-page">
       {/* Header */}
-      <div className="admin-page__header">
+      <div className="category-management__header">
         <div>
-          <button className="pm-back-btn" type="button" onClick={handleBack}>← Back</button>
           <h1>Doctors & Specialists</h1>
           <p className="dm-subtitle">Manage registered doctors, pediatricians, and their verifications.</p>
         </div>
@@ -339,19 +333,43 @@ function DoctorManagement() {
       </div>
       {loadError && <p className="dm-field-error">{loadError}</p>}
 
-      {/* Stats */}
-      <div className="dm-stats">
-        <div className="dm-stat dm-stat--active">
-          <span className="dm-stat__value">{stats.active}</span>
-          <span className="dm-stat__label">Active</span>
+      {/* KPI grid */}
+      <div className="cm-kpi-grid">
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Total</span>
+            <strong className="cm-kpi-card__value">{loading ? '—' : doctors.length}</strong>
+          </div>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
         </div>
-        <div className="dm-stat dm-stat--pending">
-          <span className="dm-stat__value">{stats.pending}</span>
-          <span className="dm-stat__label">Pending</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Active</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : stats.active}</strong>
+          </div>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
         </div>
-        <div className="dm-stat dm-stat--suspended">
-          <span className="dm-stat__value">{stats.suspended}</span>
-          <span className="dm-stat__label">Suspended</span>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Pending</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{loading ? '—' : stats.pending}</strong>
+          </div>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Suspended</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : stats.suspended}</strong>
+          </div>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          </div>
         </div>
       </div>
 
@@ -366,28 +384,34 @@ function DoctorManagement() {
       )}
 
       {/* Filters */}
-      <div className="admin-page__filters">
-        <input type="text" placeholder="Search by name, email, specialty…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
-          <option value="all">All types</option>
-          <option value="Doctor">Doctors</option>
-          <option value="Pediatrician">Pediatricians</option>
-        </select>
-        <select value={selectedSpecialty} onChange={(e) => setSelectedSpecialty(e.target.value)}>
-          <option value="all">All specialties</option>
-          {specialties.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
-          <option value="all">All statuses</option>
-          <option value="Active">Active</option>
-          <option value="Pending">Pending</option>
-          <option value="Suspended">Suspended</option>
-        </select>
+      <div className="cm-toolbar">
+        <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
+          <div className="cm-search-box">
+            <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
+            <input type="search" placeholder="Search by name, email, specialty…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          <select className="cm-filter-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+            <option value="all">All types</option>
+            <option value="Doctor">Doctors</option>
+            <option value="Pediatrician">Pediatricians</option>
+          </select>
+          <select className="cm-filter-select" value={selectedSpecialty} onChange={(e) => setSelectedSpecialty(e.target.value)}>
+            <option value="all">All specialties</option>
+            {specialties.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+            <option value="all">All statuses</option>
+            <option value="Active">Active</option>
+            <option value="Pending">Pending</option>
+            <option value="Suspended">Suspended</option>
+          </select>
+        </div>
       </div>
 
       {/* Table */}
-      <div className="admin-page__table">
-        <table>
+      <div className="cm-panel">
+        <div className="cm-table-wrap">
+        <table className="cm-table">
           <thead>
             <tr>
               <th>Doctor</th>
@@ -395,7 +419,7 @@ function DoctorManagement() {
               <th>Specialty</th>
               <th>Fee · Rating</th>
               <th>Status</th>
-              <th>Action</th>
+              <th className="cm-th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -430,10 +454,10 @@ function DoctorManagement() {
                   )}
                 </td>
                 <td>
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <div className="cm-row-actions">
                     {doctor.status === 'Pending' && (
                       <button
-                        className="btn btn--outline btn--sm"
+                        className="cm-row-btn cm-row-btn--edit"
                         type="button"
                         onClick={() => {
                           setSelectedPendingId(doctor.id)
@@ -447,7 +471,7 @@ function DoctorManagement() {
                         Review
                       </button>
                     )}
-                    <button className="btn btn--outline btn--sm" type="button" onClick={() => openManageModal(doctor)}>
+                    <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => openManageModal(doctor)}>
                       Details
                     </button>
                   </div>
@@ -459,6 +483,7 @@ function DoctorManagement() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}
