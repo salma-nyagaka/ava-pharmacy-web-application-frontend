@@ -1,14 +1,18 @@
 .tracking-page .page {
-  background: #f8fafc;
+  padding: 0 0 4rem;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0) 0 210px, #f8fafc 210px 100%);
+  margin-bottom: 1.5rem;
 }
 
 /* ── Cards ───────────────────────────────────────────── */
 .track-card {
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 12px;
+  border-radius: 18px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
 }
 
 .track-card--hero {
@@ -740,34 +744,40 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 1.25rem 0 0;
+  padding: 1.4rem 0 0;
   font-size: 0.8125rem;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.72);
   margin-bottom: 1.25rem;
 }
 
 .track-breadcrumbs a {
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.78);
   text-decoration: none;
 }
 
-.track-breadcrumbs a:hover { color: var(--color-primary); }
+.track-breadcrumbs a:hover { color: #ffffff; }
 
 /* ── Page header ─────────────────────────────────────── */
 .track-page-header {
   margin-bottom: 1.75rem;
+  padding: 1.45rem 1.5rem;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.12), transparent 34%),
+    linear-gradient(140deg, #7f1637 0%, #991b1f 48%, #031b4e 100%);
+  box-shadow: 0 18px 40px rgba(3, 27, 78, 0.14);
 }
 
 .track-page-header h1 {
-  font-size: 1.5rem;
+  font-size: clamp(1.55rem, 2.4vw, 2.2rem);
   font-weight: 800;
-  color: #0f172a;
+  color: #ffffff;
   margin: 0 0 0.35rem;
 }
 
 .track-page-header p {
-  font-size: 0.9375rem;
-  color: #64748b;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.82);
   margin: 0;
 }
 

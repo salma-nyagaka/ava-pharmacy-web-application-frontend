@@ -119,10 +119,7 @@ function AboutPage() {
           <div className="about-page__section-head">
             <span className="about-page__section-kicker">What we offer</span>
             <h2>Reliable essentials and indulgent care in one place.</h2>
-            <p>
-              The product mix follows the same simple structure highlighted on the live AVA site, without the extra
-              card-heavy presentation.
-            </p>
+          
           </div>
 
           <div className="about-page__services">
