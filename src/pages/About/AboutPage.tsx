@@ -1,21 +1,7 @@
 import { Link } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import mapIllustration from '../../assets/images/maps/map-the-hub-karen.svg'
-import { useSiteSettings } from '../../context/SiteSettingsContext'
-import {
-  DEFAULT_SITE_SETTINGS,
-  formatPhoneHref,
-  formatWhatsAppHref,
-} from '../../services/siteSettingsService'
+import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import '../../styles/pages/AboutPage.css'
-
-const LIVE_SITE_CONTACT = {
-  supportEmail: 'info@avapharmacy.co.ke',
-  supportPhone: '+254 (0) 715 737 330',
-  whatsappPhone: '+254 (0) 715 737 330',
-  supportAddress: 'Karen/The hub, Karen, Nairobi, Kenya',
-  supportHours: 'Mon-Sun 09am-5pm',
-}
 
 const ABOUT_IMAGE_URL = 'https://avapharmacy.co.ke/img/about-4.jpg'
 
@@ -64,43 +50,7 @@ const serviceGroups = [
   },
 ]
 
-function withLiveFallback(value: string, defaultValue: string, liveValue: string) {
-  const normalized = value.trim()
-  if (!normalized || normalized === defaultValue) return liveValue
-  return normalized
-}
-
 function AboutPage() {
-  const { settings } = useSiteSettings()
-
-  const contact = {
-    supportEmail: withLiveFallback(
-      settings.supportEmail,
-      DEFAULT_SITE_SETTINGS.supportEmail,
-      LIVE_SITE_CONTACT.supportEmail,
-    ),
-    supportPhone: withLiveFallback(
-      settings.supportPhone,
-      DEFAULT_SITE_SETTINGS.supportPhone,
-      LIVE_SITE_CONTACT.supportPhone,
-    ),
-    whatsappPhone: withLiveFallback(
-      settings.whatsappPhone,
-      DEFAULT_SITE_SETTINGS.whatsappPhone,
-      LIVE_SITE_CONTACT.whatsappPhone,
-    ),
-    supportAddress: withLiveFallback(
-      settings.supportAddress,
-      DEFAULT_SITE_SETTINGS.supportAddress,
-      LIVE_SITE_CONTACT.supportAddress,
-    ),
-    supportHours: withLiveFallback(
-      settings.supportHours,
-      DEFAULT_SITE_SETTINGS.supportHours,
-      LIVE_SITE_CONTACT.supportHours,
-    ),
-  }
-
   return (
     <div className="about-page">
       <section className="about-page__hero">
@@ -131,9 +81,9 @@ function AboutPage() {
         </div>
       </section>
 
-      <section className="about-page__section">
-        <div className="container about-page__split">
-          <div className="about-page__content">
+      <section className="about-page__section about-page__section--rose">
+        <div className="container">
+          <div className="about-page__content about-page__content--centered">
             <span className="about-page__section-kicker">Who we are</span>
             <h2>A simple pharmacy experience centered on everyday wellness.</h2>
             <p>
@@ -145,15 +95,21 @@ function AboutPage() {
               feel confident about.
             </p>
           </div>
+        </div>
+      </section>
 
-          <div className="about-page__content">
+      <section className="about-page__section about-page__section--slate">
+        <div className="container">
+          <div className="about-page__reasons-wrap">
             <span className="about-page__section-kicker">Why choose AVA</span>
             <h2>Trusted products, real support, and a customer-first approach.</h2>
-            <ul className="about-page__list">
+            <div className="about-page__reasons-grid">
               {reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
+                <article key={reason} className="about-page__reason-card">
+                  <p>{reason}</p>
+                </article>
               ))}
-            </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -172,7 +128,9 @@ function AboutPage() {
           <div className="about-page__services">
             {serviceGroups.map((group) => (
               <div key={group.title} className="about-page__service-group">
-                <h3>{group.title}</h3>
+                <div className="about-page__service-group-head">
+                  <h3>{group.title}</h3>
+                </div>
                 <ul className="about-page__list">
                   {group.items.map((item) => (
                     <li key={item}>{item}</li>
@@ -184,56 +142,7 @@ function AboutPage() {
         </div>
       </section>
 
-      <section className="about-page__section">
-        <div className="container about-page__contact-grid">
-          <div className="about-page__content">
-            <span className="about-page__section-kicker">Visit or contact us</span>
-            <h2>Find Ava Pharmacy at The Hub, Karen.</h2>
-            <p>
-              Have a question? Reach the team by phone, email, or WhatsApp for quick support during business hours.
-            </p>
-
-            <dl className="about-page__contact-list">
-              <div>
-                <dt>Address</dt>
-                <dd>{contact.supportAddress}</dd>
-              </div>
-              <div>
-                <dt>Office time</dt>
-                <dd>{contact.supportHours}</dd>
-              </div>
-              <div>
-                <dt>Call us</dt>
-                <dd>
-                  <a href={`tel:${formatPhoneHref(contact.supportPhone)}`}>{contact.supportPhone}</a>
-                </dd>
-              </div>
-              <div>
-                <dt>Email</dt>
-                <dd>
-                  <a href={`mailto:${contact.supportEmail}`}>{contact.supportEmail}</a>
-                </dd>
-              </div>
-            </dl>
-
-            <div className="about-page__actions">
-              <Link to="/contact" className="btn btn--primary btn--lg">Contact us</Link>
-              <a
-                className="btn btn--outline btn--lg"
-                href={`https://wa.me/${formatWhatsAppHref(contact.whatsappPhone)}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                WhatsApp
-              </a>
-            </div>
-          </div>
-
-          <div className="about-page__map">
-            <img src={mapIllustration} alt="Map showing Ava Pharmacy at The Hub Karen" />
-          </div>
-        </div>
-      </section>
+      <SupportShortcuts />
     </div>
   )
 }

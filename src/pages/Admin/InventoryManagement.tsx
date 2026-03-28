@@ -236,7 +236,8 @@ function InventoryManagement() {
   const [newStockProductId, setNewStockProductId] = useState<number | ''>('')
   const [newVariantName, setNewVariantName] = useState('')
   const [newVariantStrength, setNewVariantStrength] = useState('')
-  const [newVariantDosageInstructions, setNewVariantDosageInstructions] = useState('')
+  const [newVariantDosageAmount, setNewVariantDosageAmount] = useState('')
+  const [newVariantDosageQuantity, setNewVariantDosageQuantity] = useState('')
   const [newVariantDirections, setNewVariantDirections] = useState('')
   const [newVariantWarnings, setNewVariantWarnings] = useState('')
   const [newVariantPosProductId, setNewVariantPosProductId] = useState('')
@@ -332,7 +333,8 @@ function InventoryManagement() {
   const resetNewStockForm = () => {
     setNewVariantName('')
     setNewVariantStrength('')
-    setNewVariantDosageInstructions('')
+    setNewVariantDosageAmount('')
+    setNewVariantDosageQuantity('')
     setNewVariantDirections('')
     setNewVariantWarnings('')
     setNewVariantPosProductId('')
@@ -445,12 +447,21 @@ function InventoryManagement() {
     setNewStockSaving(true)
     setNewStockError('')
     try {
+      const dosageInstructionValue = (() => {
+        const amount = newVariantDosageAmount.trim()
+        const quantity = newVariantDosageQuantity.trim()
+        if (amount && quantity) return `${amount} x ${quantity}`
+        if (amount) return amount
+        if (quantity) return quantity
+        return ''
+      })()
+
       await adminProductService.createProductVariant(selectedProduct.id, {
         name: newVariantName.trim(),
         sku: generateVariantSku(selectedProduct, newVariantName),
         pos_product_id: newVariantPosProductId,
         strength: newVariantStrength.trim(),
-        dosage_instructions: newVariantDosageInstructions.trim(),
+        dosage_instructions: dosageInstructionValue,
         directions: newVariantDirections.trim(),
         warnings: newVariantWarnings.trim(),
         price: priceValue,
@@ -872,20 +883,18 @@ function InventoryManagement() {
 
       {showNewStockModal && (
         <div className="modal-overlay" onClick={closeNewStockModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal--stock" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <h2>New Stock</h2>
               <button className="modal__close" onClick={closeNewStockModal}>×</button>
             </div>
             <div className="modal__content">
-              <div className="adjust-info">
-                <p className="adjust-title">Create a sellable variant</p>
-                <p className="adjust-subtitle">Choose the parent product, then capture the variant details, POS link, price, and opening stock.</p>
-              </div>
-
-              <div className="adjust-section">
+              <div className="adjust-section stock-form__section">
                 <div className="adjust-section__title">Variant Details</div>
-                <div className="adjust-grid">
+                <div className="stock-form__section-copy">
+                  Start with the parent product, customer-facing name, strength, and POS mapping.
+                </div>
+                <div className="adjust-grid stock-form__core-grid">
                   <div className="adjust-field">
                     <label>Product</label>
                     <select value={newStockProductId} onChange={(e) => setNewStockProductId(Number(e.target.value))}>
@@ -905,9 +914,6 @@ function InventoryManagement() {
                       placeholder="e.g. Tablets, Cough Syrup, Capsules"
                     />
                   </div>
-                </div>
-
-                <div className="adjust-grid">
                   <div className="adjust-field">
                     <label>Strength</label>
                     <input
@@ -927,23 +933,41 @@ function InventoryManagement() {
                         </option>
                       ))}
                     </select>
-                    <span className="adjust-hint">Dropdown shows POS IDs already linked inside the system.</span>
+                    <span className="adjust-hint">Shows POS IDs already linked inside the system.</span>
                   </div>
                 </div>
+              </div>
 
-                <div className="adjust-grid adjust-grid--single">
-                  <div className="adjust-field">
-                    <label>Dosage instructions</label>
-                    <textarea
-                      rows={3}
-                      value={newVariantDosageInstructions}
-                      onChange={(e) => setNewVariantDosageInstructions(e.target.value)}
-                      placeholder="e.g. Take 1 tablet twice daily after meals"
-                    />
-                  </div>
+              <div className="adjust-section stock-form__section">
+                <div className="adjust-section__title">Medication Guidance</div>
+                <div className="stock-form__section-copy">
+                  Keep the guidance fields structured and readable for both staff and customers.
                 </div>
-
-                <div className="adjust-grid adjust-grid--single">
+                <div className="stock-form__editor-block">
+                  <div className="adjust-grid stock-form__dosage-grid">
+                    <div className="adjust-field">
+                      <label>Dose</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={newVariantDosageAmount}
+                        onChange={(e) => setNewVariantDosageAmount(e.target.value)}
+                        placeholder="e.g. 1"
+                      />
+                    </div>
+                    <div className="adjust-field">
+                      <label>Frequency per day</label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={newVariantDosageQuantity}
+                        onChange={(e) => setNewVariantDosageQuantity(e.target.value)}
+                        placeholder="e.g. 2"
+                      />
+                    </div>
+                  </div>
                   <div className="adjust-field">
                     <label>Directions</label>
                     <textarea
@@ -953,9 +977,6 @@ function InventoryManagement() {
                       placeholder="How the customer should use this medication"
                     />
                   </div>
-                </div>
-
-                <div className="adjust-grid adjust-grid--single">
                   <div className="adjust-field">
                     <label>Warnings</label>
                     <textarea
@@ -968,9 +989,12 @@ function InventoryManagement() {
                 </div>
               </div>
 
-              <div className="adjust-section">
+              <div className="adjust-section stock-form__section">
                 <div className="adjust-section__title">Pricing And Stock</div>
-                <div className="adjust-grid">
+                <div className="stock-form__section-copy">
+                  Finish with the price, opening quantity, and low-stock alert level.
+                </div>
+                <div className="adjust-grid stock-form__pricing-grid">
                   <div className="adjust-field">
                     <label>Selling price</label>
                     <input
@@ -991,9 +1015,6 @@ function InventoryManagement() {
                       onChange={(e) => setNewVariantStockQuantity(e.target.value)}
                     />
                   </div>
-                </div>
-
-                <div className="adjust-grid">
                   <div className="adjust-field">
                     <label>Low stock threshold</label>
                     <input
@@ -1003,17 +1024,12 @@ function InventoryManagement() {
                       onChange={(e) => setNewVariantLowStockThreshold(e.target.value)}
                     />
                   </div>
-                  <div className="adjust-field">
-                    <span className="adjust-hint">
-                      The variant will be created as active and attached to the selected parent product.
-                    </span>
-                  </div>
                 </div>
               </div>
 
               {newStockError && <p className="adjust-error">{newStockError}</p>}
             </div>
-            <div className="modal__footer">
+            <div className="modal__footer modal__footer--stock">
               <button className="btn btn--outline btn--sm" onClick={closeNewStockModal}>Cancel</button>
               <button className="btn btn--primary btn--sm" onClick={handleNewStockSave} disabled={newStockSaving}>
                 {newStockSaving ? 'Saving…' : 'Create Stock'}

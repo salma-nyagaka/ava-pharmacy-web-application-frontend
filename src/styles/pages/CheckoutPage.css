@@ -587,6 +587,12 @@
   border-color: #fca5a5;
 }
 
+.co-payment-status--cancelled {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
 .co-payment-status__spinner {
   display: inline-block;
   width: 12px;

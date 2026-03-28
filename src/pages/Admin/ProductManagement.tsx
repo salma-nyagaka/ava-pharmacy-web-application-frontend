@@ -1216,7 +1216,7 @@ function ProductManagement() {
                
                 </div>
 
-             
+            
                 <div className="pf-section">
                   <div className="pf-section__label">Access</div>
                   <div className="pf-toggle-row" onClick={() => setProductRequiresRx(!productRequiresRx)}>

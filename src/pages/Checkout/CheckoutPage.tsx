@@ -7,6 +7,7 @@ import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { cartService } from '../../services/cartService'
 import { fetchSavedAddresses, type SavedAddress } from '../../services/addressService'
 import {
+  cancelPaymentIntent,
   createCheckoutDraft,
   createPaymentIntent,
   fetchFlutterwaveStatus,
@@ -22,7 +23,7 @@ import {
 import { fetchAvailability } from '../../services/productService'
 import '../../styles/pages/CheckoutPage.css'
 
-type PaymentStatus = 'idle' | 'waiting' | 'confirmed' | 'failed'
+type PaymentStatus = 'idle' | 'waiting' | 'confirmed' | 'failed' | 'cancelled'
 type DeliveryMethodOption = 'store_pickup' | 'doorstep_delivery'
 type MpesaFlow = 'stk' | 'paybill'
 const CHECKOUT_ORDER_STORAGE_KEY = 'ava_checkout_order_id'
@@ -155,7 +156,13 @@ function CheckoutPage() {
       setCurrentStep(3)
       return
     }
-    if (latestIntent?.status === 'failed' || latestIntent?.status === 'cancelled' || order.payment_status === 'failed') {
+    if (latestIntent?.status === 'cancelled') {
+      setPaymentStatus('cancelled')
+      setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
+      setCurrentStep(2)
+      return
+    }
+    if (latestIntent?.status === 'failed' || order.payment_status === 'failed') {
       setPaymentStatus('failed')
       setPaymentNotice('Payment failed. Try again.')
       setCurrentStep(3)
@@ -290,10 +297,18 @@ function CheckoutPage() {
     const status = searchParams.get('status')
     if (!txRef || !status) return
 
-    setCurrentStep(3)
+    setCurrentStep(status === 'cancelled' ? 2 : 3)
     setPaymentMethod('card')
 
-    if (status === 'cancelled' || status === 'failed') {
+    if (status === 'cancelled') {
+      setPaymentStatus('cancelled')
+      setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
+      setValidationError('')
+      setSearchParams({}, { replace: true })
+      return
+    }
+
+    if (status === 'failed') {
       setPaymentStatus('failed')
       setPaymentNotice('Payment failed. Try again.')
       setValidationError('')
@@ -381,7 +396,12 @@ function CheckoutPage() {
             setPaymentNotice('Payment made successfully.')
             setValidationError('')
             window.clearInterval(intervalId)
-          } else if (intent.status === 'failed' || intent.status === 'cancelled') {
+          } else if (intent.status === 'cancelled') {
+            setPaymentStatus('cancelled')
+            setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
+            setValidationError('')
+            window.clearInterval(intervalId)
+          } else if (intent.status === 'failed') {
             setPaymentStatus('failed')
             setPaymentNotice('Payment failed. Try again.')
             setValidationError('')
@@ -473,6 +493,8 @@ function CheckoutPage() {
   const paymentStatusMessage =
     paymentStatus === 'confirmed'
       ? 'Payment made successfully.'
+      : paymentStatus === 'cancelled'
+        ? 'Payment cancelled.'
       : paymentStatus === 'failed'
         ? 'Payment failed. Try again.'
         : paymentStatus === 'waiting'
@@ -513,6 +535,31 @@ function CheckoutPage() {
   const validateCardDetails = () => {
     setValidationError('')
     return true
+  }
+
+  const handleCancelPayment = async () => {
+    if (!paymentIntent || isSubmitting) return
+    setIsSubmitting(true)
+    setValidationError('')
+    try {
+      const cancelledIntent = await cancelPaymentIntent(paymentIntent.id)
+      setPaymentIntent(cancelledIntent)
+      if (draftOrder) {
+        const refreshedOrder = await fetchOrder(draftOrder.id)
+        setDraftOrder(refreshedOrder)
+      }
+      setPaymentStatus('cancelled')
+      setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
+      setCurrentStep(2)
+    } catch (error) {
+      type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string } } }
+      const message = (error as ApiErr)?.response?.data?.error?.message
+        ?? (error as ApiErr)?.response?.data?.detail
+        ?? 'Unable to cancel the payment right now.'
+      setValidationError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleCopyValue = async (value: string, field: 'paybill-number' | 'paybill-account') => {
@@ -1162,6 +1209,7 @@ function CheckoutPage() {
                   </div>
                 )}
 
+                {paymentNotice && <p className={`co-payment-notice co-payment-notice--${paymentNoticeTone}`}>{paymentNotice}</p>}
                 {validationError && <p className="co-error">{validationError}</p>}
 
                 <div className="co-actions">
@@ -1254,6 +1302,9 @@ function CheckoutPage() {
                     {paymentStatus === 'failed' && (
                       <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg> {paymentStatusMessage}</>
                     )}
+                    {paymentStatus === 'cancelled' && (
+                      <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg> {paymentStatusMessage}</>
+                    )}
                   </div>
                 )}
 
@@ -1317,6 +1368,11 @@ function CheckoutPage() {
 
                 <div className="co-actions">
                   {!isPaymentLocked && <button onClick={() => setCurrentStep(2)} className="btn btn--outline" type="button">Back</button>}
+                  {paymentIntent && paymentStatus === 'waiting' && !isPaymentLocked && (
+                    <button className="btn btn--outline" type="button" onClick={() => void handleCancelPayment()} disabled={isSubmitting}>
+                      {isSubmitting ? 'Cancelling…' : 'Cancel Payment'}
+                    </button>
+                  )}
                   {((paymentMethod === 'card') || (paymentMethod === 'mpesa' && mpesaFlow === 'stk')) && (paymentStatus === 'idle' || paymentStatus === 'failed') && !isPaymentLocked && (
                     <button className="btn btn--outline btn--lg" type="button" onClick={() => void handleInitiatePayment()} disabled={isSubmitting}>
                       {paymentMethod === 'card'

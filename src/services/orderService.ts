@@ -147,6 +147,11 @@ export async function syncPaymentIntent(id: number, payload: { transaction_id?: 
   return res.data?.data ?? res.data
 }
 
+export async function cancelPaymentIntent(id: number): Promise<PaymentIntent> {
+  const res = await apiClient.post(`/payments/intents/${id}/cancel/`)
+  return res.data?.data ?? res.data
+}
+
 export async function initiateFlutterwavePayment(payload: {
   order_id: number
   return_url?: string
