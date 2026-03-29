@@ -126,17 +126,17 @@
   --container-max: 1280px;
   --header-height: 80px;
 
-  --dashboard-page-bg: #f9fafb;
-  --dashboard-surface: #ffffff;
-  --dashboard-surface-muted: #f9fafb;
-  --dashboard-surface-soft: #f1f5f9;
-  --dashboard-surface-accent: #f8fafc;
-  --dashboard-border: #e5e7eb;
-  --dashboard-border-strong: #d1d5db;
-  --dashboard-text-title: #0f172a;
-  --dashboard-text-body: #374151;
-  --dashboard-text-muted: #6b7280;
-  --dashboard-text-faint: #9ca3af;
+  --dashboard-page-bg: linear-gradient(180deg, #fff9fb 0%, #f8f9fd 100%);
+  --dashboard-surface: rgba(255, 255, 255, 0.94);
+  --dashboard-surface-muted: #fbf7f9;
+  --dashboard-surface-soft: #f6f0f4;
+  --dashboard-surface-accent: #fff2f6;
+  --dashboard-border: rgba(153, 27, 31, 0.10);
+  --dashboard-border-strong: rgba(153, 27, 31, 0.18);
+  --dashboard-text-title: #152856;
+  --dashboard-text-body: #40506e;
+  --dashboard-text-muted: #66758f;
+  --dashboard-text-faint: #98a2b3;
 
   --dashboard-font-xs: 0.6875rem;
   --dashboard-font-sm: 0.75rem;
@@ -167,9 +167,9 @@
   --dashboard-radius-md: 12px;
   --dashboard-radius-lg: 16px;
 
-  --dashboard-shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 4px 12px rgba(15, 23, 42, 0.04);
-  --dashboard-shadow-md: 0 4px 16px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.05);
-  --dashboard-shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.10), 0 16px 48px rgba(15, 23, 42, 0.07);
+  --dashboard-shadow-sm: 0 10px 24px rgba(153, 27, 31, 0.04), 0 4px 14px rgba(19, 37, 79, 0.04);
+  --dashboard-shadow-md: 0 16px 32px rgba(153, 27, 31, 0.05), 0 8px 24px rgba(19, 37, 79, 0.05);
+  --dashboard-shadow-lg: 0 28px 56px rgba(153, 27, 31, 0.07), 0 16px 48px rgba(19, 37, 79, 0.08);
 }
 
 /* Base styles */

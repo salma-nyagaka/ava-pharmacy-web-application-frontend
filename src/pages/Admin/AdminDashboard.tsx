@@ -346,14 +346,6 @@ function AdminDashboard() {
           <h1 className="ad-header__title">Dashboard Overview</h1>
           <p className="ad-header__date">{getTodayLabel()}</p>
         </div>
-        <div className="ad-header__right">
-          <Link to="/admin/reports" className="ad-header__cta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
-              <path d="M4 20V8M12 20V4M20 20v-9"/>
-            </svg>
-            View Reports
-          </Link>
-        </div>
       </div>
 
       {/* ── Stat cards with sparklines ── */}

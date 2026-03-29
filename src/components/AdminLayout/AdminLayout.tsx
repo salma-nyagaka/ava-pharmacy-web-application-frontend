@@ -5,6 +5,7 @@ import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/components/AdminLayout.css'
 
 type AdminNavItem = {
+  disabled?: boolean
   icon: ReactNode
   label: string
   matchChildren?: boolean
@@ -12,6 +13,7 @@ type AdminNavItem = {
 }
 
 type AdminNavSection = {
+  disabled?: boolean
   items: AdminNavItem[]
   label: string
 }
@@ -119,6 +121,7 @@ const NAV_SECTIONS: AdminNavSection[] = [
   },
   {
     label: 'Health Services',
+    disabled: true,
     items: [
       {
         label: 'Doctors',
@@ -184,6 +187,7 @@ const NAV_SECTIONS: AdminNavSection[] = [
   },
   {
     label: 'Finance & Customers',
+    disabled: true,
     items: [
       {
         label: 'Customers',
@@ -230,6 +234,7 @@ const NAV_SECTIONS: AdminNavSection[] = [
     label: 'System',
     items: [
       {
+        disabled: true,
         label: 'Support',
         to: '/admin/support',
         icon: (
@@ -386,11 +391,34 @@ function AdminLayout() {
                 <div className="admin-layout__section-links">
                   {section.items.map((item) => {
                     const active = isItemActive(location.pathname, location.search, item)
+                    const disabled = section.disabled || item.disabled
+                    const className = `admin-layout__link${active ? ' admin-layout__link--active' : ''}${disabled ? ' admin-layout__link--disabled' : ''}`
+
+                    if (disabled) {
+                      return (
+                        <span
+                          key={item.label}
+                          aria-disabled="true"
+                          data-disabled-note="Coming soon"
+                          className={className}
+                          title={isCollapsed ? `${item.label} (coming soon)` : `${item.label} (coming soon)`}
+                        >
+                          <span className="admin-layout__link-icon">{item.icon}</span>
+                          <span className="admin-layout__link-label">{item.label}</span>
+                          <span aria-hidden="true" className="admin-layout__disabled-badge">
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" width="14" height="14">
+                              <path d="M10 6.5v4M10 13.5h.01" />
+                              <path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+                            </svg>
+                          </span>
+                        </span>
+                      )
+                    }
 
                     return (
                       <NavLink
                         key={item.label}
-                        className={`admin-layout__link${active ? ' admin-layout__link--active' : ''}`}
+                        className={className}
                         end={!item.matchChildren}
                         onClick={handleNavClick}
                         title={isCollapsed ? item.label : undefined}
