@@ -67,6 +67,11 @@ function HomePage() {
     { key: 'quality',  title: 'Genuine Products',    subtitle: 'Certified & lab-verified stock', link: '/about',               color: 'purple' },
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
   ]
+  const quickActionItems = [
+    { title: 'Doctor consultation', description: 'Speak with a licensed clinician online', link: '/doctor-consultation' },
+    { title: 'Pediatric consultation', description: 'Get care for infants, children, and teens', link: '/pediatric-consultation' },
+    { title: 'Prescription review', description: 'Upload your Rx for pharmacist guidance', link: '/prescriptions' },
+  ]
 
   const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
   const [featuredSeedProducts, setFeaturedSeedProducts] = useState<CatalogProduct[]>([])
@@ -378,20 +383,20 @@ function HomePage() {
               )}
             </div>
             <div className="product-card__buttons">
-              <Link
-                to={`/product/${product.id}`}
-                className="product-card__view-details"
-              >
-                View details
-              </Link>
               <button
                 className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`}
                 type="button"
                 title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
                 onClick={() => void handleAddToCart(product)}
               >
-              {product.requiresPrescription ? 'Add Prescription' : addedId === product.id ? 'Added!' : 'Add to cart'}
-            </button>
+                {product.requiresPrescription ? 'Add Prescription' : addedId === product.id ? 'Added!' : 'Add to cart'}
+              </button>
+              <Link
+                to={`/product/${product.id}`}
+                className="product-card__view-details"
+              >
+                View details
+              </Link>
             </div>
           </div>
         </div>
@@ -532,15 +537,10 @@ function HomePage() {
                       </div>
                       <div className="category-card__body">
                         <h3 className="category-card__name">{cat.name}</h3>
-                        {/* <p className="category-card__description">
-                          {cat.description || `Explore trusted ${cat.name.toLowerCase()} picks curated for everyday care.`}
-                        </p> */}
+                        <p className="category-card__description">
+                          {cat.description || `Explore trusted ${cat.name.toLowerCase()} picks for everyday care.`}
+                        </p>
                         <div className="category-card__footer">
-                          {/* <span className="category-card__eyebrow">
-                            {cat.subcategories.length > 0
-                              ? `${cat.subcategories.length} ${cat.subcategories.length === 1 ? 'collection' : 'collections'}`
-                              : 'Coming soon'}
-                          </span> */}
                           <span className="category-card__cta">
                             Explore
                             <span aria-hidden="true">→</span>
@@ -567,15 +567,16 @@ function HomePage() {
       )}
       <section className="section offers-preview home-section--offers">
         <div className="container">
-          {/* Hot Offers campaign header and promotion cards are intentionally hidden for now. */}
           {spotlightOfferProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No live offers are available right now.</p>
             </div>
           ) : (
             <>
-              <div className="section__header">
-                <h2 className="section__title" >Products On Offer</h2>
+              <div className="section__header section__header--split">
+                <div>
+                  <h2 className="section__title">Products On Offer</h2>
+                </div>
               </div>
               <div className="products__grid products__grid--compact">
                 {spotlightOfferProducts.map((product) => renderProductCard(product, 'deals'))}
@@ -591,117 +592,51 @@ function HomePage() {
         </div>
       </section>
 
-      {/* Featured Products - social proof via best sellers */}
-      <section className="section featured-products home-section--featured">
+      <section className="section home-hub">
         <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">Top Rated Products</h2>
+          <div className="section__header section__header--split">
+            <div>
+              <h2 className="section__title">Care & Prescriptions</h2>
+            </div>
+            <p className="section__subtitle">Prescriptions, consultations, and lab services in one place.</p>
           </div>
-          {featuredProducts.length === 0 ? (
-            <div className="empty-state">
-              <p className="empty-state__message">No top rated products available at the moment.</p>
-            </div>
-          ) : (
-            <div className="products__grid">
-              {featuredProducts.map((product) => renderProductCard(product, 'featured'))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Services Section */}
-      <section className="hp-services">
-        <div className="container">
-          <div className="hp-services__shell">
-            <div className="hp-services__intro">
-              <h2 className="hp-services__title">Choose care faster</h2>
-              <p className="hp-services__sub">
-                Book a doctor, pediatric visit, prescription review, or lab test from one place.
-              </p>
-              <div className="hp-services__tags" aria-label="Service highlights">
-                <span className="hp-services__tag">Doctor</span>
-                <span className="hp-services__tag">Pediatrics</span>
-                <span className="hp-services__tag">Prescriptions</span>
-                <span className="hp-services__tag">Lab tests</span>
+          <div className="home-hub__grid">
+            <div className="home-hub__primary">
+              <div className="home-hub__lead">
+                <h3 className="home-hub__lead-title">Want to talk to an expert?</h3>
+                <p className="home-hub__lead-copy">Choose the consultation or prescription support you need and get started online.</p>
+              </div>
+              <div className="home-hub__actions" aria-label="Primary care actions">
+                {quickActionItems.map((item) => (
+                  <Link key={item.title} to={item.link} className="home-hub__action">
+                    <span className="home-hub__action-title">{item.title}</span>
+                    <span className="home-hub__action-copy">{item.description}</span>
+                    <span className="home-hub__action-link">Explore <span aria-hidden="true">→</span></span>
+                  </Link>
+                ))}
               </div>
             </div>
-
-            <div className="hp-services__grid">
-              <Link to="/doctor-consultation" className="hp-svc-card hp-svc-card--doctor" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-                <div className="hp-svc-card__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/>
-                    <path d="M20 21a8 8 0 1 0-16 0"/>
-                    <path d="M16 11v4M14 13h4"/>
-                  </svg>
-                </div>
-                <div className="hp-svc-card__body">
-                  <p className="hp-svc-card__eyebrow">Online care</p>
-                  <h3 className="hp-svc-card__title">Speak to a Doctor</h3>
-                  <p className="hp-svc-card__desc">Licensed clinician support online.</p>
-                </div>
-                <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
+            <aside className="home-hub__aside">
+              <div className="home-hub__feature-tile home-hub__feature-tile--primary">
+                <span className="home-hub__feature-label">Need a prescription item?</span>
+                <strong className="home-hub__feature-title">Upload your prescription and get pharmacist guidance.</strong>
+                <Link to="/prescriptions" className="home-hub__feature-link">Start now <span aria-hidden="true">→</span></Link>
+              </div>
+              <Link to="/laboratory" className="home-hub__feature-tile">
+                <span className="home-hub__feature-label">Lab tests</span>
+                <strong className="home-hub__feature-title">Book lab tests with an option for home sample pickup.</strong>
               </Link>
-
-              <Link to="/pediatric-consultation" className="hp-svc-card hp-svc-card--paed" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-                <div className="hp-svc-card__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <circle cx="12" cy="6" r="3"/>
-                    <path d="M9 14c-3 0-5 1.5-5 3v1h16v-1c0-1.5-2-3-5-3"/>
-                    <path d="M8 10c0 0-1 3 4 3s4-3 4-3"/>
-                  </svg>
-                </div>
-                <div className="hp-svc-card__body">
-                  <p className="hp-svc-card__eyebrow">Pediatrics</p>
-                  <h3 className="hp-svc-card__title">Pediatric Care</h3>
-                  <p className="hp-svc-card__desc">Care for infants, children, and teens.</p>
-                </div>
-                <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
-              </Link>
-
-              <Link to="/prescriptions" className="hp-svc-card hp-svc-card--rx" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-                <div className="hp-svc-card__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="9" y1="13" x2="15" y2="13"/>
-                    <line x1="9" y1="17" x2="13" y2="17"/>
-                  </svg>
-                </div>
-                <div className="hp-svc-card__body">
-                  <p className="hp-svc-card__eyebrow">Prescription</p>
-                  <h3 className="hp-svc-card__title">Upload Prescription</h3>
-                  <p className="hp-svc-card__desc">Send an Rx for pharmacist review.</p>
-                </div>
-                <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
-              </Link>
-
-              <Link to="/laboratory" className="hp-svc-card hp-svc-card--lab" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
-                <div className="hp-svc-card__icon-wrap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11M3 9h18M3 9l3 9h12l3-9"/>
-                    <circle cx="12" cy="16" r="1"/>
-                  </svg>
-                </div>
-                <div className="hp-svc-card__body">
-                  <p className="hp-svc-card__eyebrow">Lab testing</p>
-                  <h3 className="hp-svc-card__title">Book Lab Tests</h3>
-                  <p className="hp-svc-card__desc">Schedule tests and sample collection.</p>
-                </div>
-                <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
-              </Link>
-            </div>
+            </aside>
           </div>
-
-      
         </div>
       </section>
 
-      {/* New Products Section */}
-      <section className="section new-products home-section--new">
+      <section className="section featured-products home-section--featured">
         <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">New Products</h2>
+          <div className="section__header section__header--split">
+            <div>
+              <h2 className="section__title">New Products</h2>
+            </div>
           </div>
           {newProducts.length === 0 ? (
             <div className="empty-state">
@@ -718,6 +653,25 @@ function HomePage() {
               <span aria-hidden="true">→</span>
             </Link>
           </div>
+        </div>
+      </section>
+
+      <section className="section new-products home-section--new">
+        <div className="container">
+          <div className="section__header section__header--split">
+            <div>
+              <h2 className="section__title">Top Rated Products</h2>
+            </div>
+          </div>
+          {featuredProducts.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-state__message">No top rated products available at the moment.</p>
+            </div>
+          ) : (
+            <div className="products__grid">
+              {featuredProducts.map((product) => renderProductCard(product, 'featured'))}
+            </div>
+          )}
         </div>
       </section>
 
