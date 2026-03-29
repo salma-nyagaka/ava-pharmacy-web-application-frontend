@@ -365,15 +365,6 @@ function HomePage() {
           <h3 className="product-card__name">
             <Link to={`/product/${product.id}`}>{product.name}</Link>
           </h3>
-          {product.rating > 0 && (
-            <div className="product-card__rating">
-              <div className="product-card__stars">{renderStars(product.rating)}</div>
-              <span className="product-card__rating-value">{product.rating.toFixed(1)}</span>
-              {product.reviews > 0 && (
-                <span className="product-card__reviews">{product.reviews} review{product.reviews === 1 ? '' : 's'}</span>
-              )}
-            </div>
-          )}
           <div className="product-card__spacer" />
           <div className="product-card__footer">
             <div className="product-card__pricing">

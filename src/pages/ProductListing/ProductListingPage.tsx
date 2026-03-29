@@ -63,7 +63,6 @@ function ProductListingPage() {
   const [restockAlerts, setRestockAlerts] = useState<Record<number, boolean>>({})
   const [addedProductId, setAddedProductId] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
 
   const refreshWishlist = () => {
@@ -478,39 +477,12 @@ function ProductListingPage() {
                   <option value="rating">Customer Rating</option>
                   <option value="newest">Newest First</option>
                 </select>
-                <div className="plp__view-toggle">
-                  <button
-                    className={`plp__view-btn ${viewMode === 'grid' ? 'is-active' : ''}`}
-                    type="button"
-                    title="Grid view"
-                    onClick={() => setViewMode('grid')}
-                  >
-                    <svg viewBox="0 0 16 16" fill="currentColor">
-                      <rect x="1" y="1" width="6" height="6" rx="1"/>
-                      <rect x="9" y="1" width="6" height="6" rx="1"/>
-                      <rect x="1" y="9" width="6" height="6" rx="1"/>
-                      <rect x="9" y="9" width="6" height="6" rx="1"/>
-                    </svg>
-                  </button>
-                  <button
-                    className={`plp__view-btn ${viewMode === 'list' ? 'is-active' : ''}`}
-                    type="button"
-                    title="List view"
-                    onClick={() => setViewMode('list')}
-                  >
-                    <svg viewBox="0 0 16 16" fill="currentColor">
-                      <rect x="1" y="2" width="14" height="2" rx="1"/>
-                      <rect x="1" y="7" width="14" height="2" rx="1"/>
-                      <rect x="1" y="12" width="14" height="2" rx="1"/>
-                    </svg>
-                  </button>
-                </div>
               </div>
             </div>
 
-            <div className={`products-grid ${viewMode === 'list' ? 'products-grid--list' : ''}`}>
+            <div className="products-grid">
               {paginatedProducts.map((product) => (
-                <article key={product.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
+                <article key={product.id} className="product-card">
                   <Link to={`/product/${product.id}`} className="product-card__image">
                     {product.badge && (
                       <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
@@ -539,13 +511,6 @@ function ProductListingPage() {
                       <Link to={`/product/${product.id}`}>{product.name}</Link>
                     </h3>
 
-                    <div className="product-card__rating">
-                      <div className="product-card__stars">
-                        {renderStars(product.rating)}
-                      </div>
-                      <span className="product-card__reviews">{product.rating.toFixed(1)} ({product.reviews})</span>
-                    </div>
-
                     <div className="product-card__pricing">
                       <span className="product-card__price">{formatPrice(product.price)}</span>
                       {product.originalPrice && (
@@ -553,23 +518,24 @@ function ProductListingPage() {
                       )}
                     </div>
 
-                    <p className={`product-stock-source product-stock-source--${product.stockSource}`}>
-                      {getStockLabel(product.stockSource)}
-                    </p>
-
-                    {product.stockSource !== 'out' ? (
-                      <button className={`product-card__add-to-cart ${addedProductId === product.id ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
-                        {product.requiresPrescription ? 'Request with presciption' : addedProductId === product.id ? 'Added!' : 'Add to cart'}
-                      </button>
-                    ) : (
-                      <button
-                        className="product-card__add-to-cart product-card__add-to-cart--restock"
-                        type="button"
-                        onClick={() => toggleRestockAlert(product.id)}
-                      >
-                        {restockAlerts[product.id] ? 'Restock Alert Set ✓' : 'Notify on Restock'}
-                      </button>
-                    )}
+                    <div className="product-card__buttons">
+                      {product.stockSource !== 'out' ? (
+                        <button className={`product-card__add-to-cart ${addedProductId === product.id ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
+                          {product.requiresPrescription ? 'Add Prescription' : addedProductId === product.id ? 'Added!' : 'Add to cart'}
+                        </button>
+                      ) : (
+                        <button
+                          className="product-card__add-to-cart product-card__add-to-cart--restock"
+                          type="button"
+                          onClick={() => toggleRestockAlert(product.id)}
+                        >
+                          {restockAlerts[product.id] ? 'Alert Set' : 'Notify'}
+                        </button>
+                      )}
+                      <Link to={`/product/${product.id}`} className="product-card__view-details">
+                        View details
+                      </Link>
+                    </div>
                   </div>
                 </article>
               ))}

@@ -56,7 +56,6 @@ function OffersPage() {
   const [maxDiscount, setMaxDiscount] = useState(100)
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [sortBy, setSortBy] = useState('savings')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [addedId, setAddedId] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -339,20 +338,12 @@ function OffersPage() {
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
                 </select>
-                <div className="plp__view-toggle">
-                  <button className={`plp__view-btn ${viewMode === 'grid' ? 'is-active' : ''}`} type="button" onClick={() => setViewMode('grid')} title="Grid view">
-                    <svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
-                  </button>
-                  <button className={`plp__view-btn ${viewMode === 'list' ? 'is-active' : ''}`} type="button" onClick={() => setViewMode('list')} title="List view">
-                    <svg viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="14" height="2" rx="1"/><rect x="1" y="12" width="14" height="2" rx="1"/></svg>
-                  </button>
-                </div>
               </div>
             </div>
 
-            <div className={`products-grid ${viewMode === 'list' ? 'products-grid--list' : ''}`}>
+            <div className="products-grid">
               {paginatedDeals.map((deal) => (
-                <article key={deal.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
+                <article key={deal.id} className="product-card">
                   <Link to={`/product/${deal.id}`} className="product-card__image">
                     {deal.badge && (
                       <span className={`product-card__badge ${deal.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>{deal.badge}</span>
@@ -364,10 +355,6 @@ function OffersPage() {
                     <h3 className="product-card__name">
                       <Link to={`/product/${deal.id}`}>{deal.name}</Link>
                     </h3>
-                    <div className="product-card__rating">
-                      <div className="product-card__stars">{renderStars(deal.rating)}</div>
-                      <span className="product-card__reviews">{deal.rating.toFixed(1)} ({deal.reviews})</span>
-                    </div>
                     <div className="product-card__pricing">
                       <span className="product-card__price">{formatPrice(deal.price)}</span>
                       {deal.originalPrice && (
@@ -375,17 +362,18 @@ function OffersPage() {
                       )}
                     </div>
                     <p className="product-card__deal-copy">Save {formatPrice(getSavings(deal.price, deal.originalPrice))} today</p>
-                    <button
-                      className={`product-card__add-to-cart ${addedId === deal.id ? 'product-card__add-to-cart--added' : ''}`}
-                      type="button"
-                      onClick={() => handleAddToCart(deal)}
-                    >
-                      {addedId === deal.id ? (
-                        <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>Added</>
-                      ) : (
-                        <>{deal.requiresPrescription ? 'Request with prescription' : <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Add to cart</>}</>
-                      )}
-                    </button>
+                    <div className="product-card__buttons">
+                      <button
+                        className={`product-card__add-to-cart ${addedId === deal.id ? 'product-card__add-to-cart--added' : ''}`}
+                        type="button"
+                        onClick={() => handleAddToCart(deal)}
+                      >
+                        {addedId === deal.id ? 'Added!' : deal.requiresPrescription ? 'Add Prescription' : 'Add to cart'}
+                      </button>
+                      <Link to={`/product/${deal.id}`} className="product-card__view-details">
+                        View details
+                      </Link>
+                    </div>
                   </div>
                 </article>
               ))}
