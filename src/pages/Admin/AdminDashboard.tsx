@@ -21,6 +21,10 @@ function getTodayLabel() {
   return new Date().toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+function getLastUpdatedLabel() {
+  return new Date().toLocaleTimeString('en-KE', { hour: 'numeric', minute: '2-digit' })
+}
+
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
@@ -64,24 +68,20 @@ function getOrderedQuickActions() {
       ),
     },
     {
-      label: 'Customers', to: '/admin/users?role=customer', priority: { morning: 3, afternoon: 3, evening: 4 }, icon: (
+      label: 'Categories', to: '/admin/categories', priority: { morning: 3, afternoon: 3, evening: 4 }, icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
         </svg>
       ),
     },
     {
-      label: 'Reports', to: '/admin/reports', priority: { morning: 4, afternoon: 4, evening: 0 }, icon: (
+      label: 'Brands', to: '/admin/brands', priority: { morning: 4, afternoon: 4, evening: 0 }, icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18">
-          <path d="M4 20V8M12 20V4M20 20v-9"/>
-        </svg>
-      ),
-    },
-    {
-      label: 'Payouts', to: '/admin/payouts', priority: { morning: 5, afternoon: 5, evening: 5 }, icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18">
-          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3v18M3 12h18" />
         </svg>
       ),
     },
@@ -90,13 +90,6 @@ function getOrderedQuickActions() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18">
           <path d="m21 12-9 9-9-9V3h9l9 9Z"/>
           <circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none"/>
-        </svg>
-      ),
-    },
-    {
-      label: 'Promotions', to: '/admin/deals', priority: { morning: 7, afternoon: 7, evening: 7 }, icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18">
-          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
         </svg>
       ),
     },
@@ -184,11 +177,11 @@ function AdminDashboard() {
     }
   }, [load, loadFeed])
 
-  const stats = [
+  const performanceStats = [
     {
-      title: 'Total Orders',
-      value: reports ? reports.total_orders.toLocaleString() : '—',
-      sub: `${dashboard?.orders.today ?? 0} today`,
+      title: 'Orders Today',
+      value: dashboard ? String(dashboard.orders.today ?? 0) : '—',
+      sub: `${reports ? reports.total_orders.toLocaleString() : '0'} all orders`,
       color: '#3b82f6',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
@@ -208,37 +201,14 @@ function AdminDashboard() {
       ),
     },
     {
-      title: 'Total Customers',
-      value: reports ? reports.total_customers.toLocaleString() : '—',
-      sub: `${dashboard?.users.new_today ?? 0} new today`,
+      title: 'New Customers',
+      value: dashboard ? String(dashboard.users.new_today ?? 0) : '—',
+      sub: `${reports ? reports.total_customers.toLocaleString() : '0'} customers total`,
       color: '#8b5cf6',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
           <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      ),
-    },
-    {
-      title: 'Low Stock Items',
-      value: reports ? reports.low_stock_products.toLocaleString() : '—',
-      sub: 'items need restocking',
-      color: '#f59e0b',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-      ),
-    },
-    {
-      title: 'Pending Orders',
-      value: dashboard ? String(dashboard.orders.pending ?? 0) : '—',
-      sub: 'orders awaiting action',
-      color: '#ef4444',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
-          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
         </svg>
       ),
     },
@@ -253,14 +223,53 @@ function AdminDashboard() {
         </svg>
       ),
     },
+  ]
+
+  const opsStats = [
     {
-      title: 'Open Tickets',
-      value: dashboard ? String(dashboard.support.open ?? 0) : '—',
-      sub: 'support requests still open',
-      color: '#0ea5e9',
+      title: 'Low Stock Items',
+      value: reports ? reports.low_stock_products.toLocaleString() : '—',
+      sub: 'need restocking',
+      color: '#f59e0b',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      ),
+    },
+    {
+      title: 'Pending Orders',
+      value: dashboard ? String(dashboard.orders.pending ?? 0) : '—',
+      sub: 'awaiting dispatch',
+      color: '#ef4444',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      ),
+    },
+    {
+      title: 'Lab Results Ready',
+      value: dashboard ? String(dashboard.lab.results_ready ?? 0) : '—',
+      sub: 'ready for follow-up',
+      color: '#0ea5a4',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
+          <path d="M9 3v5l-4.5 7.5A4 4 0 0 0 8 21h8a4 4 0 0 0 3.5-5.5L15 8V3" />
+          <path d="M9 8h6M8 16h8" />
+        </svg>
+      ),
+    },
+    {
+      title: 'Total Customers',
+      value: reports ? reports.total_customers.toLocaleString() : '—',
+      sub: 'customer base',
+      color: '#7c3aed',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
       ),
     },
@@ -289,48 +298,77 @@ function AdminDashboard() {
     setSelectedOrderStatus('all')
   }
 
-  const actionQueue = [
+  const attentionItems = [
     {
-      label: 'Pending Prescriptions',
-      count: dashboard?.prescriptions.pending ?? 0,
-      to: '/admin/prescriptions',
-      color: 'amber',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
-          <path d="M9 12h6M9 16h6M9 8h3M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
-        </svg>
-      ),
+      label: 'Products Requiring Attention',
+      value: reports?.low_stock_products ?? 0,
+      meta: 'review low stock and inactive listings',
+      to: '/admin/products',
+      tone: 'amber',
     },
     {
-      label: 'Open Support Tickets',
-      count: dashboard?.support.open ?? 0,
-      to: '/admin/support',
-      color: 'amber',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-      ),
+      label: 'Orders Awaiting Dispatch',
+      value: dashboard?.orders.pending ?? 0,
+      meta: 'fulfillment queue',
+      to: '/admin/orders',
+      tone: 'red',
+    },
+    {
+      label: 'Low Stock Products',
+      value: reports?.low_stock_products ?? 0,
+      meta: 'restock priority',
+      to: '/admin/inventory',
+      tone: 'blue',
     },
     {
       label: 'Lab Results Ready',
-      count: dashboard?.lab.results_ready ?? 0,
-      to: '/admin/lab-requests',
-      color: 'teal',
+      value: dashboard?.lab.results_ready ?? 0,
+      meta: 'ready for follow-up',
+      to: '/admin/inventory',
+      tone: 'teal',
+    },
+    {
+      label: 'Top Products Tracked',
+      value: reports ? reports.top_products.length : 0,
+      meta: 'best-performing items in reports',
+      to: '/admin/deals',
+      tone: 'blue',
+    },
+  ]
+
+  const actionQueue = [
+    {
+      label: 'Health Concerns',
+      count: 1,
+      to: '/admin/health-concerns',
+      color: 'amber',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
-          <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11m0 0h10a2 2 0 0 0 2-2V9M9 14H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2z"/>
+          <path d="M22 12h-4l-3 8-5-16-3 8H2" />
         </svg>
       ),
     },
     {
-      label: 'Pending Orders',
-      count: dashboard?.orders.pending ?? 0,
-      to: '/admin/orders',
-      color: 'blue',
+      label: 'Brands',
+      count: reports?.total_brands ?? 0,
+      to: '/admin/brands',
+      color: 'teal',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
-          <path d="M16 11V7a4 4 0 0 0-8 0v4"/><rect x="3" y="11" width="18" height="11" rx="2"/>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3v18M3 12h18" />
+        </svg>
+      ),
+    },
+    {
+      label: 'Low Stock Products',
+      count: reports?.low_stock_products ?? 0,
+      to: '/admin/inventory',
+      color: 'red',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
         </svg>
       ),
     },
@@ -346,23 +384,71 @@ function AdminDashboard() {
           <h1 className="ad-header__title">Dashboard Overview</h1>
           <p className="ad-header__date">{getTodayLabel()}</p>
         </div>
+        <div className="ad-header__meta">
+          <span className="ad-live-indicator">
+            <span className="ad-live-indicator__dot" />
+            Live
+          </span>
+          <span className="ad-last-updated">Updated {getLastUpdatedLabel()}</span>
+        </div>
       </div>
 
-      {/* ── Stat cards with sparklines ── */}
-      <div className="ad-stats ad-stats--5">
-        {stats.map((stat) => (
-          <div key={stat.title} className="ad-stat" style={{ '--stat-color': stat.color } as React.CSSProperties}>
-            <div className="ad-stat__top">
-              <span className="ad-stat__label">{stat.title}</span>
-              <span className="ad-stat__icon">{stat.icon}</span>
-            </div>
-            <div className="ad-stat__middle">
-              <p className="ad-stat__value">{loading ? '…' : stat.value}</p>
-              <p className="ad-stat__sub">{stat.sub}</p>
-            </div>
-          
-          </div>
+      <div className="ad-priority-strip">
+        {attentionItems.map((item) => (
+          <Link key={item.label} to={item.to} className={`ad-priority-card ad-priority-card--${item.tone}`}>
+            <span className="ad-priority-card__label">{item.label}</span>
+            <strong className="ad-priority-card__value">{loading ? '…' : item.value}</strong>
+            <span className="ad-priority-card__meta">{item.meta}</span>
+          </Link>
         ))}
+      </div>
+
+      <div className="ad-overview-grid">
+        <div className="ad-panel">
+          <div className="ad-panel__header">
+            <div>
+              <h2 className="ad-panel__title">Today&apos;s Performance</h2>
+              <p className="ad-panel__subtitle">Core store, revenue, and customer movement</p>
+            </div>
+          </div>
+          <div className="ad-stats ad-stats--4">
+            {performanceStats.map((stat) => (
+              <div key={stat.title} className="ad-stat" style={{ '--stat-color': stat.color } as React.CSSProperties}>
+                <div className="ad-stat__top">
+                  <span className="ad-stat__label">{stat.title}</span>
+                  <span className="ad-stat__icon">{stat.icon}</span>
+                </div>
+                <div className="ad-stat__middle">
+                  <p className="ad-stat__value">{loading ? '…' : stat.value}</p>
+                  <p className="ad-stat__sub">{stat.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="ad-panel">
+          <div className="ad-panel__header">
+            <div>
+              <h2 className="ad-panel__title">Care & Fulfillment</h2>
+              <p className="ad-panel__subtitle">Operational health across pharmacy and lab workflows</p>
+            </div>
+          </div>
+          <div className="ad-stats ad-stats--4">
+            {opsStats.map((stat) => (
+              <div key={stat.title} className="ad-stat" style={{ '--stat-color': stat.color } as React.CSSProperties}>
+                <div className="ad-stat__top">
+                  <span className="ad-stat__label">{stat.title}</span>
+                  <span className="ad-stat__icon">{stat.icon}</span>
+                </div>
+                <div className="ad-stat__middle">
+                  <p className="ad-stat__value">{loading ? '…' : stat.value}</p>
+                  <p className="ad-stat__sub">{stat.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ── Quick actions ── */}
@@ -558,40 +644,6 @@ function AdminDashboard() {
                     </div>
                   )
                 })
-              )}
-            </div>
-          </div>
-
-          {/* Activity Feed */}
-          <div className="ad-panel">
-            <div className="ad-panel__header">
-              <div>
-                <h2 className="ad-panel__title">Live Activity Feed</h2>
-                <p className="ad-panel__subtitle">Recent system events · auto-refreshes</p>
-              </div>
-            </div>
-            <div className="ad-feed">
-              {feedLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="ad-feed-item">
-                    <div className="ad-skeleton" style={{ width: '100%', height: 38 }} />
-                  </div>
-                ))
-              ) : activityFeed.length === 0 ? (
-                <div className="ad-feed__empty">No recent activity.</div>
-              ) : (
-                activityFeed.map((item, i) => (
-                  <div key={i} className="ad-feed-item">
-                    <ActivityIcon type={item.type} />
-                    <div className="ad-feed-item__body">
-                      <span className="ad-feed-item__msg">{item.message}</span>
-                      <span className="ad-feed-item__time">{relativeTime(item.timestamp)}</span>
-                    </div>
-                    {item.link && (
-                      <Link to={item.link} className="ad-feed-item__link">→</Link>
-                    )}
-                  </div>
-                ))
               )}
             </div>
           </div>

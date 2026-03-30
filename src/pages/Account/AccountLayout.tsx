@@ -15,7 +15,7 @@ const NAV_ITEMS = [
     ),
     title: 'My Orders',
     link: '/account/orders',
-    color: '#3b82f6',
+    color: '#d43b67',
   },
   {
     icon: (
@@ -27,7 +27,8 @@ const NAV_ITEMS = [
     ),
     title: 'My Prescriptions',
     link: '/account/prescriptions',
-    color: '#8b5cf6',
+    color: '#b14679',
+    disabled: true,
   },
   {
     icon: (
@@ -38,7 +39,8 @@ const NAV_ITEMS = [
     ),
     title: 'My Consultations',
     link: '/account/consultations',
-    color: '#ec4899',
+    color: '#e81750',
+    disabled: true,
   },
   {
     icon: (
@@ -48,7 +50,8 @@ const NAV_ITEMS = [
     ),
     title: 'Lab Tests',
     link: '/account/lab-tests',
-    color: '#06b6d4',
+    color: '#8b5cf6',
+    disabled: true,
   },
   {
     icon: (
@@ -58,7 +61,7 @@ const NAV_ITEMS = [
     ),
     title: 'Favourites',
     link: '/account/favourites',
-    color: '#f43f5e',
+    color: '#cf4665',
   },
   {
     icon: (
@@ -69,7 +72,7 @@ const NAV_ITEMS = [
     ),
     title: 'My Addresses',
     link: '/account/addresses',
-    color: '#10b981',
+    color: '#9f3d6f',
   },
   {
     icon: (
@@ -80,7 +83,7 @@ const NAV_ITEMS = [
     ),
     title: 'Payment Methods',
     link: '/account/payment',
-    color: '#f59e0b',
+    color: '#c45f7c',
   },
   {
     icon: (
@@ -91,7 +94,7 @@ const NAV_ITEMS = [
     ),
     title: 'Account Settings',
     link: '/account/settings',
-    color: '#64748b',
+    color: '#7b5677',
   },
 ]
 
@@ -127,13 +130,10 @@ function AccountLayout() {
               <p className="acl-nav__label">My Account</p>
               {NAV_ITEMS.map((item) => {
                 const active = isActive(item)
-                return (
-                  <Link
-                    key={item.link}
-                    to={item.link}
-                    className={`acl-nav__item${active ? ' acl-nav__item--active' : ''}`}
-                    style={active ? { '--nav-color': item.color } as React.CSSProperties : undefined}
-                  >
+                const itemClassName = `acl-nav__item${active ? ' acl-nav__item--active' : ''}${item.disabled ? ' acl-nav__item--disabled' : ''}`
+                const itemStyle = active ? { '--nav-color': item.color } as React.CSSProperties : undefined
+                const content = (
+                  <>
                     <span
                       className="acl-nav__icon"
                       style={{
@@ -144,7 +144,29 @@ function AccountLayout() {
                       {item.icon}
                     </span>
                     <span className="acl-nav__title">{item.title}</span>
+                    {item.disabled && <span className="acl-nav__coming-soon">Coming soon</span>}
                     {active && <span className="acl-nav__active-dot" style={{ background: item.color }} />}
+                  </>
+                )
+
+                return item.disabled ? (
+                  <span
+                    key={item.link}
+                    className={itemClassName}
+                    style={itemStyle}
+                    aria-disabled="true"
+                    title="Coming soon"
+                  >
+                    {content}
+                  </span>
+                ) : (
+                  <Link
+                    key={item.link}
+                    to={item.link}
+                    className={itemClassName}
+                    style={itemStyle}
+                  >
+                    {content}
                   </Link>
                 )
               })}

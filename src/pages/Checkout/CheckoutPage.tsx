@@ -224,13 +224,15 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (!user) return
-    const trimmedName = user.name.trim()
+    const trimmedName = typeof user.name === 'string' ? user.name.trim() : ''
+    const trimmedEmail = typeof user.email === 'string' ? user.email.trim() : ''
+    const trimmedPhone = typeof user.phone === 'string' ? user.phone.trim() : ''
     const [givenName, ...rest] = trimmedName.split(/\s+/).filter(Boolean)
     if (!firstName && givenName) setFirstName(givenName)
     if (!lastName && rest.length) setLastName(rest.join(' '))
-    if (!email && user.email) setEmail(user.email)
-    if (!phone && user.phone) setPhone(user.phone)
-    if (!mpesaPhone && user.phone) setMpesaPhone(user.phone)
+    if (!email && trimmedEmail) setEmail(trimmedEmail)
+    if (!phone && trimmedPhone) setPhone(trimmedPhone)
+    if (!mpesaPhone && trimmedPhone) setMpesaPhone(trimmedPhone)
   }, [user, firstName, lastName, email, phone, mpesaPhone])
 
   useEffect(() => {

@@ -1,22 +1,15 @@
-import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useCatalog } from '../../context/CatalogContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import '../../styles/components/Footer.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import { sortCategoriesByPreferredOrder } from '../../constants/catalog'
-import { NewsletterSubscriptionError, subscribeToNewsletter } from '../../services/newsletterService'
 import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
 
 function Footer() {
   const currentYear = new Date().getFullYear()
   const { categories } = useCatalog()
   const { settings } = useSiteSettings()
-  const [newsletterEmail, setNewsletterEmail] = useState('')
-  const [newsletterError, setNewsletterError] = useState('')
-  const [newsletterSuccess, setNewsletterSuccess] = useState(false)
-  const [isSubmittingNewsletter, setIsSubmittingNewsletter] = useState(false)
-
   const orderedCategories = sortCategoriesByPreferredOrder(categories).slice(0, 4)
   const normalizedSupportPhone = settings.supportPhone.replace(/\D/g, '')
   const normalizedWhatsappPhone = settings.whatsappPhone.replace(/\D/g, '')
@@ -39,85 +32,10 @@ function Footer() {
     { name: 'FAQs', path: '/help' },
   ]
 
-  const handleNewsletterSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setNewsletterError('')
-    setNewsletterSuccess(false)
-
-    const email = newsletterEmail.trim()
-    if (!email) {
-      setNewsletterError('Email is required')
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      setNewsletterError('Please enter a valid email address')
-      return
-    }
-
-    try {
-      setIsSubmittingNewsletter(true)
-      await subscribeToNewsletter(email, 'homepage-footer')
-      setNewsletterSuccess(true)
-      setNewsletterEmail('')
-      window.setTimeout(() => setNewsletterSuccess(false), 4000)
-    } catch (error) {
-      setNewsletterError(
-        error instanceof NewsletterSubscriptionError
-          ? error.message
-          : 'Unable to subscribe to the newsletter right now.',
-      )
-    } finally {
-      setIsSubmittingNewsletter(false)
-    }
-  }
-
   return (
     <footer className="footer">
       <div className="footer__main">
         <div className="container">
-          <section className="footer__newsletter" aria-labelledby="footer-newsletter-title">
-            <div className="footer__newsletter-copy">
-              <h2 className="footer__newsletter-title" id="footer-newsletter-title">Subscribe to Our Newsletter</h2>
-              <p className="footer__newsletter-description">
-                Get exclusive offers and new product updates delivered straight to your inbox
-              </p>
-            </div>
-            <form className="footer__newsletter-form" onSubmit={handleNewsletterSubmit}>
-              <div className="footer__newsletter-input-wrap">
-                <input
-                  type="email"
-                  className="footer__newsletter-input"
-                  placeholder="Enter your email address"
-                  value={newsletterEmail}
-                  onChange={(event) => setNewsletterEmail(event.target.value)}
-                  disabled={isSubmittingNewsletter}
-                  aria-label="Email address"
-                  aria-invalid={!!newsletterError}
-                  aria-describedby={newsletterError ? 'footer-newsletter-error' : undefined}
-                />
-                {newsletterError && (
-                  <span className="footer__newsletter-error" id="footer-newsletter-error" role="alert">
-                    {newsletterError}
-                  </span>
-                )}
-                {newsletterSuccess && (
-                  <span className="footer__newsletter-success" role="status">
-                    Subscription confirmed. Check your email.
-                  </span>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="btn btn--primary footer__newsletter-button"
-                disabled={isSubmittingNewsletter}
-              >
-                {isSubmittingNewsletter ? 'Subscribing...' : 'Subscribe'}
-              </button>
-            </form>
-          </section>
-
           <div className="footer__grid">
 
             {/* Brand Column */}
