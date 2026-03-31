@@ -54,7 +54,7 @@
   margin-bottom: 1rem;
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 14px;
 }
 
 .inventory-focus-banner__copy {
@@ -64,7 +64,7 @@
 }
 
 .inventory-focus-banner__label {
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
@@ -212,6 +212,19 @@
   line-height: 1.45;
 }
 
+.adjust-variant-card__image-link {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.adjust-variant-card__image-link:hover {
+  text-decoration: underline;
+}
+
 .adjust-section {
   margin-top: 0;
 }
@@ -230,7 +243,7 @@
 }
 
 .adjust-section__title {
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: #8a96ab;
   text-transform: uppercase;
@@ -589,3 +602,32 @@
 }
 @media (max-width: 1023px) { .inventory-management, .im-page { padding: 1.5rem; } }
 @media (max-width: 640px) { .inventory-management, .im-page { padding: 1rem; } }
+
+
+.inventory-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.inventory-product-cell__thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(19, 37, 79, 0.08);
+  background: #f8fafc;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.inventory-product-cell__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}

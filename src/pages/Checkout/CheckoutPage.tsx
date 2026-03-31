@@ -28,6 +28,9 @@ type DeliveryMethodOption = 'store_pickup' | 'doorstep_delivery'
 type MpesaFlow = 'stk' | 'paybill'
 const CHECKOUT_ORDER_STORAGE_KEY = 'ava_checkout_order_id'
 const supportedCountries = ['Kenya']
+const normalizeLocationName = (value: string) => value.trim().toLowerCase()
+const isCountyDeliverable = (value: string, options: string[]) =>
+  options.some((countyName) => normalizeLocationName(countyName) === normalizeLocationName(value))
 
 const deliveryMethodLabels: Record<DeliveryMethodOption, string> = {
   store_pickup: 'Store Pickup',
@@ -110,18 +113,20 @@ function CheckoutPage() {
   const countyOptions = useMemo(() => (country === 'Kenya' ? activeDeliveryCounties : []), [activeDeliveryCounties, country])
   const areaOptions = useMemo(() => (country === 'Kenya' ? kenyaCountyCities[county] ?? [] : []), [country, county])
   const deliverableSavedAddresses = useMemo(
-    () => savedAddresses.filter((address) => countyOptions.includes(address.county)),
+    () => savedAddresses.filter((address) => isCountyDeliverable(address.county, countyOptions)),
     [countyOptions, savedAddresses],
   )
   const inactiveSavedAddressCount = savedAddresses.length - deliverableSavedAddresses.length
   const areaLabel = county === 'Nairobi' ? 'Area *' : 'City / Town *'
 
   const applySavedAddress = (address: SavedAddress) => {
+    const resolvedCounty = kenyaCounties.find((countyName) => normalizeLocationName(countyName) === normalizeLocationName(address.county)) ?? address.county
+    const resolvedCity = (kenyaCountyCities[resolvedCounty] ?? []).find((cityName) => normalizeLocationName(cityName) === normalizeLocationName(address.city)) ?? address.city
     setSelectedAddressId(String(address.id))
     setStreet(address.street)
     setCountry('Kenya')
-    setCity(address.city)
-    setCounty(address.county)
+    setCity(resolvedCity)
+    setCounty(resolvedCounty)
     setAddressLabel(address.label || 'Home')
     setSaveAddress(false)
     setSetDefaultAddress(address.is_default)
@@ -242,8 +247,8 @@ function CheckoutPage() {
         if (!active) return
         setSavedAddresses(addresses)
         const initial =
-          addresses.find((address) => address.is_default && activeDeliveryCounties.includes(address.county))
-          ?? addresses.find((address) => activeDeliveryCounties.includes(address.county))
+          addresses.find((address) => address.is_default)
+          ?? addresses[0]
           ?? null
         if (initial) {
           applySavedAddress(initial)
@@ -528,17 +533,17 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (selectedAddressId === 'new') return
-    const selectedAddress = deliverableSavedAddresses.find((address) => String(address.id) === selectedAddressId)
+    const selectedAddress = savedAddresses.find((address) => String(address.id) === selectedAddressId)
     if (selectedAddress) return
 
-    const fallbackAddress = deliverableSavedAddresses.find((address) => address.is_default) ?? deliverableSavedAddresses[0] ?? null
+    const fallbackAddress = savedAddresses.find((address) => address.is_default) ?? savedAddresses[0] ?? null
     if (fallbackAddress) {
       applySavedAddress(fallbackAddress)
       return
     }
 
     switchToManualAddress()
-  }, [deliverableSavedAddresses, savedAddresses.length, selectedAddressId])
+  }, [savedAddresses, selectedAddressId])
 
   const validateCardDetails = () => {
     setValidationError('')
@@ -928,23 +933,23 @@ function CheckoutPage() {
                             setSetDefaultAddress(savedAddresses.length === 0)
                             return
                           }
-                          const selected = deliverableSavedAddresses.find((address) => String(address.id) === nextValue)
+                          const selected = savedAddresses.find((address) => String(address.id) === nextValue)
                           if (!selected) return
                           applySavedAddress(selected)
                         }}
                         disabled={isLoadingAddresses}
                       >
                         <option value="new">Use a new address</option>
-                        {deliverableSavedAddresses.map((address) => (
+                        {savedAddresses.map((address) => (
                           <option key={address.id} value={address.id}>
-                            {address.label || 'Saved address'} · {address.street}, {address.city}, {address.county}
+                            {address.label || 'Saved address'} · {address.street}, {address.city}, {address.county}{isCountyDeliverable(address.county, countyOptions) ? '' : ' (outside active delivery counties)'}
                           </option>
                         ))}
                       </select>
-                      <p className="co-note">Select a saved address in an active delivery county or switch to a new address for this order.</p>
+                      <p className="co-note">Select any saved address or switch to a new address for this order.</p>
                       {inactiveSavedAddressCount > 0 && (
                         <p className="co-note">
-                          {inactiveSavedAddressCount} saved {inactiveSavedAddressCount === 1 ? 'address is' : 'addresses are'} hidden because the county is not active for delivery.
+                          {inactiveSavedAddressCount} saved {inactiveSavedAddressCount === 1 ? 'address is' : 'addresses are'} outside active delivery counties and may require store pickup or a different address.
                         </p>
                       )}
                     </div>

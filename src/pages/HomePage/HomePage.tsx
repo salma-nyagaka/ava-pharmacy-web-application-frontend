@@ -10,7 +10,7 @@ import backgroundBanner from '../../assets/images/banner/background.jpg'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
-import { mapApiProduct, useProducts } from '../../hooks/useProducts'
+import { useInventoryItems } from '../../hooks/useInventoryItems'
 import { useCatalog } from '../../context/CatalogContext'
 import { useAuth } from '../../context/AuthContext'
 import type { CatalogProduct } from '../../data/products'
@@ -49,6 +49,8 @@ const bannerSlides: HeroSlide[] = [
 const FEATURED_PRODUCTS_LIMIT = 5
 const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
 const isEligibleFeaturedProduct = (product: CatalogProduct) => isAvailableProduct(product) && !product.requiresPrescription
+const getInventoryKey = (product: CatalogProduct) => product.variantId ?? product.id
+const getProductDetailId = (product: CatalogProduct) => product.productId ?? product.id
 
 function HomePage() {
   const categoryTrackRef = useRef<HTMLDivElement | null>(null)
@@ -73,7 +75,7 @@ function HomePage() {
     { title: 'Prescription review', description: 'Upload your Rx for pharmacist guidance', link: '/prescriptions' },
   ]
 
-  const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
+  const { products: catalogProducts } = useInventoryItems({ page_size: 200 }, { loadAllPages: true })
   const [featuredSeedProducts, setFeaturedSeedProducts] = useState<CatalogProduct[]>([])
   const visibleCategories = categories.filter((category) => {
     const normalizedName = category.name.trim().toLowerCase()
@@ -81,8 +83,8 @@ function HomePage() {
     return normalizedName !== 'collections' && normalizedSlug !== 'collections'
   })
 
-  const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name'>) =>
-    `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+  const prescriptionPathFor = (product: CatalogProduct) =>
+    `/prescriptions?product_id=${getProductDetailId(product)}&product_name=${encodeURIComponent(product.name)}`
 
   const isDealProduct = (product: CatalogProduct) => product.originalPrice !== null && product.originalPrice > product.price
   const getDealSavings = (product: CatalogProduct) => (product.originalPrice ?? product.price) - product.price
@@ -142,8 +144,9 @@ function HomePage() {
 
     const appendUnique = (products: CatalogProduct[]) => {
       products.forEach((product) => {
-        if (seen.has(product.id) || !isEligibleFeaturedProduct(product)) return
-        seen.add(product.id)
+        const inventoryKey = getInventoryKey(product)
+        if (seen.has(inventoryKey) || !isEligibleFeaturedProduct(product)) return
+        seen.add(inventoryKey)
         merged.push(product)
       })
     }
@@ -154,10 +157,10 @@ function HomePage() {
     return merged.slice(0, FEATURED_PRODUCTS_LIMIT)
   })()
 
-  const featuredProductIds = new Set(featuredProducts.map((product) => product.id))
+  const featuredProductIds = new Set(featuredProducts.map((product) => getInventoryKey(product)))
 
   const newProducts = catalogProducts
-    .filter((product) => isAvailableProduct(product) && !featuredProductIds.has(product.id) && !isDealProduct(product))
+    .filter((product) => isAvailableProduct(product) && !featuredProductIds.has(getInventoryKey(product)) && !isDealProduct(product))
     .slice(0, 5)
 
   const offerDeals = [...catalogProducts]
@@ -267,16 +270,18 @@ function HomePage() {
     }
 
     await cartService.add({
-      id: product.id,
+      id: getInventoryKey(product),
+      productId: getProductDetailId(product),
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,
       image: product.image,
       stockSource: product.stockSource === 'out' ? 'warehouse' : (product.stockSource ?? 'branch'),
     })
-    setAddedId(product.id)
+    setAddedId(getInventoryKey(product))
     window.setTimeout(() => {
-      setAddedId((prev) => (prev === product.id ? null : prev))
+      setAddedId((prev) => (prev === getInventoryKey(product) ? null : prev))
     }, 1200)
   }
 
@@ -337,8 +342,8 @@ function HomePage() {
     const displayBadge = getProductBadge(product, section)
 
     return (
-      <article key={product.id} className="product-card">
-        <Link to={`/product/${product.id}`} className="product-card__image">
+      <article key={getInventoryKey(product)} className="product-card">
+        <Link to={`/product/${getProductDetailId(product)}`} className="product-card__image">
           {displayBadge && (
             <span className={`product-card__badge ${section === 'deals' ? 'product-card__badge--sale' : ''}`}>
               {displayBadge}
@@ -347,14 +352,14 @@ function HomePage() {
           <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
           <div className="product-card__actions">
             <button
-              className={`product-card__action ${wishlist[product.id] ? 'product-card__action--active' : ''}`}
-              title={wishlist[product.id] ? 'Remove from favourites' : 'Save to favourites'}
+              className={`product-card__action ${wishlist[getInventoryKey(product)] ? 'product-card__action--active' : ''}`}
+              title={wishlist[getInventoryKey(product)] ? 'Remove from favourites' : 'Save to favourites'}
               onClick={(e) => {
                 e.preventDefault()
                 toggleWishlist(product)
               }}
             >
-              <svg viewBox="0 0 24 24" fill={wishlist[product.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+              <svg viewBox="0 0 24 24" fill={wishlist[getInventoryKey(product)] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
               </svg>
             </button>
@@ -363,7 +368,7 @@ function HomePage() {
         <div className="product-card__content">
           {product.brand && <span className="product-card__brand">{product.brand}</span>}
           <h3 className="product-card__name">
-            <Link to={`/product/${product.id}`}>{product.name}</Link>
+            <Link to={`/product/${getProductDetailId(product)}`}>{product.name}</Link>
           </h3>
           <div className="product-card__spacer" />
           <div className="product-card__footer">
@@ -375,15 +380,15 @@ function HomePage() {
             </div>
             <div className="product-card__buttons">
               <button
-                className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`}
+                className={`product-card__add-to-cart${addedId === getInventoryKey(product) ? ' product-card__add-to-cart--added' : ''}`}
                 type="button"
                 title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
                 onClick={() => void handleAddToCart(product)}
               >
-                {product.requiresPrescription ? 'Add Prescription' : addedId === product.id ? 'Added!' : 'Add to cart'}
+                {product.requiresPrescription ? 'Add Prescription' : addedId === getInventoryKey(product) ? 'Added!' : 'Add to cart'}
               </button>
               <Link
-                to={`/product/${product.id}`}
+                to={`/product/${getProductDetailId(product)}`}
                 className="product-card__view-details"
               >
                 View details

@@ -19,9 +19,11 @@ function isAuthenticated() {
 
 function mapApiItem(item: Record<string, unknown>): CartItem {
   const product = (item.product ?? {}) as Record<string, unknown>
-  const variant = (item.product_variant ?? {}) as Record<string, unknown>
+  const variant = ((item.variant ?? item.product_variant) ?? {}) as Record<string, unknown>
   return {
-    id: (product.id ?? item.product_id ?? item.id) as number,
+    id: (variant.id ?? product.id ?? item.product_id ?? item.id) as number,
+    productId: (product.id ?? item.product_id) as number | undefined,
+    variantId: (variant.id ?? item.variant_id) as number | undefined,
     serverItemId: item.id as number,
     name: (product.name ?? variant.name ?? '') as string,
     brand: (product.brand_name ?? (product.brand as Record<string, unknown> | undefined)?.name ?? '') as string,
@@ -79,7 +81,8 @@ export const cartService = {
     }
     try {
       await apiClient.post('/cart/items/', {
-        product_id: item.id,
+        product_id: item.productId ?? item.id,
+        variant_id: item.variantId,
         quantity,
         prescription_id: item.prescriptionId,
       })

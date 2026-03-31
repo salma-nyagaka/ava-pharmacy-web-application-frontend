@@ -2,6 +2,8 @@ export type StockSource = 'branch' | 'warehouse' | 'out'
 
 export interface CartItem {
   id: number
+  productId?: number
+  variantId?: number
   serverItemId?: number
   name: string
   brand: string
@@ -42,13 +44,14 @@ export const saveCartItems = (items: CartItem[]) => {
 
 export const addItemToCart = (item: Omit<CartItem, 'quantity'>, quantity = 1) => {
   const current = loadCartItems()
+  const targetId = item.variantId ?? item.id
   const existing = current.find(
-    (entry) => entry.id === item.id && entry.prescriptionId === item.prescriptionId
+    (entry) => (entry.variantId ?? entry.id) === targetId && entry.prescriptionId === item.prescriptionId
   )
   const next = Math.max(1, quantity)
   if (existing) {
     const updated = current.map((entry) =>
-      entry.id === item.id && entry.prescriptionId === item.prescriptionId
+      (entry.variantId ?? entry.id) === targetId && entry.prescriptionId === item.prescriptionId
         ? { ...entry, quantity: entry.quantity + next }
         : entry
     )
@@ -64,13 +67,13 @@ export const updateCartItemQuantity = (itemId: number, quantity: number, prescri
   const current = loadCartItems()
   if (quantity <= 0) {
     const updated = current.filter(
-      (entry) => !(entry.id === itemId && entry.prescriptionId === prescriptionId)
+      (entry.variantId ?? entry.id) !== itemId || entry.prescriptionId !== prescriptionId
     )
     saveCartItems(updated)
     return updated
   }
   const updated = current.map((entry) =>
-    entry.id === itemId && entry.prescriptionId === prescriptionId ? { ...entry, quantity } : entry
+    (entry.variantId ?? entry.id) === itemId && entry.prescriptionId === prescriptionId ? { ...entry, quantity } : entry
   )
   saveCartItems(updated)
   return updated
@@ -79,7 +82,7 @@ export const updateCartItemQuantity = (itemId: number, quantity: number, prescri
 export const removeCartItem = (itemId: number, prescriptionId?: string) => {
   const current = loadCartItems()
   const updated = current.filter(
-    (entry) => !(entry.id === itemId && entry.prescriptionId === prescriptionId)
+    (entry.variantId ?? entry.id) !== itemId || entry.prescriptionId !== prescriptionId
   )
   saveCartItems(updated)
   return updated

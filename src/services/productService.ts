@@ -27,6 +27,11 @@ export interface Product {
   is_active: boolean
 }
 
+export interface InventoryItem extends Product {
+  product_id: number
+  product_slug: string
+}
+
 export interface ProductDetail extends Product {
   brand: { id: number; name: string; slug: string; logo: string | null; image?: string | null }
   category: { id: number; name: string; slug: string }
@@ -116,6 +121,13 @@ function normalizeProduct(product: Product): Product {
   }
 }
 
+function normalizeInventoryItem(item: InventoryItem): InventoryItem {
+  return {
+    ...item,
+    image: resolveMediaUrl(item.image),
+  }
+}
+
 function normalizeProductDetail(product: ProductDetail): ProductDetail {
   return {
     ...product,
@@ -134,7 +146,15 @@ function normalizeProductDetail(product: ProductDetail): ProductDetail {
 function extractProductCollection(raw: unknown): { items: Product[]; meta: Record<string, unknown> } {
   const response = raw as { data?: unknown; meta?: Record<string, unknown> }
   const payload = response?.data ?? raw
-  const meta = response?.meta ?? {}
+  const payloadMeta =
+    payload && typeof payload === 'object'
+      ? {
+          count: (payload as Record<string, unknown>).count,
+          next: (payload as Record<string, unknown>).next,
+          previous: (payload as Record<string, unknown>).previous,
+        }
+      : {}
+  const meta = { ...payloadMeta, ...(response?.meta ?? {}) }
 
   if (Array.isArray(payload)) {
     return { items: payload as Product[], meta }
@@ -196,6 +216,46 @@ export async function fetchProducts(
   }
 
   return { data: items.map(normalizeProduct), meta }
+}
+
+export async function fetchInventoryItems(
+  filters: ProductFilters = {},
+  options: FetchProductsOptions = {},
+): Promise<{ data: InventoryItem[]; meta: Record<string, unknown> }> {
+  const params = Object.fromEntries(
+    Object.entries(filters).filter(([, v]) => v !== undefined && v !== '' && v !== null)
+  )
+
+  const res = await apiClient.get('/inventory-items/', { params })
+  const firstPage = extractProductCollection(res.data)
+  const items = [...(firstPage.items as InventoryItem[])]
+  let meta = firstPage.meta
+
+  if (options.loadAllPages) {
+    let next = typeof meta.next === 'string' ? meta.next : null
+    let remainingPages = 99
+
+    while (next && remainingPages > 0) {
+      const nextRes = await apiClient.get(next)
+      const nextPage = extractProductCollection(nextRes.data)
+      items.push(...(nextPage.items as InventoryItem[]))
+      meta = { ...meta, ...nextPage.meta }
+      next = typeof nextPage.meta.next === 'string' ? nextPage.meta.next : null
+      remainingPages -= 1
+    }
+
+    meta = {
+      ...meta,
+      total: typeof firstPage.meta.total === 'number' ? firstPage.meta.total : items.length,
+      total_pages:
+        typeof firstPage.meta.total_pages === 'number'
+          ? firstPage.meta.total_pages
+          : Math.max(1, Math.ceil(items.length / Math.max(items.length, 1))),
+      next: null,
+    }
+  }
+
+  return { data: items.map(normalizeInventoryItem), meta }
 }
 
 export async function fetchProductBySlug(slug: string): Promise<ProductDetail> {

@@ -2,7 +2,6 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
-import { SearchableMultiSelect } from '../../components/SearchableMultiSelect/SearchableMultiSelect'
 import {
   adminProductService,
   ApiBrand,
@@ -39,29 +38,6 @@ function compareCreatedAt(left?: string, right?: string): number {
   return leftTime - rightTime
 }
 
-function formatCurrency(value?: string | number | null): string {
-  if (value === null || value === undefined || value === '') return '—'
-  const amount = typeof value === 'number' ? value : Number(value)
-  return Number.isFinite(amount) ? `KSh ${amount.toLocaleString()}` : '—'
-}
-
-function getEffectiveSellingPrice(product: ApiProduct): number {
-  const effectivePrice = Number(product.final_price ?? product.price)
-  if (Number.isFinite(effectivePrice) && effectivePrice > 0) return effectivePrice
-  return Number(product.price)
-}
-
-function getMarginData(product: ApiProduct): { amount: number; percent: number } | null {
-  const costPrice = Number(product.cost_price)
-  if (!Number.isFinite(costPrice) || costPrice <= 0) return null
-
-  const effectiveSellingPrice = getEffectiveSellingPrice(product)
-  const amount = effectiveSellingPrice - costPrice
-  const percent = effectiveSellingPrice > 0 ? (amount / effectiveSellingPrice) * 100 : 0
-
-  return { amount, percent }
-}
-
 function formatFeatureLines(features: string[] | null | undefined): string {
   return Array.isArray(features) ? features.join('\n') : ''
 }
@@ -73,12 +49,6 @@ function parseFeatureLines(value: string): string[] {
     .filter(Boolean)
 }
 
-function generateSku(name: string): string {
-  const base = name.trim().toUpperCase().replace(/[^A-Z0-9]/g, '-').slice(0, 12)
-  const suffix = Date.now().toString(36).toUpperCase().slice(-4)
-  return `${base}-${suffix}`
-}
-
 function generateSlug(name: string): string {
   return name.trim().toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
@@ -86,54 +56,6 @@ function generateSlug(name: string): string {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 80)
-}
-
-function getInventoryItem(product: ApiProduct, location: 'branch' | 'warehouse') {
-  return product.inventories?.find((inventory) => inventory.location === location)
-}
-
-function getInventoryQuantity(product: ApiProduct, location: 'branch' | 'warehouse') {
-  return getInventoryItem(product, location)?.stock_quantity ?? 0
-}
-
-function getActiveVariantCount(product: ApiProduct): number {
-  return (product.variants ?? []).filter((variant) => variant.is_active).length
-}
-
-function getSellableQuantity(product: ApiProduct): number {
-  return product.available_quantity ?? product.stock_quantity ?? 0
-}
-
-function getSellableStatus(product: ApiProduct): string {
-  return product.inventory_status ?? 'out_of_stock'
-}
-
-function getSellableStatusClass(product: ApiProduct): string {
-  const status = getSellableStatus(product)
-  if (status === 'in_stock') return 'cm-status--active'
-  if (status === 'low_stock' || status === 'backorder') return 'cm-status--scheduled'
-  return 'cm-status--inactive'
-}
-
-function formatSellableStatusLabel(product: ApiProduct): string {
-  const status = getSellableStatus(product)
-  if (status === 'in_stock') return 'In stock'
-  if (status === 'low_stock') return 'Low stock'
-  if (status === 'backorder') return 'Backorder'
-  if (status === 'inactive') return 'Inactive'
-  return 'Out of stock'
-}
-
-function formatInventoryBreakdown(product: ApiProduct): string {
-  if (product.has_variants) {
-    const variantCount = getActiveVariantCount(product)
-    return variantCount > 0
-      ? `Variant-managed · ${variantCount} active variant${variantCount === 1 ? '' : 's'}`
-      : 'Variant-managed'
-  }
-  const branchQty = getInventoryQuantity(product, 'branch')
-  const warehouseQty = getInventoryQuantity(product, 'warehouse')
-  return `Shop:${branchQty} · POS:${warehouseQty}`
 }
 
 function isFieldErrorMap(value: unknown): value is Record<string, string | string[]> {
@@ -145,7 +67,7 @@ function isFieldErrorMap(value: unknown): value is Record<string, string | strin
 }
 
 type ProductFormPayload =
-  Pick<ProductCreatePayload, 'name' | 'slug' | 'sku' | 'is_active' | 'requires_prescription'>
+  Pick<ProductCreatePayload, 'name' | 'slug' | 'is_active'>
   & Partial<ProductCreatePayload>
 
 function ProductManagement() {
@@ -158,7 +80,7 @@ function ProductManagement() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [productFormMeta, setProductFormMeta] = useState<ProductFormMeta | null>(null)
+  const [, setProductFormMeta] = useState<ProductFormMeta | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedSubcat, setSelectedSubcat] = useState('all')
@@ -170,13 +92,9 @@ function ProductManagement() {
 
   const [productName, setProductName] = useState('')
   const [productSlug, setProductSlug] = useState('')
-  const [productSku, setProductSku] = useState('')
-  const [productBarcode, setProductBarcode] = useState('')
   const [productSubcategoryId, setProductSubcategoryId] = useState<number | ''>('')
   const [productBrandId, setProductBrandId] = useState<number | ''>('')
-  const [productHealthConcernIds, setProductHealthConcernIds] = useState<number[]>([])
   const [productStatus, setProductStatus] = useState<'active' | 'inactive'>('active')
-  const [productRequiresRx, setProductRequiresRx] = useState(false)
   const [productDescription, setProductDescription] = useState('')
   const [productFeaturesText, setProductFeaturesText] = useState('')
   const [formError, setFormError] = useState('')
@@ -192,6 +110,7 @@ function ProductManagement() {
   const [activeTab, setActiveTab] = useState<'products' | 'brands'>('products')
   const [editingBrand, setEditingBrand] = useState<ApiBrand | null>(null)
   const [handledProductQuery, setHandledProductQuery] = useState('')
+  const [highlightedProductId, setHighlightedProductId] = useState<number | null>(null)
   const productQueryKey = searchParams.toString()
 
 
@@ -237,20 +156,23 @@ function ProductManagement() {
     const target = products.find((product) => String(product.id) === productId)
     if (!target) return
 
-    openEditModal(target)
+    clearFilters()
+    const sortedAllProducts = [...products].sort((left, right) => {
+      const comparison = compareCreatedAt(left.created_at, right.created_at)
+      return createdAtSortDirection === 'asc' ? comparison : -comparison
+    })
+    const targetIndex = sortedAllProducts.findIndex((product) => product.id === target.id)
+    setCurrentPage(targetIndex >= 0 ? Math.floor(targetIndex / PAGE_SIZE) + 1 : 1)
+    setHighlightedProductId(target.id)
     setHandledProductQuery(productId)
-  }, [activeTab, handledProductQuery, loading, productQueryKey, products, searchParams])
+  }, [activeTab, createdAtSortDirection, handledProductQuery, loading, productQueryKey, products, searchParams])
 
   const resetForm = () => {
     setProductName('')
     setProductSlug('')
-    setProductSku('')
-    setProductBarcode('')
     setProductSubcategoryId(subcategories[0]?.id ?? '')
     setProductBrandId(brands[0]?.id ?? '')
-    setProductHealthConcernIds([])
     setProductStatus('active')
-    setProductRequiresRx(false)
     setProductDescription('')
     setProductFeaturesText('')
     setEditingProduct(null)
@@ -296,13 +218,9 @@ function ProductManagement() {
 
     setProductName(product.name)
     setProductSlug(product.slug ?? generateSlug(product.name))
-    setProductSku(product.sku)
-    setProductBarcode(product.barcode ?? '')
     setProductSubcategoryId(resolvedSubcategory?.id ?? product.subcategory_id ?? (subcategories[0]?.id ?? ''))
     setProductBrandId(resolvedBrand?.id ?? product.brand?.id ?? (brands[0]?.id ?? ''))
-    setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
     setProductStatus(product.is_active ? 'active' : 'inactive')
-    setProductRequiresRx(product.requires_prescription)
     setProductDescription(product.description ?? '')
     setProductFeaturesText(formatFeatureLines(product.features))
     setEditingProduct(product)
@@ -313,10 +231,6 @@ function ProductManagement() {
   const handleSaveProduct = async (e: FormEvent) => {
     e.preventDefault()
     if (!productName.trim()) { setFormError('Product name is required.'); return }
-    if (productBarcode.trim() === '') {
-      setFormError('Barcode is required.')
-      return
-    }
     if (productBrandId === '') {
       setFormError(brands.length === 0 ? 'Create a brand before adding a product.' : 'Brand is required.')
       return
@@ -327,18 +241,13 @@ function ProductManagement() {
     }
 
     const features = parseFeatureLines(productFeaturesText)
-    const sku = productSku.trim() || generateSku(productName)
     const slug = productSlug.trim() || generateSlug(productName)
     const commonPayload: ProductFormPayload = {
       name: productName.trim(),
       slug,
-      sku,
-      barcode: productBarcode.trim(),
       brand_id: Number(productBrandId),
       subcategory_id: Number(productSubcategoryId),
-      health_concern_ids: productHealthConcernIds,
       is_active: productStatus === 'active',
-      requires_prescription: productRequiresRx,
       description: productDescription.trim(),
       features,
     }
@@ -355,16 +264,12 @@ function ProductManagement() {
       const formData = new FormData()
       formData.append('name', payload.name)
       formData.append('slug', payload.slug)
-      formData.append('sku', payload.sku)
-      formData.append('barcode', payload.barcode ?? '')
       formData.append('is_active', String(payload.is_active))
-      formData.append('requires_prescription', String(payload.requires_prescription))
       formData.append('description', payload.description ?? '')
       formData.append('features', JSON.stringify(payload.features ?? []))
 
       if (payload.brand_id !== null && payload.brand_id !== undefined) formData.append('brand_id', String(payload.brand_id))
       if (payload.subcategory_id !== null && payload.subcategory_id !== undefined) formData.append('subcategory_id', String(payload.subcategory_id))
-      productHealthConcernIds.forEach((id) => formData.append('health_concern_ids', String(id)))
       return formData
     }
 
@@ -629,29 +534,15 @@ function ProductManagement() {
   const pagedProducts = sortedProducts.slice(startIndex, startIndex + PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE))
 
-  const getProductCatalog = (product: ApiProduct) => {
-    const resolvedSubcategory = resolveProductSubcategory(product)
-    const categoryName =
-      product.category_name ||
-      resolvedSubcategory?.category_name ||
-      (getProductCategoryId(product) !== null
-        ? categories.find((category) => category.id === getProductCategoryId(product))?.name ?? null
-        : null) ||
-      'Uncategorized'
+  useEffect(() => {
+    if (highlightedProductId === null) return
+    const targetRow = document.getElementById(`product-row-${highlightedProductId}`)
+    if (!targetRow) return
 
-    const subcategoryName =
-      product.subcategory_name ||
-      resolvedSubcategory?.name ||
-      'Uncategorized'
-
-    return {
-      categoryName,
-      subcategoryName,
-      combinedLabel: `${categoryName} / ${subcategoryName}`,
-    }
-  }
-
-  const getProductBrandLabel = (product: ApiProduct) => product.brand?.name ?? product.brand_name ?? 'No brand'
+    targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const timeoutId = window.setTimeout(() => setHighlightedProductId((current) => (current === highlightedProductId ? null : current)), 2500)
+    return () => window.clearTimeout(timeoutId)
+  }, [currentPage, highlightedProductId, sortedProducts])
 
   const toggleCreatedAtSort = () => {
     setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
@@ -905,13 +796,6 @@ function ProductManagement() {
             <thead>
               <tr>
                 <th style={{ minWidth: 220 }}>Product</th>
-                <th style={{ minWidth: 120 }}>Brand</th>
-                <th style={{ minWidth: 130 }}>Subcategory</th>
-                <th style={{ minWidth: 110 }}>Lead Variant Price</th>
-                <th style={{ minWidth: 140 }}>Active Deal</th>
-                <th style={{ minWidth: 100 }}>Lead Margin</th>
-                <th style={{ minWidth: 80 }}>Stock</th>
-                <th style={{ minWidth: 110 }}>Prescription</th>
                 <th style={{ minWidth: 90 }}>Status</th>
                 <th style={{ minWidth: 100, whiteSpace: 'nowrap' }}>
                   <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
@@ -925,74 +809,22 @@ function ProductManagement() {
             </thead>
             <tbody>
               {pagedProducts.map((product) => {
-                const margin = getMarginData(product)
-                const stockQty = getSellableQuantity(product)
-                const stockClass = getSellableStatusClass(product)
                 return (
-                <tr key={product.id}>
+                <tr
+                  key={product.id}
+                  id={`product-row-${product.id}`}
+                  className={highlightedProductId === product.id ? 'cm-table__row--highlight' : undefined}
+                >
                   <td>
                     <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
                       <ImageWithFallback src={product.image ?? ''} alt={product.name} style={{ width: 36, height: 36, borderRadius: '0.375rem', objectFit: 'cover', flexShrink: 0 }} />
                       <div className="cm-name-cell">
                         <span className="cm-name-cell__name">{product.name}</span>
-                        <span className="cm-name-cell__id">{product.sku}{product.strength ? ` · ${product.strength}` : ''}</span>
-                        {product.dosage_quantity && product.dosage_unit && product.dosage_frequency && (
-                          <span className="cm-name-cell__id" style={{ color: '#10b981' }}>
-                            {product.dosage_quantity} {product.dosage_unit} · {product.dosage_frequency.replace(/_/g, ' ')}{product.dosage_notes ? ` · ${product.dosage_notes}` : ''}
-                          </span>
-                        )}
-                        {product.health_concerns.length > 0 && (
-                          <div className="cm-chips" style={{ marginTop: '0.25rem' }}>
-                            {product.health_concerns.slice(0, 3).map((concern) => (
-                              <span key={concern.id} className="cm-chip">{concern.name}</span>
-                            ))}
-                            {product.health_concerns.length > 3 && (
-                              <span className="cm-chip cm-chip--more">+{product.health_concerns.length - 3} more</span>
-                            )}
-                          </div>
-                        )}
+                        <span className="cm-name-cell__id">{product.sku}</span>
+                        {product.barcode && <span className="cm-name-cell__id">Barcode: {product.barcode}</span>}
+                        {product.pos_product_id && <span className="cm-name-cell__id">POS ID: {product.pos_product_id}</span>}
                       </div>
                     </div>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{getProductBrandLabel(product)}</span>
-                  </td>
-                  <td>
-                    <div className="cm-name-cell">
-                      <span className="cm-name-cell__name">{getProductCatalog(product).subcategoryName}</span>
-                      <span className="cm-name-cell__id">{getProductCatalog(product).categoryName}</span>
-                    </div>
-                  </td>
-                  <td>{formatCurrency(product.price)}</td>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <span>{product.badge || 'No active deal'}</span>
-                      <span className="cm-name-cell__id">
-                        {product.badge ? formatCurrency(product.final_price) : 'Manage in Deals'}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <span style={{ color: margin && margin.amount < 0 ? '#dc2626' : undefined }}>
-                        {margin ? formatCurrency(margin.amount) : '—'}
-                      </span>
-                      <span className="cm-name-cell__id">
-                        {margin ? `${margin.percent.toFixed(1)}%` : 'No cost price'}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <span className={`cm-status ${stockClass}`}>{stockQty}</span>
-                      <span className="cm-name-cell__id">{formatInventoryBreakdown(product)}</span>
-                      <span className="cm-name-cell__id">{formatSellableStatusLabel(product)}</span>
-                    </div>
-                  </td>
-                  <td>
-                    {product.requires_prescription
-                      ? <span className="cm-status cm-status--scheduled">Required</span>
-                      : <span className="cm-name-cell__id">—</span>}
                   </td>
                   <td>
                     <span className={`cm-status ${product.is_active ? 'cm-status--active' : 'cm-status--inactive'}`}>
@@ -1046,7 +878,7 @@ function ProductManagement() {
                 </tr>
               )})}
               {pagedProducts.length === 0 && (
-                <tr><td colSpan={12} style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>No products found.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>No products found.</td></tr>
               )}
             </tbody>
           </table>
@@ -1095,44 +927,24 @@ function ProductManagement() {
               <div className="modal__body">
 
                 <div className="pf-section">
-                  <div className="pf-section__label">Basic Info</div>
+                  <div className="pf-section__label">Catalog Identity</div>
+                  <div className="pf-section__intro">
+                    Use this form for the generic parent product only. 
+                  </div>
                   <div className="pf-row">
-                    <div className="pf-field">
+                    <div className="pf-field pf-field--wide">
                       <label className="pf-label">Product Name <span className="pf-req">*</span></label>
                       <input
                         className="pf-input"
                         type="text"
-                        placeholder="e.g. Panadol Extra"
+                        placeholder="e.g. Panadol"
                         value={productName}
                         onChange={(e) => {
                           setProductName(e.target.value)
                           setProductSlug(generateSlug(e.target.value))
                         }}
                       />
-                    </div>
-                  </div>
-                  <div className="pf-row">
-                    <div className="pf-field">
-                      <label className="pf-label">SKU <span className="pf-optional">optional</span></label>
-                      <input
-                        className="pf-input"
-                        type="text"
-                        placeholder="Auto-generated if blank"
-                        value={productSku}
-                        onChange={(e) => setProductSku(e.target.value)}
-                      />
-                    </div>
-                    <div className="pf-field">
-                      <label className="pf-label">
-                        Barcode {productFormMeta?.requires_barcode ? <span className="pf-req">*</span> : <span className="pf-optional">optional</span>}
-                      </label>
-                      <input
-                        className="pf-input"
-                        type="text"
-                        placeholder="Scan or enter barcode"
-                        value={productBarcode}
-                        onChange={(e) => setProductBarcode(e.target.value)}
-                      />
+                      <span className="pf-hint">Use the generic parent name. Variant-specific names are created later in Inventory.</span>
                     </div>
                   </div>
                   <div className="pf-row">
@@ -1162,7 +974,7 @@ function ProductManagement() {
                       />
                     </div>
                   </div>
-                  <div className="pf-row">
+                  <div className="pf-row pf-row--compact">
                     <div className="pf-field pf-field--sm">
                       <label className="pf-label">Status</label>
                       <select className="pf-input" value={productStatus} onChange={(e) => setProductStatus(e.target.value as 'active' | 'inactive')}>
@@ -1171,67 +983,57 @@ function ProductManagement() {
                       </select>
                     </div>
                   </div>
-                  {allConcerns.length > 0 && (
+                </div>
+
+                <div className="pf-section">
+                  <div className="pf-section__label">Storefront Content</div>
+                  <div className="pf-row">
                     <div className="pf-field">
-                      <label className="pf-label">Health Concerns <span className="pf-optional">optional</span></label>
-                      <SearchableMultiSelect
-                        value={productHealthConcernIds}
-                        onChange={(values) => setProductHealthConcernIds(values.map((v) => Number(v)))}
-                        options={allConcerns.filter((c) => c.is_active).map((c) => ({ value: c.id, label: c.name }))}
-                        placeholder="Select one or more concerns…"
+                      <label className="pf-label">Description <span className="pf-optional">optional</span></label>
+                      <textarea
+                        className="pf-input pf-textarea"
+                        rows={3}
+                        placeholder="Short parent-product description for the storefront"
+                        value={productDescription}
+                        onChange={(e) => setProductDescription(e.target.value)}
                       />
                     </div>
-                  )}
-                  <div className="pf-field">
-                    <label className="pf-label">Description <span className="pf-optional">optional</span></label>
-                    <textarea
-                      className="pf-input pf-textarea"
-                      rows={2}
-                      placeholder="Brief description shown on the product page"
-                      value={productDescription}
-                      onChange={(e) => setProductDescription(e.target.value)}
-                    />
-                  </div>
-               
-                  <div className="pf-field">
-                    <label className="pf-label">Features <span className="pf-optional">optional</span></label>
-                    <textarea
-                      className="pf-input pf-textarea"
-                      rows={3}
-                      placeholder="Enter one feature per line"
-                      value={productFeaturesText}
-                      onChange={(e) => setProductFeaturesText(e.target.value)}
-                    />
-                    <span className="pf-hint">Each line becomes a separate bullet point on the product page.</span>
-                  </div>
-                </div>
-
-      
-
-                <div className="pf-section">
-                  <div className="pf-section__label">Variants and Stock Management</div>
-                  {!editingProduct && (
-                    <span className="pf-hint">Save the product first, then use Inventory → New Stock to create variants(tablets, syrup, or sachets) stock, thresholds, backorder rules, and POS sync are managed</span>
-                  )}
-               
-                </div>
-
-            
-                <div className="pf-section">
-                  <div className="pf-section__label">Access</div>
-                  <div className="pf-toggle-row" onClick={() => setProductRequiresRx(!productRequiresRx)}>
-                    <div className="pf-toggle-row__text">
-                      <span className="pf-toggle-row__title">Prescription Required</span>
-                      <span className="pf-toggle-row__sub">
-                        {productRequiresRx ? 'Customer must present a valid prescription to purchase' : 'Available over the counter without a prescription'}
-                      </span>
+                    <div className="pf-field">
+                      <label className="pf-label">Features <span className="pf-optional">optional</span></label>
+                      <textarea
+                        className="pf-input pf-textarea"
+                        rows={3}
+                        placeholder="Enter one feature per line"
+                        value={productFeaturesText}
+                        onChange={(e) => setProductFeaturesText(e.target.value)}
+                      />
+                      <span className="pf-hint">Each line becomes a separate bullet point on the product page.</span>
                     </div>
-                    <label className="rx-toggle" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" checked={productRequiresRx} onChange={(e) => setProductRequiresRx(e.target.checked)} />
-                      <span className={`rx-toggle__track${productRequiresRx ? ' rx-toggle__track--on' : ''}`}>
-                        <span className="rx-toggle__thumb" style={{ transform: productRequiresRx ? 'translateX(20px)' : 'translateX(0)' }} />
-                      </span>
-                    </label>
+                  </div>
+                </div>
+
+                <div className="pf-section">
+                  <div className="pf-section__label">Discovery and Tagging</div>
+                  <div className="pf-field pf-field--wide">
+                    <span className="pf-hint">Health concerns are managed on variants in Inventory so each sellable item can be tagged accurately.</span>
+                  </div>
+                </div>
+
+                <div className="pf-section">
+                  <div className="pf-section__label">Next Step</div>
+                  <div className="pf-note-grid">
+                    <div className="pf-note-card">
+                      <div className="pf-note-card__title">After saving this product</div>
+                      <div className="pf-note-card__body">
+                        Go to Inventory and create the sellable variants, such as tablets, syrup, sachets, or strength-specific versions.
+                      </div>
+                    </div>
+                    <div className="pf-note-card">
+                      <div className="pf-note-card__title">Managed on each variant</div>
+                      <div className="pf-note-card__body">
+                        SKU, barcode, price, prescription required, stock levels, thresholds, backorders, images, and POS sync.
+                      </div>
+                    </div>
                   </div>
                 </div>
 

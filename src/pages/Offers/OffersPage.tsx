@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
-import { useProducts } from '../../hooks/useProducts'
+import { useInventoryItems } from '../../hooks/useInventoryItems'
 import { usePromotions } from '../../hooks/usePromotions'
 import { buildPromotionSummary, filterProductsByPromotion } from '../../services/promotionService'
 import '../../styles/pages/OffersPage.css'
 import '../../styles/pages/ProductListingPage.css'
 import { useAuth } from '../../context/AuthContext'
+import type { CatalogProduct } from '../../data/products'
 
 const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
 const hasDeal = (price: number, originalPrice: number | null) => (originalPrice ?? price) > price
@@ -17,6 +18,8 @@ const getDiscountPercent = (price: number, originalPrice: number | null) => {
   if (baselinePrice <= 0 || baselinePrice <= price) return 0
   return ((baselinePrice - price) / baselinePrice) * 100
 }
+const getInventoryKey = (product: CatalogProduct) => product.variantId ?? product.id
+const getProductDetailId = (product: CatalogProduct) => product.productId ?? product.id
 const ITEMS_PER_PAGE = 12
 
 const renderStars = (rating: number) => {
@@ -32,7 +35,7 @@ function OffersPage() {
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { products } = useProducts({ page_size: 200 }, { loadAllPages: true })
+  const { products } = useInventoryItems({ page_size: 200 }, { loadAllPages: true })
   const { promotions, loading: promotionsLoading } = usePromotions()
   const allDeals = useMemo(
     () => products.filter((product) => product.stockSource !== 'out' && hasDeal(product.price, product.originalPrice)),
@@ -150,20 +153,22 @@ function OffersPage() {
 
   const handleAddToCart = (deal: typeof allDeals[number]) => {
     if (deal.requiresPrescription) {
-      const prescriptionPath = `/prescriptions?product_id=${deal.id}&product_name=${encodeURIComponent(deal.name)}`
+      const prescriptionPath = `/prescriptions?product_id=${getProductDetailId(deal)}&product_name=${encodeURIComponent(deal.name)}`
       navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
       return
     }
     void cartService.add({
-      id: deal.id,
+      id: getInventoryKey(deal),
+      productId: getProductDetailId(deal),
+      variantId: deal.variantId,
       name: deal.name,
       brand: deal.brand,
       price: deal.price,
       image: deal.image,
       stockSource: deal.stockSource === 'out' ? undefined : deal.stockSource,
     })
-    setAddedId(deal.id)
-    window.setTimeout(() => setAddedId((prev) => prev === deal.id ? null : prev), 1200)
+    setAddedId(getInventoryKey(deal))
+    window.setTimeout(() => setAddedId((prev) => prev === getInventoryKey(deal) ? null : prev), 1200)
   }
 
   return (
@@ -343,8 +348,8 @@ function OffersPage() {
 
             <div className="products-grid">
               {paginatedDeals.map((deal) => (
-                <article key={deal.id} className="product-card">
-                  <Link to={`/product/${deal.id}`} className="product-card__image">
+                <article key={getInventoryKey(deal)} className="product-card">
+                  <Link to={`/product/${getProductDetailId(deal)}`} className="product-card__image">
                     {deal.badge && (
                       <span className={`product-card__badge ${deal.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>{deal.badge}</span>
                     )}
@@ -353,7 +358,7 @@ function OffersPage() {
                   <div className="product-card__content">
                     <span className="product-card__brand">{deal.brand}</span>
                     <h3 className="product-card__name">
-                      <Link to={`/product/${deal.id}`}>{deal.name}</Link>
+                      <Link to={`/product/${getProductDetailId(deal)}`}>{deal.name}</Link>
                     </h3>
                     <div className="product-card__pricing">
                       <span className="product-card__price">{formatPrice(deal.price)}</span>
@@ -364,13 +369,13 @@ function OffersPage() {
                     <p className="product-card__deal-copy">Save {formatPrice(getSavings(deal.price, deal.originalPrice))} today</p>
                     <div className="product-card__buttons">
                       <button
-                        className={`product-card__add-to-cart ${addedId === deal.id ? 'product-card__add-to-cart--added' : ''}`}
+                        className={`product-card__add-to-cart ${addedId === getInventoryKey(deal) ? 'product-card__add-to-cart--added' : ''}`}
                         type="button"
                         onClick={() => handleAddToCart(deal)}
                       >
-                        {addedId === deal.id ? 'Added!' : deal.requiresPrescription ? 'Add Prescription' : 'Add to cart'}
+                        {addedId === getInventoryKey(deal) ? 'Added!' : deal.requiresPrescription ? 'Add Prescription' : 'Add to cart'}
                       </button>
-                      <Link to={`/product/${deal.id}`} className="product-card__view-details">
+                      <Link to={`/product/${getProductDetailId(deal)}`} className="product-card__view-details">
                         View details
                       </Link>
                     </div>

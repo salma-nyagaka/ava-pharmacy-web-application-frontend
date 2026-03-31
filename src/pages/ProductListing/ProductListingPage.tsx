@@ -6,7 +6,7 @@ import { StockSource } from '../../data/cart'
 import { CatalogProduct } from '../../data/products'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
-import { useProducts } from '../../hooks/useProducts'
+import { useInventoryItems } from '../../hooks/useInventoryItems'
 import { useAuth } from '../../context/AuthContext'
 import { fetchBrandBySlug, type PublicBrand } from '../../services/productService'
 import '../../styles/pages/ProductListingPage.css'
@@ -14,6 +14,8 @@ import '../../styles/pages/ProductListingPage.css'
 type ListingProduct = CatalogProduct
 
 const ITEMS_PER_PAGE = 12
+const getInventoryKey = (product: ListingProduct) => product.variantId ?? product.id
+const getProductDetailId = (product: ListingProduct) => product.productId ?? product.id
 
 const getStockLabel = (stockSource: StockSource) => {
   if (stockSource === 'branch') return 'In stock at selected branch'
@@ -75,7 +77,7 @@ function ProductListingPage() {
     })
   }
 
-  const { products } = useProducts({
+  const { products } = useInventoryItems({
     category: categorySlug !== 'all' ? categorySlug : undefined,
     subcategory: activeSubcategorySlug || undefined,
     brand: brandParam,
@@ -133,8 +135,8 @@ function ProductListingPage() {
     setCurrentPage(1)
   }, [queryFromUrl, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
 
-  const prescriptionPathFor = (product: Pick<ListingProduct, 'id' | 'name'>) =>
-    `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+  const prescriptionPathFor = (product: ListingProduct) =>
+    `/prescriptions?product_id=${getProductDetailId(product)}&product_name=${encodeURIComponent(product.name)}`
 
   const toggleWishlist = (product: ListingProduct) => {
     if (!isLoggedIn) {
@@ -254,16 +256,18 @@ function ProductListingPage() {
       return
     }
     void cartService.add({
-      id: product.id,
+      id: getInventoryKey(product),
+      productId: getProductDetailId(product),
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,
       image: product.image,
       stockSource: product.stockSource,
     })
-    setAddedProductId(product.id)
+    setAddedProductId(getInventoryKey(product))
     window.setTimeout(() => {
-      setAddedProductId((prev) => (prev === product.id ? null : prev))
+      setAddedProductId((prev) => (prev === getInventoryKey(product) ? null : prev))
     }, 1200)
   }
 
@@ -482,8 +486,8 @@ function ProductListingPage() {
 
             <div className="products-grid">
               {paginatedProducts.map((product) => (
-                <article key={product.id} className="product-card">
-                  <Link to={`/product/${product.id}`} className="product-card__image">
+                <article key={getInventoryKey(product)} className="product-card">
+                  <Link to={`/product/${getProductDetailId(product)}`} className="product-card__image">
                     {product.badge && (
                       <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
                         {product.badge}
@@ -508,7 +512,7 @@ function ProductListingPage() {
                   <div className="product-card__content">
                     <span className="product-card__brand">{product.brand}</span>
                     <h3 className="product-card__name">
-                      <Link to={`/product/${product.id}`}>{product.name}</Link>
+                      <Link to={`/product/${getProductDetailId(product)}`}>{product.name}</Link>
                     </h3>
 
                     <div className="product-card__pricing">
@@ -520,19 +524,19 @@ function ProductListingPage() {
 
                     <div className="product-card__buttons">
                       {product.stockSource !== 'out' ? (
-                        <button className={`product-card__add-to-cart ${addedProductId === product.id ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
-                          {product.requiresPrescription ? 'Add Prescription' : addedProductId === product.id ? 'Added!' : 'Add to cart'}
+                        <button className={`product-card__add-to-cart ${addedProductId === getInventoryKey(product) ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
+                          {product.requiresPrescription ? 'Add Prescription' : addedProductId === getInventoryKey(product) ? 'Added!' : 'Add to cart'}
                         </button>
                       ) : (
                         <button
                           className="product-card__add-to-cart product-card__add-to-cart--restock"
                           type="button"
-                          onClick={() => toggleRestockAlert(product.id)}
+                          onClick={() => toggleRestockAlert(getInventoryKey(product))}
                         >
-                          {restockAlerts[product.id] ? 'Alert Set' : 'Notify'}
+                          {restockAlerts[getInventoryKey(product)] ? 'Alert Set' : 'Notify'}
                         </button>
                       )}
-                      <Link to={`/product/${product.id}`} className="product-card__view-details">
+                      <Link to={`/product/${getProductDetailId(product)}`} className="product-card__view-details">
                         View details
                       </Link>
                     </div>

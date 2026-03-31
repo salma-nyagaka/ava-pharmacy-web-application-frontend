@@ -106,6 +106,20 @@ export interface ApiProductInventory {
   updated_at: string
 }
 
+export interface ApiVariantInventory {
+  id: number
+  location: InventoryLocation
+  source_name: string
+  stock_quantity: number
+  low_stock_threshold: number
+  allow_backorder: boolean
+  max_backorder_quantity: number
+  is_pos_synced: boolean
+  last_synced_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface InventoryLocationPayload {
   stock_quantity?: number
   low_stock_threshold?: number
@@ -189,6 +203,9 @@ export interface ApiProductVariant {
   original_price: string | null
   effective_price: string
   image: string | null
+  health_concerns: ApiHealthConcern[]
+  requires_prescription: boolean
+  inventories: ApiVariantInventory[]
   stock_source: StockSource
   stock_quantity: number
   low_stock_threshold: number
@@ -211,10 +228,14 @@ export interface ProductVariantPayload {
   dosage_instructions?: string
   directions?: string
   warnings?: string
+  health_concern_ids?: number[]
+  requires_prescription?: boolean
   attributes?: Record<string, unknown>
   price?: number | null
   cost_price?: number | null
   original_price?: number | null
+  branch_inventory?: InventoryLocationPayload
+  warehouse_inventory?: InventoryLocationPayload
   stock_quantity?: number
   low_stock_threshold?: number
   allow_backorder?: boolean
@@ -225,9 +246,23 @@ export interface ProductVariantPayload {
 }
 
 export interface ApiInventoryProduct extends ApiProduct {
+  product_id?: number
+  product_name?: string
+  product_slug?: string
   stock_quantity: number
   low_stock_threshold: number
   allow_backorder: boolean
+}
+
+export interface ApiInventoryItem extends ApiProductVariant {
+  product_id: number
+  product_name: string
+  product_slug: string
+  brand_name?: string | null
+  brand_slug?: string | null
+  category_name?: string | null
+  category_slug?: string | null
+  short_description?: string | null
 }
 
 export interface ApiReports {
@@ -254,7 +289,6 @@ export interface ApiOrder {
 export interface ProductCreatePayload {
   name: string
   slug: string
-  sku: string
   barcode?: string
   pos_product_id?: string
   strength?: string
@@ -267,7 +301,6 @@ export interface ProductCreatePayload {
   brand_id?: number | null
   health_concern_ids?: number[]
   is_active: boolean
-  requires_prescription: boolean
   allow_backorder?: boolean
   max_backorder_quantity?: number
   description?: string
@@ -345,6 +378,24 @@ function unwrapList<T>(res: { data: unknown }): T[] {
   return []
 }
 
+function extractListPage<T>(raw: unknown): { items: T[]; next: string | null } {
+  const payload = raw as { data?: unknown; results?: unknown; next?: string | null }
+  const inner = payload?.data !== undefined ? payload.data : raw
+
+  if (Array.isArray(inner)) {
+    return { items: inner as T[], next: null }
+  }
+
+  if (inner && typeof inner === 'object') {
+    const paged = inner as { results?: T[]; next?: string | null }
+    if (Array.isArray(paged.results)) {
+      return { items: paged.results, next: typeof paged.next === 'string' ? paged.next : null }
+    }
+  }
+
+  return { items: [], next: null }
+}
+
 function normalizePromotion<T extends ApiPromotion>(promotion: T): T {
   return {
     ...promotion,
@@ -352,15 +403,101 @@ function normalizePromotion<T extends ApiPromotion>(promotion: T): T {
   }
 }
 
+function normalizeVariant<T extends ApiProductVariant>(variant: T): T {
+  return {
+    ...variant,
+    image: resolveMediaUrl(variant.image),
+  }
+}
+
+function normalizeProduct<T extends ApiProduct>(product: T): T {
+  return {
+    ...product,
+    image: resolveMediaUrl(product.image),
+    variants: Array.isArray(product.variants) ? product.variants.map((variant) => normalizeVariant(variant)) : product.variants,
+  }
+}
+
+function normalizeInventoryRow(item: ApiInventoryItem): ApiInventoryProduct {
+  const normalizedVariant = normalizeVariant({
+    ...item,
+    health_concerns: Array.isArray(item.health_concerns) ? item.health_concerns : [],
+  })
+
+  return normalizeProduct({
+    id: item.id,
+    product_id: item.product_id,
+    product_name: item.product_name,
+    product_slug: item.product_slug,
+    name: item.name,
+    sku: item.sku,
+    slug: item.product_slug,
+    strength: item.strength ?? '',
+    dosage_quantity: '',
+    dosage_unit: '',
+    dosage_frequency: '',
+    dosage_notes: '',
+    price: item.price ?? item.effective_price ?? '0.00',
+    cost_price: item.cost_price ?? null,
+    original_price: item.original_price ?? null,
+    final_price: item.effective_price ?? item.price ?? '0.00',
+    discount_total: '0.00',
+    active_promotions: [],
+    stock_quantity: item.stock_quantity ?? 0,
+    available_quantity: item.available_quantity ?? 0,
+    low_stock_threshold: item.low_stock_threshold ?? 0,
+    stock_source: item.stock_source,
+    inventory_status: item.inventory_status,
+    max_backorder_quantity: item.max_backorder_quantity ?? 0,
+    inventories: Array.isArray(item.inventories) ? item.inventories : [],
+    variants: [normalizedVariant],
+    is_active: Boolean(item.is_active),
+    requires_prescription: Boolean(item.requires_prescription),
+    description: '',
+    short_description: item.short_description ?? '',
+    features: [],
+    directions: item.directions ?? '',
+    warnings: item.warnings ?? '',
+    badge: null,
+    image: item.image ?? null,
+    category: null,
+    category_name: item.category_name ?? null,
+    subcategory_id: null,
+    subcategory_name: null,
+    brand: null,
+    brand_name: item.brand_name ?? null,
+    allow_backorder: Boolean(item.allow_backorder),
+    can_purchase: (item.available_quantity ?? 0) > 0,
+    has_variants: true,
+    health_concerns: Array.isArray(item.health_concerns) ? item.health_concerns : [],
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    created_by: null,
+    created_by_name: 'system',
+  })
+}
+
 export const adminProductService = {
   async listProducts(params?: Record<string, string>) {
-    const res = await apiClient.get('/admin/products/', { params })
-    return unwrapList<ApiProduct>(res)
+    const requestParams = { page_size: '200', ...(params ?? {}) }
+    const res = await apiClient.get('/admin/products/', { params: requestParams })
+    const firstPage = extractListPage<ApiProduct>(res.data)
+    const items = [...firstPage.items]
+    let next = firstPage.next
+
+    while (next) {
+      const nextRes = await apiClient.get(next)
+      const nextPage = extractListPage<ApiProduct>(nextRes.data)
+      items.push(...nextPage.items)
+      next = nextPage.next
+    }
+
+    return items.map(normalizeProduct)
   },
 
   async createProduct(payload: ProductCreatePayload | FormData) {
     const res = await apiClient.post('/admin/products/', payload)
-    return unwrap<ApiProduct>(res)
+    return normalizeProduct(unwrap<ApiProduct>(res))
   },
 
   async getProductFormMeta() {
@@ -375,7 +512,7 @@ export const adminProductService = {
 
   async updateProduct(id: number, payload: Partial<ProductCreatePayload> | FormData) {
     const res = await apiClient.patch(`/admin/products/${id}/`, payload)
-    return unwrap<ApiProduct>(res)
+    return normalizeProduct(unwrap<ApiProduct>(res))
   },
 
   async deleteProduct(id: number) {
@@ -384,17 +521,17 @@ export const adminProductService = {
 
   async listProductVariants(productId: number) {
     const res = await apiClient.get(`/admin/products/${productId}/variants/`)
-    return unwrapList<ApiProductVariant>(res)
+    return unwrapList<ApiProductVariant>(res).map(normalizeVariant)
   },
 
   async createProductVariant(productId: number, payload: ProductVariantPayload | FormData) {
     const res = await apiClient.post(`/admin/products/${productId}/variants/`, payload)
-    return unwrap<ApiProductVariant>(res)
+    return normalizeVariant(unwrap<ApiProductVariant>(res))
   },
 
   async updateProductVariant(productId: number, variantId: number, payload: Partial<ProductVariantPayload> | FormData) {
     const res = await apiClient.patch(`/admin/products/${productId}/variants/${variantId}/`, payload)
-    return unwrap<ApiProductVariant>(res)
+    return normalizeVariant(unwrap<ApiProductVariant>(res))
   },
 
   async deleteProductVariant(productId: number, variantId: number) {
@@ -469,13 +606,25 @@ export const adminProductService = {
   },
 
   async listInventory(params?: Record<string, string>) {
-    const res = await apiClient.get('/admin/inventory/', { params })
-    return unwrapList<ApiInventoryProduct>(res)
+    const requestParams = { page_size: '200', ...(params ?? {}) }
+    const res = await apiClient.get('/inventory-items/', { params: requestParams })
+    const firstPage = extractListPage<ApiInventoryItem>(res.data)
+    const items = [...firstPage.items]
+    let next = firstPage.next
+
+    while (next) {
+      const nextRes = await apiClient.get(next)
+      const nextPage = extractListPage<ApiInventoryItem>(nextRes.data)
+      items.push(...nextPage.items)
+      next = nextPage.next
+    }
+
+    return items.map(normalizeInventoryRow)
   },
 
   async adjustInventory(id: number, payload: InventoryAdjustPayload) {
     const res = await apiClient.patch(`/admin/inventory/${id}/`, payload)
-    return unwrap<ApiInventoryProduct>(res)
+    return normalizeProduct(unwrap<ApiInventoryProduct>(res))
   },
 
   async refreshPosInventory(productIds: number[], force = true) {
@@ -487,7 +636,7 @@ export const adminProductService = {
     const updated = (payload as { updated?: ApiInventoryProduct[] }).updated
       ?? (payload as { data?: { updated?: ApiInventoryProduct[] } }).data?.updated
       ?? []
-    return updated
+    return updated.map(normalizeProduct)
   },
 
   async refreshVariantPosInventory(variantIds: number[], force = true) {
@@ -499,7 +648,7 @@ export const adminProductService = {
     const updated = (payload as { updated?: ApiProductVariant[] }).updated
       ?? (payload as { data?: { updated?: ApiProductVariant[] } }).data?.updated
       ?? []
-    return updated
+    return updated.map(normalizeVariant)
   },
 
   async syncPosInventory(payload: PosSyncPayload) {
