@@ -248,6 +248,7 @@ export interface ProductVariantPayload {
 export interface ApiInventoryProduct extends ApiProduct {
   product_id?: number
   product_name?: string
+  product_sku?: string
   product_slug?: string
   stock_quantity: number
   low_stock_threshold: number
@@ -257,6 +258,7 @@ export interface ApiInventoryProduct extends ApiProduct {
 export interface ApiInventoryItem extends ApiProductVariant {
   product_id: number
   product_name: string
+  product_sku: string
   product_slug: string
   brand_name?: string | null
   brand_slug?: string | null
@@ -379,11 +381,17 @@ function unwrapList<T>(res: { data: unknown }): T[] {
 }
 
 function extractListPage<T>(raw: unknown): { items: T[]; next: string | null } {
-  const payload = raw as { data?: unknown; results?: unknown; next?: string | null }
+  const payload = raw as {
+    data?: unknown
+    results?: unknown
+    next?: string | null
+    meta?: { next?: string | null }
+  }
   const inner = payload?.data !== undefined ? payload.data : raw
+  const metaNext = payload?.meta && typeof payload.meta.next === 'string' ? payload.meta.next : null
 
   if (Array.isArray(inner)) {
-    return { items: inner as T[], next: null }
+    return { items: inner as T[], next: metaNext }
   }
 
   if (inner && typeof inner === 'object') {
@@ -394,6 +402,22 @@ function extractListPage<T>(raw: unknown): { items: T[]; next: string | null } {
   }
 
   return { items: [], next: null }
+}
+
+async function fetchAllListPages<T>(path: string, params?: Record<string, string>): Promise<T[]> {
+  const firstRes = await apiClient.get(path, { params: { page_size: '200', ...(params ?? {}) } })
+  const firstPage = extractListPage<T>(firstRes.data)
+  const items = [...firstPage.items]
+  let next = firstPage.next
+
+  while (next) {
+    const nextRes = await apiClient.get(next)
+    const nextPage = extractListPage<T>(nextRes.data)
+    items.push(...nextPage.items)
+    next = nextPage.next
+  }
+
+  return items
 }
 
 function normalizePromotion<T extends ApiPromotion>(promotion: T): T {
@@ -428,6 +452,7 @@ function normalizeInventoryRow(item: ApiInventoryItem): ApiInventoryProduct {
     id: item.id,
     product_id: item.product_id,
     product_name: item.product_name,
+    product_sku: item.product_sku,
     product_slug: item.product_slug,
     name: item.name,
     sku: item.sku,
@@ -549,41 +574,39 @@ export const adminProductService = {
   },
 
   async listProductCategories() {
-    const res = await apiClient.get('/admin/product-categories/')
-    return unwrapList<ApiProductCategory>(res)
+    return fetchAllListPages<ApiProductCategory>('/admin/categories/')
   },
 
   async createProductCategory(payload: FormData | { name: string; description?: string }) {
-    const res = await apiClient.post('/admin/product-categories/', payload)
+    const res = await apiClient.post('/admin/categories/', payload)
     return unwrap<ApiProductCategory>(res)
   },
 
   async updateProductCategory(id: number, payload: FormData | Partial<{ name: string; description: string; is_active: boolean }>) {
-    const res = await apiClient.patch(`/admin/product-categories/${id}/`, payload)
+    const res = await apiClient.patch(`/admin/categories/${id}/`, payload)
     return unwrap<ApiProductCategory>(res)
   },
 
   async deleteProductCategory(id: number) {
-    await apiClient.delete(`/admin/product-categories/${id}/`)
+    await apiClient.delete(`/admin/categories/${id}/`)
   },
 
   async listProductSubcategories(params?: Record<string, string>) {
-    const res = await apiClient.get('/admin/product-subcategories/', { params })
-    return unwrapList<ApiProductSubcategory>(res)
+    return fetchAllListPages<ApiProductSubcategory>('/admin/sub-categories/', params)
   },
 
   async createProductSubcategory(payload: { name: string; category: number; description?: string }) {
-    const res = await apiClient.post('/admin/product-subcategories/', payload)
+    const res = await apiClient.post('/admin/sub-categories/', payload)
     return unwrap<ApiProductSubcategory>(res)
   },
 
   async updateProductSubcategory(id: number, payload: Partial<{ name: string; category: number; description: string; is_active: boolean }>) {
-    const res = await apiClient.patch(`/admin/product-subcategories/${id}/`, payload)
+    const res = await apiClient.patch(`/admin/sub-categories/${id}/`, payload)
     return unwrap<ApiProductSubcategory>(res)
   },
 
   async deleteProductSubcategory(id: number) {
-    await apiClient.delete(`/admin/product-subcategories/${id}/`)
+    await apiClient.delete(`/admin/sub-categories/${id}/`)
   },
 
   async listBrands(params?: Record<string, string>) {
@@ -607,7 +630,7 @@ export const adminProductService = {
 
   async listInventory(params?: Record<string, string>) {
     const requestParams = { page_size: '200', ...(params ?? {}) }
-    const res = await apiClient.get('/inventory-items/', { params: requestParams })
+    const res = await apiClient.get('/admin/inventory/', { params: requestParams })
     const firstPage = extractListPage<ApiInventoryItem>(res.data)
     const items = [...firstPage.items]
     let next = firstPage.next

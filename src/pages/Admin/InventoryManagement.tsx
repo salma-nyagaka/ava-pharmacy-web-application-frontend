@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { SearchableMultiSelect } from '../../components/SearchableMultiSelect/SearchableMultiSelect'
-import { adminProductService, ApiHealthConcern, ApiInventoryProduct, ApiPosProductOption, ApiProductVariant } from '../../services/adminProductService'
-import { fetchInventoryItems, type InventoryItem } from '../../services/productService'
+import { adminProductService, ApiHealthConcern, ApiInventoryProduct, ApiPosProductOption, ApiProduct, ApiProductVariant } from '../../services/adminProductService'
 import { resolveMediaUrl } from '../../lib/apiClient'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/InventoryManagement.css'
@@ -42,7 +41,7 @@ type VariantDraft = {
   warehouse_max_backorder_quantity: string
 }
 
-function generateVariantSku(product: ApiInventoryProduct, variantName: string) {
+function generateVariantSku(product: Pick<ApiProduct, 'slug' | 'name'>, variantName: string) {
   const productKey = (product.slug || product.name || 'variant')
     .trim()
     .toUpperCase()
@@ -228,64 +227,11 @@ function buildVariantFormData(payload: {
   return formData
 }
 
-function normalizeStorefrontInventoryProduct(item: InventoryItem): ApiInventoryProduct {
-  return {
-    id: item.id,
-    product_id: item.product_id,
-    product_name: item.name,
-    product_slug: item.product_slug,
-    name: item.name,
-    sku: item.sku,
-    slug: item.product_slug,
-    strength: '',
-    dosage_quantity: '',
-    dosage_unit: '',
-    dosage_frequency: '',
-    dosage_notes: '',
-    price: item.price ?? '0.00',
-    cost_price: null,
-    original_price: item.original_price,
-    final_price: item.final_price ?? item.price ?? '0.00',
-    discount_total: item.discount_total ?? '0.00',
-    active_promotions: [],
-    stock_quantity: item.stock_quantity ?? 0,
-    available_quantity: item.available_quantity ?? 0,
-    low_stock_threshold: 0,
-    stock_source: item.inventory_status === 'backorder' ? 'warehouse' : item.inventory_status === 'out_of_stock' ? 'out' : 'branch',
-    inventory_status: item.inventory_status,
-    max_backorder_quantity: 0,
-    inventories: [],
-    variants: [],
-    is_active: Boolean(item.is_active),
-    requires_prescription: Boolean(item.requires_prescription),
-    description: '',
-    short_description: item.short_description ?? '',
-    features: [],
-    directions: '',
-    warnings: '',
-    badge: item.badge ?? null,
-    image: item.image ?? null,
-    category: null,
-    category_name: item.category_name ?? null,
-    subcategory_id: null,
-    subcategory_name: null,
-    brand: null,
-    brand_name: item.brand_name ?? null,
-    allow_backorder: item.inventory_status === 'backorder',
-    can_purchase: Boolean(item.can_purchase),
-    has_variants: true,
-    health_concerns: [],
-    created_at: '',
-    updated_at: '',
-    created_by: null,
-    created_by_name: 'system',
-  }
-}
-
 function InventoryManagement() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [inventory, setInventory] = useState<ApiInventoryProduct[]>([])
+  const [parentProducts, setParentProducts] = useState<ApiProduct[]>([])
   const [allConcerns, setAllConcerns] = useState<ApiHealthConcern[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -364,19 +310,14 @@ function InventoryManagement() {
       .catch(() => setAllConcerns([]))
   }, [])
 
+  useEffect(() => {
+    void adminProductService.listProducts()
+      .then(setParentProducts)
+      .catch(() => setParentProducts([]))
+  }, [])
+
   async function buildInventoryList(productId?: string | null) {
-    const [storefrontResponse, adminItems] = await Promise.all([
-      fetchInventoryItems({ page_size: 200 }, { loadAllPages: true }),
-      adminProductService.listInventory(productId ? { product_id: productId } : undefined),
-    ])
-
-    const targetProductId = productId ? Number(productId) : null
-    const storefrontItems = targetProductId === null
-      ? storefrontResponse.data
-      : storefrontResponse.data.filter((item) => item.product_id === targetProductId)
-    const adminItemsById = new Map(adminItems.map((item) => [item.id, item]))
-
-    return storefrontItems.map((item) => adminItemsById.get(item.id) ?? normalizeStorefrontInventoryProduct(item))
+    return adminProductService.listInventory(productId ? { product_id: productId } : undefined)
   }
 
   async function loadInventory() {
@@ -510,14 +451,15 @@ function InventoryManagement() {
 
   const handleNewStockOpen = (item?: ApiInventoryProduct | null) => {
     const initialItem = item ?? focusedProduct ?? sortedInventory[0] ?? inventory[0] ?? null
-    if (!initialItem) return
-    setNewStockProductId(initialItem.id)
+    const fallbackProductId = parentProducts[0]?.id ?? ''
+    if (!initialItem && !fallbackProductId) return
+    setNewStockProductId(initialItem ? getParentProductId(initialItem) : fallbackProductId)
     resetNewStockForm()
     setShowNewStockModal(true)
   }
 
   const handleNewStockSave = async () => {
-    const selectedProduct = inventory.find((item) => item.id === Number(newStockProductId))
+    const selectedProduct = parentProducts.find((item) => item.id === Number(newStockProductId))
     if (!selectedProduct) {
       setNewStockError('Select a product first.')
       return
@@ -568,10 +510,10 @@ function InventoryManagement() {
         image: newVariantImage,
       }
       await adminProductService.createProductVariant(
-        getParentProductId(selectedProduct),
+        selectedProduct.id,
         newVariantImage ? buildVariantFormData(variantPayload) : variantPayload,
       )
-      const refreshed = await refreshInventoryItem(getParentProductId(selectedProduct))
+      const refreshed = await refreshInventoryItem(selectedProduct.id)
       if (refreshed && adjustItem?.id === refreshed.id) {
         populateAdjustForm(refreshed)
       }
@@ -879,8 +821,7 @@ function InventoryManagement() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                          <span>{item.product_name ?? item.name}</span>
-                          <span className="cm-name-cell__id">{item.product_slug ?? item.slug}</span>
+                          <span>{item.product_name || '—'}</span>
                         </div>
                       </td>
                       <td>
@@ -975,7 +916,7 @@ function InventoryManagement() {
                   <div className="adjust-field">
                     <label>Product</label>
                     <select value={newStockProductId} onChange={(e) => setNewStockProductId(Number(e.target.value))}>
-                      {sortedInventory.map((item) => (
+                      {parentProducts.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.name} · {item.sku}
                         </option>

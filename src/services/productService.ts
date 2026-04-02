@@ -312,7 +312,7 @@ export interface NavCategory {
 
 export async function fetchNavCategories(): Promise<NavCategory[]> {
   try {
-    const res = await apiClient.get('/product-categories/')
+    const res = await apiClient.get('/catalog-categories/')
     const raw: Array<{
       id: number
       name: string
