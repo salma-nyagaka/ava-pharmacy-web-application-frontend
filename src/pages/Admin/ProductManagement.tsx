@@ -9,10 +9,8 @@ import {
   ApiHealthConcern,
   ApiProductSubcategory,
   ApiProduct,
-  ProductFormMeta,
   ProductCreatePayload,
 } from '../../services/adminProductService'
-import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
@@ -80,7 +78,6 @@ function ProductManagement() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [, setProductFormMeta] = useState<ProductFormMeta | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedSubcat, setSelectedSubcat] = useState('all')
@@ -98,17 +95,9 @@ function ProductManagement() {
   const [productDescription, setProductDescription] = useState('')
   const [productFeaturesText, setProductFeaturesText] = useState('')
   const [formError, setFormError] = useState('')
-  const [showBrandModal, setShowBrandModal] = useState(false)
-  const [brandName, setBrandName] = useState('')
-  const [brandDescription, setBrandDescription] = useState('')
-  const [brandLogoFile, setBrandLogoFile] = useState<File | null>(null)
-  const [brandSaving, setBrandSaving] = useState(false)
-  const [brandFormError, setBrandFormError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<ApiProduct | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-  const [activeTab, setActiveTab] = useState<'products' | 'brands'>('products')
-  const [editingBrand, setEditingBrand] = useState<ApiBrand | null>(null)
   const [handledProductQuery, setHandledProductQuery] = useState('')
   const [highlightedProductId, setHighlightedProductId] = useState<number | null>(null)
   const productQueryKey = searchParams.toString()
@@ -126,20 +115,18 @@ function ProductManagement() {
     setLoading(true)
     setError('')
     try {
-      const [prods, brandList, cats, subs, concerns, formMeta] = await Promise.all([
+      const [prods, brandList, cats, subs, concerns] = await Promise.all([
         adminProductService.listProducts(),
         adminProductService.listBrands(),
         adminProductService.listProductCategories(),
         adminProductService.listProductSubcategories(),
         adminProductService.listHealthConcerns(),
-        adminProductService.getProductFormMeta(),
       ])
       setProducts(prods)
       setBrands(brandList)
       setCategories(cats)
       setSubcategories(subs)
       setAllConcerns(concerns)
-      setProductFormMeta(formMeta)
     } catch {
       setError('Failed to load products.')
     } finally {
@@ -148,7 +135,7 @@ function ProductManagement() {
   }
 
   useEffect(() => {
-    if (loading || activeTab !== 'products') return
+    if (loading) return
 
     const productId = searchParams.get('product')
     if (!productId || handledProductQuery === productId) return
@@ -165,7 +152,7 @@ function ProductManagement() {
     setCurrentPage(targetIndex >= 0 ? Math.floor(targetIndex / PAGE_SIZE) + 1 : 1)
     setHighlightedProductId(target.id)
     setHandledProductQuery(productId)
-  }, [activeTab, createdAtSortDirection, handledProductQuery, loading, productQueryKey, products, searchParams])
+  }, [createdAtSortDirection, handledProductQuery, loading, productQueryKey, products, searchParams])
 
   const resetForm = () => {
     setProductName('')
@@ -182,34 +169,6 @@ function ProductManagement() {
   const openAddModal = () => {
     resetForm()
     setShowAddModal(true)
-  }
-
-  const closeBrandModal = () => {
-    if (brandSaving) return
-    setBrandName('')
-    setBrandDescription('')
-    setBrandLogoFile(null)
-    setBrandFormError('')
-    setEditingBrand(null)
-    setShowBrandModal(false)
-  }
-
-  const openAddBrand = () => {
-    setEditingBrand(null)
-    setBrandName('')
-    setBrandDescription('')
-    setBrandLogoFile(null)
-    setBrandFormError('')
-    setShowBrandModal(true)
-  }
-
-  const openEditBrand = (brand: ApiBrand) => {
-    setEditingBrand(brand)
-    setBrandName(brand.name)
-    setBrandDescription(brand.description ?? '')
-    setBrandLogoFile(null)
-    setBrandFormError('')
-    setShowBrandModal(true)
   }
 
   const openEditModal = (product: ApiProduct) => {
@@ -334,72 +293,6 @@ function ProductManagement() {
     }
   }
 
-  const handleQuickBrandLogoChange = async (file: File | null) => {
-    if (!file) {
-      setBrandLogoFile(null)
-      setBrandFormError('')
-      return
-    }
-
-    const validationError = await validateImageFile(file, 'brand')
-    if (validationError) {
-      setBrandLogoFile(null)
-      setBrandFormError(validationError)
-      return
-    }
-
-    setBrandLogoFile(file)
-    setBrandFormError('')
-  }
-
-  const handleSaveBrand = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!brandName.trim()) { setBrandFormError('Brand name is required.'); return }
-    if (!editingBrand && !brandLogoFile) { setBrandFormError('Brand logo is required.'); return }
-
-    setBrandSaving(true)
-    setBrandFormError('')
-    try {
-      if (editingBrand) {
-        let payload: FormData | Partial<{ name: string; description: string; is_active: boolean }>
-        if (brandLogoFile) {
-          const fd = new FormData()
-          fd.append('name', brandName.trim())
-          if (brandDescription.trim()) fd.append('description', brandDescription.trim())
-          fd.append('logo', brandLogoFile)
-          payload = fd
-        } else {
-          payload = { name: brandName.trim(), description: brandDescription.trim() }
-        }
-        const updated = await adminProductService.updateBrand(editingBrand.id, payload)
-        setBrands((prev) => prev.map((b) => (b.id === updated.id ? updated : b)))
-      } else {
-        const fd = new FormData()
-        fd.append('name', brandName.trim())
-        if (brandDescription.trim()) fd.append('description', brandDescription.trim())
-        fd.append('logo', brandLogoFile!)
-        const created = await adminProductService.createBrand(fd)
-        setBrands((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
-        if (activeTab === 'products') setProductBrandId(created.id)
-      }
-      closeBrandModal()
-    } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setBrandFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save brand.')
-    } finally {
-      setBrandSaving(false)
-    }
-  }
-
-  const handleToggleBrand = async (brand: ApiBrand) => {
-    try {
-      const updated = await adminProductService.updateBrand(brand.id, { is_active: !brand.is_active })
-      setBrands((prev) => prev.map((b) => (b.id === brand.id ? updated : b)))
-    } catch {
-      // silent
-    }
-  }
-
   const handleToggleProduct = async (product: ApiProduct) => {
     try {
       const updated = await adminProductService.updateProduct(product.id, { is_active: !product.is_active })
@@ -521,15 +414,6 @@ function ProductManagement() {
     return items
   }, [filteredProducts, createdAtSortDirection])
 
-  const sortedBrands = useMemo(() => {
-    const items = [...brands]
-    items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
-    })
-    return items
-  }, [brands, createdAtSortDirection])
-
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedProducts = sortedProducts.slice(startIndex, startIndex + PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE))
@@ -552,25 +436,12 @@ function ProductManagement() {
     <div className="category-management product-management">
       <div className="category-management__header">
         <div className="cm-title-group">
-          <h1>{activeTab === 'brands' ? 'Brands' : 'Products'}</h1>
-          <p className="cm-title-sub">{activeTab === 'brands' ? 'Manage product brands' : 'Manage catalog details here. Stock is handled from Inventory.'}</p>
+          <h1>Products</h1>
+          <p className="cm-title-sub">Manage catalog details here. Stock is handled from Inventory.</p>
         </div>
         <div className="category-management__actions">
-          {activeTab === 'products' ? (
-            <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
-          ) : (
-            <button className="btn btn--primary btn--sm" onClick={openAddBrand}>+ Add Brand</button>
-          )}
+          <button className="btn btn--primary btn--sm" onClick={openAddModal}>+ Add Product</button>
         </div>
-      </div>
-
-      <div className="cm-tabs" style={{ marginBottom: '1rem' }}>
-        <button className={`cm-tab${activeTab === 'products' ? ' cm-tab--active' : ''}`} onClick={() => setActiveTab('products')}>
-          Products <span className="cm-tab__count">{products.length}</span>
-        </button>
-        <button className={`cm-tab${activeTab === 'brands' ? ' cm-tab--active' : ''}`} onClick={() => setActiveTab('brands')}>
-          Brands <span className="cm-tab__count">{brands.length}</span>
-        </button>
       </div>
 
       {error && (
@@ -582,106 +453,6 @@ function ProductManagement() {
         </div>
       )}
 
-      {activeTab === 'brands' && (
-        <div className="cm-panel">
-          {loading && (
-            <div className="cm-skeletons">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="cm-skeleton-row">
-                  <div className="cm-skeleton" style={{ width: '40px', height: '40px', borderRadius: '10px' }} />
-                  <div className="cm-skeleton" style={{ width: '25%' }} />
-                  <div className="cm-skeleton" style={{ width: '35%' }} />
-                  <div className="cm-skeleton" style={{ width: '10%', borderRadius: '999px' }} />
-                </div>
-              ))}
-            </div>
-          )}
-          {!loading && brands.length === 0 && (
-            <div className="cm-empty-state">
-              <div className="cm-empty-state__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="28" height="28"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>
-              </div>
-              <p className="cm-empty-state__title">No brands yet</p>
-              <p className="cm-empty-state__sub">Add your first brand to get started.</p>
-              <button className="btn btn--primary btn--sm" onClick={openAddBrand}>+ Add Brand</button>
-            </div>
-          )}
-          {!loading && brands.length > 0 && (
-            <div className="cm-table-wrap">
-              <table className="cm-table">
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: 220 }}>Brand</th>
-                    <th style={{ minWidth: 200 }}>Description</th>
-                    <th style={{ minWidth: 80 }}>Products</th>
-                    <th style={{ minWidth: 90 }}>Status</th>
-                    <th style={{ minWidth: 120, whiteSpace: 'nowrap' }}>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                      </button>
-                    </th>
-                    <th style={{ minWidth: 110 }}>Created By</th>
-                    <th className="cm-th-actions">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedBrands.map((brand) => (
-                    <tr key={brand.id}>
-                      <td>
-                        <div className="cm-brand-identity">
-                          {brand.logo ? (
-                            <div className="cm-brand-logo">
-                              <img className="cm-brand-logo__img" src={brand.logo} alt={brand.name} />
-                            </div>
-                          ) : (
-                            <div className="cm-brand-logo cm-brand-logo--placeholder">
-                              {brand.name.slice(0, 2).toUpperCase()}
-                            </div>
-                          )}
-                          <div className="cm-name-cell">
-                            <span className="cm-name-cell__name">{brand.name}</span>
-                            <span className="cm-name-cell__id">{brand.slug}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '0.875rem', color: brand.description ? '#374151' : '#d1d5db' }}>
-                          {brand.description || '—'}
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: 600 }}>
-                          {products.filter((p) => p.brand?.id === brand.id).length}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`cm-status ${brand.is_active ? 'cm-status--active' : 'cm-status--inactive'}`}>
-                          {brand.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>{formatDate(brand.created_at)}</td>
-                      <td>{brand.created_by_name || '—'}</td>
-                      <td>
-                        <div className="cm-row-actions">
-                          <button type="button" className="cm-row-btn cm-row-btn--edit" onClick={() => openEditBrand(brand)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                            Edit
-                          </button>
-                          <button type="button" className="cm-row-btn" onClick={() => { void handleToggleBrand(brand) }}>
-                            {brand.is_active ? 'Deactivate' : 'Activate'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'products' && <>
       <div className="cm-kpi-grid">
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
@@ -833,7 +604,7 @@ function ProductManagement() {
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>{formatDate(product.created_at)}</td>
                   <td>{product.created_by_name || '—'}</td>
-                  <td>—</td>
+                  <td>{product.updated_by_name || '—'}</td>
                   <td>
                     <div className="cm-row-actions">
                       <button
@@ -901,7 +672,6 @@ function ProductManagement() {
           </div>
         )}
       </div>
-      </>}
 
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
@@ -1052,78 +822,6 @@ function ProductManagement() {
         </div>
       )}
 
-      {showBrandModal && (
-        <div className="cm-overlay" onClick={closeBrandModal}>
-          <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="cm-modal__header">
-              <div>
-                <h2>{editingBrand ? 'Edit Brand' : 'New Brand'}</h2>
-                <p>{editingBrand ? 'Update brand details.' : 'Add a new brand to your catalog.'}</p>
-              </div>
-              <button type="button" className="cm-modal__close" onClick={closeBrandModal} disabled={brandSaving} aria-label="Close">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            <form className="cm-form" onSubmit={(e) => { void handleSaveBrand(e) }}>
-              <label className="cm-field">
-                <span>Name</span>
-                <input
-                  type="text"
-                  value={brandName}
-                  onChange={(e) => { setBrandName(e.target.value); setBrandFormError('') }}
-                  placeholder="e.g. Panadol"
-                  disabled={brandSaving}
-                  autoFocus
-                />
-              </label>
-
-              <label className="cm-field">
-                <span>Description <em className="cm-field__optional">optional</em></span>
-                <textarea
-                  value={brandDescription}
-                  onChange={(e) => setBrandDescription(e.target.value)}
-                  placeholder="Brief description visible to shoppers"
-                  disabled={brandSaving}
-                  rows={2}
-                />
-              </label>
-
-              <label className="cm-field">
-                <span>Brand Logo {editingBrand && <em className="cm-field__optional">leave empty to keep current</em>}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => { void handleQuickBrandLogoChange(e.target.files?.[0] ?? null) }}
-                  disabled={brandSaving}
-                  required={!editingBrand}
-                />
-                <span className="cm-upload-note">{getImageUploadHint('brand')}</span>
-              </label>
-
-              {brandFormError && (
-                <p className="cm-form__error">
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  {brandFormError}
-                </p>
-              )}
-
-              <div className="cm-modal__actions">
-                <button type="button" className="btn btn--ghost btn--sm" onClick={closeBrandModal} disabled={brandSaving}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn--primary btn--sm" disabled={brandSaving}>
-                  {brandSaving ? <><span className="cm-spinner" /> Saving…</> : editingBrand ? 'Save Changes' : 'Create Brand'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ── Delete Confirmation ── */}
       {deleteTarget && (

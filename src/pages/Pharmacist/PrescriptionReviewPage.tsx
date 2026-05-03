@@ -79,7 +79,7 @@ function PrescriptionReviewPage() {
   const handleSetStatus = async (status: PrescriptionStatus) => {
     if (!prescription) return
     const pharmacistName = user?.name ?? 'Pharmacist'
-    const updates = {
+    const updates: Partial<PrescriptionRecord> = {
       status,
       pharmacist: pharmacistName,
       items: editableItems,
@@ -89,7 +89,27 @@ function PrescriptionReviewPage() {
       ? `${pharmacistName} set status to ${status}: ${reviewNotes.trim()}`
       : `${pharmacistName} set status to ${status}`
     try {
-      const response = await prescriptionService.update(prescription.id, updates, action)
+      const backendAction = status === 'Approved'
+        ? 'approve'
+        : status === 'Rejected'
+          ? 'reject'
+          : 'request_clarification'
+      if ((status === 'Clarification' || status === 'Rejected') && !reviewNotes.trim()) {
+        setMessage(status === 'Clarification' ? 'Enter the clarification message before sending.' : 'Enter the rejection reason before rejecting.')
+        return
+      }
+      if (status === 'Approved' && hasIncomplete) {
+        setMessage('Map every medication to a catalog product and enter a valid quantity before approving.')
+        return
+      }
+
+      const response = prescription.backendId
+        ? await prescriptionService.pharmacistReview(prescription.backendId, {
+          action: backendAction,
+          notes: reviewNotes.trim() || action,
+          items: status === 'Approved' ? editableItems : undefined,
+        })
+        : await prescriptionService.update(prescription.id, updates, action)
       setRecords(response.data)
       setMessage(`Status updated to "${status}" successfully.`)
       setReviewNotes('')
@@ -344,7 +364,7 @@ function PrescriptionReviewPage() {
               </label>
               <textarea id="review-notes" className="prx-textarea" rows={3} placeholder="e.g. Dosage confirmed with prescriber, approved for dispensing…" value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} />
               <div className="prx-decision-btns">
-                <button className="prx-decision-btn prx-decision-btn--approve" type="button" onClick={() => void handleSetStatus('Approved')}>
+                <button className="prx-decision-btn prx-decision-btn--approve" type="button" onClick={() => void handleSetStatus('Approved')} disabled={hasIncomplete}>
                   <span className="prx-decision-btn__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg></span>
                   <span className="prx-decision-btn__text"><span className="prx-decision-btn__label">Approve</span><span className="prx-decision-btn__desc">Allow dispensing to begin</span></span>
                 </button>

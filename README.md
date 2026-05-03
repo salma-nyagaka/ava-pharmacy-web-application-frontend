@@ -1,4 +1,6 @@
-#  Frontend
+# Frontend
+
+![Frontend coverage](docs/badges/frontend-coverage.svg)
 
 React web application for .
 
@@ -29,6 +31,16 @@ npm run dev
 
 Visit http://localhost:3000
 
+Run the backend in a separate terminal before using API-backed pages:
+
+```bash
+cd /Users/salmanyagaka/Downloads/ava-pharmacy-web-application-backend-
+source venv/bin/activate
+python manage.py runserver 8000
+```
+
+The frontend expects the API at `http://localhost:8000/api` and the legacy `/avapharmacy/api/v1` aliases at `http://localhost:8000/avapharmacy/api/v1`.
+
 ## Build Commands
 
 ```bash
@@ -40,6 +52,22 @@ npm run build:staging
 
 # Production build
 npm run build:production
+```
+
+## Tests And Coverage
+
+```bash
+# Unit tests
+npm run test
+
+# Unit tests with coverage
+npm run test:coverage
+
+# Refresh the README coverage badge
+npm run coverage:badge
+
+# End-to-end UI tests
+npm run test:e2e
 ```
 
 ---
@@ -226,4 +254,5 @@ git push origin main
 | Variable | Description | Example |
 |----------|-------------|---------|
 | VITE_API_URL | Backend API URL | https://api.avapharmacy.com |
+| VITE_API_BASE_URL | Backend API v1 URL for admin/professional services | https://api.avapharmacy.com/avapharmacy/api/v1 |
 | VITE_APP_ENV | Environment name | production |

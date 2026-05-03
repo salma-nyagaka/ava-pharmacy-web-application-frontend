@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { useCategories } from '../../hooks/useCategories'
-import { StockSource } from '../../data/cart'
 import { CatalogProduct } from '../../data/products'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
@@ -16,12 +15,6 @@ type ListingProduct = CatalogProduct
 const ITEMS_PER_PAGE = 12
 const getInventoryKey = (product: ListingProduct) => product.variantId ?? product.id
 const getProductDetailId = (product: ListingProduct) => product.productId ?? product.id
-
-const getStockLabel = (stockSource: StockSource) => {
-  if (stockSource === 'branch') return 'In stock at selected branch'
-  if (stockSource === 'warehouse') return 'Available in central warehouse (2-3 days)'
-  return 'Out of stock'
-}
 
 function ProductListingPage() {
   const navigate = useNavigate()
@@ -91,27 +84,6 @@ function ProductListingPage() {
   const brands = Array.from(new Set(products.map((product) => product.brand))).sort((a, b) => a.localeCompare(b))
 
   const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
-
-  const renderStars = (rating: number) => {
-    const fullStars = Math.min(5, Math.max(0, Math.round(rating)))
-    const stars = []
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(
-        <svg key={`full-${i}`} className="star star--filled" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      )
-    }
-    const emptyStars = 5 - fullStars
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(
-        <svg key={`empty-${i}`} className="star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      )
-    }
-    return stars
-  }
 
   const toggleBrand = (brand: string) => {
     setSelectedBrands((prev) =>

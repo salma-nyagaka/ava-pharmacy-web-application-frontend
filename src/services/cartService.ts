@@ -10,6 +10,7 @@ import {
   updateCartItemQuantity,
 } from '../data/cart'
 import { addFavourite } from '../data/favourites'
+import { buildCartMergeItem } from '../utils/ecommerce'
 
 type CartAddPayload = Omit<CartItem, 'quantity'>
 
@@ -49,11 +50,7 @@ export const cartService = {
     const localItems = loadCartItems()
     if (!localItems.length) return cartService.list()
     await apiClient.post('/cart/merge/', {
-      items: localItems.map((item) => ({
-        product_id: item.id,
-        quantity: item.quantity,
-        prescription_id: item.prescriptionId,
-      })),
+      items: localItems.map(buildCartMergeItem),
     })
     clearCartItems()
     dispatchCartEvent()

@@ -10,6 +10,7 @@ import backgroundBanner from '../../assets/images/banner/background.jpg'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
+import { mapApiProduct } from '../../hooks/useProducts'
 import { useInventoryItems } from '../../hooks/useInventoryItems'
 import { useCatalog } from '../../context/CatalogContext'
 import { useAuth } from '../../context/AuthContext'
@@ -170,39 +171,6 @@ function HomePage() {
 
   const formatPrice = (price: number) => {
     return `KSh ${price.toLocaleString()}`
-  }
-
-  const renderStars = (rating: number) => {
-    const fullStars = Math.floor(rating)
-    const hasHalfStar = rating % 1 >= 0.5
-    const stars = []
-
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(
-        <svg key={`full-${i}`} className="product-card__star product-card__star--filled" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      )
-    }
-
-    if (hasHalfStar) {
-      stars.push(
-        <svg key="half" className="product-card__star product-card__star--half" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      )
-    }
-
-    const emptyStars = 5 - stars.length
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(
-        <svg key={`empty-${i}`} className="product-card__star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      )
-    }
-
-    return stars
   }
 
   const updateScrollButtons = () => {

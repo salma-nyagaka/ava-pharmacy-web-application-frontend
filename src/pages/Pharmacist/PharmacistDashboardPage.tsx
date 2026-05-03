@@ -3,7 +3,6 @@ import { useAuth } from '../../context/AuthContext'
 import { CatalogProduct, productCatalog } from '../../data/products'
 import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
-import { cartService } from '../../services/cartService'
 import { addAdminOrderNote, listAdminOrders, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import '../../styles/admin/AdminShared.css'
@@ -211,6 +210,32 @@ function PharmacistDashboardPage() {
     setPrescriptions(r.data)
   }
 
+  const pharmacistReview = async (
+    rx: PrescriptionRecord,
+    payload: {
+      action: 'approve' | 'reject' | 'request_clarification'
+      notes?: string
+      items?: PrescriptionRecord['items']
+    },
+  ) => {
+    if (!rx.backendId) {
+      const status = payload.action === 'approve'
+        ? 'Approved'
+        : payload.action === 'reject'
+          ? 'Rejected'
+          : 'Clarification'
+      await updateRx(rx.id, {
+        status,
+        pharmacist: actor,
+        dispatchStatus: status === 'Approved' ? rx.dispatchStatus : 'Not started',
+        items: payload.items ?? rx.items,
+      }, `${actor} reviewed prescription: ${payload.action}${payload.notes ? ` - ${payload.notes}` : ''}`)
+      return
+    }
+    const response = await prescriptionService.pharmacistReview(rx.backendId, payload)
+    setPrescriptions(response.data)
+  }
+
   const productSuggestions = useMemo(() => {
     const q = productSearch.trim().toLowerCase()
     if (q.length < 2) return []
@@ -233,41 +258,57 @@ function PharmacistDashboardPage() {
 
   const handleApprove = async () => {
     if (!activeRx) return
-    await updateRx(activeRx.id, { status: 'Approved', pharmacist: actor }, `Approved by ${actor}`)
-    const toAdd = activeRx.items.filter((item) => itemSelections[item.name])
-    for (const item of toAdd) {
-      const stableId = item.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-      await cartService.add(
-        { id: stableId, name: item.name, brand: 'Prescribed', price: 0, prescriptionId: activeRx.id },
-        item.qty,
-      )
+    const selectedItems = activeRx.items.filter((item) => itemSelections[item.name])
+    const unmapped = selectedItems.filter((item) => !item.productId)
+    if (unmapped.length > 0) {
+      setCartAddedMsg(`Map every selected medication to a catalog product before approval. Missing: ${unmapped.map((item) => item.name).join(', ')}.`)
+      return
     }
-    for (const { product, qty } of manualItems) {
-      await cartService.add(
-        { id: product.id, name: product.name, brand: product.brand, price: product.price, image: product.image, stockSource: product.stockSource === 'out' ? undefined : product.stockSource, prescriptionId: activeRx.id },
+    const reviewItems = [
+      ...selectedItems,
+      ...manualItems.map(({ product, qty }) => ({
+        name: product.name,
+        productId: product.productId ?? product.id,
+        productName: product.name,
+        productSlug: product.slug,
+        productImage: product.image,
+        dose: '',
+        frequency: '',
         qty,
-      )
+      })),
+    ]
+    if (reviewItems.length === 0) {
+      setCartAddedMsg('Select or add at least one medication before approving this prescription.')
+      return
     }
-    const totalAdded = toAdd.length + manualItems.length
-    const skipped = activeRx.items.length - toAdd.length
-    const msg = totalAdded > 0
-      ? `${totalAdded} item${totalAdded !== 1 ? 's' : ''} added to patient's cart${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`
-      : 'Prescription approved. No items added.'
+    await pharmacistReview(activeRx, {
+      action: 'approve',
+      notes: `Approved by ${actor}`,
+      items: reviewItems,
+    })
+    const skipped = activeRx.items.length - selectedItems.length
+    const msg = `${reviewItems.length} medication${reviewItems.length !== 1 ? 's' : ''} approved for patient checkout${skipped > 0 ? ` · ${skipped} item${skipped !== 1 ? 's' : ''} skipped` : ''}.`
     setCartAddedMsg(msg)
     setTimeout(() => setCartAddedMsg(null), 6000)
   }
 
-  const handleClarification = (note: string) => {
+  const handleClarification = async (note: string) => {
     if (!activeRx) return
-    void updateRx(activeRx.id, { status: 'Clarification', dispatchStatus: 'Not started', pharmacist: actor }, `Clarification requested by ${actor}${note ? ': ' + note : ''}`)
+    await pharmacistReview(activeRx, {
+      action: 'request_clarification',
+      notes: note,
+    })
     setShowClarificationInput(false)
     setClarificationNote('')
   }
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!activeRx) return
     const reason = rejectionTemplate === 'Other' ? rejectionCustom : rejectionTemplate
-    void updateRx(activeRx.id, { status: 'Rejected', dispatchStatus: 'Not started', pharmacist: actor }, `Rejected by ${actor}${reason ? ': ' + reason : ''}`)
+    await pharmacistReview(activeRx, {
+      action: 'reject',
+      notes: reason,
+    })
     setShowRejectInput(false)
     setRejectionTemplate('')
     setRejectionCustom('')
@@ -853,7 +894,7 @@ function PharmacistDashboardPage() {
                         {Object.values(itemSelections).filter(Boolean).length} / {activeRx.items.length} in stock
                       </span>
                     </div>
-                    <p className="px-item-picker-hint">Uncheck items that are out of stock_ only checked items will be added to the patient's cart.</p>
+                    <p className="px-item-picker-hint">Uncheck items that are out of stock_ only checked items will be approved for patient checkout.</p>
                     <div className="px-items-list">
                       {activeRx.items.map((item) => (
                         <label key={item.name} className={`px-item px-item--selectable${!itemSelections[item.name] ? ' px-item--oos' : ''}`}>

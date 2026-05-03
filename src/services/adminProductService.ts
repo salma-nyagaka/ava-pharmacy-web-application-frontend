@@ -185,6 +185,8 @@ export interface ApiProduct {
   updated_at: string
   created_by: number | null
   created_by_name: string
+  updated_by: number | null
+  updated_by_name: string
 }
 
 export interface ApiProductVariant {
@@ -272,6 +274,7 @@ export interface ApiReports {
   total_revenue: number
   monthly_revenue: number
   total_customers: number
+  total_brands?: number
   pending_orders: number
   today_orders: number
   low_stock_products: number
@@ -499,6 +502,8 @@ function normalizeInventoryRow(item: ApiInventoryItem): ApiInventoryProduct {
     updated_at: item.updated_at,
     created_by: null,
     created_by_name: 'system',
+    updated_by: null,
+    updated_by_name: 'system',
   })
 }
 
@@ -697,8 +702,7 @@ export const adminProductService = {
   },
 
   async listHealthConcerns() {
-    const res = await apiClient.get('/admin/health-concerns/')
-    return unwrapList<ApiHealthConcern>(res)
+    return fetchAllListPages<ApiHealthConcern>('/admin/health-concerns/')
   },
 
   async createHealthConcern(payload: FormData) {

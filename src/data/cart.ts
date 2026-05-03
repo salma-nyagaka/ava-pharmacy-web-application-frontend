@@ -67,7 +67,7 @@ export const updateCartItemQuantity = (itemId: number, quantity: number, prescri
   const current = loadCartItems()
   if (quantity <= 0) {
     const updated = current.filter(
-      (entry.variantId ?? entry.id) !== itemId || entry.prescriptionId !== prescriptionId
+      (entry) => (entry.variantId ?? entry.id) !== itemId || entry.prescriptionId !== prescriptionId
     )
     saveCartItems(updated)
     return updated
@@ -82,7 +82,7 @@ export const updateCartItemQuantity = (itemId: number, quantity: number, prescri
 export const removeCartItem = (itemId: number, prescriptionId?: string) => {
   const current = loadCartItems()
   const updated = current.filter(
-    (entry.variantId ?? entry.id) !== itemId || entry.prescriptionId !== prescriptionId
+    (entry) => (entry.variantId ?? entry.id) !== itemId || entry.prescriptionId !== prescriptionId
   )
   saveCartItems(updated)
   return updated

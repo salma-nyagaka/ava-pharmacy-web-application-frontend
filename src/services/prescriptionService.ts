@@ -116,9 +116,9 @@ function currentUserRole() {
 
 function listEndpoint() {
   const role = currentUserRole()
-  return role === 'admin' || role === 'pharmacist'
-    ? '/admin/prescriptions/'
-    : '/prescriptions/'
+  if (role === 'pharmacist') return '/pharmacist/prescriptions/'
+  if (role === 'admin') return '/admin/prescriptions/'
+  return '/prescriptions/'
 }
 
 function mapPrescription(record: ApiPrescription): PrescriptionRecord {
@@ -303,8 +303,19 @@ export const prescriptionService = {
   pharmacistReview: async (backendId: number, payload: {
     action: 'approve' | 'reject' | 'request_clarification'
     notes?: string
+    items?: PrescriptionRecord['items']
   }) => {
-    await apiClient.post(`/pharmacist/prescriptions/${backendId}/review/`, payload)
+    await apiClient.post(`/pharmacist/prescriptions/${backendId}/review/`, {
+      action: payload.action,
+      notes: payload.notes ?? '',
+      items: payload.items?.map((item) => ({
+        name: item.name,
+        product_id: item.productId ?? null,
+        dose: item.dose,
+        frequency: item.frequency,
+        quantity: item.qty,
+      })),
+    })
     return prescriptionService.list()
   },
   addApprovedItemToCart: async (prescriptionId: string, itemId: number, quantity?: number) => {

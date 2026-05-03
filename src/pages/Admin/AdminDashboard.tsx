@@ -1,9 +1,8 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   adminDashboardService,
   AdminDashboardData,
-  ActivityFeedItem,
 } from '../../services/adminDashboardService'
 import { adminProductService, ApiOrder, ApiReports } from '../../services/adminProductService'
 import '../../styles/admin/AdminDashboard.css'
@@ -23,16 +22,6 @@ function getTodayLabel() {
 
 function getLastUpdatedLabel() {
   return new Date().toLocaleTimeString('en-KE', { hour: 'numeric', minute: '2-digit' })
-}
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
 }
 
 function fmtKsh(n: number) {
@@ -99,47 +88,15 @@ function getOrderedQuickActions() {
   return [...allActions].sort((a, b) => a.priority[period] - b.priority[period])
 }
 
-const ACTIVITY_ICONS: Record<string, { icon: string; color: string }> = {
-  order_placed:         { icon: '🛒', color: 'blue' },
-  order_paid:           { icon: '💳', color: 'green' },
-  order_status_changed: { icon: '📦', color: 'teal' },
-  prescription_pending: { icon: '📋', color: 'amber' },
-  prescription_approved:{ icon: '✅', color: 'green' },
-  prescription_rejected:{ icon: '✕', color: 'red' },
-  support_ticket:       { icon: '🎫', color: 'amber' },
-  payout_processed:     { icon: '💰', color: 'green' },
-}
-
-function ActivityIcon({ type }: { type: string }) {
-  const meta = ACTIVITY_ICONS[type] ?? { icon: '📌', color: 'neutral' }
-  return (
-    <span className={`ad-feed-icon ad-feed-icon--${meta.color}`}>{meta.icon}</span>
-  )
-}
-
 function AdminDashboard() {
   const [dashboard, setDashboard] = useState<AdminDashboardData | null>(null)
   const [reports, setReports] = useState<ApiReports | null>(null)
   const [recentOrders, setRecentOrders] = useState<ApiOrder[]>([])
   const [lowStockProducts, setLowStockProducts] = useState<{ name: string; stock: number; low_stock_threshold: number }[]>([])
-  const [activityFeed, setActivityFeed] = useState<ActivityFeedItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [feedLoading, setFeedLoading] = useState(true)
   const [orderSearchTerm, setOrderSearchTerm] = useState('')
   const [selectedOrderStatus, setSelectedOrderStatus] = useState('all')
   const [currentOrderPage, setCurrentOrderPage] = useState(1)
-  const feedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const loadFeed = useCallback(async () => {
-    try {
-      const feed = await adminDashboardService.getActivityFeed()
-      setActivityFeed(feed)
-    } catch {
-      // silently fail
-    } finally {
-      setFeedLoading(false)
-    }
-  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -168,14 +125,11 @@ function AdminDashboard() {
 
   useEffect(() => {
     load()
-    loadFeed()
     const interval = setInterval(load, 30000)
-    feedTimerRef.current = setInterval(loadFeed, 20000)
     return () => {
       clearInterval(interval)
-      if (feedTimerRef.current) clearInterval(feedTimerRef.current)
     }
-  }, [load, loadFeed])
+  }, [load])
 
   const performanceStats = [
     {

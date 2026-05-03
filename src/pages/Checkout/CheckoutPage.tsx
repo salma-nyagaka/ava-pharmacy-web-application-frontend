@@ -21,6 +21,7 @@ import {
   type ShippingMethod,
 } from '../../services/orderService'
 import { fetchAvailability } from '../../services/productService'
+import { getCheckoutAvailabilityErrors, getProductIdsForAvailability } from '../../utils/ecommerce'
 import '../../styles/pages/CheckoutPage.css'
 
 type PaymentStatus = 'idle' | 'waiting' | 'confirmed' | 'failed' | 'cancelled'
@@ -448,19 +449,10 @@ function CheckoutPage() {
     }
     let active = true
     const loadAvailability = () => {
-      void fetchAvailability(cartItems.map((item) => item.id))
+      void fetchAvailability(getProductIdsForAvailability(cartItems))
         .then((rows) => {
           if (!active) return
-          const byId = new Map(rows.map((row) => [row.product_id, row]))
-          const nextErrors = cartItems.flatMap((item) => {
-            const availability = byId.get(item.id)
-            if (!availability) return []
-            const posQty = availability.pos_quantity ?? 0
-            const effectiveQty = Math.max(availability.quantity ?? 0, posQty)
-            if (availability.is_available && effectiveQty >= item.quantity) return []
-            return [`${item.name} is no longer fully available.`]
-          })
-          setAvailabilityErrors(nextErrors)
+          setAvailabilityErrors(getCheckoutAvailabilityErrors(cartItems, rows))
         })
         .catch(() => {})
     }
