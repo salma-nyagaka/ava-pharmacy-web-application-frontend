@@ -1,0 +1,73 @@
+.offers-page {
+  padding-bottom: 4rem;
+}
+
+.offers-page__header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+.offers-page__eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  margin: 0 0 0.4rem;
+}
+
+.offers-page__subtitle {
+  max-width: 48rem;
+  line-height: 1.6;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.plp__chip--promotion {
+  background: rgba(190, 24, 93, 0.08);
+  border-color: rgba(190, 24, 93, 0.22);
+  color: #9f1239;
+}
+
+.offers-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.offers-selection-bar__eyebrow {
+  display: inline-flex;
+  margin-bottom: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.offers-selection-bar__copy {
+  margin: 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.offers-filter-empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .offers-selection-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

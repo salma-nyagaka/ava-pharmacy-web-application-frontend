@@ -1,0 +1,15 @@
+import { Navigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+
+export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isLoggedIn, isLoading } = useAuth()
+  const location = useLocation()
+
+  if (isLoading) return null
+
+  if (!isLoggedIn) {
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />
+  }
+
+  return <>{children}</>
+}

@@ -1,0 +1,233 @@
+/* ── Page shell ── */
+.acl-page {
+  --account-bg: linear-gradient(180deg, #fffafc 0%, #fff7fa 28%, #fbfcff 100%);
+  --account-surface: rgba(255, 255, 255, 0.94);
+  --account-surface-strong: #ffffff;
+  --account-muted-surface: #f8f7fb;
+  --account-border: rgba(19, 37, 79, 0.08);
+  --account-shadow: 0 14px 34px rgba(19, 37, 79, 0.06);
+  --account-shadow-soft: 0 8px 22px rgba(19, 37, 79, 0.04);
+  --account-title: #152856;
+  --account-text: #5f6f87;
+  --account-text-soft: #8a97aa;
+  padding: 2rem 0 5rem;
+  background: var(--account-bg);
+  min-height: 60vh;
+}
+
+/* ── Grid ── */
+.acl-grid {
+  display: grid;
+  grid-template-columns: 268px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* ── Sidebar ── */
+.acl-sidebar {
+  position: sticky;
+  top: 1.5rem;
+  background: var(--account-surface);
+  border: 1px solid var(--account-border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--account-shadow);
+  backdrop-filter: blur(10px);
+}
+
+/* ── User card ── */
+.acl-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid rgba(19, 37, 79, 0.06);
+  background: linear-gradient(180deg, rgba(255, 241, 245, 0.58), rgba(255, 255, 255, 0));
+}
+
+.acl-user__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(232, 23, 80, 0.15);
+  flex-shrink: 0;
+}
+
+.acl-user__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.acl-user__name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--account-title);
+  margin: 0 0 0.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acl-user__email {
+  font-size: 0.72rem;
+  color: var(--account-text-soft);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.acl-user__edit {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--account-muted-surface);
+  border: 1px solid var(--account-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.acl-user__edit:hover {
+  background: rgba(232, 23, 80, 0.07);
+  border-color: rgba(232, 23, 80, 0.2);
+  color: var(--color-primary);
+}
+
+.acl-user__edit svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ── Nav label ── */
+.acl-nav__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #b4bfd0;
+  margin: 0.85rem 1.25rem 0.35rem;
+}
+
+/* ── Nav items ── */
+.acl-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem 0.65rem 1.25rem;
+  text-decoration: none;
+  color: var(--account-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.12s ease, color 0.12s ease;
+  position: relative;
+}
+
+.acl-nav__item:last-child {
+  margin-bottom: 0.75rem;
+}
+
+.acl-nav__item:hover {
+  background: rgba(19, 37, 79, 0.035);
+  color: var(--account-title);
+}
+
+.acl-nav__item--disabled {
+  opacity: 0.68;
+  cursor: not-allowed;
+}
+
+.acl-nav__item--disabled:hover {
+  background: transparent;
+  color: var(--account-text);
+}
+
+.acl-nav__item--active {
+  background: linear-gradient(90deg, rgba(232, 23, 80, 0.07), rgba(232, 23, 80, 0.02));
+  color: var(--account-title);
+}
+
+.acl-nav__item--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: var(--nav-color, var(--color-primary));
+  border-radius: 0 3px 3px 0;
+}
+
+.acl-nav__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--account-muted-surface);
+  color: var(--account-text-soft);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.acl-nav__item:hover .acl-nav__icon {
+  background: rgba(19, 37, 79, 0.06);
+  color: var(--account-text);
+}
+
+.acl-nav__item--disabled:hover .acl-nav__icon {
+  background: var(--account-muted-surface);
+  color: var(--account-text-soft);
+}
+
+.acl-nav__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.acl-nav__title {
+  flex: 1;
+}
+
+.acl-nav__active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.acl-nav__coming-soon {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.3rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(19, 37, 79, 0.06);
+  color: var(--account-text-soft);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── Content area ── */
+.acl-content {
+  min-width: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .acl-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .acl-sidebar {
+    position: static;
+  }
+}

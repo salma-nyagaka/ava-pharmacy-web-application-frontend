@@ -1,0 +1,591 @@
+import { useMemo, useState, useEffect } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { useCategories } from '../../hooks/useCategories'
+import { CatalogProduct } from '../../data/products'
+import { cartService } from '../../services/cartService'
+import { favouritesService } from '../../services/favouritesService'
+import { useInventoryItems } from '../../hooks/useInventoryItems'
+import { useAuth } from '../../context/AuthContext'
+import { fetchBrandBySlug, type PublicBrand } from '../../services/productService'
+import '../../styles/pages/ProductListingPage.css'
+
+type ListingProduct = CatalogProduct
+
+const ITEMS_PER_PAGE = 12
+const getInventoryKey = (product: ListingProduct) => product.variantId ?? product.id
+const getProductDetailId = (product: ListingProduct) => product.productId ?? product.id
+
+function ProductListingPage() {
+  const navigate = useNavigate()
+  const { isLoggedIn } = useAuth()
+  const [searchParams] = useSearchParams()
+  const { category: categoryParam } = useParams()
+  const categories = useCategories()
+  const categorySlug = (categoryParam || searchParams.get('category') || 'all').split(/[?&]/)[0]
+  const activeCategory = categories.find((category) => category.slug === categorySlug)
+  const activeSubcategorySlug = searchParams.get('subcategory')
+  const activeSubcategory = activeCategory?.subcategories.find((subcategory) => subcategory.slug === activeSubcategorySlug)
+  const queryFromUrl = searchParams.get('query') ?? ''
+  const brandParam = searchParams.get('brand') ?? undefined
+  const healthConcernParam = searchParams.get('health_concern') ?? undefined
+
+  const formatSlug = (value: string) =>
+    value
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, (match) => match.toUpperCase())
+
+  const categoryTitle = brandParam
+    ? formatSlug(brandParam)
+    : healthConcernParam
+      ? formatSlug(healthConcernParam)
+      : activeCategory?.name ?? (categorySlug === 'all' ? 'All Products' : formatSlug(categorySlug))
+
+  const [brandData, setBrandData] = useState<PublicBrand | null>(null)
+
+  useEffect(() => {
+    if (!brandParam) { setBrandData(null); return }
+    void fetchBrandBySlug(brandParam).then(setBrandData)
+  }, [brandParam])
+
+  const [searchTerm, setSearchTerm] = useState(queryFromUrl)
+  const [minPrice, setMinPrice] = useState(0)
+  const [maxPrice, setMaxPrice] = useState(10000)
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([])
+  const [minRating, setMinRating] = useState(0)
+  const [availability, setAvailability] = useState<'all' | 'in_stock' | 'out_of_stock'>('all')
+  const [sortBy, setSortBy] = useState('recommended')
+  const [restockAlerts, setRestockAlerts] = useState<Record<number, boolean>>({})
+  const [addedProductId, setAddedProductId] = useState<number | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
+
+  const refreshWishlist = () => {
+    void favouritesService.list().then((response) => {
+      const map: Record<number, boolean> = {}
+      response.data.forEach((item) => {
+        map[item.id] = true
+      })
+      setWishlist(map)
+    })
+  }
+
+  const { products } = useInventoryItems({
+    category: categorySlug !== 'all' ? categorySlug : undefined,
+    subcategory: activeSubcategorySlug || undefined,
+    brand: brandParam,
+    health_concern: healthConcernParam,
+    search: queryFromUrl || undefined,
+    page_size: 200,
+  }, { loadAllPages: true })
+
+  const productsWithDeals = products as (ListingProduct & { inStock: boolean; dealLabel?: string | null })[]
+
+  const brands = Array.from(new Set(products.map((product) => product.brand))).sort((a, b) => a.localeCompare(b))
+
+  const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
+
+  const toggleBrand = (brand: string) => {
+    setSelectedBrands((prev) =>
+      prev.includes(brand) ? prev.filter((item) => item !== brand) : [...prev, brand]
+    )
+  }
+
+  useEffect(() => {
+    refreshWishlist()
+    return favouritesService.subscribe(refreshWishlist)
+  }, [])
+
+  useEffect(() => {
+    setSearchTerm(queryFromUrl)
+    setMinPrice(0)
+    setMaxPrice(10000)
+    setSelectedBrands([])
+    setMinRating(0)
+    setAvailability('all')
+    setSortBy('recommended')
+    setCurrentPage(1)
+  }, [queryFromUrl, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
+
+  const prescriptionPathFor = (product: ListingProduct) =>
+    `/prescriptions?product_id=${getProductDetailId(product)}&product_name=${encodeURIComponent(product.name)}`
+
+  const toggleWishlist = (product: ListingProduct) => {
+    if (!isLoggedIn) {
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+      return
+    }
+    void favouritesService.toggle({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      image: product.image,
+      stockSource: product.stockSource,
+    })
+  }
+
+  const filteredProducts = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    return productsWithDeals.filter((product) => {
+      const queryMatches =
+        !query ||
+        [product.name, product.brand, product.category].some((value) => value.toLowerCase().includes(query))
+      const priceMatches = product.price >= minPrice && product.price <= maxPrice
+      const brandMatches = selectedBrands.length === 0 || selectedBrands.includes(product.brand)
+      const ratingMatches = minRating === 0 || product.rating >= minRating
+      const availabilityMatches =
+        availability === 'all' ||
+        (availability === 'in_stock' && product.stockSource !== 'out') ||
+        (availability === 'out_of_stock' && product.stockSource === 'out')
+
+      return queryMatches && priceMatches && brandMatches && ratingMatches && availabilityMatches
+    })
+  }, [
+    productsWithDeals,
+    categorySlug,
+    activeCategory,
+    activeSubcategory,
+    searchTerm,
+    minPrice,
+    maxPrice,
+    selectedBrands,
+    minRating,
+    availability,
+  ])
+
+  const sortedProducts = useMemo(() => {
+    const list = [...filteredProducts]
+    if (sortBy === 'price-low') list.sort((a, b) => a.price - b.price)
+    if (sortBy === 'price-high') list.sort((a, b) => b.price - a.price)
+    if (sortBy === 'rating') {
+      list.sort((a, b) => {
+        const ratingDiff = b.rating - a.rating
+        if (ratingDiff !== 0) return ratingDiff
+        const reviewsDiff = b.reviews - a.reviews
+        if (reviewsDiff !== 0) return reviewsDiff
+        return a.name.localeCompare(b.name)
+      })
+    }
+    if (sortBy === 'newest') list.sort((a, b) => b.id - a.id)
+    return list
+  }, [filteredProducts, sortBy])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, minPrice, maxPrice, selectedBrands, minRating, availability, sortBy, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE))
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const paginatedProducts = useMemo(
+    () => sortedProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
+    [sortedProducts, currentPage]
+  )
+
+  const startItem = sortedProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, sortedProducts.length)
+
+  const getPageNumbers = (): (number | '...')[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const pages: (number | '...')[] = [1]
+    if (currentPage > 3) pages.push('...')
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i)
+    }
+    if (currentPage < totalPages - 2) pages.push('...')
+    pages.push(totalPages)
+    return pages
+  }
+
+  const activeFilterCount =
+    (searchTerm ? 1 : 0) +
+    selectedBrands.length +
+    (minRating > 0 ? 1 : 0) +
+    (availability !== 'all' ? 1 : 0) +
+    (minPrice > 0 || maxPrice < 10000 ? 1 : 0)
+
+  const clearAllFilters = () => {
+    setSearchTerm(queryFromUrl)
+    setMinPrice(0)
+    setMaxPrice(10000)
+    setSelectedBrands([])
+    setMinRating(0)
+    setAvailability('all')
+  }
+
+  const handleAddToCart = (product: ListingProduct) => {
+    if (product.stockSource === 'out') return
+    if (product.requiresPrescription) {
+      const prescriptionPath = prescriptionPathFor(product)
+      navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
+      return
+    }
+    void cartService.add({
+      id: getInventoryKey(product),
+      productId: getProductDetailId(product),
+      variantId: product.variantId,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      image: product.image,
+      stockSource: product.stockSource,
+    })
+    setAddedProductId(getInventoryKey(product))
+    window.setTimeout(() => {
+      setAddedProductId((prev) => (prev === getInventoryKey(product) ? null : prev))
+    }, 1200)
+  }
+
+  const toggleRestockAlert = (productId: number) => {
+    setRestockAlerts((prev) => ({ ...prev, [productId]: !prev[productId] }))
+  }
+
+  return (
+    <div className="plp">
+      <div className="container">
+        <div className="plp__header">
+          <div className="plp__header-top">
+            <div className="plp__title-row">
+              {brandParam && brandData?.logo && (
+                <img
+                  src={brandData.logo}
+                  alt={brandData.name}
+                  className="plp__brand-logo"
+                />
+              )}
+              <div>
+                <h1 className="plp__title">{categoryTitle}</h1>
+                <p className="plp__subtitle">
+                  {activeSubcategory ? activeSubcategory.name : 'Explore curated picks, essentials, and best sellers.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {activeFilterCount > 0 && (
+          <div className="plp__filter-chips">
+            <span className="plp__filter-chips__label">Active filters:</span>
+            {searchTerm && (
+              <span className="plp__chip">
+                Search: &ldquo;{searchTerm}&rdquo;
+                <button className="plp__chip__remove" type="button" onClick={() => setSearchTerm('')}>×</button>
+              </span>
+            )}
+            {selectedBrands.map((b) => (
+              <span key={b} className="plp__chip">
+                {b}
+                <button className="plp__chip__remove" type="button" onClick={() => toggleBrand(b)}>×</button>
+              </span>
+            ))}
+            {minRating > 0 && (
+              <span className="plp__chip">
+                {minRating}★ &amp; Up
+                <button className="plp__chip__remove" type="button" onClick={() => setMinRating(0)}>×</button>
+              </span>
+            )}
+            {availability !== 'all' && (
+              <span className="plp__chip">
+                {availability === 'in_stock' ? 'In Stock' : 'Out of Stock'}
+                <button className="plp__chip__remove" type="button" onClick={() => setAvailability('all')}>×</button>
+              </span>
+            )}
+            {(minPrice > 0 || maxPrice < 10000) && (
+              <span className="plp__chip">
+                KSh {minPrice.toLocaleString()}–{maxPrice.toLocaleString()}
+                <button className="plp__chip__remove" type="button" onClick={() => { setMinPrice(0); setMaxPrice(10000) }}>×</button>
+              </span>
+            )}
+            <button className="plp__chip plp__chip--clear" type="button" onClick={clearAllFilters}>
+              Clear all
+            </button>
+          </div>
+        )}
+
+        <div className="plp__layout">
+          <aside className="plp__sidebar">
+            <div className="filter-panel">
+              <div className="filter-panel__header">
+                <span className="filter-panel__title">
+                  Filters
+                  {activeFilterCount > 0 && <span className="filter-panel__count">{activeFilterCount}</span>}
+                </span>
+                {activeFilterCount > 0 && (
+                  <button className="filter-panel__clear" type="button" onClick={clearAllFilters}>
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Price Range</h4>
+                <div className="price-inputs">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    className="price-input"
+                    value={minPrice}
+                    onChange={(event) => setMinPrice(Number(event.target.value) || 0)}
+                  />
+                  <span className="price-sep">–</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    className="price-input"
+                    value={maxPrice}
+                    onChange={(event) => setMaxPrice(Number(event.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Brands</h4>
+                <div className="filter-options">
+                  {brands.map((brand) => (
+                    <label key={brand} className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={selectedBrands.includes(brand)}
+                        onChange={() => toggleBrand(brand)}
+                      />
+                      <span>{brand}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-panel__section">
+                <h4 className="filter-panel__heading">Customer Rating</h4>
+                <div className="filter-options">
+                  {[4, 3, 2, 1].map((rating) => (
+                    <label key={rating} className="checkbox-label">
+                      <input
+                        type="radio"
+                        name="rating-filter"
+                        checked={minRating === rating}
+                        onChange={() => setMinRating(rating)}
+                      />
+                      <div className="rating-filter">
+                        {Array(rating).fill(0).map((_, index) => (
+                          <svg key={`${rating}-${index}`} className="star star--filled" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                        ))}
+                        <span>& Up</span>
+                      </div>
+                    </label>
+                  ))}
+                  <label className="checkbox-label">
+                    <input
+                      type="radio"
+                      name="rating-filter"
+                      checked={minRating === 0}
+                      onChange={() => setMinRating(0)}
+                    />
+                    <span>All ratings</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="filter-panel__section filter-panel__section--last">
+                <h4 className="filter-panel__heading">Availability</h4>
+                <div className="filter-options">
+                  {([
+                    { value: 'all', label: 'All' },
+                    { value: 'in_stock', label: 'In Stock' },
+                    { value: 'out_of_stock', label: 'Out of Stock' },
+                  ] as const).map(({ value, label }) => (
+                    <label key={value} className="checkbox-label">
+                      <input
+                        type="radio"
+                        name="availability-filter"
+                        checked={availability === value}
+                        onChange={() => setAvailability(value)}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <main className="plp__main">
+            <div className="plp__toolbar">
+              <p className="plp__results-count">
+                {sortedProducts.length === 0
+                  ? 'No products found'
+                  : `Showing ${startItem}–${endItem} of ${sortedProducts.length} product${sortedProducts.length !== 1 ? 's' : ''}`}
+              </p>
+              <div className="plp__toolbar-right">
+                <div className="plp__search-wrap">
+                  <svg className="plp__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <input
+                    type="text"
+                    className="plp__search-input"
+                    placeholder={`Search${activeCategory ? ` in ${categoryTitle}` : ''}…`}
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
+                  {searchTerm && (
+                    <button className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>
+                  )}
+                </div>
+                <select
+                  id="sort-select"
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value)}
+                  className="plp__sort-select"
+                >
+                  <option value="recommended">Recommended</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                  <option value="rating">Customer Rating</option>
+                  <option value="newest">Newest First</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="products-grid">
+              {paginatedProducts.map((product) => (
+                <article key={getInventoryKey(product)} className="product-card">
+                  <Link to={`/product/${getProductDetailId(product)}`} className="product-card__image">
+                    {product.badge && (
+                      <span className={`product-card__badge ${product.badge.includes('Off') ? 'product-card__badge--sale' : ''}`}>
+                        {product.badge}
+                      </span>
+                    )}
+                    {product.stockSource === 'out' && (
+                      <div className="product-card__overlay">Out of Stock</div>
+                    )}
+                    <button
+                      className={`product-card__wishlist ${wishlist[product.id] ? 'is-active' : ''}`}
+                      type="button"
+                      title={wishlist[product.id] ? 'Remove from wishlist' : 'Save to wishlist'}
+                      onClick={(e) => { e.preventDefault(); toggleWishlist(product) }}
+                    >
+                      <svg viewBox="0 0 24 24" fill={wishlist[product.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    </button>
+                    <ImageWithFallback src={product.image} alt={product.name} />
+                  </Link>
+
+                  <div className="product-card__content">
+                    <span className="product-card__brand">{product.brand}</span>
+                    <h3 className="product-card__name">
+                      <Link to={`/product/${getProductDetailId(product)}`}>{product.name}</Link>
+                    </h3>
+
+                    <div className="product-card__pricing">
+                      <span className="product-card__price">{formatPrice(product.price)}</span>
+                      {product.originalPrice && (
+                        <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
+                      )}
+                    </div>
+
+                    <div className="product-card__buttons">
+                      {product.stockSource !== 'out' ? (
+                        <button className={`product-card__add-to-cart ${addedProductId === getInventoryKey(product) ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
+                          {product.requiresPrescription ? 'Add Prescription' : addedProductId === getInventoryKey(product) ? 'Added!' : 'Add to cart'}
+                        </button>
+                      ) : (
+                        <button
+                          className="product-card__add-to-cart product-card__add-to-cart--restock"
+                          type="button"
+                          onClick={() => toggleRestockAlert(getInventoryKey(product))}
+                        >
+                          {restockAlerts[getInventoryKey(product)] ? 'Alert Set' : 'Notify'}
+                        </button>
+                      )}
+                      <Link to={`/product/${getProductDetailId(product)}`} className="product-card__view-details">
+                        View details
+                      </Link>
+                    </div>
+                  </div>
+                </article>
+              ))}
+              {sortedProducts.length === 0 && (
+                <div className="empty-state">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                  </svg>
+                  <p className="empty-state__title">No products found</p>
+                  <p className="empty-state__sub">Try adjusting your filters or search term.</p>
+                  {activeFilterCount > 0 && (
+                    <button className="btn btn--sm btn--primary" type="button" onClick={clearAllFilters}>
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="pagination-wrap">
+                <p className="pagination-info">
+                  Showing <strong>{startItem}–{endItem}</strong> of <strong>{sortedProducts.length}</strong> results
+                </p>
+                <div className="pagination">
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                    aria-label="Previous page"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 18l-6-6 6-6"/>
+                    </svg>
+                    Prev
+                  </button>
+
+                  <div className="pagination__pages">
+                    {getPageNumbers().map((page, idx) =>
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="pagination__ellipsis">…</span>
+                      ) : (
+                        <button
+                          key={page}
+                          className={`pagination__btn pagination__btn--page ${currentPage === page ? 'pagination__btn--active' : ''}`}
+                          onClick={() => setCurrentPage(page as number)}
+                          aria-current={currentPage === page ? 'page' : undefined}
+                        >
+                          {page}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <button
+                    className="pagination__btn pagination__btn--nav"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                    aria-label="Next page"
+                  >
+                    Next
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default ProductListingPage

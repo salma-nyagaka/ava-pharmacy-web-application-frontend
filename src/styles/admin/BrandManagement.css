@@ -1,0 +1,99 @@
+.cm-brand-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cm-brand-logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cm-brand-logo--placeholder {
+  background: linear-gradient(135deg, #fee2e2, #fef3c7);
+  color: #991b1b;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.cm-brand-logo__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cm-file-input__native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.cm-file-input {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.cm-file-input:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.cm-file-input--disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.cm-file-input__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 112px;
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
+  background: #111827;
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cm-file-input__text {
+  min-width: 0;
+  color: #475569;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .cm-file-input {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cm-file-input__button {
+    width: 100%;
+  }
+}
