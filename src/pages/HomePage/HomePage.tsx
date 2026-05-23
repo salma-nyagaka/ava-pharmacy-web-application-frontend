@@ -149,10 +149,8 @@ function HomePage() {
     return merged.slice(0, FEATURED_PRODUCTS_LIMIT)
   })()
 
-  const featuredProductIds = new Set(featuredProducts.map((product) => product.id))
-
   const newProducts = catalogProducts
-    .filter((product) => isAvailableProduct(product) && !featuredProductIds.has(product.id) && !isDealProduct(product))
+    .filter((product) => isAvailableProduct(product) && !isDealProduct(product))
     .slice(0, 5)
 
   const offerDeals = [...catalogProducts]
