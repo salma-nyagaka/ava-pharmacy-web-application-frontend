@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { apiClient } from '../../lib/apiClient'
+import { apiClient, extractApiErrorMessage } from '../../lib/apiClient'
 import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/pages/AuthPage.css'
 
@@ -41,9 +41,7 @@ function ResetPasswordPage() {
       await apiClient.post('/auth/reset-password/', { uid, token, new_password: password })
       setSuccess(true)
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      const msg = (err as ApiErr)?.response?.data?.error?.message
-      setError(msg ?? 'Reset link is invalid or has expired.')
+      setError(extractApiErrorMessage(err, 'Reset link is invalid or has expired.'))
     } finally {
       setLoading(false)
     }

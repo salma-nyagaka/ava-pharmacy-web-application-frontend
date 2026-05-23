@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { useAuth } from '../../context/AuthContext'
 import type { StockSource } from '../../data/cart'
+import { extractApiErrorMessage } from '../../lib/apiClient'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import {
@@ -289,14 +290,7 @@ function ProductDetailPage() {
       setReviews(updatedReviews)
       setReviewSuccess('Your review has been saved.')
     } catch (error: unknown) {
-      const message =
-        typeof error === 'object'
-        && error !== null
-        && 'response' in error
-        && typeof (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message === 'string'
-          ? (error as { response?: { data?: { error?: { message?: string } } } }).response!.data!.error!.message!
-          : 'We could not save your review right now.'
-      setReviewError(message)
+      setReviewError(extractApiErrorMessage(error, 'We could not save your review right now.'))
     } finally {
       setIsSubmittingReview(false)
     }

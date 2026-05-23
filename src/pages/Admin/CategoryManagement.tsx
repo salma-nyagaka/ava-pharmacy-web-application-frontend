@@ -4,6 +4,7 @@ import {
   ApiProductCategory,
   ApiProductSubcategory,
 } from '../../services/adminProductService'
+import { extractApiErrorMessage } from '../../lib/apiClient'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
 import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
 import '../../styles/admin/CategoryManagement.css'
@@ -192,8 +193,7 @@ function CategoryManagement() {
         setShowModal(false)
         window.dispatchEvent(new Event('ava:catalog-updated'))
       } catch (err: unknown) {
-        type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-        setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save. Please try again.')
+        setFormError(extractApiErrorMessage(err, 'Failed to save. Please try again.'))
       } finally {
         setFormSaving(false)
       }
@@ -251,8 +251,7 @@ function CategoryManagement() {
       setShowModal(false)
       window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save. Please try again.')
+      setFormError(extractApiErrorMessage(err, 'Failed to save. Please try again.'))
     } finally {
       setFormSaving(false)
     }

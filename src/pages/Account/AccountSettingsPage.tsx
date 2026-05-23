@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { extractApiErrorMessage, extractApiFieldErrors } from '../../lib/apiClient'
 import {
   changeAccountPassword,
   fetchAccountProfile,
@@ -9,6 +10,7 @@ import {
   type AccountProfile,
   type NotificationPreferences,
 } from '../../services/accountService'
+import ConfirmActionModal from '../../components/ConfirmActionModal/ConfirmActionModal'
 import '../../styles/pages/AccountSettingsPage.css'
 
 const TABS = [
@@ -45,6 +47,57 @@ const TABS = [
 ] as const
 
 type TabKey = typeof TABS[number]['key']
+type FieldErrors = Record<string, string>
+type NotificationToggleKey = 'email_enabled' | 'sms_enabled' | 'order_updates_email' | 'order_updates_sms'
+
+const NOTIFICATION_TOGGLE_COPY: Record<NotificationToggleKey, { label: string; disabledEffect: string }> = {
+  order_updates_email: {
+    label: 'Email order updates',
+    disabledEffect: 'email confirmations, dispatch notices, delivery updates, and refund updates for your orders',
+  },
+  order_updates_sms: {
+    label: 'SMS order updates',
+    disabledEffect: 'text alerts about payment and delivery progress for active orders',
+  },
+  email_enabled: {
+    label: 'General email alerts',
+    disabledEffect: 'account and service-related emails beyond order-specific updates',
+  },
+  sms_enabled: {
+    label: 'General SMS alerts',
+    disabledEffect: 'SMS messages beyond order-specific updates',
+  },
+}
+
+function pickFieldError(errors: FieldErrors, ...fields: string[]) {
+  for (const field of fields) {
+    if (errors[field]) return errors[field]
+  }
+  return ''
+}
+
+function deleteFields(errors: FieldErrors, fields: string[]) {
+  const next = { ...errors }
+  fields.forEach((field) => {
+    delete next[field]
+  })
+  return next
+}
+
+function SuccessAlert({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  if (!message) return null
+  return (
+    <div className="ase-form-success" role="status">
+      <span>{message}</span>
+      <button type="button" className="ase-form-success__close" onClick={onDismiss} aria-label="Dismiss success message">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  )
+}
 
 function PasswordInput({
   id,
@@ -52,6 +105,7 @@ function PasswordInput({
   label,
   value,
   hint,
+  error,
   onChange,
 }: {
   id: string
@@ -59,6 +113,7 @@ function PasswordInput({
   label: string
   value: string
   hint?: string
+  error?: string
   onChange: (value: string) => void
 }) {
   const [show, setShow] = useState(false)
@@ -66,7 +121,16 @@ function PasswordInput({
     <div className="ase-form__group">
       <label htmlFor={id}>{label}</label>
       <div className="ase-input-wrap">
-        <input id={id} type={show ? 'text' : 'password'} placeholder={placeholder} value={value} onChange={(event) => onChange(event.target.value)} />
+        <input
+          id={id}
+          className={error ? 'ase-input--error' : ''}
+          type={show ? 'text' : 'password'}
+          placeholder={placeholder}
+          value={value}
+          aria-invalid={!!error}
+          aria-describedby={error ? `${id}-error` : undefined}
+          onChange={(event) => onChange(event.target.value)}
+        />
         <button type="button" className="ase-eye" onClick={() => setShow((prev) => !prev)} aria-label={show ? 'Hide' : 'Show'}>
           {show ? (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -82,6 +146,7 @@ function PasswordInput({
           )}
         </button>
       </div>
+      {error && <p id={`${id}-error`} className="ase-field-error">{error}</p>}
       {hint && <p className="ase-hint">{hint}</p>}
     </div>
   )
@@ -102,20 +167,6 @@ function PasswordStrength({ value }: { value: string }) {
       <span className="ase-strength__label" style={{ color: colors[score] }}>{labels[score]}</span>
     </div>
   )
-}
-
-function extractErrorMessage(error: unknown, fallback: string) {
-  const response = (error as { response?: { data?: Record<string, unknown> } })?.response?.data
-  if (!response || typeof response !== 'object') return fallback
-
-  if (typeof response.detail === 'string') return response.detail
-
-  for (const value of Object.values(response)) {
-    if (typeof value === 'string') return value
-    if (Array.isArray(value) && typeof value[0] === 'string') return value[0]
-  }
-
-  return fallback
 }
 
 function getInitials(profile: AccountProfile | null) {
@@ -152,16 +203,19 @@ function AccountSettingsPage() {
   })
 
   const [profileError, setProfileError] = useState('')
+  const [profileFieldErrors, setProfileFieldErrors] = useState<FieldErrors>({})
   const [profileMessage, setProfileMessage] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
 
   const [passwordError, setPasswordError] = useState('')
+  const [passwordFieldErrors, setPasswordFieldErrors] = useState<FieldErrors>({})
   const [passwordMessage, setPasswordMessage] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
 
   const [preferencesError, setPreferencesError] = useState('')
   const [preferencesMessage, setPreferencesMessage] = useState('')
   const [preferencesSaving, setPreferencesSaving] = useState(false)
+  const [pendingPreferenceDisable, setPendingPreferenceDisable] = useState<NotificationToggleKey | null>(null)
 
   useEffect(() => {
     let active = true
@@ -191,6 +245,7 @@ function AccountSettingsPage() {
     event.preventDefault()
     setProfileSaving(true)
     setProfileError('')
+    setProfileFieldErrors({})
     setProfileMessage('')
     try {
       const updated = await updateAccountProfile({
@@ -215,7 +270,9 @@ function AccountSettingsPage() {
       })
       setProfileMessage('Profile updated successfully.')
     } catch (error) {
-      setProfileError(extractErrorMessage(error, 'Unable to update your profile right now.'))
+      const fieldErrors = extractApiFieldErrors(error)
+      setProfileFieldErrors(fieldErrors)
+      setProfileError(Object.keys(fieldErrors).length > 0 ? '' : extractApiErrorMessage(error, 'Unable to update your profile right now.'))
     } finally {
       setProfileSaving(false)
     }
@@ -225,6 +282,7 @@ function AccountSettingsPage() {
     event.preventDefault()
     setPasswordSaving(true)
     setPasswordError('')
+    setPasswordFieldErrors({})
     setPasswordMessage('')
     try {
       await changeAccountPassword(passwordForm)
@@ -235,7 +293,9 @@ function AccountSettingsPage() {
       })
       setPasswordMessage('Password updated successfully.')
     } catch (error) {
-      setPasswordError(extractErrorMessage(error, 'Unable to update your password right now.'))
+      const fieldErrors = extractApiFieldErrors(error)
+      setPasswordFieldErrors(fieldErrors)
+      setPasswordError(Object.keys(fieldErrors).length > 0 ? '' : extractApiErrorMessage(error, 'Unable to update your password right now.'))
     } finally {
       setPasswordSaving(false)
     }
@@ -243,6 +303,21 @@ function AccountSettingsPage() {
 
   const togglePreference = <K extends keyof NotificationPreferences>(key: K, value: NotificationPreferences[K]) => {
     setPreferences((prev) => prev ? { ...prev, [key]: value } : prev)
+  }
+
+  const requestPreferenceChange = (key: NotificationToggleKey, checked: boolean) => {
+    clearPreferencesFeedback()
+    if (!checked) {
+      setPendingPreferenceDisable(key)
+      return
+    }
+    togglePreference(key, true)
+  }
+
+  const confirmPreferenceDisable = () => {
+    if (!pendingPreferenceDisable) return
+    togglePreference(pendingPreferenceDisable, false)
+    setPendingPreferenceDisable(null)
   }
 
   const handlePreferencesSave = async () => {
@@ -262,10 +337,25 @@ function AccountSettingsPage() {
       setPreferences(updated)
       setPreferencesMessage('Notification preferences saved.')
     } catch (error) {
-      setPreferencesError(extractErrorMessage(error, 'Unable to save notification preferences right now.'))
+      setPreferencesError(extractApiErrorMessage(error, 'Unable to save notification preferences right now.'))
     } finally {
       setPreferencesSaving(false)
     }
+  }
+
+  const clearProfileFeedback = () => {
+    setProfileError('')
+    setProfileMessage('')
+  }
+
+  const clearPasswordFeedback = () => {
+    setPasswordError('')
+    setPasswordMessage('')
+  }
+
+  const clearPreferencesFeedback = () => {
+    setPreferencesError('')
+    setPreferencesMessage('')
   }
 
   return (
@@ -317,37 +407,113 @@ function AccountSettingsPage() {
               <p className="ase-section-head__sub">This is how we'll address you and contact you</p>
             </div>
           </div>
+          <SuccessAlert message={profileMessage} onDismiss={() => setProfileMessage('')} />
           <form className="ase-form" onSubmit={handleProfileSave}>
             <div className="ase-form__row">
               <div className="ase-form__group">
                 <label htmlFor="ase-first">First name</label>
-                <input id="ase-first" type="text" value={profileForm.first_name} onChange={(event) => setProfileForm((prev) => ({ ...prev, first_name: event.target.value }))} disabled={loading || profileSaving} />
+                <input
+                  id="ase-first"
+                  className={pickFieldError(profileFieldErrors, 'first_name', 'firstName') ? 'ase-input--error' : ''}
+                  type="text"
+                  value={profileForm.first_name}
+                  aria-invalid={!!pickFieldError(profileFieldErrors, 'first_name', 'firstName')}
+                  aria-describedby={pickFieldError(profileFieldErrors, 'first_name', 'firstName') ? 'ase-first-error' : undefined}
+                  onChange={(event) => {
+                    clearProfileFeedback()
+                    setProfileForm((prev) => ({ ...prev, first_name: event.target.value }))
+                    setProfileFieldErrors((prev) => deleteFields(prev, ['first_name', 'firstName']))
+                  }}
+                  disabled={loading || profileSaving}
+                />
+                {pickFieldError(profileFieldErrors, 'first_name', 'firstName') && (
+                  <p id="ase-first-error" className="ase-field-error">{pickFieldError(profileFieldErrors, 'first_name', 'firstName')}</p>
+                )}
               </div>
               <div className="ase-form__group">
                 <label htmlFor="ase-last">Last name</label>
-                <input id="ase-last" type="text" value={profileForm.last_name} onChange={(event) => setProfileForm((prev) => ({ ...prev, last_name: event.target.value }))} disabled={loading || profileSaving} />
+                <input
+                  id="ase-last"
+                  className={pickFieldError(profileFieldErrors, 'last_name', 'lastName') ? 'ase-input--error' : ''}
+                  type="text"
+                  value={profileForm.last_name}
+                  aria-invalid={!!pickFieldError(profileFieldErrors, 'last_name', 'lastName')}
+                  aria-describedby={pickFieldError(profileFieldErrors, 'last_name', 'lastName') ? 'ase-last-error' : undefined}
+                  onChange={(event) => {
+                    clearProfileFeedback()
+                    setProfileForm((prev) => ({ ...prev, last_name: event.target.value }))
+                    setProfileFieldErrors((prev) => deleteFields(prev, ['last_name', 'lastName']))
+                  }}
+                  disabled={loading || profileSaving}
+                />
+                {pickFieldError(profileFieldErrors, 'last_name', 'lastName') && (
+                  <p id="ase-last-error" className="ase-field-error">{pickFieldError(profileFieldErrors, 'last_name', 'lastName')}</p>
+                )}
               </div>
             </div>
             <div className="ase-form__group">
               <label htmlFor="ase-email">Email address</label>
-              <input id="ase-email" type="email" value={profileForm.email} onChange={(event) => setProfileForm((prev) => ({ ...prev, email: event.target.value }))} disabled={loading || profileSaving} />
+              <input
+                id="ase-email"
+                className={pickFieldError(profileFieldErrors, 'email') ? 'ase-input--error' : ''}
+                type="email"
+                value={profileForm.email}
+                aria-invalid={!!pickFieldError(profileFieldErrors, 'email')}
+                aria-describedby={pickFieldError(profileFieldErrors, 'email') ? 'ase-email-error' : undefined}
+                onChange={(event) => {
+                  clearProfileFeedback()
+                  setProfileForm((prev) => ({ ...prev, email: event.target.value }))
+                  setProfileFieldErrors((prev) => deleteFields(prev, ['email']))
+                }}
+                disabled={loading || profileSaving}
+              />
+              {pickFieldError(profileFieldErrors, 'email') && <p id="ase-email-error" className="ase-field-error">{pickFieldError(profileFieldErrors, 'email')}</p>}
               <p className="ase-hint">We send order receipts and important alerts here</p>
             </div>
             <div className="ase-form__group">
               <label htmlFor="ase-phone">Phone number</label>
-              <input id="ase-phone" type="tel" value={profileForm.phone} onChange={(event) => setProfileForm((prev) => ({ ...prev, phone: event.target.value }))} disabled={loading || profileSaving} />
+              <input
+                id="ase-phone"
+                className={pickFieldError(profileFieldErrors, 'phone') ? 'ase-input--error' : ''}
+                type="tel"
+                value={profileForm.phone}
+                aria-invalid={!!pickFieldError(profileFieldErrors, 'phone')}
+                aria-describedby={pickFieldError(profileFieldErrors, 'phone') ? 'ase-phone-error' : undefined}
+                onChange={(event) => {
+                  clearProfileFeedback()
+                  setProfileForm((prev) => ({ ...prev, phone: event.target.value }))
+                  setProfileFieldErrors((prev) => deleteFields(prev, ['phone']))
+                }}
+                disabled={loading || profileSaving}
+              />
+              {pickFieldError(profileFieldErrors, 'phone') && <p id="ase-phone-error" className="ase-field-error">{pickFieldError(profileFieldErrors, 'phone')}</p>}
               <p className="ase-hint">Used for delivery updates and SMS reminders</p>
             </div>
             <div className="ase-form__group">
               <label htmlFor="ase-dob">Date of birth</label>
-              <input id="ase-dob" type="date" value={profileForm.date_of_birth} onChange={(event) => setProfileForm((prev) => ({ ...prev, date_of_birth: event.target.value }))} disabled={loading || profileSaving} />
+              <input
+                id="ase-dob"
+                className={pickFieldError(profileFieldErrors, 'date_of_birth', 'dateOfBirth') ? 'ase-input--error' : ''}
+                type="date"
+                value={profileForm.date_of_birth}
+                aria-invalid={!!pickFieldError(profileFieldErrors, 'date_of_birth', 'dateOfBirth')}
+                aria-describedby={pickFieldError(profileFieldErrors, 'date_of_birth', 'dateOfBirth') ? 'ase-dob-error' : undefined}
+                onChange={(event) => {
+                  clearProfileFeedback()
+                  setProfileForm((prev) => ({ ...prev, date_of_birth: event.target.value }))
+                  setProfileFieldErrors((prev) => deleteFields(prev, ['date_of_birth', 'dateOfBirth']))
+                }}
+                disabled={loading || profileSaving}
+              />
+              {pickFieldError(profileFieldErrors, 'date_of_birth', 'dateOfBirth') && (
+                <p id="ase-dob-error" className="ase-field-error">{pickFieldError(profileFieldErrors, 'date_of_birth', 'dateOfBirth')}</p>
+              )}
               <p className="ase-hint">Required for age-restricted medicines and prescriptions</p>
             </div>
-            {profileError && <p className="ase-hint" style={{ color: '#b91c1c' }}>{profileError}</p>}
-            {profileMessage && <p className="ase-hint" style={{ color: '#15803d' }}>{profileMessage}</p>}
+            {profileError && <p className="ase-form-error">{profileError}</p>}
             <div className="ase-form__actions">
-              <button className={`ase-btn ase-btn--primary ${profileMessage ? 'ase-btn--saved' : ''}`} type="submit" disabled={loading || profileSaving}>
-                {profileSaving ? 'Saving…' : profileMessage ? 'Saved!' : 'Save changes'}
+              <button className="ase-btn ase-btn--primary" type="submit" disabled={loading || profileSaving}>
+                {profileSaving ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </form>
@@ -368,25 +534,33 @@ function AccountSettingsPage() {
               <p className="ase-section-head__sub">Keep your account safe with a strong password</p>
             </div>
           </div>
+          <SuccessAlert message={passwordMessage} onDismiss={() => setPasswordMessage('')} />
           <form className="ase-form" onSubmit={handlePasswordSave}>
             <PasswordInput
               id="ase-current"
               label="Current password"
               placeholder="Enter your current password"
               value={passwordForm.old_password}
-              onChange={(value) => setPasswordForm((prev) => ({ ...prev, old_password: value }))}
+              error={pickFieldError(passwordFieldErrors, 'old_password', 'current_password', 'currentPassword')}
+              onChange={(value) => {
+                clearPasswordFeedback()
+                setPasswordForm((prev) => ({ ...prev, old_password: value }))
+                setPasswordFieldErrors((prev) => deleteFields(prev, ['old_password', 'current_password', 'currentPassword']))
+              }}
             />
             <div className="ase-form__group">
-              <label htmlFor="ase-new">New password</label>
-              <div className="ase-input-wrap">
-                <input
-                  id="ase-new"
-                  type="password"
-                  placeholder="At least 8 characters"
-                  value={passwordForm.new_password}
-                  onChange={(event) => setPasswordForm((prev) => ({ ...prev, new_password: event.target.value }))}
-                />
-              </div>
+              <PasswordInput
+                id="ase-new"
+                label="New password"
+                placeholder="At least 8 characters"
+                value={passwordForm.new_password}
+                error={pickFieldError(passwordFieldErrors, 'new_password', 'password')}
+                onChange={(value) => {
+                  clearPasswordFeedback()
+                  setPasswordForm((prev) => ({ ...prev, new_password: value }))
+                  setPasswordFieldErrors((prev) => deleteFields(prev, ['new_password', 'password']))
+                }}
+              />
               <PasswordStrength value={passwordForm.new_password} />
               <p className="ase-hint">Use a mix of letters, numbers and symbols for a stronger password</p>
             </div>
@@ -395,7 +569,12 @@ function AccountSettingsPage() {
               label="Confirm new password"
               placeholder="Type your new password again"
               value={passwordForm.new_password_confirm}
-              onChange={(value) => setPasswordForm((prev) => ({ ...prev, new_password_confirm: value }))}
+              error={pickFieldError(passwordFieldErrors, 'new_password_confirm', 'password_confirm', 'confirm_password', 'confirmPassword')}
+              onChange={(value) => {
+                clearPasswordFeedback()
+                setPasswordForm((prev) => ({ ...prev, new_password_confirm: value }))
+                setPasswordFieldErrors((prev) => deleteFields(prev, ['new_password_confirm', 'password_confirm', 'confirm_password', 'confirmPassword']))
+              }}
             />
             <div className="ase-info-box">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -405,11 +584,10 @@ function AccountSettingsPage() {
               </svg>
               <p>After changing your password, future sign-ins will use the new password immediately.</p>
             </div>
-            {passwordError && <p className="ase-hint" style={{ color: '#b91c1c' }}>{passwordError}</p>}
-            {passwordMessage && <p className="ase-hint" style={{ color: '#15803d' }}>{passwordMessage}</p>}
+            {passwordError && <p className="ase-form-error">{passwordError}</p>}
             <div className="ase-form__actions">
-              <button className={`ase-btn ase-btn--primary ${passwordMessage ? 'ase-btn--saved' : ''}`} type="submit" disabled={passwordSaving}>
-                {passwordSaving ? 'Updating…' : passwordMessage ? 'Password updated!' : 'Update password'}
+              <button className="ase-btn ase-btn--primary" type="submit" disabled={passwordSaving}>
+                {passwordSaving ? 'Updating…' : 'Update password'}
               </button>
             </div>
           </form>
@@ -427,9 +605,10 @@ function AccountSettingsPage() {
             </div>
             <div>
               <h3 className="ase-section-head__title">How we contact you</h3>
-              <p className="ase-section-head__sub">Choose which channels we should use for important order updates and optional marketing</p>
+              <p className="ase-section-head__sub">Choose which channels we should use for important order updates and optional alerts</p>
             </div>
           </div>
+          <SuccessAlert message={preferencesMessage} onDismiss={() => setPreferencesMessage('')} />
 
           <p className="ase-toggles-label">Important alerts</p>
           <div className="ase-toggles">
@@ -458,7 +637,7 @@ function AccountSettingsPage() {
                 </div>
               </div>
               <label className="ase-toggle" htmlFor="nt-order-email">
-                <input id="nt-order-email" type="checkbox" checked={!!preferences?.order_updates_email} onChange={(event) => togglePreference('order_updates_email', event.target.checked)} />
+                <input id="nt-order-email" type="checkbox" checked={!!preferences?.order_updates_email} onChange={(event) => requestPreferenceChange('order_updates_email', event.target.checked)} />
                 <span className="ase-toggle__track" />
               </label>
             </div>
@@ -471,7 +650,7 @@ function AccountSettingsPage() {
                 </div>
               </div>
               <label className="ase-toggle" htmlFor="nt-order-sms">
-                <input id="nt-order-sms" type="checkbox" checked={!!preferences?.order_updates_sms} onChange={(event) => togglePreference('order_updates_sms', event.target.checked)} />
+                <input id="nt-order-sms" type="checkbox" checked={!!preferences?.order_updates_sms} onChange={(event) => requestPreferenceChange('order_updates_sms', event.target.checked)} />
                 <span className="ase-toggle__track" />
               </label>
             </div>
@@ -486,7 +665,7 @@ function AccountSettingsPage() {
                 label: 'General email alerts',
                 desc: 'Account and service-related emails beyond order-specific updates.',
                 checked: !!preferences?.email_enabled,
-                onChange: (checked: boolean) => togglePreference('email_enabled', checked),
+                key: 'email_enabled' as const,
               },
               {
                 id: 'nt-sms-enabled',
@@ -494,23 +673,7 @@ function AccountSettingsPage() {
                 label: 'General SMS alerts',
                 desc: 'SMS messaging beyond order-specific updates.',
                 checked: !!preferences?.sms_enabled,
-                onChange: (checked: boolean) => togglePreference('sms_enabled', checked),
-              },
-              {
-                id: 'nt-push-enabled',
-                icon: '🔔',
-                label: 'Push / browser alerts',
-                desc: 'Real-time browser notifications when supported.',
-                checked: !!preferences?.push_enabled,
-                onChange: (checked: boolean) => togglePreference('push_enabled', checked),
-              },
-              {
-                id: 'nt-marketing-enabled',
-                icon: '🏷️',
-                label: 'Deals & offers',
-                desc: 'Promotions, launches, and campaign announcements.',
-                checked: !!preferences?.marketing_enabled,
-                onChange: (checked: boolean) => togglePreference('marketing_enabled', checked),
+                key: 'sms_enabled' as const,
               },
             ].map((item) => (
               <div key={item.id} className="ase-toggle-row">
@@ -522,7 +685,7 @@ function AccountSettingsPage() {
                   </div>
                 </div>
                 <label className="ase-toggle" htmlFor={item.id}>
-                  <input id={item.id} type="checkbox" checked={item.checked} onChange={(event) => item.onChange(event.target.checked)} />
+                  <input id={item.id} type="checkbox" checked={item.checked} onChange={(event) => requestPreferenceChange(item.key, event.target.checked)} />
                   <span className="ase-toggle__track" />
                 </label>
               </div>
@@ -530,14 +693,21 @@ function AccountSettingsPage() {
           </div>
 
           {preferencesError && <p className="ase-hint" style={{ color: '#b91c1c', marginTop: '1rem' }}>{preferencesError}</p>}
-          {preferencesMessage && <p className="ase-hint" style={{ color: '#15803d', marginTop: '1rem' }}>{preferencesMessage}</p>}
           <div className="ase-form__actions">
-            <button className={`ase-btn ase-btn--primary ${preferencesMessage ? 'ase-btn--saved' : ''}`} type="button" onClick={() => void handlePreferencesSave()} disabled={preferencesSaving || !preferences}>
-              {preferencesSaving ? 'Saving…' : preferencesMessage ? 'Saved!' : 'Save preferences'}
+            <button className="ase-btn ase-btn--primary" type="button" onClick={() => void handlePreferencesSave()} disabled={preferencesSaving || !preferences}>
+              {preferencesSaving ? 'Saving…' : 'Save preferences'}
             </button>
           </div>
         </div>
       )}
+      <ConfirmActionModal
+        open={!!pendingPreferenceDisable}
+        title={`Turn off ${pendingPreferenceDisable ? NOTIFICATION_TOGGLE_COPY[pendingPreferenceDisable].label.toLowerCase() : 'this notification channel'}?`}
+        description={`Are you sure you want to turn this off? If you proceed, you will not receive ${pendingPreferenceDisable ? NOTIFICATION_TOGGLE_COPY[pendingPreferenceDisable].disabledEffect : 'these notifications'} until you turn it back on and save your preferences.`}
+        confirmLabel="Turn off"
+        onCancel={() => setPendingPreferenceDisable(null)}
+        onConfirm={confirmPreferenceDisable}
+      />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { extractApiErrorMessage } from '../../lib/apiClient'
 import { prescriptionService } from '../../services/prescriptionService'
 import '../../styles/pages/PrescriptionUploadPage.css'
 
@@ -78,10 +79,7 @@ function PrescriptionUploadPage() {
       setUploadNotes('')
       setUploadError('')
     }).catch((error) => {
-      type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string | Record<string, string> } } }
-      const detail = (error as ApiErr)?.response?.data?.error?.message
-        ?? (error as ApiErr)?.response?.data?.detail
-      setUploadError(typeof detail === 'string' ? detail : 'Failed to submit prescription.')
+      setUploadError(extractApiErrorMessage(error, 'Failed to submit prescription.'))
     })
   }
 

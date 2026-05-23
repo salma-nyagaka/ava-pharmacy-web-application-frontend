@@ -7,7 +7,27 @@ import { useCatalog } from '../../context/CatalogContext'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
+import {
+  fetchNotifications,
+  fetchUnreadNotificationCount,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type AccountNotification,
+} from '../../services/notificationService'
 import { useAuth } from '../../context/AuthContext'
+
+function formatNotificationTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.floor(diffMs / 60000)
+  if (diffMinutes < 1) return 'Just now'
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  return date.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })
+}
 
 function Header() {
   const ALL_CATEGORIES_KEY = 'all'
@@ -18,13 +38,20 @@ function Header() {
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/')
   const accountsRef = useRef<HTMLDivElement>(null)
+  const notificationsRef = useRef<HTMLDivElement>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isAccountsOpen, setIsAccountsOpen] = useState(false)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [cartCount, setCartCount] = useState(0)
   const [favCount, setFavCount] = useState(0)
+  const [notifications, setNotifications] = useState<AccountNotification[]>([])
+  const [notificationCount, setNotificationCount] = useState(0)
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [notificationsError, setNotificationsError] = useState('')
+  const userDisplayName = user?.name?.trim() || user?.email?.split('@')[0] || 'Account'
 
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev)
@@ -39,6 +66,9 @@ function Header() {
       if (accountsRef.current && !accountsRef.current.contains(e.target as Node)) {
         setIsAccountsOpen(false)
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+        setIsNotificationsOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -46,6 +76,7 @@ function Header() {
 
   useEffect(() => {
     setIsAccountsOpen(false)
+    setIsNotificationsOpen(false)
   }, [location.pathname])
 
   useEffect(() => {
@@ -64,6 +95,41 @@ function Header() {
     refresh()
     return favouritesService.subscribe(refresh)
   }, [])
+
+  const refreshNotifications = async () => {
+    if (!isLoggedIn) {
+      setNotifications([])
+      setNotificationCount(0)
+      setNotificationsError('')
+      return
+    }
+
+    try {
+      setNotificationsError('')
+      const [items, unreadCount] = await Promise.all([
+        fetchNotifications(),
+        fetchUnreadNotificationCount(),
+      ])
+      setNotifications(items.slice(0, 6))
+      setNotificationCount(unreadCount)
+    } catch {
+      setNotificationsError('Unable to load notifications.')
+    }
+  }
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setNotifications([])
+      setNotificationCount(0)
+      return
+    }
+
+    void refreshNotifications()
+    const interval = window.setInterval(() => {
+      void refreshNotifications()
+    }, 60000)
+    return () => window.clearInterval(interval)
+  }, [isLoggedIn])
 
   const { categories, brands, healthConcerns } = useCatalog()
   const orderedCategories = useMemo(
@@ -147,6 +213,40 @@ function Header() {
     setIsSearchOpen(false)
     setActiveMenu(null)
     setIsMenuOpen(false)
+  }
+
+  const toggleNotifications = async () => {
+    const nextOpen = !isNotificationsOpen
+    setIsNotificationsOpen(nextOpen)
+    setIsAccountsOpen(false)
+    if (nextOpen) {
+      setNotificationsLoading(true)
+      await refreshNotifications()
+      setNotificationsLoading(false)
+    }
+  }
+
+  const handleNotificationClick = async (notification: AccountNotification) => {
+    if (!notification.is_read) {
+      setNotificationCount((count) => Math.max(0, count - 1))
+      setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, is_read: true } : item))
+      void markNotificationRead(notification.id).then(refreshNotifications).catch(() => {})
+    }
+
+    const url = typeof notification.data?.url === 'string' ? notification.data.url : ''
+    setIsNotificationsOpen(false)
+    if (url) navigate(url)
+  }
+
+  const handleMarkAllNotificationsRead = async () => {
+    setNotificationCount(0)
+    setNotifications((items) => items.map((item) => ({ ...item, is_read: true })))
+    try {
+      await markAllNotificationsRead()
+      await refreshNotifications()
+    } catch {
+      setNotificationsError('Unable to update notifications.')
+    }
   }
 
   return (
@@ -241,17 +341,82 @@ function Header() {
                 </svg>
               </button>
 
+              {isLoggedIn && (
+                <div
+                  ref={notificationsRef}
+                  className={`header__notifications ${isNotificationsOpen ? 'header__notifications--open' : ''}`}
+                >
+                  <button
+                    className="header__action-btn header__action-btn--notifications"
+                    type="button"
+                    onClick={() => void toggleNotifications()}
+                    aria-label={`Notifications${notificationCount > 0 ? `, ${notificationCount} unread` : ''}`}
+                    aria-expanded={isNotificationsOpen}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                    {notificationCount > 0 && <span className="header__cart-badge">{notificationCount > 9 ? '9+' : notificationCount}</span>}
+                    <span className="header__action-text">Alerts</span>
+                  </button>
+                  <div className="header__notifications-dropdown">
+                    <div className="hnd-head">
+                      <div>
+                        <p className="hnd-title">Notifications</p>
+                        <p className="hnd-sub">{notificationCount > 0 ? `${notificationCount} unread` : 'All caught up'}</p>
+                      </div>
+                      {notificationCount > 0 && (
+                        <button type="button" className="hnd-mark-all" onClick={() => void handleMarkAllNotificationsRead()}>
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="hnd-list">
+                      {notificationsLoading && <p className="hnd-empty">Loading notifications...</p>}
+                      {!notificationsLoading && notificationsError && <p className="hnd-empty hnd-empty--error">{notificationsError}</p>}
+                      {!notificationsLoading && !notificationsError && notifications.length === 0 && (
+                        <p className="hnd-empty">No notifications yet.</p>
+                      )}
+                      {!notificationsLoading && !notificationsError && notifications.map((notification) => (
+                        <button
+                          key={notification.id}
+                          type="button"
+                          className={`hnd-item ${notification.is_read ? '' : 'hnd-item--unread'}`}
+                          onClick={() => void handleNotificationClick(notification)}
+                        >
+                          <span className="hnd-dot" aria-hidden="true" />
+                          <span className="hnd-body">
+                            <span className="hnd-item-title">{notification.title}</span>
+                            <span className="hnd-item-msg">{notification.message}</span>
+                            <span className="hnd-item-time">{formatNotificationTime(notification.created_at)}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div
                 ref={accountsRef}
                 className={`header__accounts ${isAccountsOpen ? 'header__accounts--open' : ''}`}
               >
-                <button className="header__action-btn" type="button" onClick={() => setIsAccountsOpen(prev => !prev)}>
+                <button
+                  className="header__action-btn"
+                  type="button"
+                  onClick={() => setIsAccountsOpen(prev => !prev)}
+                  aria-label={isLoggedIn ? `Account menu for ${userDisplayName}` : 'Account menu'}
+                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
                   </svg>
-                  <span className="header__action-text">
-                    {isLoggedIn ? user?.name?.split(' ')[0] : 'Account'}
+                  <span
+                    className={`header__action-text header__account-name ${isLoggedIn ? 'header__account-name--logged-in' : ''}`}
+                    title={isLoggedIn ? userDisplayName : undefined}
+                  >
+                    {isLoggedIn ? userDisplayName : 'Account'}
                   </span>
                 </button>
                 <div className="header__accounts-dropdown">

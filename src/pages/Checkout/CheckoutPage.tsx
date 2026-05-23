@@ -4,6 +4,7 @@ import { CartItem } from '../../data/cart'
 import { kenyaCounties, kenyaCountyCities } from '../../data/kenyaLocations'
 import { useAuth } from '../../context/AuthContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
+import { extractApiErrorMessage } from '../../lib/apiClient'
 import { cartService } from '../../services/cartService'
 import { fetchSavedAddresses, type SavedAddress } from '../../services/addressService'
 import {
@@ -557,11 +558,7 @@ function CheckoutPage() {
       setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
       setCurrentStep(2)
     } catch (error) {
-      type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string } } }
-      const message = (error as ApiErr)?.response?.data?.error?.message
-        ?? (error as ApiErr)?.response?.data?.detail
-        ?? 'Unable to cancel the payment right now.'
-      setValidationError(message)
+      setValidationError(extractApiErrorMessage(error, 'Unable to cancel the payment right now.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -770,10 +767,7 @@ function CheckoutPage() {
       setValidationError('')
       return false
     } catch (error) {
-      type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string } } }
-      const message = (error as ApiErr)?.response?.data?.error?.message
-        ?? (error as ApiErr)?.response?.data?.detail
-        ?? 'Payment failed. Try again.'
+      const message = extractApiErrorMessage(error, 'Payment failed. Try again.')
       const paidOrderMessage = 'This order is no longer awaiting payment.'
       if (message.includes(paidOrderMessage) && draftOrder) {
         try {
@@ -843,10 +837,7 @@ function CheckoutPage() {
       window.localStorage.removeItem(CHECKOUT_ORDER_STORAGE_KEY)
       navigate('/order-confirmation', { state: { orderId: finalized.id } })
     } catch (error) {
-      type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string | string[] } } }
-      const detail = (error as ApiErr)?.response?.data?.error?.message
-        ?? (error as ApiErr)?.response?.data?.detail
-      setValidationError(Array.isArray(detail) ? detail[0] : detail ?? 'Unable to place your order.')
+      setValidationError(extractApiErrorMessage(error, 'Unable to place your order.'))
     } finally {
       setIsSubmitting(false)
     }

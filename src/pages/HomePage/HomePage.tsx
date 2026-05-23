@@ -9,9 +9,9 @@ import backgroundBanner from '../../assets/images/banner/background.jpg'
 // import uncoverBannerMobile from '../../assets/images/banner/uncover2.png'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
-import { fetchFeaturedProducts } from '../../services/productService'
+import { fetchFeaturedProducts, fetchInventoryItems } from '../../services/productService'
 import { mapApiProduct } from '../../hooks/useProducts'
-import { useInventoryItems } from '../../hooks/useInventoryItems'
+import { mapInventoryItem, useInventoryItems } from '../../hooks/useInventoryItems'
 import { useCatalog } from '../../context/CatalogContext'
 import { useAuth } from '../../context/AuthContext'
 import type { CatalogProduct } from '../../data/products'
@@ -78,6 +78,7 @@ function HomePage() {
 
   const { products: catalogProducts } = useInventoryItems({ page_size: 200 }, { loadAllPages: true })
   const [featuredSeedProducts, setFeaturedSeedProducts] = useState<CatalogProduct[]>([])
+  const [newSeedProducts, setNewSeedProducts] = useState<CatalogProduct[]>([])
   const visibleCategories = categories.filter((category) => {
     const normalizedName = category.name.trim().toLowerCase()
     const normalizedSlug = category.slug.trim().toLowerCase()
@@ -139,6 +140,28 @@ function HomePage() {
     }
   }, [])
 
+  useEffect(() => {
+    let isMounted = true
+
+    void fetchInventoryItems({ ordering: '-created_at', page_size: 12 })
+      .then(({ data }) => {
+        if (!isMounted) return
+        setNewSeedProducts(
+          data
+            .map(mapInventoryItem)
+            .filter(isAvailableProduct),
+        )
+      })
+      .catch(() => {
+        if (!isMounted) return
+        setNewSeedProducts([])
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   const featuredProducts = (() => {
     const seen = new Set<number>()
     const merged: CatalogProduct[] = []
@@ -160,9 +183,24 @@ function HomePage() {
 
   const featuredProductIds = new Set(featuredProducts.map((product) => getInventoryKey(product)))
 
-  const newProducts = catalogProducts
-    .filter((product) => isAvailableProduct(product) && !featuredProductIds.has(getInventoryKey(product)) && !isDealProduct(product))
-    .slice(0, 5)
+  const newProducts = (() => {
+    const seen = new Set<number>()
+    const merged: CatalogProduct[] = []
+
+    const appendUnique = (products: CatalogProduct[]) => {
+      products.forEach((product) => {
+        const inventoryKey = getInventoryKey(product)
+        if (seen.has(inventoryKey) || !isAvailableProduct(product)) return
+        seen.add(inventoryKey)
+        merged.push(product)
+      })
+    }
+
+    appendUnique(newSeedProducts)
+    appendUnique(catalogProducts.filter((product) => !featuredProductIds.has(getInventoryKey(product)) && !isDealProduct(product)))
+
+    return merged.slice(0, 5)
+  })()
 
   const offerDeals = [...catalogProducts]
     .filter((product) => isAvailableProduct(product) && isDealProduct(product))

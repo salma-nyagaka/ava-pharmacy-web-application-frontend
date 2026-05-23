@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { extractApiErrorMessage } from '../../lib/apiClient'
 import { adminProductService, ApiBrand } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
 import '../../styles/admin/AdminShared.css'
@@ -176,8 +177,7 @@ function BrandManagement() {
       setShowModal(false)
       window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save. Please try again.')
+      setFormError(extractApiErrorMessage(err, 'Failed to save. Please try again.'))
     } finally {
       setSaving(false)
     }

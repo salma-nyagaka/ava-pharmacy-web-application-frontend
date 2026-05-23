@@ -7,6 +7,139 @@ function isApiPayload(value: unknown): value is ApiPayload {
   return typeof value === 'object' && value !== null
 }
 
+function cleanMessage(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const message = value.trim()
+  return message ? message : null
+}
+
+function firstNestedMessage(value: unknown): string | null {
+  const direct = cleanMessage(value)
+  if (direct) return direct
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const message = firstNestedMessage(item)
+      if (message) return message
+    }
+    return null
+  }
+
+  if (isApiPayload(value)) {
+    for (const key of ['message', 'detail', 'non_field_errors']) {
+      const message = firstNestedMessage(value[key])
+      if (message) return message
+    }
+
+    for (const item of Object.values(value)) {
+      const message = firstNestedMessage(item)
+      if (message) return message
+    }
+  }
+
+  return null
+}
+
+function payloadFromError(error: unknown): unknown {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data
+  }
+  return error
+}
+
+function unwrapErrorPayload(payload: unknown): unknown {
+  if (!isApiPayload(payload)) return payload
+
+  const nestedError = payload.error
+  if (isApiPayload(nestedError)) return nestedError
+
+  return payload
+}
+
+function detailSources(payload: unknown): unknown[] {
+  if (!isApiPayload(payload)) return []
+
+  const error = isApiPayload(payload.error) ? payload.error : undefined
+  const errors = isApiPayload(payload.errors) ? payload.errors : undefined
+  const data = isApiPayload(payload.data) ? payload.data : undefined
+  const errorDetails = isApiPayload(error?.details) ? error.details : undefined
+  const nestedErrorDetails = isApiPayload(errorDetails?.errors) ? errorDetails.errors : undefined
+
+  return [
+    nestedErrorDetails?.details,
+    errorDetails?.details,
+    error?.details,
+    errors?.details,
+    payload.details,
+    errors,
+    data,
+    payload,
+  ].filter(Boolean)
+}
+
+function humanizeFieldName(field: string): string {
+  if (field === 'non_field_errors' || field === 'detail' || field === 'message') return ''
+  return field
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+export function extractApiFieldErrors(errorOrPayload: unknown): Record<string, string> {
+  const payload = payloadFromError(errorOrPayload)
+  const output: Record<string, string> = {}
+
+  for (const source of detailSources(payload)) {
+    if (!isApiPayload(source)) continue
+
+    for (const [field, value] of Object.entries(source)) {
+      if (['error', 'errors', 'data', 'detail', 'message', 'code'].includes(field)) continue
+      const message = firstNestedMessage(value)
+      if (message && !output[field]) output[field] = message
+    }
+
+    if (Object.keys(output).length > 0) break
+  }
+
+  return output
+}
+
+export function extractApiErrorMessage(errorOrPayload: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  const payload = payloadFromError(errorOrPayload)
+  const unwrapped = unwrapErrorPayload(payload)
+
+  if (isApiPayload(unwrapped)) {
+    const explicitMessage =
+      firstNestedMessage(unwrapped.message)
+      ?? firstNestedMessage(unwrapped.detail)
+      ?? firstNestedMessage(unwrapped.error)
+
+    if (explicitMessage) return explicitMessage
+  }
+
+  const fieldErrors = extractApiFieldErrors(payload)
+  const fieldMessages = Object.entries(fieldErrors)
+    .map(([field, message]) => {
+      const label = humanizeFieldName(field)
+      return label ? `${label}: ${message}` : message
+    })
+
+  if (fieldMessages.length > 0) return fieldMessages.join(' ')
+
+  const nestedMessage = firstNestedMessage(payload)
+  if (nestedMessage) return nestedMessage
+
+  if (axios.isAxiosError(errorOrPayload)) {
+    if (errorOrPayload.response?.status === 401) return 'Your session has expired. Please sign in again.'
+    if (errorOrPayload.message === 'Network Error') return 'We could not reach the server. Check your connection and try again.'
+  }
+
+  if (errorOrPayload instanceof Error && errorOrPayload.message.trim()) {
+    return errorOrPayload.message.trim()
+  }
+
+  return fallback
+}
+
 function normalizeToken(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const token = value.trim()

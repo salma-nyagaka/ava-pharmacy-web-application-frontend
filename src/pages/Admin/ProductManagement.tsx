@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
+import { extractApiErrorMessage, extractApiFieldErrors } from '../../lib/apiClient'
 import {
   adminProductService,
   ApiBrand,
@@ -54,14 +55,6 @@ function generateSlug(name: string): string {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 80)
-}
-
-function isFieldErrorMap(value: unknown): value is Record<string, string | string[]> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
-
-  return Object.values(value).every(
-    (entry) => typeof entry === 'string' || (Array.isArray(entry) && entry.every((item) => typeof item === 'string')),
-  )
 }
 
 type ProductFormPayload =
@@ -246,47 +239,14 @@ function ProductManagement() {
         openEditModal(created)
       }
     } catch (err: unknown) {
-      type ApiErr = {
-        response?: {
-          data?: {
-            error?: {
-              message?: string
-              details?: Record<string, string[] | string> | { errors?: { details?: Record<string, string[]> } }
-            }
-          }
-        }
-      }
-      const apiErr = (err as ApiErr)?.response?.data?.error
-      const rawDetails = apiErr?.details
-      let fieldErrors: Record<string, string[] | string> | null = null
-
-      if (rawDetails && typeof rawDetails === 'object' && !Array.isArray(rawDetails)) {
-        if ('errors' in rawDetails) {
-          const nestedErrors = rawDetails.errors
-
-          if (
-            nestedErrors &&
-            typeof nestedErrors === 'object' &&
-            !Array.isArray(nestedErrors) &&
-            'details' in nestedErrors
-          ) {
-            const nestedDetails = nestedErrors.details
-
-            if (nestedDetails && typeof nestedDetails === 'object' && !Array.isArray(nestedDetails)) {
-              fieldErrors = nestedDetails
-            }
-          }
-        } else if (isFieldErrorMap(rawDetails)) {
-          fieldErrors = rawDetails
-        }
-      }
-      if (fieldErrors) {
+      const fieldErrors = extractApiFieldErrors(err)
+      if (Object.keys(fieldErrors).length > 0) {
         const msgs = Object.entries(fieldErrors)
-          .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : String(errs)}`)
+          .map(([field, message]) => `${field}: ${message}`)
           .join(' · ')
         setFormError(msgs)
       } else {
-        setFormError(apiErr?.message ?? 'Failed to save product.')
+        setFormError(extractApiErrorMessage(err, 'Failed to save product.'))
       }
     } finally {
       setSaving(false)
@@ -310,8 +270,7 @@ function ProductManagement() {
       setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id))
       setDeleteTarget(null)
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setDeleteError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to delete. Please try again.')
+      setDeleteError(extractApiErrorMessage(err, 'Failed to delete. Please try again.'))
     } finally {
       setDeleting(false)
     }

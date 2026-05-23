@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { extractApiErrorMessage } from '../../lib/apiClient'
 import {
   adminProductService,
   type ApiBrand,
@@ -460,22 +461,7 @@ function DealsManagement() {
 
       setIsModalOpen(false)
     } catch (err: unknown) {
-      type ApiErr = {
-        response?: {
-          data?: {
-            error?: { message?: string }
-            image?: string[]
-            detail?: string
-          }
-        }
-      }
-      const response = (err as ApiErr)?.response?.data
-      setFormError(
-        response?.error?.message
-          ?? response?.image?.[0]
-          ?? response?.detail
-          ?? 'Failed to save the deal. Please try again.',
-      )
+      setFormError(extractApiErrorMessage(err, 'Failed to save the deal. Please try again.'))
     } finally {
       setSaving(false)
     }

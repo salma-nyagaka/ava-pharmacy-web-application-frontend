@@ -221,11 +221,108 @@
   box-shadow: 0 0 0 4px rgba(232, 23, 80, 0.08);
 }
 
+.ase-form__group input.ase-input--error,
+.ase-input-wrap input.ase-input--error {
+  border-color: #dc2626;
+  background: #fff7f7;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.ase-form__group input.ase-input--error:focus,
+.ase-input-wrap input.ase-input--error:focus {
+  border-color: #b91c1c;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);
+}
+
 .ase-hint {
   font-size: 0.73rem;
   color: #94a3b8;
   margin: 0;
   line-height: 1.4;
+}
+
+.ase-field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 9px;
+  padding: 0.42rem 0.55rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0.05rem 0 0;
+}
+
+.ase-field-error::before {
+  content: '!';
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-top: 0.05rem;
+}
+
+.ase-form-error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.ase-form-success {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+}
+
+.ase-form-success__close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(22, 101, 52, 0.1);
+  color: #166534;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ase-form-success__close:hover {
+  background: rgba(22, 101, 52, 0.18);
+  color: #14532d;
+}
+
+.ase-form-success__close svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ── Password input with show/hide ── */

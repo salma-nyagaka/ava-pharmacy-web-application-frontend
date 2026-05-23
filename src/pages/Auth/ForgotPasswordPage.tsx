@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiClient } from '../../lib/apiClient'
+import { apiClient, extractApiErrorMessage } from '../../lib/apiClient'
 import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/pages/AuthPage.css'
 
@@ -19,13 +19,10 @@ function ForgotPasswordPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await apiClient.post('/auth/forgot-password/', { email: email.trim().toLowerCase() })
-      console.log(res, "dsadasdasdasd")
+      await apiClient.post('/auth/forgot-password/', { email: email.trim().toLowerCase() })
       setSubmitted(true)
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      const msg = (err as ApiErr)?.response?.data?.error?.message
-      setError(msg ?? 'Something went wrong. Please try again.')
+      setError(extractApiErrorMessage(err, 'Something went wrong. Please try again.'))
     } finally {
       setLoading(false)
     }

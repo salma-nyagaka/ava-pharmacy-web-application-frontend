@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { extractApiErrorMessage } from '../../lib/apiClient'
 import { adminProductService, ApiHealthConcern } from '../../services/adminProductService'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
@@ -98,8 +99,7 @@ function HealthConcernManagement() {
       setShowModal(false)
       window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save. Please try again.')
+      setFormError(extractApiErrorMessage(err, 'Failed to save. Please try again.'))
     } finally {
       setSaving(false)
     }
@@ -125,8 +125,7 @@ function HealthConcernManagement() {
       setDeleteTarget(null)
       window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setDeleteError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to delete. Please try again.')
+      setDeleteError(extractApiErrorMessage(err, 'Failed to delete. Please try again.'))
     } finally {
       setDeleting(false)
     }

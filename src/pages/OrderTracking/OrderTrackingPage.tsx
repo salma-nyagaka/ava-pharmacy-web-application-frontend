@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { useInterval } from '../../hooks/useInterval'
+import { extractApiErrorMessage } from '../../lib/apiClient'
 import { type OrderTrackingResult, lookupOrderTracking } from '../../services/orderService'
 import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
 import '../../styles/pages/OrderTrackingPage.css'
@@ -172,12 +173,11 @@ function OrderTrackingPage() {
       setTracking(result)
       setActiveLookup(payload)
       if (!silent) setError('')
-    } catch (lookupError: any) {
+    } catch (lookupError: unknown) {
       if (silent) return
       setTracking(null)
       setActiveLookup(null)
-      const message = lookupError?.response?.data?.error?.message || 'We could not find an order matching those details.'
-      setError(message)
+      setError(extractApiErrorMessage(lookupError, 'We could not find an order matching those details.'))
     } finally {
       if (!silent) setIsSubmitting(false)
     }

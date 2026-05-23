@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { extractApiErrorMessage, extractApiFieldErrors } from '../../lib/apiClient'
 import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/pages/AuthPage.css'
 
@@ -57,14 +58,12 @@ function LoginPage() {
         navigate('/')
       }
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string; details?: { errors?: { details?: Record<string, string[]> } } } } } }
-      const axiosErr = err as ApiErr
-      const details = axiosErr?.response?.data?.error?.details?.errors?.details
-      if (details && typeof details === 'object') {
+      const details = extractApiFieldErrors(err)
+      if (Object.keys(details).length > 0) {
         const mapped: Record<string, string> = {}
         const leftover: string[] = []
         for (const [field, msgs] of Object.entries(details)) {
-          const msg = Array.isArray(msgs) ? msgs[0] : String(msgs)
+          const msg = String(msgs)
           if (field === 'email' || field === 'password') {
             mapped[field] = msg
           } else {
@@ -74,7 +73,7 @@ function LoginPage() {
         setFieldErrors(mapped)
         if (leftover.length) setError(leftover.join(' '))
       } else {
-        setError(axiosErr?.response?.data?.error?.message ?? 'Invalid email or password.')
+        setError(extractApiErrorMessage(err, 'Invalid email or password.'))
       }
     } finally {
       setLoading(false)

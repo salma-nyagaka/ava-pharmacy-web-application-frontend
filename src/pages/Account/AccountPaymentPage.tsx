@@ -6,6 +6,8 @@ import {
   updateSavedPaymentMethod,
   type SavedPaymentMethod,
 } from '../../services/paymentMethodService'
+import { extractApiErrorMessage } from '../../lib/apiClient'
+import ConfirmActionModal from '../../components/ConfirmActionModal/ConfirmActionModal'
 import '../../styles/pages/AccountPaymentPage.css'
 
 type CardType = 'visa' | 'mastercard' | 'unknown'
@@ -44,6 +46,8 @@ function AccountPaymentPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<SavedPaymentMethod | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -52,9 +56,9 @@ function AccountPaymentPage() {
         if (!active) return
         setCards(rows)
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!active) return
-        setError('Unable to load saved payment methods.')
+        setError(extractApiErrorMessage(err, 'Unable to load saved payment methods.'))
       })
       .finally(() => {
         if (active) setIsLoading(false)
@@ -108,22 +112,27 @@ function AccountPaymentPage() {
       setCards(await fetchSavedPaymentMethods())
       setShowForm(false)
       setForm(EMPTY_FORM)
-    } catch {
-      setError('Unable to save this payment method right now.')
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Unable to save this payment method right now.'))
     } finally {
       setIsSaving(false)
     }
   }
 
-  const remove = async (id: number) => {
+  const remove = async () => {
+    if (!removeTarget) return
     setError('')
+    setIsRemoving(true)
     try {
-      await deleteSavedPaymentMethod(id)
-      setCards((prev) => prev.filter((card) => card.id !== id))
+      await deleteSavedPaymentMethod(removeTarget.id)
+      setCards((prev) => prev.filter((card) => card.id !== removeTarget.id))
       const refreshed = await fetchSavedPaymentMethods()
       setCards(refreshed)
-    } catch {
-      setError('Unable to remove this payment method right now.')
+      setRemoveTarget(null)
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Unable to remove this payment method right now.'))
+    } finally {
+      setIsRemoving(false)
     }
   }
 
@@ -132,8 +141,8 @@ function AccountPaymentPage() {
     try {
       const updated = await updateSavedPaymentMethod(id, { is_default: true })
       setCards((prev) => prev.map((card) => ({ ...card, is_default: card.id === updated.id })))
-    } catch {
-      setError('Unable to update the default payment method right now.')
+    } catch (err: unknown) {
+      setError(extractApiErrorMessage(err, 'Unable to update the default payment method right now.'))
     }
   }
 
@@ -190,7 +199,7 @@ function AccountPaymentPage() {
                       Set default
                     </button>
                   )}
-                  <button className="pay-card__remove" type="button" onClick={() => void remove(card.id)}>
+                  <button className="pay-card__remove" type="button" onClick={() => setRemoveTarget(card)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <polyline points="3 6 5 6 21 6" />
                       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
@@ -299,6 +308,17 @@ function AccountPaymentPage() {
           )}
         </div>
       </div>
+      <ConfirmActionModal
+        open={!!removeTarget}
+        title="Remove this payment method?"
+        description={`Are you sure you want to remove the card ending in ${removeTarget?.last4 ?? 'this number'}? If you proceed, you will not be able to use this saved card at checkout unless you add it again.`}
+        confirmLabel="Remove card"
+        loading={isRemoving}
+        onCancel={() => {
+          if (!isRemoving) setRemoveTarget(null)
+        }}
+        onConfirm={() => void remove()}
+      />
     </div>
   )
 }

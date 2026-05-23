@@ -6,6 +6,7 @@ import {
   updateSavedAddress,
   type SavedAddress,
 } from '../../services/addressService'
+import ConfirmActionModal from '../../components/ConfirmActionModal/ConfirmActionModal'
 import '../../styles/pages/AccountAddressesPage.css'
 
 const EMPTY_FORM = { label: '', street: '', city: '', county: '' }
@@ -17,6 +18,8 @@ function AccountAddressesPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [deleteTarget, setDeleteTarget] = useState<SavedAddress | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -84,16 +87,21 @@ function AccountAddressesPage() {
     }
   }
 
-  const remove = async (id: number) => {
+  const remove = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
     try {
-      await deleteSavedAddress(id)
+      await deleteSavedAddress(deleteTarget.id)
       setAddresses((prev) => {
-        const next = prev.filter((a) => a.id !== id)
+        const next = prev.filter((a) => a.id !== deleteTarget.id)
         if (next.length && !next.some((a) => a.is_default)) next[0] = { ...next[0], is_default: true }
         return [...next]
       })
+      setDeleteTarget(null)
     } catch {
       setError('Unable to delete address right now.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -200,7 +208,7 @@ function AccountAddressesPage() {
                     Set default
                   </button>
                 )}
-                <button className="addr-card__delete" type="button" onClick={() => void remove(addr.id)} aria-label="Delete address">
+                <button className="addr-card__delete" type="button" onClick={() => setDeleteTarget(addr)} aria-label="Delete address">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="3 6 5 6 21 6"/>
                     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -224,6 +232,17 @@ function AccountAddressesPage() {
           )}
         </div>
       </div>
+      <ConfirmActionModal
+        open={!!deleteTarget}
+        title="Delete this address?"
+        description={`Are you sure you want to delete ${deleteTarget?.label ? `"${deleteTarget.label}"` : 'this address'}? If you proceed, you will not be able to use it at checkout unless you add it again.`}
+        confirmLabel="Delete address"
+        loading={isDeleting}
+        onCancel={() => {
+          if (!isDeleting) setDeleteTarget(null)
+        }}
+        onConfirm={() => void remove()}
+      />
     </div>
   )
 }

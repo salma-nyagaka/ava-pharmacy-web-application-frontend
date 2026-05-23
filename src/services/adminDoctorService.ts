@@ -1,3 +1,5 @@
+import { extractApiErrorMessage, extractApiFieldErrors } from '../lib/apiClient'
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/avapharmacy/api/v1').replace(/\/$/, '')
 
 export interface AdminDoctorApi {
@@ -50,46 +52,6 @@ export class AdminDoctorError extends Error {
   }
 }
 
-const extractFieldErrors = (payload: unknown) => {
-  if (!payload || typeof payload !== 'object') {
-    return {}
-  }
-
-  const asRecord = payload as Record<string, unknown>
-  const details = asRecord.errors && typeof asRecord.errors === 'object'
-    ? (asRecord.errors as Record<string, unknown>).details
-    : undefined
-  const source = details && typeof details === 'object' ? details as Record<string, unknown> : asRecord
-
-  return Object.entries(source).reduce<Record<string, string>>((acc, [key, value]) => {
-    if (key === 'detail' || key === 'error') {
-      return acc
-    }
-    if (Array.isArray(value) && value.length > 0) {
-      acc[key] = String(value[0])
-      return acc
-    }
-    if (typeof value === 'string') {
-      acc[key] = value
-    }
-    return acc
-  }, {})
-}
-
-const extractMessage = (payload: unknown, fallback: string) => {
-  if (!payload || typeof payload !== 'object') {
-    return fallback
-  }
-  const asRecord = payload as Record<string, unknown>
-  if (typeof asRecord.detail === 'string') {
-    return asRecord.detail
-  }
-  if (typeof asRecord.message === 'string') {
-    return asRecord.message
-  }
-  return fallback
-}
-
 const getAuthHeaders = (): Record<string, string> => {
   if (typeof window === 'undefined') return {}
   const token =
@@ -103,8 +65,8 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
   const payload = await response.json().catch(() => null)
   if (response.ok) return payload as T
   throw new AdminDoctorError(
-    extractMessage(payload, 'Request failed.'),
-    extractFieldErrors(payload),
+    extractApiErrorMessage(payload, 'Request failed.'),
+    extractApiFieldErrors(payload),
   )
 }
 
