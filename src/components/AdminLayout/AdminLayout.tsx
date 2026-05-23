@@ -385,7 +385,23 @@ function AdminLayout() {
                 <p className="admin-layout__section-label">{section.label}</p>
                 <div className="admin-layout__section-links">
                   {section.items.map((item) => {
+                    const isEnabled = section.label === 'Store'
                     const active = isItemActive(location.pathname, location.search, item)
+
+                    if (!isEnabled) {
+                      return (
+                        <button
+                          key={item.label}
+                          aria-disabled="true"
+                          className="admin-layout__link admin-layout__link--disabled"
+                          type="button"
+                        >
+                          <span className="admin-layout__link-icon">{item.icon}</span>
+                          <span className="admin-layout__link-label">{item.label}</span>
+                          <span className="admin-layout__coming-soon" role="tooltip">Coming soon</span>
+                        </button>
+                      )
+                    }
 
                     return (
                       <NavLink

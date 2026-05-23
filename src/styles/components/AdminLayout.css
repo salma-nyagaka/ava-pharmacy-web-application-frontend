@@ -151,15 +151,21 @@
 }
 
 .admin-layout__link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  width: 100%;
   min-height: 40px;
   padding: 0.6rem 0.85rem;
   border-radius: 12px;
+  border: 0;
+  background: transparent;
   color: rgba(148,163,184,0.9);
+  text-align: left;
   font-size: 0.8rem;
   font-weight: 600;
+  font-family: inherit;
   transition: background 160ms ease, color 160ms ease;
 }
 
@@ -177,6 +183,50 @@
 .admin-layout__link--active .admin-layout__link-icon {
   color: #10b981;
   background: rgba(16,185,129,0.25);
+}
+
+.admin-layout__link--disabled {
+  cursor: not-allowed;
+  color: rgba(148,163,184,0.58);
+}
+
+.admin-layout__link--disabled:hover {
+  color: rgba(226,232,240,0.82);
+  background: rgba(255,255,255,0.045);
+}
+
+.admin-layout__link--disabled .admin-layout__link-icon {
+  color: rgba(148,163,184,0.52);
+  background: rgba(255,255,255,0.04);
+}
+
+.admin-layout__coming-soon {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translate(8px, -50%);
+  padding: 0.22rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(15,23,42,0.96);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.22);
+  color: #f8fafc;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+  z-index: 2;
+}
+
+.admin-layout__link--disabled:hover .admin-layout__coming-soon,
+.admin-layout__link--disabled:focus-visible .admin-layout__coming-soon {
+  opacity: 1;
+  transform: translate(0, -50%);
 }
 
 .admin-layout__link-icon {
@@ -325,6 +375,18 @@
 .admin-layout--sidebar-collapsed .admin-layout__link {
   justify-content: center;
   padding-inline: 0.5rem;
+}
+
+.admin-layout--sidebar-collapsed .admin-layout__coming-soon {
+  left: calc(100% + 0.45rem);
+  right: auto;
+  top: 50%;
+  transform: translate(-4px, -50%);
+}
+
+.admin-layout--sidebar-collapsed .admin-layout__link--disabled:hover .admin-layout__coming-soon,
+.admin-layout--sidebar-collapsed .admin-layout__link--disabled:focus-visible .admin-layout__coming-soon {
+  transform: translate(0, -50%);
 }
 
 .admin-layout--sidebar-collapsed .admin-layout__user,
