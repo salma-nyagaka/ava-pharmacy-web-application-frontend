@@ -8,6 +8,12 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://app-staging.avapharmacy.co.ke
+    concurrency:
+      group: frontend-staging
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -25,20 +31,32 @@ jobs:
       - name: Build for staging
         run: npm run build:staging
 
+      - name: Verify staging directory
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            test -d /var/www/avapharmacy-frontend-staging
+            test -w /var/www/avapharmacy-frontend-staging
+
       - name: Deploy to staging server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USERNAME }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
           source: "dist/*"
-          target: "/var/www/staging.avapharmacy.com"
+          target: "/var/www/avapharmacy-frontend-staging"
           strip_components: 1
 
-      - name: Restart Nginx
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Reload Apache
+        uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USERNAME }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          script: sudo systemctl reload nginx
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            sudo /usr/sbin/apache2ctl configtest
+            sudo /bin/systemctl reload apache2
