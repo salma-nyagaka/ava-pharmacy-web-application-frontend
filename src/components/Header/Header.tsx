@@ -13,7 +13,7 @@ function Header() {
   const ALL_CATEGORIES_KEY = 'all'
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, isLoggedIn, logout } = useAuth()
+  const { user, isLoggedIn, isLoading, logout } = useAuth()
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/')
@@ -241,45 +241,45 @@ function Header() {
                 </svg>
               </button>
 
-              <div
-                ref={accountsRef}
-                className={`header__accounts ${isAccountsOpen ? 'header__accounts--open' : ''}`}
-              >
-                <button className="header__action-btn" type="button" onClick={() => setIsAccountsOpen(prev => !prev)}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <span className="header__action-text">
-                    {isLoggedIn ? user?.name?.split(' ')[0] : 'Account'}
-                  </span>
-                </button>
-                <div className="header__accounts-dropdown">
-                  <nav className="had-links">
-                    <Link to="/account" className="had-link">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                      </svg>
-                      Account
-                    </Link>
-                    <Link to="/account/orders" className="had-link">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-                        <rect x="9" y="3" width="6" height="4" rx="1"/>
-                        <path d="M9 12h6M9 16h4"/>
-                      </svg>
-                      Orders
-                    </Link>
-                    <Link to="/account/favourites" className="had-link">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                      </svg>
-                      Favourites
-                    </Link>
-                  </nav>
-                  <div className="had-divider" />
-                  {isLoggedIn ? (
+              {isLoggedIn ? (
+                <div
+                  ref={accountsRef}
+                  className={`header__accounts ${isAccountsOpen ? 'header__accounts--open' : ''}`}
+                >
+                  <button className="header__action-btn" type="button" onClick={() => setIsAccountsOpen(prev => !prev)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <span className="header__action-text">
+                      {user?.name?.split(' ')[0] || 'Account'}
+                    </span>
+                  </button>
+                  <div className="header__accounts-dropdown">
+                    <nav className="had-links">
+                      <Link to="/account" className="had-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                          <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        Account
+                      </Link>
+                      <Link to="/account/orders" className="had-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                          <rect x="9" y="3" width="6" height="4" rx="1"/>
+                          <path d="M9 12h6M9 16h4"/>
+                        </svg>
+                        Orders
+                      </Link>
+                      <Link to="/account/favourites" className="had-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                        Favourites
+                      </Link>
+                    </nav>
+                    <div className="had-divider" />
                     <button className="had-signout" onClick={logout} type="button">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -288,14 +288,21 @@ function Header() {
                       </svg>
                       Sign Out
                     </button>
-                  ) : (
-                    <div className="had-cta__btns">
-                      <Link to="/login" className="had-cta__signin">Sign In</Link>
-                      <Link to="/register" className="had-cta__register">Create Account</Link>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="header__action-btn"
+                  aria-disabled={isLoading ? 'true' : undefined}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <span className="header__action-text">Login</span>
+                </Link>
+              )}
 
 <Link to="/account/favourites" className="header__action-btn header__action-btn--fav">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
