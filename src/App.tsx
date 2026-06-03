@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider } from './context/AuthContext'
 import { CatalogProvider } from './context/CatalogContext'
 import { SiteSettingsProvider } from './context/SiteSettingsContext'
+import { resolveMediaUrl } from './lib/apiClient'
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import AdminRoute from './components/ProtectedRoute/AdminRoute'
 import AdminLayout from './components/AdminLayout/AdminLayout'
@@ -20,6 +21,7 @@ import AccountEditPage from './pages/Account/AccountEditPage'
 import OrderDetailPage from './pages/Account/OrderDetailPage'
 import OrderHistoryPage from './pages/OrderHistory/OrderHistoryPage'
 import PrescriptionUploadPage from './pages/PrescriptionUpload/PrescriptionUploadPage'
+import PrescriptionDocumentPage from './pages/PrescriptionDocument/PrescriptionDocumentPage'
 import DoctorConsultation from './pages/Consultation/DoctorConsultation'
 import PediatricianConsultation from './pages/Consultation/PediatricianConsultation'
 import AdminDashboard from './pages/Admin/AdminDashboard'
@@ -86,6 +88,12 @@ function LegacyLabDashboardRedirect() {
   return <Navigate to={target} replace />
 }
 
+function MediaRedirect() {
+  const location = useLocation()
+  const target = resolveMediaUrl(`${location.pathname}${location.search}${location.hash}`) ?? '/'
+  return <Navigate to={`/prescription-document?src=${encodeURIComponent(target)}`} replace />
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -93,6 +101,8 @@ function App() {
         <SiteSettingsProvider>
           <CatalogProvider>
             <Routes>
+            <Route path="media/*" element={<MediaRedirect />} />
+            <Route path="prescription-document" element={<PrescriptionDocumentPage />} />
             <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="products" element={<ProductListingPage />} />

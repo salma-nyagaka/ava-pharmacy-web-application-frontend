@@ -59,6 +59,7 @@ export function mapApiProduct(p: Product | ProductDetail): CatalogProduct {
     directions: detail.directions ?? '',
     warnings: detail.warnings ?? '',
     requiresPrescription: p.requires_prescription ?? false,
+    createdAt: p.created_at ?? detail.created_at,
   }
 }
 

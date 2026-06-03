@@ -68,7 +68,7 @@ function HomePage() {
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
   ]
 
-  const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
+  const { products: catalogProducts } = useProducts({ page_size: 200, ordering: '-created_at' }, { loadAllPages: true })
   const [featuredSeedProducts, setFeaturedSeedProducts] = useState<CatalogProduct[]>([])
   const visibleCategories = categories.filter((category) => {
     const normalizedName = category.name.trim().toLowerCase()
@@ -150,7 +150,12 @@ function HomePage() {
   })()
 
   const newProducts = catalogProducts
-    .filter((product) => isAvailableProduct(product) && !isDealProduct(product))
+    .filter(isAvailableProduct)
+    .sort((left, right) => {
+      const leftTime = left.createdAt ? new Date(left.createdAt).getTime() : 0
+      const rightTime = right.createdAt ? new Date(right.createdAt).getTime() : 0
+      return rightTime - leftTime
+    })
     .slice(0, 5)
 
   const offerDeals = [...catalogProducts]

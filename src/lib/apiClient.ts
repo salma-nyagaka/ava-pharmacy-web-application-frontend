@@ -115,9 +115,19 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    const status = error.response?.status
+    const message = extractErrorMessage(error.response?.data)
+    const isAccountDisabled =
+      (status === 401 || status === 403) &&
+      /account (suspended|disabled)|user is inactive|inactive user/i.test(message)
+
+    if (isAccountDisabled) {
+      clearSession()
+      return Promise.reject(error)
+    }
 
     const hadAccessToken = !!localStorage.getItem('ava_access_token')
-    if (error.response?.status === 401 && !originalRequest._retry && hadAccessToken) {
+    if (status === 401 && !originalRequest._retry && hadAccessToken) {
       const refreshToken = localStorage.getItem('ava_refresh_token')
       if (!refreshToken) {
         clearSession()
@@ -161,6 +171,15 @@ function clearSession() {
   localStorage.removeItem('ava_refresh_token')
   localStorage.removeItem('ava_user')
   window.dispatchEvent(new Event('ava:session-expired'))
+}
+
+function extractErrorMessage(payload: unknown): string {
+  if (!isApiPayload(payload)) return ''
+  const error = isApiPayload(payload.error) ? payload.error : null
+  if (typeof error?.message === 'string') return error.message
+  if (typeof payload.detail === 'string') return payload.detail
+  if (typeof payload.message === 'string') return payload.message
+  return ''
 }
 
 export async function refreshAccessToken(refreshToken: string): Promise<string> {

@@ -211,6 +211,111 @@
   line-height: 1.45;
 }
 
+.pharm-inline-note {
+  display: inline-flex;
+  max-width: 22ch;
+  color: #92400e;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.pharm-linked-order {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  max-width: 100%;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 0.46rem 0.6rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pharm-linked-order:hover {
+  background: #dbeafe;
+}
+
+.pharm-linked-order strong {
+  color: #1e3a8a;
+  font-size: 0.8rem;
+}
+
+.pharm-linked-order span,
+.pharm-empty-link {
+  color: #64748b;
+  font-size: 0.73rem;
+}
+
+.pharm-rx-link-badge {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 0;
+  background: #f0fdf4;
+  color: #047857;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.pharm-rx-link-badge--button {
+  cursor: pointer;
+}
+
+.pharm-rx-link-badge--button:hover {
+  background: #dcfce7;
+}
+
+.pharm-summary-link {
+  border: 0;
+  background: transparent;
+  color: #1d4ed8;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pharm-summary-link:hover {
+  text-decoration: underline;
+}
+
+.pharm-payment-pill {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.pharm-payment-pill--paid,
+.pharm-payment-pill--succeeded {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pharm-payment-pill--pending,
+.pharm-payment-pill--requires_action {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pharm-payment-pill--failed,
+.pharm-payment-pill--cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .pharm-row-actions {
   justify-content: flex-end;
 }
@@ -235,8 +340,59 @@
 }
 
 .pharm-order-state--error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   background: #fef2f2;
   color: #b91c1c;
+}
+
+.pharm-order-state__retry {
+  min-height: 32px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff;
+  color: #991b1b;
+  padding: 0 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pharm-order-state__retry:hover {
+  background: #fee2e2;
+}
+
+.pharm-linked-order-card,
+.pharm-awaiting-order {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+
+.pharm-linked-order-card strong {
+  color: #1e3a8a;
+}
+
+.pharm-linked-order-card span {
+  color: #475569;
+  font-size: 0.8rem;
+}
+
+.pharm-awaiting-order {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .pharm-order-modal {
@@ -815,6 +971,97 @@
 
 .px-doc-viewer__dl:hover { text-decoration: underline; }
 
+.px-doc-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.px-doc-list__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 48px;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.px-doc-list__icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #f1faf6;
+  color: #2f5f4a;
+  flex-shrink: 0;
+}
+
+.px-doc-list__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.px-doc-list__meta {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.px-doc-list__name {
+  color: #17202c;
+  font-size: 0.84rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.px-doc-list__type {
+  color: #7a8793;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.px-doc-list__actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.px-doc-list__link {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  border: 1px solid #cfe8dc;
+  background: #f1faf6;
+  color: #2f5f4a;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.px-doc-list__link:hover {
+  background: #e4f4ec;
+}
+
+.px-doc-list__link--muted {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+.px-doc-list__link--muted:hover {
+  background: #f8fafc;
+}
+
 /* ── Item picker ── */
 .px-item-picker-header {
   display: flex;
@@ -1349,24 +1596,244 @@
 }
 
 .portal-shell__main .px-modal {
-  width: min(860px, 94vw);
-  max-width: min(860px, 94vw);
+  width: min(980px, 94vw);
+  max-width: min(980px, 94vw);
   height: auto;
-  max-height: calc(100vh - 3rem);
-  border-radius: 24px;
+  max-height: calc(100vh - 2rem);
+  border-radius: 18px;
   border: 1px solid var(--dashboard-border);
   background: var(--dashboard-surface);
   box-shadow: var(--dashboard-shadow-lg);
+  overflow: hidden;
 }
 
 .portal-shell__main .px-modal__header {
   background: var(--dashboard-surface);
   border-bottom: 1px solid var(--dashboard-border);
-  padding: 1.25rem 1.5rem;
+  padding: 0.9rem 1.1rem;
+  gap: 0.75rem;
+}
+
+.portal-shell__main .px-modal__header-left,
+.portal-shell__main .px-modal__header-right,
+.portal-shell__main .px-modal__title-row,
+.portal-shell__main .px-section-heading {
+  display: flex;
+  align-items: center;
+}
+
+.portal-shell__main .px-modal__header-left {
+  min-width: 0;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.portal-shell__main .px-modal__header-right {
+  gap: 0.85rem;
+  flex-shrink: 0;
+}
+
+.portal-shell__main .px-modal__title-block {
+  min-width: 0;
+}
+
+.portal-shell__main .px-modal__eyebrow,
+.portal-shell__main .px-section-subtext {
+  display: block;
+  color: var(--dashboard-text-faint);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.portal-shell__main .px-modal__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.15rem;
+}
+
+.portal-shell__main .px-modal__title-row {
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.portal-shell__main .px-modal__body {
+  grid-template-columns: minmax(0, 1fr) 285px;
+  background: #f8fbfa;
+}
+
+.portal-shell__main .px-modal__left {
+  padding: 0.95rem;
+  border-right: 1px solid #e4ece8;
+  background: #ffffff;
+}
+
+.portal-shell__main .px-modal__right {
+  padding: 0.9rem;
+  background: #f7faf9;
+  gap: 0.7rem;
+}
+
+.portal-shell__main .px-review-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+}
+
+.portal-shell__main .px-review-summary__card,
+.portal-shell__main .px-review-card {
+  border: 1px solid #e4ece8;
+  background: #fbfdfc;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(45, 66, 58, 0.035);
+}
+
+.portal-shell__main .px-review-summary__card {
+  padding: 0.65rem 0.7rem;
+  min-width: 0;
+}
+
+.portal-shell__main .px-info-value {
+  display: block;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.portal-shell__main .px-section-heading {
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.portal-shell__main .px-section-heading .px-section-label {
+  margin-bottom: 0.2rem;
+}
+
+.portal-shell__main .px-section-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 0.7rem;
+  border-radius: 9px;
+  border: 1px solid var(--ph-soft-blue-border);
+  background: var(--ph-soft-blue);
+  color: var(--ph-soft-blue-ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.portal-shell__main .px-doc-viewer__img,
+.portal-shell__main .px-doc-viewer__pdf {
+  max-height: min(38vh, 360px);
+}
+
+.portal-shell__main .px-items-list {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.portal-shell__main .px-item--selectable {
+  min-height: 54px;
+  padding: 0.55rem 0.65rem;
+}
+
+.portal-shell__main .px-item__qty {
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #dfe8e4;
+  padding: 0.25rem 0.55rem;
+  color: var(--dashboard-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.portal-shell__main .px-modal__section {
+  margin-bottom: 1rem;
+}
+
+.portal-shell__main .px-info-label,
+.portal-shell__main .px-section-label {
+  font-size: 0.66rem;
+}
+
+.portal-shell__main .px-info-value {
+  font-size: 0.86rem;
+}
+
+.portal-shell__main .px-section-subtext,
+.portal-shell__main .px-modal__submitted {
+  font-size: 0.72rem;
+}
+
+.portal-shell__main .px-doc-viewer {
+  gap: 0.65rem;
+}
+
+.portal-shell__main .px-doc-viewer__frame {
+  padding: 0.55rem;
+}
+
+.portal-shell__main .px-med-search__input {
+  padding: 0.5rem 0;
+  font-size: 0.82rem;
+}
+
+.portal-shell__main .px-manual-items {
+  gap: 0.4rem;
+}
+
+.portal-shell__main .px-manual-item {
+  padding: 0.5rem 0.65rem;
+}
+
+.portal-shell__main .px-review-card {
+  padding: 0.75rem;
+}
+
+.portal-shell__main .px-review-card .px-section-label {
+  margin-bottom: 0.45rem;
+}
+
+.portal-shell__main .px-review-card {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.portal-shell__main .px-review-card .px-section-label {
+  grid-column: 1 / -1;
+}
+
+.portal-shell__main .px-review-metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 52px;
+  padding: 0.45rem 0.35rem;
+  border: 1px solid #e8efeb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--dashboard-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.portal-shell__main .px-review-metric strong {
+  color: var(--dashboard-text-title);
+  font-size: 0.9rem;
+}
+
+.portal-shell__main .px-review-metric:first-of-type {
+  border-top: 1px solid #e8efeb;
 }
 
 .portal-shell__main .px-modal__rx-id {
   color: var(--dashboard-text-title);
+  font-size: 0.98rem;
 }
 
 .portal-shell__main .px-modal__assigned-pill {
@@ -1394,6 +1861,23 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .portal-shell__main .px-modal {
+    width: min(760px, 96vw);
+    max-height: calc(100vh - 1.5rem);
+  }
+
+  .portal-shell__main .px-modal__body {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-shell__main .px-modal__right {
+    border-top: 1px solid #e4ece8;
+  }
+
+  .portal-shell__main .px-review-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .pharm-table-panel {
     padding: 1rem;
   }
@@ -1406,6 +1890,38 @@
 
   .portal-shell__main .px-stats {
     grid-template-columns: 1fr;
+  }
+
+  .portal-shell__main .px-modal {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .portal-shell__main .px-modal__header {
+    padding: 1rem;
+    align-items: flex-start;
+  }
+
+  .portal-shell__main .px-modal__header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .portal-shell__main .px-modal__left,
+  .portal-shell__main .px-modal__right {
+    padding: 1rem;
+  }
+
+  .portal-shell__main .px-review-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-shell__main .px-section-heading,
+  .portal-shell__main .px-item-picker-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .pharm-table-panel__header {
@@ -1504,11 +2020,15 @@
 .pharm-action-bar {
   position: static;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
   padding: 0;
   background: transparent;
   border-top: none;
+}
+
+.portal-shell__main .pharm-action-bar .px-decision-btn--approve {
+  grid-column: 1 / -1;
 }
 
 /* ── Rejection reason select ── */
@@ -1534,9 +2054,9 @@
 }
 
 .portal-shell__main .px-clarification-box {
-  margin-top: 0.9rem;
-  padding: 1rem;
-  border-radius: 16px;
+  margin-top: 0.65rem;
+  padding: 0.75rem;
+  border-radius: 13px;
   border: 1px solid var(--dashboard-border);
   background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
   box-shadow: var(--dashboard-shadow-sm);
@@ -1550,10 +2070,10 @@
 .portal-shell__main .px-clarification-textarea,
 .portal-shell__main .px-reject-select {
   border: 1px solid var(--dashboard-border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: #ffffff;
-  padding: 0.75rem 0.9rem;
-  font-size: 0.85rem;
+  padding: 0.62rem 0.75rem;
+  font-size: 0.82rem;
 }
 
 .portal-shell__main .px-clarification-textarea:focus,
@@ -1569,16 +2089,362 @@
 }
 
 .portal-shell__main .px-clarification-actions .btn {
-  min-height: 40px;
-  border-radius: 12px;
-  padding-inline: 1rem;
+  min-height: 36px;
+  border-radius: 999px;
+  padding-inline: 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease;
 }
 
 .portal-shell__main .px-decision-btn--clarify-confirm {
-  border-radius: 12px;
-  padding: 0.65rem 1rem;
-  font-size: 0.82rem;
-  font-weight: 700;
+  border-radius: 999px;
+  border: 1px solid var(--ph-soft-blue-border);
+  background: var(--ph-soft-blue-ink);
+  color: #ffffff;
+  padding: 0.55rem 0.95rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(72, 100, 142, 0.18);
+}
+
+.portal-shell__main .px-clarification-actions .btn--outline {
+  background: #ffffff;
+  border-color: #dfe8e4;
+  color: var(--dashboard-text-muted);
+}
+
+.portal-shell__main .px-clarification-actions .btn--outline:hover {
+  background: #f7faf9;
+  border-color: var(--ph-soft-sage-border);
+  color: var(--dashboard-text-title);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(45, 66, 58, 0.08);
+}
+
+.portal-shell__main .px-clarification-actions .btn:not(.btn--outline):hover,
+.portal-shell__main .px-decision-btn--clarify-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(72, 100, 142, 0.22);
+}
+
+.portal-shell__main .px-clarification-actions .btn:disabled,
+.portal-shell__main .px-decision-btn--clarify-confirm:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Soft pharmacist theme ────────────────────────── */
+.portal-shell__main {
+  --ph-soft-sage: #6fa58d;
+  --ph-soft-sage-dark: #527e6a;
+  --ph-soft-sage-ink: #2f5f4a;
+  --ph-soft-sage-surface: #f1faf6;
+  --ph-soft-sage-border: #cfe8dc;
+  --ph-soft-blue: #eef5ff;
+  --ph-soft-blue-ink: #48648e;
+  --ph-soft-blue-border: #cad9f1;
+  --ph-soft-amber: #fff8e8;
+  --ph-soft-amber-ink: #8a641b;
+  --ph-soft-amber-border: #efdcae;
+  --ph-soft-rose: #fff3f4;
+  --ph-soft-rose-ink: #934957;
+  --ph-soft-rose-border: #ecced4;
+  --ph-soft-muted: #f7faf9;
+}
+
+.portal-shell__main .admin-page {
+  background: #f7faf9;
+}
+
+.portal-shell__main .admin-page__header,
+.portal-shell__main .pharm-table-panel,
+.portal-shell__main .ph-card,
+.portal-shell__main .ph-queue-card,
+.portal-shell__main .px-modal,
+.portal-shell__main .pharm-order-events__item {
+  border-color: #e4ece8;
+  box-shadow: 0 1px 2px rgba(45, 66, 58, 0.04), 0 8px 22px rgba(45, 66, 58, 0.04);
+}
+
+.portal-shell__main .cm-kpi-card {
+  border-left-color: var(--ph-soft-sage-border);
+  box-shadow: 0 1px 2px rgba(45, 66, 58, 0.04), 0 6px 18px rgba(45, 66, 58, 0.035);
+}
+
+.portal-shell__main .cm-kpi-grid .cm-kpi-card:nth-child(1) { border-left-color: var(--ph-soft-amber-border); }
+.portal-shell__main .cm-kpi-grid .cm-kpi-card:nth-child(2) { border-left-color: var(--ph-soft-sage-border); }
+.portal-shell__main .cm-kpi-grid .cm-kpi-card:nth-child(3) { border-left-color: var(--ph-soft-blue-border); }
+.portal-shell__main .cm-kpi-grid .cm-kpi-card:nth-child(4) { border-left-color: var(--ph-soft-rose-border); }
+
+.portal-shell__main .cm-kpi-card__icon--amber,
+.portal-shell__main .ph-stat__icon--warning {
+  background: var(--ph-soft-amber);
+  color: var(--ph-soft-amber-ink);
+}
+
+.portal-shell__main .cm-kpi-card__icon--green,
+.portal-shell__main .ph-stat__icon--success {
+  background: var(--ph-soft-sage-surface);
+  color: var(--ph-soft-sage-ink);
+}
+
+.portal-shell__main .cm-kpi-card__icon--purple,
+.portal-shell__main .cm-kpi-card__icon--blue {
+  background: var(--ph-soft-blue);
+  color: var(--ph-soft-blue-ink);
+}
+
+.portal-shell__main .cm-kpi-card__icon--red,
+.portal-shell__main .ph-stat__icon--danger {
+  background: var(--ph-soft-rose);
+  color: var(--ph-soft-rose-ink);
+}
+
+.portal-shell__main .cm-kpi-card__value--amber,
+.portal-shell__main .px-stat--pending .px-stat__value {
+  color: var(--ph-soft-amber-ink);
+}
+
+.portal-shell__main .cm-kpi-card__value--green,
+.portal-shell__main .px-stat--approved .px-stat__value {
+  color: var(--ph-soft-sage-ink);
+}
+
+.portal-shell__main .cm-kpi-card__value--purple,
+.portal-shell__main .px-stat--clarification .px-stat__value {
+  color: var(--ph-soft-blue-ink);
+}
+
+.portal-shell__main .cm-kpi-card__value--red,
+.portal-shell__main .px-stat--rejected .px-stat__value {
+  color: var(--ph-soft-rose-ink);
+}
+
+.portal-shell__main .pharm-table-panel__badge,
+.portal-shell__main .ph-section-title__count,
+.portal-shell__main .px-item-picker-count,
+.portal-shell__main .px-rx-id,
+.portal-shell__main .ph-queue-item__avatar,
+.portal-shell__main .ph-guide-step__num {
+  background: var(--ph-soft-sage-surface);
+  color: var(--ph-soft-sage-ink);
+}
+
+.portal-shell__main .pharm-linked-order,
+.portal-shell__main .pharm-linked-order-card {
+  background: var(--ph-soft-blue);
+  border-color: var(--ph-soft-blue-border);
+  color: var(--ph-soft-blue-ink);
+}
+
+.portal-shell__main .pharm-linked-order:hover {
+  background: #e6f0fd;
+}
+
+.portal-shell__main .pharm-linked-order strong,
+.portal-shell__main .pharm-linked-order-card strong,
+.portal-shell__main .pharm-summary-link,
+.portal-shell__main .px-doc-viewer__dl,
+.portal-shell__main .ph-queue-item__id {
+  color: var(--ph-soft-blue-ink);
+}
+
+.portal-shell__main .pharm-rx-link-badge,
+.portal-shell__main .pharm-payment-pill--paid,
+.portal-shell__main .pharm-payment-pill--succeeded,
+.portal-shell__main .ph-badge--approved,
+.portal-shell__main .ph-badge--low {
+  background: var(--ph-soft-sage-surface);
+  color: var(--ph-soft-sage-ink);
+}
+
+.portal-shell__main .pharm-payment-pill--pending,
+.portal-shell__main .pharm-payment-pill--requires_action,
+.portal-shell__main .ph-badge--normal,
+.portal-shell__main .ph-badge--clarify,
+.portal-shell__main .ph-alert-item,
+.portal-shell__main .pharm-awaiting-order,
+.portal-shell__main .pharm-pack-list__hint {
+  background: var(--ph-soft-amber);
+  border-color: var(--ph-soft-amber-border);
+  color: var(--ph-soft-amber-ink);
+}
+
+.portal-shell__main .pharm-payment-pill--failed,
+.portal-shell__main .pharm-payment-pill--cancelled,
+.portal-shell__main .ph-badge--high {
+  background: var(--ph-soft-rose);
+  color: var(--ph-soft-rose-ink);
+}
+
+.portal-shell__main .ph-badge--pending {
+  background: var(--ph-soft-blue);
+  color: var(--ph-soft-blue-ink);
+}
+
+.portal-shell__main .pharm-row-btn--next,
+.portal-shell__main .ph-action-btn--primary,
+.portal-shell__main .px-pending-banner__btn {
+  background: var(--ph-soft-sage);
+  border-color: var(--ph-soft-sage);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(111, 165, 141, 0.18);
+}
+
+.portal-shell__main .pharm-row-btn--next:hover,
+.portal-shell__main .ph-action-btn--primary:hover,
+.portal-shell__main .px-pending-banner__btn:hover {
+  background: var(--ph-soft-sage-dark);
+  border-color: var(--ph-soft-sage-dark);
+}
+
+.portal-shell__main .ph-btn-review {
+  background: #ffffff;
+  border-color: var(--ph-soft-sage-border);
+  color: var(--ph-soft-sage-ink);
+}
+
+.portal-shell__main .ph-btn-review:hover {
+  background: var(--ph-soft-sage-surface);
+  border-color: var(--ph-soft-sage-border);
+  color: var(--ph-soft-sage-ink);
+}
+
+.portal-shell__main .px-decision-btn {
+  position: relative;
+  min-height: 44px;
+  border-radius: 14px;
+  padding: 0.55rem 0.65rem;
+  gap: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(45, 66, 58, 0.04), 0 8px 18px rgba(45, 66, 58, 0.06);
+}
+
+.portal-shell__main .px-decision-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0));
+  transition: opacity 0.16s ease;
+  pointer-events: none;
+}
+
+.portal-shell__main .px-decision-btn:hover {
+  transform: translateY(-2px);
+}
+
+.portal-shell__main .px-decision-btn:hover::after {
+  opacity: 1;
+}
+
+.portal-shell__main .px-decision-btn svg {
+  width: 26px;
+  height: 26px;
+  padding: 0.34rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.portal-shell__main .px-decision-btn span {
+  font-size: 0.8rem;
+  font-weight: 850;
+  letter-spacing: 0;
+}
+
+.portal-shell__main .px-decision-btn--approve {
+  background: linear-gradient(135deg, #f3fbf7 0%, #e4f4ec 100%);
+  border-color: var(--ph-soft-sage-border);
+  color: var(--ph-soft-sage-ink);
+}
+
+.portal-shell__main .px-decision-btn--approve:hover,
+.portal-shell__main .px-decision-btn--approve.px-decision-btn--active {
+  background: linear-gradient(135deg, #e9f7f0 0%, #d7eddf 100%);
+  border-color: #afd9c6;
+  color: var(--ph-soft-sage-ink);
+  box-shadow: 0 14px 28px rgba(111, 165, 141, 0.2);
+}
+
+.portal-shell__main .px-decision-btn--clarify {
+  background: linear-gradient(135deg, #f4f8ff 0%, #e8f1ff 100%);
+  border-color: var(--ph-soft-blue-border);
+  color: var(--ph-soft-blue-ink);
+}
+
+.portal-shell__main .px-decision-btn--clarify:hover,
+.portal-shell__main .px-decision-btn--clarify.px-decision-btn--active {
+  background: linear-gradient(135deg, #edf5ff 0%, #dfeaff 100%);
+  border-color: #b7cae6;
+  color: var(--ph-soft-blue-ink);
+  box-shadow: 0 14px 28px rgba(72, 100, 142, 0.16);
+}
+
+.portal-shell__main .px-decision-btn--reject {
+  background: linear-gradient(135deg, #fff7f8 0%, #fdecef 100%);
+  border-color: var(--ph-soft-rose-border);
+  color: var(--ph-soft-rose-ink);
+}
+
+.portal-shell__main .px-decision-btn--reject:hover,
+.portal-shell__main .px-decision-btn--reject.px-decision-btn--active {
+  background: linear-gradient(135deg, #fff0f2 0%, #fbdde3 100%);
+  border-color: #e3b8c1;
+  color: var(--ph-soft-rose-ink);
+  box-shadow: 0 14px 28px rgba(147, 73, 87, 0.16);
+}
+
+.portal-shell__main .px-decision-btn--reject + .px-clarification-box .px-clarification-actions .btn:not(.btn--outline),
+.portal-shell__main .px-clarification-actions .px-decision-btn--reject {
+  border-radius: 999px;
+  border-color: var(--ph-soft-rose-border);
+  background: var(--ph-soft-rose-ink);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(147, 73, 87, 0.18);
+}
+
+.portal-shell__main .px-clarification-actions .px-decision-btn--reject:hover {
+  background: #823d4b;
+  box-shadow: 0 10px 22px rgba(147, 73, 87, 0.22);
+}
+
+.portal-shell__main .pharm-order-track__step--done {
+  background: var(--ph-soft-sage-surface);
+  border-color: var(--ph-soft-sage-border);
+}
+
+.portal-shell__main .pharm-order-track__step--current {
+  background: var(--ph-soft-blue);
+  border-color: var(--ph-soft-blue-border);
+}
+
+.portal-shell__main .pharm-order-track__step--done .pharm-order-track__dot {
+  background: var(--ph-soft-sage);
+  border-color: var(--ph-soft-sage);
+}
+
+.portal-shell__main .pharm-order-track__step--current .pharm-order-track__dot {
+  background: var(--ph-soft-blue-ink);
+  border-color: var(--ph-soft-blue-ink);
+}
+
+.portal-shell__main .px-med-search__wrap:focus-within,
+.portal-shell__main .px-manual-item__qty:focus,
+.portal-shell__main .px-clarification-textarea:focus,
+.portal-shell__main .px-reject-select:focus {
+  border-color: rgba(111, 165, 141, 0.48);
+  box-shadow: 0 0 0 4px rgba(111, 165, 141, 0.11);
+}
+
+.portal-shell__main .px-item__check {
+  accent-color: var(--ph-soft-sage);
 }
 
 @media (max-width: 767px) {

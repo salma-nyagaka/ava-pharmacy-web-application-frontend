@@ -34,6 +34,14 @@ export interface AdminUserApi {
     total: string
     created_at: string
   }>
+  activation_email?: AdminUserActivationEmail
+}
+
+export interface AdminUserActivationEmail {
+  sent_to?: string
+  sent?: boolean
+  expires_at?: string
+  error?: string
 }
 
 export interface AdminUserUpdatePayload {
@@ -112,7 +120,12 @@ const normalizeAdminUserPayload = (payload: unknown): AdminUserApi => {
     throw new AdminUserError('Invalid user payload.')
   }
   const record = payload as Record<string, unknown>
-  if (record.user && typeof record.user === 'object') return record.user as AdminUserApi
+  if (record.user && typeof record.user === 'object') {
+    return {
+      ...(record.user as AdminUserApi),
+      activation_email: record.activation_email as AdminUserActivationEmail | undefined,
+    }
+  }
   if (record.data && typeof record.data === 'object' && !Array.isArray(record.data)) return record.data as AdminUserApi
   return record as unknown as AdminUserApi
 }
@@ -216,7 +229,7 @@ export const adminUserService = {
       method: 'POST',
       headers: { ...getAuthHeaders() },
     })
-    return handleResponse<{ detail: string }>(response)
+    return handleResponse<{ detail: string; activation_email?: AdminUserActivationEmail }>(response)
   },
 
   async activateStaffPassword(payload: { token: string; new_password: string; new_password_confirm: string }) {

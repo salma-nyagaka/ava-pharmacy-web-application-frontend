@@ -18,7 +18,7 @@ export interface AdminUser {
   email: string
   phone: string
   role: AdminUserRole
-  status: 'active' | 'suspended'
+  status: 'active' | 'pending' | 'suspended'
   accountActivated?: boolean
   joinedDate: string
   totalOrders: number

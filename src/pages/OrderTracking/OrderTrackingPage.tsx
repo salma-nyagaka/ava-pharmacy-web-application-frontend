@@ -260,12 +260,12 @@ function OrderTrackingPage() {
                 <div className="form-group">
                   <label htmlFor="order-number">
                     <span className="form-label__main">Order number</span>
-                    <span className="form-label__hint">Example: ORD-1A2B3C4D</span>
+                    <span className="form-label__hint">Example: AVA-1A2B3C4D</span>
                   </label>
                   <input
                     id="order-number"
                     type="text"
-                    placeholder="ORD-1A2B3C4D"
+                    placeholder="AVA-1A2B3C4D"
                     value={orderNumber}
                     onChange={(event) => {
                       setOrderNumber(event.target.value)

@@ -25,6 +25,7 @@ export interface Product {
   can_purchase: boolean
   has_variants: boolean
   is_active: boolean
+  created_at?: string
 }
 
 export interface ProductDetail extends Product {
@@ -141,12 +142,25 @@ function extractProductCollection(raw: unknown): { items: Product[]; meta: Recor
   }
 
   if (payload && typeof payload === 'object') {
-    const typedPayload = payload as { products?: Product[]; results?: Product[] }
+    const typedPayload = payload as {
+      products?: Product[]
+      results?: Product[]
+      count?: number
+      next?: string | null
+      previous?: string | null
+    }
+    const responseMeta = {
+      ...meta,
+      count: typedPayload.count,
+      total: typedPayload.count,
+      next: typedPayload.next,
+      previous: typedPayload.previous,
+    }
     if (Array.isArray(typedPayload.products)) {
-      return { items: typedPayload.products, meta }
+      return { items: typedPayload.products, meta: responseMeta }
     }
     if (Array.isArray(typedPayload.results)) {
-      return { items: typedPayload.results, meta }
+      return { items: typedPayload.results, meta: responseMeta }
     }
   }
 

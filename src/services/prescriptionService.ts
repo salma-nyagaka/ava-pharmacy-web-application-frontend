@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/apiClient'
+import { apiClient, resolveMediaUrl } from '../lib/apiClient'
 import {
   PrescriptionAuditEntry,
   PrescriptionRecord,
@@ -131,7 +131,9 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
     dispatchStatus: DISPATCH_FROM_API[record.dispatch_status] ?? 'Not started',
     submitted: record.submitted_at ? new Date(record.submitted_at).toISOString().slice(0, 10) : '',
     doctor: record.doctor_name || 'Doctor not specified',
-    files: (record.files || []).map((file) => file.file || file.filename).filter(Boolean),
+    files: (record.files || [])
+      .map((file) => resolveMediaUrl(file.file || file.filename) || file.file || file.filename)
+      .filter(Boolean),
     items: (record.items || []).map((item) => ({
       backendId: item.id,
       name: item.name,
@@ -303,6 +305,13 @@ export const prescriptionService = {
   pharmacistReview: async (backendId: number, payload: {
     action: 'approve' | 'reject' | 'request_clarification'
     notes?: string
+    items?: Array<{
+      name: string
+      product_id?: number | null
+      dose?: string
+      frequency?: string
+      quantity: number
+    }>
   }) => {
     await apiClient.post(`/pharmacist/prescriptions/${backendId}/review/`, payload)
     return prescriptionService.list()

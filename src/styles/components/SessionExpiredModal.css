@@ -1,0 +1,81 @@
+.session-expired-modal__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(3, 27, 78, 0.52);
+  backdrop-filter: blur(8px);
+}
+
+.session-expired-modal {
+  width: min(100%, 420px);
+  border: 1px solid rgba(232, 23, 80, 0.16);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(3, 27, 78, 0.28);
+  padding: 2rem;
+  text-align: center;
+}
+
+.session-expired-modal__icon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e81750;
+  background: rgba(232, 23, 80, 0.1);
+}
+
+.session-expired-modal__icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.session-expired-modal__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e81750;
+}
+
+.session-expired-modal h2 {
+  margin: 0;
+  color: #031b4e;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.session-expired-modal__message {
+  margin: 0.75rem 0 1.4rem;
+  color: #667085;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.session-expired-modal__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #c91444, #e81750);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 800;
+  box-shadow: 0 12px 24px rgba(232, 23, 80, 0.22);
+}
+
+.session-expired-modal__button:hover {
+  color: #ffffff;
+  opacity: 0.94;
+}

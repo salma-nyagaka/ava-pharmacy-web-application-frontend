@@ -241,6 +241,22 @@ function Header() {
                 </svg>
               </button>
 
+              {isLoggedIn && user?.role === 'pharmacist' && (
+                <Link
+                  to="/pharmacist/dashboard"
+                  className="header__action-btn header__action-btn--pharmacist"
+                  title="Pharmacist dashboard"
+                  aria-label="Pharmacist dashboard"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 3h6v4h4v6h-4v4H9v-4H5V7h4V3Z"/>
+                    <path d="M12 8v8"/>
+                    <path d="M8 12h8"/>
+                  </svg>
+                  <span className="header__action-text">Dashboard</span>
+                </Link>
+              )}
+
               {isLoggedIn ? (
                 <div
                   ref={accountsRef}

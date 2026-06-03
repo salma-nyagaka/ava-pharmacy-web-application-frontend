@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { CatalogProduct, productCatalog } from '../../data/products'
-import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
+import { DispatchStatus, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService } from '../../services/prescriptionService'
-import { cartService } from '../../services/cartService'
 import { addAdminOrderNote, listAdminOrders, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/PrescriptionManagement.css'
 import '../../styles/portals/PharmacistDashboardPage.css'
+
+const prescriptionItemKey = (item: { backendId?: number; name: string }, index: number) =>
+  item.backendId ? `item-${item.backendId}` : `${item.name}-${index}`
 
 const statusClass = (status: PrescriptionStatus) =>
   status === 'Approved' ? 'admin-status--success'
@@ -72,6 +73,8 @@ const ORDER_STATUS_FILTER_OPTIONS = [
   'refunded',
 ] as const
 
+const DISPATCH_STEPS: DispatchStatus[] = ['Not started', 'Queued', 'Packed', 'Dispatched', 'Delivered']
+
 function formatOrderDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '—'
 }
@@ -87,6 +90,29 @@ function formatOrderItemsPreview(order: AdminOrder) {
   if (names.length === 1) return names[0]
   if (names.length === 2) return `${names[0]}, ${names[1]}`
   return `${names[0]}, ${names[1]} +${names.length - 2} more`
+}
+
+function getOrderPrescriptionReferences(order: AdminOrder) {
+  return Array.from(new Set(
+    order.items
+      .map((item) => item.prescription_id)
+      .filter((value): value is string => Boolean(value)),
+  ))
+}
+
+function orderMatchesPrescription(order: AdminOrder, rx: PrescriptionRecord) {
+  return order.items.some((item) =>
+    item.prescription_id === rx.id ||
+    (rx.backendId != null && item.prescription === rx.backendId),
+  )
+}
+
+function findPrescriptionForOrder(order: AdminOrder, prescriptions: PrescriptionRecord[]) {
+  return prescriptions.find((rx) => orderMatchesPrescription(order, rx)) ?? null
+}
+
+function paymentLabel(status: string) {
+  return status.replace(/_/g, ' ')
 }
 
 function buildOrderTrackingSteps(order: AdminOrder) {
@@ -129,9 +155,6 @@ function PharmacistDashboardPage() {
   const [clarificationNote, setClarificationNote] = useState('')
   const [cartAddedMsg, setCartAddedMsg] = useState<string | null>(null)
   const [itemSelections, setItemSelections] = useState<Record<string, boolean>>({})
-  const [manualItems, setManualItems] = useState<Array<{ product: CatalogProduct; qty: number }>>([])
-  const [productSearch, setProductSearch] = useState('')
-  const [showDropdown, setShowDropdown] = useState(false)
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [rejectionTemplate, setRejectionTemplate] = useState('')
   const [rejectionCustom, setRejectionCustom] = useState('')
@@ -142,27 +165,26 @@ function PharmacistDashboardPage() {
   const [orderNote, setOrderNote] = useState('')
   const [orderSaving, setOrderSaving] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<{ order: AdminOrder; nextStatus: string } | null>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     void prescriptionService.list().then((r) => setPrescriptions(r.data))
   }, [])
 
-  useEffect(() => {
-    const loadOrders = async () => {
-      setOrdersLoading(true)
-      setOrdersError('')
-      try {
-        setOrders(await listAdminOrders({ ordering: '-created_at' }))
-      } catch {
-        setOrdersError('Unable to load staff order updates right now.')
-      } finally {
-        setOrdersLoading(false)
-      }
+  const loadOrders = useCallback(async () => {
+    setOrdersLoading(true)
+    setOrdersError('')
+    try {
+      setOrders(await listAdminOrders({ ordering: '-created_at' }))
+    } catch {
+      setOrdersError('Unable to load staff order updates right now.')
+    } finally {
+      setOrdersLoading(false)
     }
-
-    void loadOrders()
   }, [])
+
+  useEffect(() => {
+    void loadOrders()
+  }, [loadOrders])
 
   useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedStatus])
   useEffect(() => { setOrderCurrentPage(1) }, [orderSearchTerm, selectedOrderStatus, selectedOrderPaymentStatus])
@@ -178,14 +200,11 @@ function PharmacistDashboardPage() {
     setShowClarificationInput(false)
     setClarificationNote('')
     setCartAddedMsg(null)
-    setManualItems([])
-    setProductSearch('')
-    setShowDropdown(false)
     setShowRejectInput(false)
     setRejectionTemplate('')
     setRejectionCustom('')
     const initial: Record<string, boolean> = {}
-    activeRx.items.forEach((item) => { initial[item.name] = true })
+    activeRx.items.forEach((item, index) => { initial[prescriptionItemKey(item, index)] = true })
     setItemSelections(initial)
   }, [activeRx?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -211,45 +230,36 @@ function PharmacistDashboardPage() {
     setPrescriptions(r.data)
   }
 
-  const productSuggestions = useMemo(() => {
-    const q = productSearch.trim().toLowerCase()
-    if (q.length < 2) return []
-    return productCatalog
-      .filter((p) => p.name.toLowerCase().includes(q) && !manualItems.some((m) => m.product.id === p.id))
-      .slice(0, 6)
-  }, [productSearch, manualItems])
-
-  const addManualItem = (product: CatalogProduct) => {
-    setManualItems((prev) => [...prev, { product, qty: 1 }])
-    setProductSearch('')
-    setShowDropdown(false)
-  }
-
-  const removeManualItem = (productId: number) =>
-    setManualItems((prev) => prev.filter((m) => m.product.id !== productId))
-
-  const updateManualQty = (productId: number, qty: number) =>
-    setManualItems((prev) => prev.map((m) => m.product.id === productId ? { ...m, qty: Math.max(1, qty) } : m))
-
   const handleApprove = async () => {
     if (!activeRx) return
-    await updateRx(activeRx.id, { status: 'Approved', pharmacist: actor }, `Approved by ${actor}`)
-    const toAdd = activeRx.items.filter((item) => itemSelections[item.name])
-    for (const item of toAdd) {
-      const stableId = item.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-      await cartService.add(
-        { id: stableId, name: item.name, brand: 'Prescribed', price: 0, prescriptionId: activeRx.id },
-        item.qty,
-      )
+    const selectedItems = activeRx.items.filter((item, index) => itemSelections[prescriptionItemKey(item, index)])
+    const reviewItems = [
+      ...selectedItems.map((item) => ({
+        name: item.productName || item.name,
+        product_id: item.productId ?? null,
+        dose: item.dose,
+        frequency: item.frequency,
+        quantity: Math.max(item.qty, 1),
+      })),
+    ]
+    if (activeRx.backendId) {
+      const response = await prescriptionService.pharmacistReview(activeRx.backendId, {
+        action: 'approve',
+        notes: `Approved by ${actor}`,
+        items: reviewItems,
+      })
+      setPrescriptions(response.data)
+    } else {
+      await updateRx(activeRx.id, { status: 'Approved', pharmacist: actor, items: reviewItems.map((item) => ({
+        name: item.name,
+        productId: item.product_id ?? null,
+        dose: item.dose || '-',
+        frequency: item.frequency || '-',
+        qty: item.quantity,
+      })) }, `Approved by ${actor}`)
     }
-    for (const { product, qty } of manualItems) {
-      await cartService.add(
-        { id: product.id, name: product.name, brand: product.brand, price: product.price, image: product.image, stockSource: product.stockSource === 'out' ? undefined : product.stockSource, prescriptionId: activeRx.id },
-        qty,
-      )
-    }
-    const totalAdded = toAdd.length + manualItems.length
-    const skipped = activeRx.items.length - toAdd.length
+    const totalAdded = selectedItems.length
+    const skipped = activeRx.items.length - selectedItems.length
     const msg = totalAdded > 0
       ? `${totalAdded} item${totalAdded !== 1 ? 's' : ''} added to patient's cart${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`
       : 'Prescription approved. No items added.'
@@ -259,7 +269,14 @@ function PharmacistDashboardPage() {
 
   const handleClarification = (note: string) => {
     if (!activeRx) return
-    void updateRx(activeRx.id, { status: 'Clarification', dispatchStatus: 'Not started', pharmacist: actor }, `Clarification requested by ${actor}${note ? ': ' + note : ''}`)
+    if (activeRx.backendId) {
+      void prescriptionService.pharmacistReview(activeRx.backendId, {
+        action: 'request_clarification',
+        notes: note,
+      }).then((response) => setPrescriptions(response.data))
+    } else {
+      void updateRx(activeRx.id, { status: 'Clarification', dispatchStatus: 'Not started', pharmacist: actor }, `Clarification requested by ${actor}${note ? ': ' + note : ''}`)
+    }
     setShowClarificationInput(false)
     setClarificationNote('')
   }
@@ -267,10 +284,25 @@ function PharmacistDashboardPage() {
   const handleReject = () => {
     if (!activeRx) return
     const reason = rejectionTemplate === 'Other' ? rejectionCustom : rejectionTemplate
-    void updateRx(activeRx.id, { status: 'Rejected', dispatchStatus: 'Not started', pharmacist: actor }, `Rejected by ${actor}${reason ? ': ' + reason : ''}`)
+    if (activeRx.backendId) {
+      void prescriptionService.pharmacistReview(activeRx.backendId, {
+        action: 'reject',
+        notes: reason,
+      }).then((response) => setPrescriptions(response.data))
+    } else {
+      void updateRx(activeRx.id, { status: 'Rejected', dispatchStatus: 'Not started', pharmacist: actor }, `Rejected by ${actor}${reason ? ': ' + reason : ''}`)
+    }
     setShowRejectInput(false)
     setRejectionTemplate('')
     setRejectionCustom('')
+  }
+
+  const advanceDispatch = () => {
+    if (!activeRx || activeRx.status !== 'Approved') return
+    const idx = DISPATCH_STEPS.indexOf(activeRx.dispatchStatus)
+    const next = DISPATCH_STEPS[idx + 1]
+    if (!next) return
+    void updateRx(activeRx.id, { dispatchStatus: next, pharmacist: actor }, `Dispatch: ${next} by ${actor}`)
   }
 
   const filtered = useMemo(() => {
@@ -292,6 +324,11 @@ function PharmacistDashboardPage() {
     clarification: prescriptions.filter((p) => p.status === 'Clarification').length,
     rejected: prescriptions.filter((p) => p.status === 'Rejected').length,
   }), [prescriptions])
+
+  const dispatchStepIndex = activeRx ? Math.max(0, DISPATCH_STEPS.indexOf(activeRx.dispatchStatus)) : -1
+  const nextDispatch = activeRx && activeRx.status === 'Approved' && dispatchStepIndex < DISPATCH_STEPS.length - 1
+    ? DISPATCH_STEPS[dispatchStepIndex + 1]
+    : null
 
   const orderStatusCounts = useMemo(() => {
     return orders.reduce<Record<string, number>>((acc, order) => {
@@ -322,6 +359,33 @@ function PharmacistDashboardPage() {
   const ORDER_PAGE_SIZE = 8
   const totalOrderPages = Math.max(1, Math.ceil(filteredOrderRecords.length / ORDER_PAGE_SIZE))
   const pagedOrderRecords = filteredOrderRecords.slice((orderCurrentPage - 1) * ORDER_PAGE_SIZE, orderCurrentPage * ORDER_PAGE_SIZE)
+
+  const linkedOrderByPrescription = useMemo(() => {
+    const links = new Map<string, AdminOrder>()
+    prescriptions.forEach((rx) => {
+      const match = orders.find((order) => orderMatchesPrescription(order, rx))
+      if (match) links.set(rx.id, match)
+    })
+    return links
+  }, [orders, prescriptions])
+
+  const openLinkedOrder = (order: AdminOrder) => {
+    setActiveWorkspace('orders')
+    setSelectedOrderStatus('all')
+    setSelectedOrderPaymentStatus('all')
+    setOrderSearchTerm(order.order_number)
+    setOrderCurrentPage(1)
+    setActiveOrder(order)
+  }
+
+  const openLinkedPrescription = (rx: PrescriptionRecord) => {
+    setActiveOrder(null)
+    setActiveWorkspace('prescriptions')
+    setSelectedStatus('all')
+    setSearchTerm(rx.id)
+    setCurrentPage(1)
+    setActiveRx(rx)
+  }
 
   const openOrderModal = (order: AdminOrder) => {
     setActiveOrder(order)
@@ -406,7 +470,7 @@ function PharmacistDashboardPage() {
 
   return (
     <ProfessionalPortalShell
-      accentColor="#be3455"
+      accentColor="#8fbea8"
       activeItemId={activeWorkspace}
       navItems={navigationItems}
       onNavChange={(itemId) => {
@@ -527,46 +591,64 @@ function PharmacistDashboardPage() {
                       <th>Prescription</th>
                       <th>Patient</th>
                       <th>Status</th>
-                      <th>Dispatch</th>
+                      <th>Linked order</th>
                       <th>Submitted</th>
                       <th className="cm-th-actions">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {paged.map((rx) => (
-                      <tr key={rx.id} className={rx.status === 'Pending' ? 'px-row--pending' : ''}>
-                        <td>
-                          <div className="pharm-cell-stack">
-                            <span className="px-rx-id">{rx.id}</span>
-                            <span className="pharm-cell-muted">
-                              {rx.items.length} item{rx.items.length === 1 ? '' : 's'}
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="pharm-cell-stack">
-                            <p className="px-patient">{rx.patient}</p>
-                            <p className="pharm-cell-muted">Doctor: {rx.doctor || 'Not provided'}</p>
-                            <p className="pharm-cell-muted">
-                              {rx.pharmacist === 'Unassigned' ? 'Unassigned' : `Handled by ${rx.pharmacist}`}
-                            </p>
-                          </div>
-                        </td>
-                        <td><span className={`admin-status ${statusClass(rx.status)}`}>{rx.status}</span></td>
-                        <td><span className="admin-status admin-status--info">{rx.dispatchStatus}</span></td>
-                        <td className="px-date">
-                          <div className="pharm-cell-stack">
-                            <span>{rx.submitted}</span>
-                            {rx.status === 'Pending' && <TimeElapsed since={rx.submitted} />}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="cm-row-actions pharm-row-actions">
-                            <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => setActiveRx(rx)}>Review</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {paged.map((rx) => {
+                      const linkedOrder = linkedOrderByPrescription.get(rx.id)
+                      const awaitingCheckout = rx.status === 'Approved' && !linkedOrder
+                      return (
+                        <tr key={rx.id} className={rx.status === 'Pending' ? 'px-row--pending' : ''}>
+                          <td>
+                            <div className="pharm-cell-stack">
+                              <span className="px-rx-id">{rx.id}</span>
+                              <span className="pharm-cell-muted">
+                                {rx.items.length} item{rx.items.length === 1 ? '' : 's'}
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="pharm-cell-stack">
+                              <p className="px-patient">{rx.patient}</p>
+                              <p className="pharm-cell-muted">Doctor: {rx.doctor || 'Not provided'}</p>
+                              <p className="pharm-cell-muted">
+                                {rx.pharmacist === 'Unassigned' ? 'Unassigned' : `Handled by ${rx.pharmacist}`}
+                              </p>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="pharm-cell-stack">
+                              <span className={`admin-status ${statusClass(rx.status)}`}>{rx.status}</span>
+                              {awaitingCheckout && <span className="pharm-inline-note">Awaiting customer checkout/payment</span>}
+                            </div>
+                          </td>
+                          <td>
+                            {linkedOrder ? (
+                              <button className="pharm-linked-order" type="button" onClick={() => openLinkedOrder(linkedOrder)}>
+                                <strong>{linkedOrder.order_number}</strong>
+                                <span>{ORDER_STATUS_LABELS[linkedOrder.status] ?? linkedOrder.status} · {paymentLabel(linkedOrder.payment_status)}</span>
+                              </button>
+                            ) : (
+                              <span className="pharm-empty-link">{rx.status === 'Approved' ? 'No order yet' : 'Not created'}</span>
+                            )}
+                          </td>
+                          <td className="px-date">
+                            <div className="pharm-cell-stack">
+                              <span>{rx.submitted}</span>
+                              {rx.status === 'Pending' && <TimeElapsed since={rx.submitted} />}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="cm-row-actions pharm-row-actions">
+                              <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => setActiveRx(rx)}>Review</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
                     {filtered.length === 0 && (
                       <tr><td colSpan={6} className="prescription-empty">No prescriptions match your filters.</td></tr>
                     )}
@@ -687,9 +769,18 @@ function PharmacistDashboardPage() {
               {ordersLoading ? (
                 <div className="pharm-order-state">Loading order updates…</div>
               ) : ordersError ? (
-                <div className="pharm-order-state pharm-order-state--error">{ordersError}</div>
+                <div className="pharm-order-state pharm-order-state--error">
+                  <span>{ordersError}</span>
+                  <button className="pharm-order-state__retry" type="button" onClick={() => { void loadOrders() }}>
+                    Retry
+                  </button>
+                </div>
               ) : filteredOrderRecords.length === 0 ? (
-                <div className="pharm-order-state">No orders match your follow-up filters right now.</div>
+                <div className="pharm-order-state">
+                  {orders.length === 0
+                    ? 'No orders are available for follow-up yet.'
+                    : 'No orders match your follow-up filters right now.'}
+                </div>
               ) : (
                 <div className="cm-table-wrap">
                   <table className="cm-table pharm-table pharm-table--orders">
@@ -697,6 +788,7 @@ function PharmacistDashboardPage() {
                       <tr>
                         <th>Order</th>
                         <th>Customer</th>
+                        <th>Fulfilment</th>
                         <th>Status</th>
                         <th>Payment</th>
                         <th>Updated</th>
@@ -707,6 +799,8 @@ function PharmacistDashboardPage() {
                       {pagedOrderRecords.map((order) => {
                         const customerName = order.customer_name || `${order.shipping_first_name} ${order.shipping_last_name}`.trim()
                         const upcomingStatus = nextOrderStatus(order)
+                        const prescriptionRefs = getOrderPrescriptionReferences(order)
+                        const linkedPrescription = findPrescriptionForOrder(order, prescriptions)
                         return (
                           <tr key={order.id}>
                             <td>
@@ -715,20 +809,36 @@ function PharmacistDashboardPage() {
                                 <span className="pharm-cell-muted">
                                   {order.items.length} item{order.items.length === 1 ? '' : 's'} · {formatCurrency(order.total)}
                                 </span>
+                                {linkedPrescription ? (
+                                  <button className="pharm-rx-link-badge pharm-rx-link-badge--button" type="button" onClick={() => openLinkedPrescription(linkedPrescription)}>
+                                    Rx {linkedPrescription.id}
+                                  </button>
+                                ) : prescriptionRefs.length > 0 && (
+                                  <span className="pharm-rx-link-badge">Rx {prescriptionRefs.join(', ')}</span>
+                                )}
                                 <span className="pharm-order-items-preview">{formatOrderItemsPreview(order)}</span>
                               </div>
                             </td>
                             <td>
                               <div className="pharm-cell-stack">
                                 <strong className="pharm-table__primary">{customerName || 'Walk-in customer'}</strong>
+                                <span className="pharm-cell-muted">{order.shipping_phone || order.customer_phone || 'Phone pending'}</span>
                                 <span className="pharm-cell-muted">{order.shipping_city || order.shipping_county || 'Delivery details pending'}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="pharm-cell-stack">
+                                <span className="pharm-table__primary">{order.delivery_method?.replace(/_/g, ' ') || 'Delivery method pending'}</span>
+                                <span className="pharm-cell-muted">{order.shipping_address || 'Address pending'}</span>
                               </div>
                             </td>
                             <td><span className={`admin-status status--${order.status}`}>{ORDER_STATUS_LABELS[order.status] ?? order.status}</span></td>
                             <td>
                               <div className="pharm-cell-stack">
+                                <span className={`pharm-payment-pill pharm-payment-pill--${order.payment_status}`}>
+                                  {paymentLabel(order.payment_status)}
+                                </span>
                                 <span className="pharm-cell-muted">{order.payment_method.replace(/_/g, ' ')}</span>
-                                <span className="pharm-cell-muted">{order.payment_status.replace(/_/g, ' ')}</span>
                               </div>
                             </td>
                             <td>
@@ -782,12 +892,27 @@ function PharmacistDashboardPage() {
       {activeRx && (
         <div className="modal-overlay" onClick={() => setActiveRx(null)}>
           <div className="px-modal" onClick={(e) => e.stopPropagation()}>
+            {(() => {
+              const linkedOrder = linkedOrderByPrescription.get(activeRx.id)
+              const awaitingCheckout = activeRx.status === 'Approved' && !linkedOrder
+              const selectedExistingItems = activeRx.items.filter((item, index) => itemSelections[prescriptionItemKey(item, index)])
+              const skippedExistingItems = activeRx.items.length - selectedExistingItems.length
+              const selectedExistingQuantity = selectedExistingItems.reduce((sum, item) => sum + Math.max(item.qty, 1), 0)
+              const reviewItemCount = selectedExistingItems.length
+              const reviewQuantity = selectedExistingQuantity
+              const primaryFile = activeRx.files[0]
 
             {/* Modal header */}
+              return <>
             <div className="px-modal__header">
               <div className="px-modal__header-left">
-                <span className="px-modal__rx-id">{activeRx.id}</span>
-                <span className={`admin-status ${statusClass(activeRx.status)}`}>{activeRx.status}</span>
+                <div className="px-modal__title-block">
+                  <span className="px-modal__eyebrow">Prescription review</span>
+                  <div className="px-modal__title-row">
+                    <span className="px-modal__rx-id">{activeRx.id}</span>
+                    <span className={`admin-status ${statusClass(activeRx.status)}`}>{activeRx.status}</span>
+                  </div>
+                </div>
                 {activeRx.pharmacist !== 'Unassigned' && (
                   <span className="px-modal__assigned-pill">Handled by {activeRx.pharmacist}</span>
                 )}
@@ -805,41 +930,63 @@ function PharmacistDashboardPage() {
               <div className="px-modal__left">
 
                 {/* Patient & doctor */}
-                <div className="px-detail-row">
-                  <div className="px-detail-cell">
+                <div className="px-review-summary">
+                  <div className="px-review-summary__card">
                     <span className="px-info-label">Patient</span>
                     <span className="px-info-value">{activeRx.patient}</span>
                   </div>
-                  <div className="px-detail-cell">
+                  <div className="px-review-summary__card">
                     <span className="px-info-label">Prescribing doctor</span>
                     <span className="px-info-value">{activeRx.doctor || '—'}</span>
+                  </div>
+                  <div className="px-review-summary__card">
+                    <span className="px-info-label">Submitted</span>
+                    <span className="px-info-value">{activeRx.submitted}</span>
+                  </div>
+                  <div className="px-review-summary__card">
+                    <span className="px-info-label">Cart impact</span>
+                    <span className="px-info-value">{reviewItemCount} item{reviewItemCount === 1 ? '' : 's'} · {reviewQuantity} unit{reviewQuantity === 1 ? '' : 's'}</span>
                   </div>
                 </div>
 
                 {/* Inline document viewer */}
                 {activeRx.files.length > 0 && (
                   <div className="px-modal__section">
-                    <p className="px-section-label">Prescription document{activeRx.files.length > 1 ? 's' : ''}</p>
-                    <div className="px-doc-viewer">
-                      {activeRx.files.map((f, i) =>
-                        isImageFile(f) ? (
-                          <div key={i} className="px-doc-viewer__frame">
-                            <img src={f} alt={`Document ${i + 1}`} className="px-doc-viewer__img" />
-                            <a href={f} download={`prescription-doc-${i + 1}`} className="px-doc-viewer__dl">↓ Download</a>
-                          </div>
-                        ) : isPdfFile(f) && f.startsWith('data:') ? (
-                          <div key={i} className="px-doc-viewer__frame">
-                            <iframe src={f} className="px-doc-viewer__pdf" title={`PDF ${i + 1}`} />
-                            <a href={f} download={`prescription-doc-${i + 1}`} className="px-doc-viewer__dl">↓ Download PDF</a>
-                          </div>
-                        ) : (
-                          <div key={i} className="px-doc-viewer__placeholder">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                            <span>{f.length > 50 ? `Document ${i + 1}` : f}</span>
-                            <a href={f} download={`prescription-doc-${i + 1}`} className="px-doc-viewer__dl">↓ Download</a>
+                    <div className="px-section-heading">
+                      <div>
+                        <p className="px-section-label">Prescription document{activeRx.files.length > 1 ? 's' : ''}</p>
+                        <span className="px-section-subtext">{activeRx.files.length} file{activeRx.files.length === 1 ? '' : 's'} attached</span>
+                      </div>
+                      {primaryFile && (
+                        <a href={`/prescription-document?src=${encodeURIComponent(primaryFile)}`} target="_blank" rel="noreferrer" className="px-section-link">Open original</a>
+                      )}
+                    </div>
+                    <div className="px-doc-list">
+                      {activeRx.files.map((f, i) => {
+                        const fileName = (() => {
+                          try {
+                            return decodeURIComponent(new URL(f).pathname.split('/').filter(Boolean).pop() || `Document ${i + 1}`)
+                          } catch {
+                            return f.length > 50 ? `Document ${i + 1}` : f
+                          }
+                        })()
+                        const fileType = isImageFile(f) ? 'Image' : isPdfFile(f) ? 'PDF' : 'Document'
+                        return (
+                          <div key={f} className="px-doc-list__item">
+                            <div className="px-doc-list__icon">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>
+                            </div>
+                            <div className="px-doc-list__meta">
+                              <span className="px-doc-list__name">{fileName}</span>
+                              <span className="px-doc-list__type">{fileType}</span>
+                            </div>
+                            <div className="px-doc-list__actions">
+                              <a href={`/prescription-document?src=${encodeURIComponent(f)}`} target="_blank" rel="noreferrer" className="px-doc-list__link">Open</a>
+                              <a href={f} download={`prescription-doc-${i + 1}`} className="px-doc-list__link px-doc-list__link--muted">Download</a>
+                            </div>
                           </div>
                         )
-                      )}
+                      })}
                     </div>
                   </div>
                 )}
@@ -848,20 +995,25 @@ function PharmacistDashboardPage() {
                 {activeRx.items.length > 0 && (
                   <div className="px-modal__section">
                     <div className="px-item-picker-header">
-                      <p className="px-section-label">Prescribed items</p>
+                      <div>
+                        <p className="px-section-label">Prescribed items</p>
+                        <span className="px-section-subtext">Customer cart candidates</span>
+                      </div>
                       <span className="px-item-picker-count">
-                        {Object.values(itemSelections).filter(Boolean).length} / {activeRx.items.length} in stock
+                        {selectedExistingItems.length} / {activeRx.items.length} selected
                       </span>
                     </div>
-                    <p className="px-item-picker-hint">Uncheck items that are out of stock_ only checked items will be added to the patient's cart.</p>
                     <div className="px-items-list">
-                      {activeRx.items.map((item) => (
-                        <label key={item.name} className={`px-item px-item--selectable${!itemSelections[item.name] ? ' px-item--oos' : ''}`}>
+                      {activeRx.items.map((item, index) => {
+                        const itemKey = prescriptionItemKey(item, index)
+                        const selected = itemSelections[itemKey] ?? true
+                        return (
+                        <label key={itemKey} className={`px-item px-item--selectable${!selected ? ' px-item--oos' : ''}`}>
                           <input
                             type="checkbox"
                             className="px-item__check"
-                            checked={itemSelections[item.name] ?? true}
-                            onChange={(e) => setItemSelections((prev) => ({ ...prev, [item.name]: e.target.checked }))}
+                            checked={selected}
+                            onChange={(e) => setItemSelections((prev) => ({ ...prev, [itemKey]: e.target.checked }))}
                           />
                           <div className="px-item__info">
                             <p className="px-item__name">{item.name}</p>
@@ -869,71 +1021,14 @@ function PharmacistDashboardPage() {
                           </div>
                           <div className="px-item__right">
                             <span className="px-item__qty">Qty {item.qty}</span>
-                            {!itemSelections[item.name] && <span className="px-item__oos-tag">Out of stock</span>}
+                            {!selected && <span className="px-item__oos-tag">Excluded</span>}
                           </div>
                         </label>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 )}
-
-                {/* Manual medication search */}
-                <div className="px-modal__section">
-                  <p className="px-section-label">Add medications from catalog</p>
-                  <p className="px-item-picker-hint">For handwritten or unclear prescriptions, search and add medications directly.</p>
-                  <div className="px-med-search" ref={dropdownRef}>
-                    <div className="px-med-search__wrap">
-                      <svg className="px-med-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                      <input
-                        type="text"
-                        className="px-med-search__input"
-                        placeholder="Search e.g. Paracetamol, Amoxicillin…"
-                        value={productSearch}
-                        onChange={(e) => { setProductSearch(e.target.value); setShowDropdown(true) }}
-                        onFocus={() => setShowDropdown(true)}
-                      />
-                      {productSearch && (
-                        <button className="px-med-search__clear" type="button" onClick={() => { setProductSearch(''); setShowDropdown(false) }}>×</button>
-                      )}
-                    </div>
-                    {showDropdown && productSuggestions.length > 0 && (
-                      <div className="px-med-dropdown">
-                        {productSuggestions.map((p) => (
-                          <button key={p.id} className="px-med-dropdown__item" type="button" onMouseDown={() => addManualItem(p)}>
-                            <span className="px-med-dropdown__name">{p.name}</span>
-                            <span className="px-med-dropdown__meta">{p.brand} · KSh {p.price.toLocaleString()}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {showDropdown && productSearch.trim().length >= 2 && productSuggestions.length === 0 && (
-                      <div className="px-med-dropdown px-med-dropdown--empty">No matching products found.</div>
-                    )}
-                  </div>
-                  {manualItems.length > 0 && (
-                    <div className="px-manual-items">
-                      {manualItems.map(({ product, qty }) => (
-                        <div key={product.id} className="px-manual-item">
-                          <div className="px-item__info">
-                            <p className="px-item__name">{product.name}</p>
-                            <p className="px-item__meta">{product.brand} · KSh {product.price.toLocaleString()}</p>
-                          </div>
-                          <div className="px-manual-item__controls">
-                            <label className="px-manual-item__qty-label">Qty</label>
-                            <input
-                              type="number"
-                              className="px-manual-item__qty"
-                              value={qty}
-                              min={1}
-                              onChange={(e) => updateManualQty(product.id, parseInt(e.target.value) || 1)}
-                            />
-                            <button className="px-manual-item__remove" type="button" onClick={() => removeManualItem(product.id)} aria-label="Remove">×</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
                 {/* Notes */}
                 {activeRx.notes && (
@@ -953,6 +1048,21 @@ function PharmacistDashboardPage() {
                     {cartAddedMsg}
                   </div>
                 )}
+                <div className="px-review-card">
+                  <p className="px-section-label">Approval summary</p>
+                  <div className="px-review-metric">
+                    <span>Items to cart</span>
+                    <strong>{reviewItemCount}</strong>
+                  </div>
+                  <div className="px-review-metric">
+                    <span>Total units</span>
+                    <strong>{reviewQuantity}</strong>
+                  </div>
+                  <div className="px-review-metric">
+                    <span>Excluded</span>
+                    <strong>{skippedExistingItems}</strong>
+                  </div>
+                </div>
                 <div className="px-workflow-section">
                   <p className="px-section-label">Decision</p>
                   <div className="pharm-action-bar">
@@ -1049,6 +1159,54 @@ function PharmacistDashboardPage() {
                     </div>
                   )}
                 </div>
+
+                {activeRx.status === 'Approved' && (
+                  <div className="px-workflow-section">
+                    <p className="px-section-label">Linked order</p>
+                    {linkedOrder ? (
+                      <div className="pharm-linked-order-card">
+                        <strong>{linkedOrder.order_number}</strong>
+                        <span>{ORDER_STATUS_LABELS[linkedOrder.status] ?? linkedOrder.status} · {paymentLabel(linkedOrder.payment_status)}</span>
+                        <button className="btn btn--outline btn--sm" type="button" onClick={() => openLinkedOrder(linkedOrder)}>
+                          View linked order
+                        </button>
+                      </div>
+                    ) : awaitingCheckout ? (
+                      <div className="pharm-awaiting-order">
+                        Approved - awaiting customer checkout/payment before fulfilment begins.
+                      </div>
+                    ) : null}
+
+                    {linkedOrder ? (
+                      <>
+                        <p className="px-section-label" style={{ marginTop: '1rem' }}>Dispatch progress</p>
+                        <div className="px-stepper">
+                          {DISPATCH_STEPS.map((step, i) => (
+                            <div key={step} className={`px-step ${i <= dispatchStepIndex ? 'px-step--done' : ''} ${i === dispatchStepIndex ? 'px-step--active' : ''}`}>
+                              <div className="px-step__track">
+                                {i > 0 && <div className={`px-step__line px-step__line--left ${i <= dispatchStepIndex ? 'px-step__line--done' : ''}`} />}
+                                <div className="px-step__dot">
+                                  {i < dispatchStepIndex && <span className="px-step__check">✓</span>}
+                                </div>
+                                {i < DISPATCH_STEPS.length - 1 && <div className={`px-step__line px-step__line--right ${i < dispatchStepIndex ? 'px-step__line--done' : ''}`} />}
+                              </div>
+                              <span className="px-step__label">{step}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {nextDispatch ? (
+                          <button className="btn btn--primary btn--sm px-advance-btn" type="button" onClick={advanceDispatch}>
+                            Mark as {nextDispatch} →
+                          </button>
+                        ) : (
+                          <p className="px-delivered-msg">✓ Delivered to patient</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="pharm-order-actions__hint">Use Order Follow-up once the customer has checked out and paid.</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1056,6 +1214,8 @@ function PharmacistDashboardPage() {
             <div className="px-modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
             </div>
+              </>
+            })()}
           </div>
         </div>
       )}
@@ -1063,6 +1223,11 @@ function PharmacistDashboardPage() {
       {activeOrder && (
         <div className="modal-overlay" onClick={() => setActiveOrder(null)}>
           <div className="px-modal pharm-order-modal" onClick={(event) => event.stopPropagation()}>
+            {(() => {
+              const linkedPrescription = findPrescriptionForOrder(activeOrder, prescriptions)
+              const prescriptionRefs = getOrderPrescriptionReferences(activeOrder)
+
+              return <>
             <div className="px-modal__header">
               <div className="px-modal__header-left">
                 <span className="px-modal__rx-id">{activeOrder.order_number}</span>
@@ -1082,13 +1247,34 @@ function PharmacistDashboardPage() {
                     <strong>{activeOrder.customer_name || `${activeOrder.shipping_first_name} ${activeOrder.shipping_last_name}`}</strong>
                   </div>
                   <div>
+                    <span>Contact</span>
+                    <strong>{activeOrder.shipping_phone || activeOrder.customer_phone || activeOrder.shipping_email || 'Contact pending'}</strong>
+                  </div>
+                  <div>
                     <span>Address</span>
-                    <strong>{activeOrder.shipping_address}</strong>
+                    <strong>{activeOrder.shipping_address || 'Address pending'}</strong>
+                  </div>
+                  <div>
+                    <span>Delivery</span>
+                    <strong>{activeOrder.delivery_method?.replace(/_/g, ' ') || 'Delivery method pending'}</strong>
                   </div>
                   <div>
                     <span>Payment</span>
-                    <strong>{activeOrder.payment_method.replace(/_/g, ' ')} · {activeOrder.payment_status.replace(/_/g, ' ')}</strong>
+                    <strong>{activeOrder.payment_method.replace(/_/g, ' ')} · {paymentLabel(activeOrder.payment_status)}</strong>
                   </div>
+                  {linkedPrescription ? (
+                    <div>
+                      <span>Prescription</span>
+                      <button className="pharm-summary-link" type="button" onClick={() => openLinkedPrescription(linkedPrescription)}>
+                        {linkedPrescription.id}
+                      </button>
+                    </div>
+                  ) : prescriptionRefs.length > 0 && (
+                    <div>
+                      <span>Prescription</span>
+                      <strong>{prescriptionRefs.join(', ')}</strong>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pharm-pack-list">
@@ -1187,6 +1373,8 @@ function PharmacistDashboardPage() {
             <div className="px-modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveOrder(null)}>Close</button>
             </div>
+              </>
+            })()}
           </div>
         </div>
       )}

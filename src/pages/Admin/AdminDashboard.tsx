@@ -6,6 +6,7 @@ import {
   ActivityFeedItem,
 } from '../../services/adminDashboardService'
 import { adminProductService, ApiOrder, ApiReports } from '../../services/adminProductService'
+import { adminUserService, AdminUserApi } from '../../services/adminUserService'
 import '../../styles/admin/AdminDashboard.css'
 
 const RECENT_ORDERS_PAGE_SIZE = 5
@@ -35,6 +36,10 @@ function fmtKsh(n: number) {
   if (n >= 1_000_000) return `KSh ${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `KSh ${(n / 1_000).toFixed(1)}k`
   return `KSh ${n.toLocaleString('en-KE', { maximumFractionDigits: 0 })}`
+}
+
+function getUserDisplayName(user: AdminUserApi) {
+  return user.full_name || user.name || `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email
 }
 
 function getOrderedQuickActions() {
@@ -129,9 +134,12 @@ function AdminDashboard() {
   const [reports, setReports] = useState<ApiReports | null>(null)
   const [recentOrders, setRecentOrders] = useState<ApiOrder[]>([])
   const [lowStockProducts, setLowStockProducts] = useState<{ name: string; stock: number; low_stock_threshold: number }[]>([])
+  const [pendingPharmacists, setPendingPharmacists] = useState<AdminUserApi[]>([])
   const [activityFeed, setActivityFeed] = useState<ActivityFeedItem[]>([])
   const [loading, setLoading] = useState(true)
   const [feedLoading, setFeedLoading] = useState(true)
+  const [resendingActivationId, setResendingActivationId] = useState<number | null>(null)
+  const [activationNotice, setActivationNotice] = useState('')
   const [orderSearchTerm, setOrderSearchTerm] = useState('')
   const [selectedOrderStatus, setSelectedOrderStatus] = useState('all')
   const [currentOrderPage, setCurrentOrderPage] = useState(1)
@@ -150,11 +158,12 @@ function AdminDashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [dash, rpts, orders, lowStock] = await Promise.all([
+      const [dash, rpts, orders, lowStock, users] = await Promise.all([
         adminDashboardService.getDashboard(),
         adminProductService.getReports(),
         adminProductService.listRecentOrders(),
         adminProductService.listInventory({ stock_bucket: 'low' }),
+        adminUserService.listUsers(),
       ])
       setDashboard(dash)
       setReports(rpts)
@@ -165,6 +174,9 @@ function AdminDashboard() {
           stock: p.stock_quantity,
           low_stock_threshold: p.low_stock_threshold,
         }))
+      )
+      setPendingPharmacists(
+        users.filter((user) => user.role === 'pharmacist' && user.is_active === false && user.status !== 'suspended').slice(0, 5),
       )
     } catch {
       // fail silently
@@ -289,6 +301,23 @@ function AdminDashboard() {
     setSelectedOrderStatus('all')
   }
 
+  const handleResendActivation = async (user: AdminUserApi) => {
+    setResendingActivationId(user.id)
+    setActivationNotice('')
+    try {
+      const response = await adminUserService.resendActivation(user.id)
+      if (response.activation_email?.sent === false) {
+        setActivationNotice(`Activation token was created for ${user.email}, but the email was not sent.`)
+      } else {
+        setActivationNotice(`Activation email resent to ${user.email}.`)
+      }
+    } catch {
+      setActivationNotice(`Unable to resend activation email to ${user.email}.`)
+    } finally {
+      setResendingActivationId(null)
+    }
+  }
+
   const actionQueue = [
     {
       label: 'Pending Prescriptions',
@@ -320,6 +349,18 @@ function AdminDashboard() {
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
           <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11m0 0h10a2 2 0 0 0 2-2V9M9 14H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2z"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Pharmacist Activations',
+      count: pendingPharmacists.length,
+      to: '/admin/users?role=pharmacist',
+      color: 'teal',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21a8 8 0 0 1 16 0M17.5 4.5l1 1" />
         </svg>
       ),
     },
@@ -505,7 +546,7 @@ function AdminDashboard() {
             </div>
             <div className="ad-action-queue">
               {loading ? (
-                Array.from({ length: 4 }).map((_, i) => (
+                Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="ad-action-item">
                     <div className="ad-skeleton" style={{ width: '100%', height: 44 }} />
                   </div>
@@ -524,6 +565,48 @@ function AdminDashboard() {
                       <path d="M5 12h14M12 5l7 7-7 7"/>
                     </svg>
                   </Link>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Pharmacist Activations */}
+          <div className="ad-panel">
+            <div className="ad-panel__header">
+              <div>
+                <h2 className="ad-panel__title">Pharmacist Activations</h2>
+                <p className="ad-panel__subtitle">Resend setup emails for pending pharmacist accounts</p>
+              </div>
+              <Link to="/admin/users?role=pharmacist" className="ad-panel__link">Manage</Link>
+            </div>
+            {activationNotice && (
+              <div className="ad-activation-notice">{activationNotice}</div>
+            )}
+            <div className="ad-activation-list">
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="ad-activation-item">
+                    <div className="ad-skeleton" style={{ width: '100%', height: 42 }} />
+                  </div>
+                ))
+              ) : pendingPharmacists.length === 0 ? (
+                <div className="ad-activation-empty">No pending pharmacist activations.</div>
+              ) : (
+                pendingPharmacists.map((pharmacist) => (
+                  <div key={pharmacist.id} className="ad-activation-item">
+                    <div className="ad-activation-item__body">
+                      <span className="ad-activation-item__name">{getUserDisplayName(pharmacist)}</span>
+                      <span className="ad-activation-item__email">{pharmacist.email}</span>
+                    </div>
+                    <button
+                      className="ad-activation-item__btn"
+                      type="button"
+                      disabled={resendingActivationId === pharmacist.id}
+                      onClick={() => { void handleResendActivation(pharmacist) }}
+                    >
+                      {resendingActivationId === pharmacist.id ? 'Sending...' : 'Resend'}
+                    </button>
+                  </div>
                 ))
               )}
             </div>

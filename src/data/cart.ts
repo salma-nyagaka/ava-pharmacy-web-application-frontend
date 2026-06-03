@@ -10,6 +10,8 @@ export interface CartItem {
   image?: string
   stockSource?: Exclude<StockSource, 'out'>
   prescriptionId?: string
+  prescriptionBackendId?: number
+  prescriptionItemId?: number
 }
 
 const STORAGE_KEY = 'ava_cart_items'

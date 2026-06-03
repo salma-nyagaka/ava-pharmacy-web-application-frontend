@@ -412,41 +412,41 @@ export const adminProductService = {
   },
 
   async listProductCategories() {
-    const res = await apiClient.get('/admin/product-categories/')
+    const res = await apiClient.get('/admin/categories/')
     return unwrapList<ApiProductCategory>(res)
   },
 
   async createProductCategory(payload: FormData | { name: string; description?: string }) {
-    const res = await apiClient.post('/admin/product-categories/', payload)
+    const res = await apiClient.post('/admin/categories/', payload)
     return unwrap<ApiProductCategory>(res)
   },
 
   async updateProductCategory(id: number, payload: FormData | Partial<{ name: string; description: string; is_active: boolean }>) {
-    const res = await apiClient.patch(`/admin/product-categories/${id}/`, payload)
+    const res = await apiClient.patch(`/admin/categories/${id}/`, payload)
     return unwrap<ApiProductCategory>(res)
   },
 
   async deleteProductCategory(id: number) {
-    await apiClient.delete(`/admin/product-categories/${id}/`)
+    await apiClient.delete(`/admin/categories/${id}/`)
   },
 
   async listProductSubcategories(params?: Record<string, string>) {
-    const res = await apiClient.get('/admin/product-subcategories/', { params })
+    const res = await apiClient.get('/admin/sub-categories/', { params })
     return unwrapList<ApiProductSubcategory>(res)
   },
 
   async createProductSubcategory(payload: { name: string; category: number; description?: string }) {
-    const res = await apiClient.post('/admin/product-subcategories/', payload)
+    const res = await apiClient.post('/admin/sub-categories/', payload)
     return unwrap<ApiProductSubcategory>(res)
   },
 
   async updateProductSubcategory(id: number, payload: Partial<{ name: string; category: number; description: string; is_active: boolean }>) {
-    const res = await apiClient.patch(`/admin/product-subcategories/${id}/`, payload)
+    const res = await apiClient.patch(`/admin/sub-categories/${id}/`, payload)
     return unwrap<ApiProductSubcategory>(res)
   },
 
   async deleteProductSubcategory(id: number) {
-    await apiClient.delete(`/admin/product-subcategories/${id}/`)
+    await apiClient.delete(`/admin/sub-categories/${id}/`)
   },
 
   async listBrands(params?: Record<string, string>) {

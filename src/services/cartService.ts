@@ -29,7 +29,9 @@ function mapApiItem(item: Record<string, unknown>): CartItem {
     quantity: (item.quantity ?? 1) as number,
     image: (product.image ?? '') as string,
     stockSource: ((product.inventory_status ?? '') === 'out_of_stock' ? undefined : ((product.stock_source ?? 'branch') as 'branch' | 'warehouse')),
-    prescriptionId: item.prescription_id as string | undefined,
+    prescriptionId: item.prescription_id ? String(item.prescription_id) : undefined,
+    prescriptionBackendId: typeof item.prescription === 'number' ? item.prescription : undefined,
+    prescriptionItemId: typeof item.prescription_item === 'number' ? item.prescription_item : undefined,
   }
 }
 

@@ -20,7 +20,7 @@ function ReturnsPage() {
               <form>
                 <div className="form-group">
                   <label htmlFor="return-order">Order ID</label>
-                  <input id="return-order" type="text" placeholder="ORD-2026-1042" required />
+                  <input id="return-order" type="text" placeholder="AVA-2026-1042" required />
                 </div>
                 <div className="form-group">
                   <label htmlFor="return-reason">Reason for return</label>

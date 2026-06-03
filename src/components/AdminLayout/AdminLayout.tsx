@@ -385,7 +385,7 @@ function AdminLayout() {
                 <p className="admin-layout__section-label">{section.label}</p>
                 <div className="admin-layout__section-links">
                   {section.items.map((item) => {
-                    const isEnabled = section.label === 'Store'
+                    const isEnabled = section.label === 'Store' || item.label === 'Settings' || item.label === 'Pharmacists'
                     const active = isItemActive(location.pathname, location.search, item)
 
                     if (!isEnabled) {

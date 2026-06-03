@@ -9,6 +9,9 @@ export interface OrderItem {
   quantity: number
   unit_price: string
   discount_total: string
+  prescription_id?: string | null
+  prescription?: number | null
+  prescription_item?: number | null
   subtotal: string
 }
 

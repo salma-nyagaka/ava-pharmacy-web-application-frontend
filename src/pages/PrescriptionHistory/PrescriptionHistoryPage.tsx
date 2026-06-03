@@ -1,7 +1,9 @@
 import { FormEvent, Fragment, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PrescriptionClarificationMessage, PrescriptionRecord } from '../../data/prescriptions'
+import type { CartItem } from '../../data/cart'
 import { resolveMediaUrl } from '../../lib/apiClient'
+import { cartService } from '../../services/cartService'
 import { prescriptionService } from '../../services/prescriptionService'
 import '../../styles/pages/PrescriptionHistoryPage.css'
 
@@ -50,6 +52,7 @@ function PrescriptionHistoryPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
@@ -62,6 +65,14 @@ function PrescriptionHistoryPage() {
 
   useEffect(() => {
     void prescriptionService.list().then((response) => setPrescriptions(response.data))
+  }, [])
+
+  useEffect(() => {
+    const refreshCart = () => {
+      void cartService.list().then((response) => setCartItems(response.data))
+    }
+    refreshCart()
+    return cartService.subscribe(refreshCart)
   }, [])
 
   useEffect(() => {
@@ -99,12 +110,23 @@ function PrescriptionHistoryPage() {
     setIsAddingItemId(itemId)
     try {
       await prescriptionService.addApprovedItemToCart(prescriptionId, itemId)
+      const refreshedCart = await cartService.list()
+      setCartItems(refreshedCart.data)
       setMessage(`${name || 'Item'} added to cart.`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to add approved item to cart.')
     } finally {
       setIsAddingItemId(null)
     }
+  }
+
+  const getCartItemForPrescriptionItem = (rx: PrescriptionRecord, item: PrescriptionRecord['items'][number]) => {
+    return cartItems.find((cartItem) => {
+      if (rx.backendId && item.backendId && cartItem.prescriptionBackendId === rx.backendId && cartItem.prescriptionItemId === item.backendId) {
+        return true
+      }
+      return cartItem.prescriptionId === rx.id && item.productId === cartItem.id
+    })
   }
 
   const handleReplySubmit = async (rx: PrescriptionRecord, event?: FormEvent<HTMLFormElement>) => {
@@ -355,26 +377,33 @@ function PrescriptionHistoryPage() {
                         {rx.items.length > 0 && (
                           <div className="rx-expanded__section">
                             <p className="rx-expanded__label">Prescribed items</p>
-                            {rx.items.map((item) => (
-                              <div key={item.backendId ?? item.name} className="rx-expanded__item">
-                                <div>
-                                  <span className="rx-expanded__item-name">{item.productName || item.name}</span>
-                                  <span className="rx-expanded__item-meta">{item.dose} · {item.frequency} · Qty {item.qty}</span>
+                            {rx.items.map((item) => {
+                              const cartItem = getCartItemForPrescriptionItem(rx, item)
+                              return (
+                                <div key={item.backendId ?? item.name} className="rx-expanded__item">
+                                  <div>
+                                    <span className="rx-expanded__item-name">{item.productName || item.name}</span>
+                                    <span className="rx-expanded__item-meta">{item.dose} · {item.frequency} · Qty {item.qty}</span>
+                                  </div>
+                                  {cartItem ? (
+                                    <button className="btn btn--outline btn--sm" type="button" onClick={() => navigate('/cart')}>
+                                      In cart · View
+                                    </button>
+                                  ) : rx.status === 'Approved' && item.productId && item.backendId ? (
+                                    <button
+                                      className="btn btn--primary btn--sm"
+                                      type="button"
+                                      disabled={isAddingItemId === item.backendId}
+                                      onClick={() => void handleAddApprovedItem(rx.id, item.backendId, item.productName || item.name)}
+                                    >
+                                      {isAddingItemId === item.backendId ? 'Checking…' : 'Add missing item'}
+                                    </button>
+                                  ) : (
+                                    <span className="status-pill status-pill--warning">Awaiting mapping</span>
+                                  )}
                                 </div>
-                                {rx.status === 'Approved' && item.productId && item.backendId ? (
-                                  <button
-                                    className="btn btn--primary btn--sm"
-                                    type="button"
-                                    disabled={isAddingItemId === item.backendId}
-                                    onClick={() => void handleAddApprovedItem(rx.id, item.backendId, item.productName || item.name)}
-                                  >
-                                    {isAddingItemId === item.backendId ? 'Adding…' : 'Add to cart'}
-                                  </button>
-                                ) : (
-                                  <span className="status-pill status-pill--warning">Awaiting mapping</span>
-                                )}
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         )}
                         {rx.audit && rx.audit.length > 0 && (
@@ -486,26 +515,33 @@ function PrescriptionHistoryPage() {
                   {activeRx.items.length === 0 ? (
                     <p className="rx-modal__empty">No fulfilment items have been set yet.</p>
                   ) : (
-                    activeRx.items.map((item) => (
-                      <div key={`${item.backendId || item.name}-${item.name}`} className="rx-approved-items__row">
-                        <div>
-                          <p className="rx-approved-items__name">{item.productName || item.name}</p>
-                          <p className="rx-approved-items__meta">{item.dose} · {item.frequency} · Qty {item.qty}</p>
+                    activeRx.items.map((item) => {
+                      const cartItem = getCartItemForPrescriptionItem(activeRx, item)
+                      return (
+                        <div key={`${item.backendId || item.name}-${item.name}`} className="rx-approved-items__row">
+                          <div>
+                            <p className="rx-approved-items__name">{item.productName || item.name}</p>
+                            <p className="rx-approved-items__meta">{item.dose} · {item.frequency} · Qty {item.qty}</p>
+                          </div>
+                          {cartItem ? (
+                            <button className="btn btn--outline btn--sm" type="button" onClick={() => navigate('/cart')}>
+                              In cart · View
+                            </button>
+                          ) : activeRx.status === 'Approved' && item.productId && item.backendId ? (
+                            <button
+                              className="btn btn--primary btn--sm"
+                              type="button"
+                              disabled={isAddingItemId === item.backendId}
+                              onClick={() => void handleAddApprovedItem(activeRx.id, item.backendId, item.productName || item.name)}
+                            >
+                              {isAddingItemId === item.backendId ? 'Checking…' : 'Add missing item'}
+                            </button>
+                          ) : (
+                            <span className="status-pill status-pill--warning">Awaiting mapping</span>
+                          )}
                         </div>
-                        {activeRx.status === 'Approved' && item.productId && item.backendId ? (
-                          <button
-                            className="btn btn--primary btn--sm"
-                            type="button"
-                            disabled={isAddingItemId === item.backendId}
-                            onClick={() => void handleAddApprovedItem(activeRx.id, item.backendId, item.productName || item.name)}
-                          >
-                            {isAddingItemId === item.backendId ? 'Adding…' : 'Add to cart'}
-                          </button>
-                        ) : (
-                          <span className="status-pill status-pill--warning">Awaiting mapping</span>
-                        )}
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
               </section>

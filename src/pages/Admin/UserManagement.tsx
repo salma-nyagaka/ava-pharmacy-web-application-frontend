@@ -33,7 +33,7 @@ const mapApiUser = (user: import('../../services/adminUserService').AdminUserApi
   email: user.email,
   phone: user.phone ?? '',
   role: (user.role ?? 'customer') as AdminUserRole,
-  status: user.status === 'suspended' ? 'suspended' as const : 'active' as const,
+  status: user.status === 'suspended' ? 'suspended' as const : user.is_active === false ? 'pending' as const : 'active' as const,
   accountActivated: user.is_active ?? true,
   joinedDate: user.date_joined ?? user.created_at ?? new Date().toISOString(),
   totalOrders: user.total_orders ?? 0,
@@ -66,11 +66,12 @@ function UserManagement() {
   const [mError, setMError] = useState('')
   const [mSubmitting, setMSubmitting] = useState(false)
   const [mSuccess, setMSuccess] = useState<string | null>(null)
+  const [mSuccessWarning, setMSuccessWarning] = useState('')
 
   const resetModal = () => {
     setMName(''); setMEmail(''); setMPhone(''); setMAddress('')
     setMPerms(['inventory_add', 'prescription_review'])
-    setMError(''); setMSuccess(null); setMSubmitting(false)
+    setMError(''); setMSuccess(null); setMSuccessWarning(''); setMSubmitting(false)
   }
 
   const openModal = () => { resetModal(); setShowModal(true) }
@@ -101,12 +102,16 @@ function UserManagement() {
       })
       logAdminAction({ action: 'Create pharmacist', entity: 'User', entityId: 'backend', detail: `${mName.trim()} invite sent` })
       setMSuccess(mEmail.trim().toLowerCase())
+      setMSuccessWarning(
+        created.activation_email?.sent === false
+          ? `The account was created, but the activation email was not sent: ${created.activation_email.error || 'email service unavailable'}.`
+          : '',
+      )
       // Reload users list
       const fresh = await adminUserService.listUsers()
       const mapped = fresh.map(mapApiUser)
       setUsers(mapped)
       saveAdminUsers(mapped)
-      void created
     } catch (err) {
       setMError(err instanceof AdminUserError ? err.message : 'Unable to create pharmacist. Try again.')
     } finally {
@@ -182,7 +187,7 @@ function UserManagement() {
           user.id === userId
             ? {
                 ...user,
-                status: response.status === 'suspended' ? 'suspended' : 'active',
+                status: response.status === 'suspended' ? 'suspended' : response.is_active === false ? 'pending' : 'active',
                 accountActivated: response.is_active ?? user.accountActivated,
               }
             : user
@@ -272,6 +277,7 @@ function UserManagement() {
           <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
             <option value="all">All Status</option>
             <option value="active">Active</option>
+            <option value="pending">Pending activation</option>
             <option value="suspended">Suspended</option>
           </select>
           <button className="btn btn--primary btn--sm" type="button" onClick={openModal}>
@@ -318,7 +324,11 @@ function UserManagement() {
                       <div className="role-note">Can add inventory</div>
                     )}
                   </td>
-                  <td><span className={`status status--${user.status}`}>{user.status}</span></td>
+                  <td>
+                    <span className={`status status--${user.status}`}>
+                      {user.status === 'pending' ? 'Pending activation' : user.status}
+                    </span>
+                  </td>
                   <td>{new Date(user.joinedDate).toLocaleDateString()}</td>
                   <td>{user.totalOrders}</td>
                   <td>
@@ -334,7 +344,7 @@ function UserManagement() {
                           {resentIds.has(user.id) ? 'Sent ✓' : resendingId === user.id ? '…' : 'Resend Email'}
                         </button>
                       )}
-                      {user.status === 'active' ? (
+                      {user.status !== 'suspended' ? (
                         <button
                           className="cm-row-btn cm-row-btn--delete"
                           onClick={() => handleToggleStatus(user.id, 'suspended')}
@@ -397,7 +407,11 @@ function UserManagement() {
                   </svg>
                 </div>
                 <h3>Pharmacist Account Created</h3>
-                <p>Activation email sent to <strong>{mSuccess}</strong>.</p>
+                {mSuccessWarning ? (
+                  <p className="um-modal__success-warning">{mSuccessWarning}</p>
+                ) : (
+                  <p>Activation email sent to <strong>{mSuccess}</strong>.</p>
+                )}
                 <div className="um-modal__success-actions">
                   <button className="btn btn--primary btn--sm" type="button" onClick={closeModal}>Done</button>
                   <button className="btn btn--outline btn--sm" type="button" onClick={resetModal}>Add Another</button>
