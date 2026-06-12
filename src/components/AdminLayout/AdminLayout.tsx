@@ -121,6 +121,16 @@ const NAV_SECTIONS: AdminNavSection[] = [
     label: 'Health Services',
     items: [
       {
+        label: 'Pharmacists',
+        to: '/admin/users?role=pharmacist',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21a8 8 0 0 1 16 0M17.5 4.5l1 1" />
+          </svg>
+        ),
+      },
+      {
         label: 'Doctors',
         to: '/admin/doctors?type=Doctor',
         icon: (
@@ -167,16 +177,6 @@ const NAV_SECTIONS: AdminNavSection[] = [
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
             <path d="M9 3v5l-4.5 7.5A4 4 0 0 0 8 21h8a4 4 0 0 0 3.5-5.5L15 8V3" />
             <path d="M9 8h6M8 16h8" />
-          </svg>
-        ),
-      },
-      {
-        label: 'Pharmacists',
-        to: '/admin/users?role=pharmacist',
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 21a8 8 0 0 1 16 0M17.5 4.5l1 1" />
           </svg>
         ),
       },
@@ -251,6 +251,8 @@ const NAV_SECTIONS: AdminNavSection[] = [
     ],
   },
 ]
+
+const ENABLED_NON_STORE_ITEMS = new Set(['Doctors', 'Pediatricians', 'Pharmacists', 'Support', 'Settings'])
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -385,7 +387,7 @@ function AdminLayout() {
                 <p className="admin-layout__section-label">{section.label}</p>
                 <div className="admin-layout__section-links">
                   {section.items.map((item) => {
-                    const isEnabled = section.label === 'Store'
+                    const isEnabled = section.label === 'Store' || ENABLED_NON_STORE_ITEMS.has(item.label)
                     const active = isItemActive(location.pathname, location.search, item)
 
                     if (!isEnabled) {

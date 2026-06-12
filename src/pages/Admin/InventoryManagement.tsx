@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { adminProductService, ApiInventoryProduct, ApiPosProductOption, ApiProductVariant } from '../../services/adminProductService'
+import { adminProductService, ApiInventoryProduct, ApiPosProductOption, ApiProduct, ApiProductVariant } from '../../services/adminProductService'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/InventoryManagement.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
@@ -32,8 +32,8 @@ type VariantDraft = {
   batch_summary: string
 }
 
-function generateVariantSku(product: ApiInventoryProduct, variantName: string) {
-  const baseSku = product.product_sku || product.sku
+function generateVariantSku(product: ApiInventoryProduct | ApiProduct, variantName: string) {
+  const baseSku = 'product_sku' in product ? product.product_sku || product.sku : product.sku
   const base = `${baseSku}-${variantName}`
     .trim()
     .toUpperCase()
@@ -210,6 +210,7 @@ function InventoryManagement() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [inventory, setInventory] = useState<ApiInventoryProduct[]>([])
+  const [parentProducts, setParentProducts] = useState<ApiProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -234,6 +235,7 @@ function InventoryManagement() {
   const [newVariantDirections, setNewVariantDirections] = useState('')
   const [newVariantWarnings, setNewVariantWarnings] = useState('')
   const [newVariantPosProductId, setNewVariantPosProductId] = useState('')
+  const [newVariantImageFile, setNewVariantImageFile] = useState<File | null>(null)
   const [newVariantPrice, setNewVariantPrice] = useState('')
   const [newVariantStockQuantity, setNewVariantStockQuantity] = useState('0')
   const [newVariantLowStockThreshold, setNewVariantLowStockThreshold] = useState('5')
@@ -278,9 +280,18 @@ function InventoryManagement() {
   }, [filterProductId])
 
   useEffect(() => {
-    void adminProductService.listPosProductOptions()
-      .then(setPosOptions)
-      .catch(() => setPosOptions([]))
+    void Promise.all([
+      adminProductService.listPosProductOptions(),
+      adminProductService.listProducts(),
+    ])
+      .then(([options, products]) => {
+        setPosOptions(options)
+        setParentProducts(products.filter((product) => product.is_active))
+      })
+      .catch(() => {
+        setPosOptions([])
+        setParentProducts([])
+      })
   }, [])
 
   async function loadInventory() {
@@ -327,6 +338,7 @@ function InventoryManagement() {
     setNewVariantDirections('')
     setNewVariantWarnings('')
     setNewVariantPosProductId('')
+    setNewVariantImageFile(null)
     setNewVariantPrice('')
     setNewVariantStockQuantity('0')
     setNewVariantLowStockThreshold('5')
@@ -408,14 +420,13 @@ function InventoryManagement() {
 
   const handleNewStockOpen = (item?: ApiInventoryProduct | null) => {
     const initialItem = item ?? focusedProduct ?? sortedInventory[0] ?? inventory[0] ?? null
-    if (!initialItem) return
-    setNewStockProductId(initialItem.product_id)
+    setNewStockProductId(initialItem?.product_id ?? parentProducts[0]?.id ?? '')
     resetNewStockForm()
     setShowNewStockModal(true)
   }
 
   const handleNewStockSave = async () => {
-    const selectedProduct = inventory.find((item) => item.product_id === Number(newStockProductId))
+    const selectedProduct = parentProducts.find((item) => item.id === Number(newStockProductId))
     if (!selectedProduct) {
       setNewStockError('Select a product first.')
       return
@@ -443,22 +454,26 @@ function InventoryManagement() {
         return ''
       })()
 
-      await adminProductService.createProductVariant(selectedProduct.product_id, {
-        name: newVariantName.trim(),
-        sku: generateVariantSku(selectedProduct, newVariantName),
-        pos_product_id: newVariantPosProductId,
-        strength: newVariantStrength.trim(),
-        dosage_instructions: dosageInstructionValue,
-        directions: newVariantDirections.trim(),
-        warnings: newVariantWarnings.trim(),
-        price: priceValue,
-        stock_quantity: parseNonNegativeInteger(newVariantStockQuantity),
-        low_stock_threshold: parseNonNegativeInteger(newVariantLowStockThreshold),
-        is_active: true,
-      })
-      const refreshed = await refreshInventoryItem(selectedProduct.product_id)
-      const refreshedVariant = refreshed.find((item) => item.product_id === selectedProduct.product_id)
-      if (refreshedVariant && adjustItem?.product_id === selectedProduct.product_id) {
+      const payload = new FormData()
+      payload.append('name', newVariantName.trim())
+      payload.append('sku', generateVariantSku(selectedProduct, newVariantName))
+      payload.append('pos_product_id', newVariantPosProductId)
+      payload.append('strength', newVariantStrength.trim())
+      payload.append('dosage_instructions', dosageInstructionValue)
+      payload.append('directions', newVariantDirections.trim())
+      payload.append('warnings', newVariantWarnings.trim())
+      payload.append('price', String(priceValue))
+      payload.append('stock_quantity', String(parseNonNegativeInteger(newVariantStockQuantity)))
+      payload.append('low_stock_threshold', String(parseNonNegativeInteger(newVariantLowStockThreshold)))
+      payload.append('is_active', 'true')
+      if (newVariantImageFile) {
+        payload.append('image', newVariantImageFile)
+      }
+
+      await adminProductService.createProductVariant(selectedProduct.id, payload)
+      const refreshed = await refreshInventoryItem(selectedProduct.id)
+      const refreshedVariant = refreshed.find((item) => item.product_id === selectedProduct.id)
+      if (refreshedVariant && adjustItem?.product_id === selectedProduct.id) {
         populateAdjustForm(refreshedVariant)
       }
       closeNewStockModal()
@@ -589,7 +604,7 @@ function InventoryManagement() {
             className="btn btn--primary btn--sm"
             type="button"
             onClick={() => handleNewStockOpen()}
-            disabled={loading || (!focusedProduct && sortedInventory.length === 0 && inventory.length === 0)}
+            disabled={loading || parentProducts.length === 0}
           >
             New Stock
           </button>
@@ -861,10 +876,14 @@ function InventoryManagement() {
                 <div className="adjust-grid stock-form__core-grid">
                   <div className="adjust-field">
                     <label>Parent product</label>
-                    <div className="inventory-readonly-parent">
-                      {inventory.find((item) => item.product_id === Number(newStockProductId))?.product_name ?? 'Select a product from the inventory table'}
-                      <span>{inventory.find((item) => item.product_id === Number(newStockProductId))?.product_sku ?? ''}</span>
-                    </div>
+                    <select value={newStockProductId} onChange={(e) => setNewStockProductId(Number(e.target.value) || '')}>
+                      <option value="">Select active parent product</option>
+                      {parentProducts.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.name} · {product.sku}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="adjust-field">
                     <label>Variant name</label>
@@ -895,6 +914,15 @@ function InventoryManagement() {
                       ))}
                     </select>
                     <span className="adjust-hint">Shows POS IDs already linked inside the system.</span>
+                  </div>
+                  <div className="adjust-field">
+                    <label>Variant image</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setNewVariantImageFile(e.target.files?.[0] ?? null)}
+                    />
+                    <span className="adjust-hint">This is the customer-facing product image on the ecommerce side.</span>
                   </div>
                 </div>
               </div>

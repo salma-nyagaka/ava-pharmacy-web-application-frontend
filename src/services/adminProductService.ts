@@ -383,8 +383,29 @@ function normalizePromotion<T extends ApiPromotion>(promotion: T): T {
 
 export const adminProductService = {
   async listProducts(params?: Record<string, string>) {
-    const res = await apiClient.get('/admin/products/', { params })
-    return unwrapList<ApiProduct>(res)
+    const res = await apiClient.get('/admin/products/', { params: { page_size: '500', ...params } })
+    const firstPage = res.data
+    const products = unwrapList<ApiProduct>(res)
+    const getNextUrl = (page: unknown): string | null => {
+      const payload = page as { next?: unknown; meta?: { next?: unknown } }
+      if (typeof payload?.next === 'string') return payload.next
+      if (typeof payload?.meta?.next === 'string') return payload.meta.next
+      return null
+    }
+
+    if (!firstPage || Array.isArray(firstPage)) {
+      return products
+    }
+
+    let nextUrl = getNextUrl(firstPage)
+    while (nextUrl) {
+      const response = await apiClient.get(nextUrl)
+      const page = response.data
+      products.push(...unwrapList<ApiProduct>(response))
+      nextUrl = getNextUrl(page)
+    }
+
+    return products
   },
 
   async createProduct(payload: ProductCreatePayload | FormData) {

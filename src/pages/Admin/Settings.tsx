@@ -6,6 +6,77 @@ import { logAdminAction } from '../../data/adminAudit'
 import { kenyaCounties } from '../../data/kenyaLocations'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 
+const SUPPORT_DAY_OPTIONS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const SUPPORT_TIME_OPTIONS = [
+  '06:00am',
+  '06:30am',
+  '07:00am',
+  '07:30am',
+  '08:00am',
+  '08:30am',
+  '09:00am',
+  '09:30am',
+  '10:00am',
+  '10:30am',
+  '11:00am',
+  '11:30am',
+  '12:00pm',
+  '12:30pm',
+  '01:00pm',
+  '01:30pm',
+  '02:00pm',
+  '02:30pm',
+  '03:00pm',
+  '03:30pm',
+  '04:00pm',
+  '04:30pm',
+  '05:00pm',
+  '05:30pm',
+  '06:00pm',
+  '06:30pm',
+  '07:00pm',
+  '07:30pm',
+  '08:00pm',
+  '08:30pm',
+  '09:00pm',
+  '09:30pm',
+  '10:00pm',
+]
+
+function normalizeSupportTime(value: string) {
+  return value.replace(/^0(\d:)/, '$1').replace(':00', '')
+}
+
+function formatSupportHours(fromDay: string, toDay: string, opensAt: string, closesAt: string) {
+  return `${fromDay} – ${toDay}: ${normalizeSupportTime(opensAt)} – ${normalizeSupportTime(closesAt)}`
+}
+
+function parseSupportHours(value: string) {
+  const match = value.match(/^([A-Za-z]{3})\s*[–-]\s*([A-Za-z]{3}):\s*([0-9]{1,2}(?::[0-9]{2})?(?:am|pm))\s*[–-]\s*([0-9]{1,2}(?::[0-9]{2})?(?:am|pm))$/i)
+  if (!match) {
+    return {
+      fromDay: 'Mon',
+      toDay: 'Sun',
+      opensAt: '09:00am',
+      closesAt: '05:00pm',
+    }
+  }
+
+  const [, fromDay, toDay, opensAt, closesAt] = match
+  const normalizeParsedTime = (time: string) => {
+    const [rawHour, rawMinute = '00'] = time.replace(/am|pm/i, '').split(':')
+    const suffix = time.toLowerCase().endsWith('pm') ? 'pm' : 'am'
+    return `${rawHour.padStart(2, '0')}:${rawMinute.padStart(2, '0')}${suffix}`
+  }
+
+  return {
+    fromDay,
+    toDay,
+    opensAt: normalizeParsedTime(opensAt),
+    closesAt: normalizeParsedTime(closesAt),
+  }
+}
+
 function CountyPicker({
   options,
   selected,
@@ -166,6 +237,11 @@ function Settings() {
   )
   const [supportAddress, setSupportAddress] = useState(settings.supportAddress)
   const [supportHours, setSupportHours] = useState(settings.supportHours)
+  const initialSupportSchedule = parseSupportHours(settings.supportHours)
+  const [supportFromDay, setSupportFromDay] = useState(initialSupportSchedule.fromDay)
+  const [supportToDay, setSupportToDay] = useState(initialSupportSchedule.toDay)
+  const [supportOpensAt, setSupportOpensAt] = useState(initialSupportSchedule.opensAt)
+  const [supportClosesAt, setSupportClosesAt] = useState(initialSupportSchedule.closesAt)
   const [baseFee, setBaseFee] = useState(String(settings.baseDeliveryFee))
   const [freeThreshold, setFreeThreshold] = useState(String(settings.freeDeliveryThreshold))
   const [selectedZones, setSelectedZones] = useState(settings.activeDeliveryZones)
@@ -189,6 +265,11 @@ function Settings() {
     setUseSeparateWhatsapp(hasSeparateWhatsapp)
     setSupportAddress(settings.supportAddress)
     setSupportHours(settings.supportHours)
+    const nextSupportSchedule = parseSupportHours(settings.supportHours)
+    setSupportFromDay(nextSupportSchedule.fromDay)
+    setSupportToDay(nextSupportSchedule.toDay)
+    setSupportOpensAt(nextSupportSchedule.opensAt)
+    setSupportClosesAt(nextSupportSchedule.closesAt)
     setBaseFee(String(settings.baseDeliveryFee))
     setFreeThreshold(String(settings.freeDeliveryThreshold))
     setSelectedZones(settings.activeDeliveryZones)
@@ -212,6 +293,27 @@ function Settings() {
 
   const clearCounties = () => {
     setSelectedZones([])
+    markDirty()
+  }
+
+  const updateSupportSchedule = (
+    nextValues: Partial<{
+      fromDay: string
+      toDay: string
+      opensAt: string
+      closesAt: string
+    }>,
+  ) => {
+    const nextFromDay = nextValues.fromDay ?? supportFromDay
+    const nextToDay = nextValues.toDay ?? supportToDay
+    const nextOpensAt = nextValues.opensAt ?? supportOpensAt
+    const nextClosesAt = nextValues.closesAt ?? supportClosesAt
+
+    setSupportFromDay(nextFromDay)
+    setSupportToDay(nextToDay)
+    setSupportOpensAt(nextOpensAt)
+    setSupportClosesAt(nextClosesAt)
+    setSupportHours(formatSupportHours(nextFromDay, nextToDay, nextOpensAt, nextClosesAt))
     markDirty()
   }
 
@@ -450,15 +552,57 @@ function Settings() {
           </div>
           <div className="form-group">
             <label htmlFor="support-hours">Support hours</label>
-            <input
-              id="support-hours"
-              type="text"
-              value={supportHours}
-              onChange={(e) => {
-                setSupportHours(e.target.value)
-                markDirty()
-              }}
-            />
+            <div className="settings-support-hours" id="support-hours">
+              <div className="settings-support-hours__field">
+                <span>From</span>
+                <select
+                  aria-label="Support starts on"
+                  value={supportFromDay}
+                  onChange={(e) => updateSupportSchedule({ fromDay: e.target.value })}
+                >
+                  {SUPPORT_DAY_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-support-hours__field">
+                <span>To</span>
+                <select
+                  aria-label="Support ends on"
+                  value={supportToDay}
+                  onChange={(e) => updateSupportSchedule({ toDay: e.target.value })}
+                >
+                  {SUPPORT_DAY_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-support-hours__field">
+                <span>Opens</span>
+                <select
+                  aria-label="Support opening time"
+                  value={supportOpensAt}
+                  onChange={(e) => updateSupportSchedule({ opensAt: e.target.value })}
+                >
+                  {SUPPORT_TIME_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-support-hours__field">
+                <span>Closes</span>
+                <select
+                  aria-label="Support closing time"
+                  value={supportClosesAt}
+                  onChange={(e) => updateSupportSchedule({ closesAt: e.target.value })}
+                >
+                  {SUPPORT_TIME_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <span className="settings-support-hours__preview">{supportHours}</span>
           </div>
           <div className="settings-inline-link">
             <span>Promotions are managed in</span>

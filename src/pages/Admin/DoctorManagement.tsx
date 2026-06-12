@@ -9,7 +9,7 @@ import {
   DoctorProfile,
   DoctorType,
 } from '../../data/telemedicine'
-import { adminDoctorService, AdminDoctorError, type AdminDoctorApi } from '../../services/adminDoctorService'
+import { adminDoctorService, AdminDoctorError, type AdminDoctorApi, type AdminNotificationApi } from '../../services/adminDoctorService'
 
 function getInitials(name: string) {
   const parts = name.replace(/^Dr\.\s*/i, '').trim().split(/\s+/)
@@ -61,6 +61,18 @@ const formatDate = (value?: unknown) => {
   return new Date().toISOString().slice(0, 10)
 }
 
+const formatDateTime = (value?: unknown) => {
+  if (typeof value !== 'string') return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return formatDate(value)
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 const toNumber = (value: unknown, fallback: number) => {
   const numeric = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(numeric) ? numeric : fallback
@@ -77,6 +89,7 @@ const buildDocuments = (api: AdminDoctorApi) => {
         name,
         status: normalizeDocStatus(doc?.status),
         note: doc?.note ? String(doc.note) : undefined,
+        file: typeof doc?.file === 'string' ? doc.file : undefined,
       } as DoctorDocument
     })
   }
@@ -108,6 +121,7 @@ const mapDoctor = (api: AdminDoctorApi): DoctorProfile => {
 
   return {
     id: String(idValue),
+    reference: api.reference ? String(api.reference) : undefined,
     name,
     type: normalizeDoctorType(api.type ?? api.registration_type ?? api.professional_type),
     specialty: String(api.specialty ?? ''),
@@ -131,6 +145,7 @@ const mapDoctor = (api: AdminDoctorApi): DoctorProfile => {
 function DoctorManagement() {
   const [searchParams] = useSearchParams()
   const [doctors, setDoctors] = useState<DoctorProfile[]>([])
+  const [notifications, setNotifications] = useState<AdminNotificationApi[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [detailCache, setDetailCache] = useState<Record<string, DoctorProfile>>({})
@@ -161,8 +176,12 @@ function DoctorManagement() {
     setLoading(true)
     setLoadError('')
     try {
-      const payload = await adminDoctorService.listDoctors()
+      const [payload, notificationPayload] = await Promise.all([
+        adminDoctorService.listDoctors(),
+        adminDoctorService.listNotifications().catch(() => []),
+      ])
       setDoctors(payload.map(mapDoctor))
+      setNotifications(notificationPayload)
       setDetailCache({})
     } catch (error) {
       const message = error instanceof AdminDoctorError || error instanceof Error
@@ -234,6 +253,24 @@ function DoctorManagement() {
   const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / PAGE_SIZE))
   const pagedDoctors = filteredDoctors.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const pendingDoctors = doctors.filter((d) => d.status === 'Pending')
+  const visibleDoctorNotifications = notifications.filter((notification) => {
+    const title = String(notification.title ?? '').toLowerCase()
+    const message = String(notification.message ?? '').toLowerCase()
+    const type = String(notification.type ?? '').toLowerCase()
+    const doctorType = selectedType.toLowerCase()
+    const isProfessionalApplication = type === 'doctor_verified' && (title.includes('application') || message.includes('submitted credentials'))
+    const reference = String(notification.data?.reference ?? '')
+    const hasMatchingPendingApplication = pendingDoctors.some((doctor) => {
+      const notificationText = `${title} ${message}`
+      return (reference && (doctor.reference === reference || doctor.id === reference))
+        || notificationText.includes(doctor.name.toLowerCase())
+    })
+    const matchesSelectedType = selectedType === 'all'
+      || title.includes(doctorType)
+      || message.includes(doctorType)
+      || String(notification.data?.url ?? '').toLowerCase().includes(`type=${doctorType}`)
+    return isProfessionalApplication && hasMatchingPendingApplication && matchesSelectedType
+  })
   const rawSelectedPending = pendingDoctors.find((d) => d.id === selectedPendingId) ?? pendingDoctors[0]
   const selectedPendingDoctor = rawSelectedPending ? (detailCache[rawSelectedPending.id] ?? rawSelectedPending) : null
   const manageDoctorDetails = manageDoctor ? (detailCache[manageDoctor.id] ?? manageDoctor) : null
@@ -323,6 +360,31 @@ function DoctorManagement() {
     }
   }
 
+  const renderDocumentList = (documents: DoctorDocument[]) => (
+    <div className="dm-doc-list">
+      {documents.map((doc) => (
+        <div key={`${doc.name}:${doc.file ?? ''}`} className="dm-doc-item">
+          <div className="dm-doc-item__main">
+            <span className="dm-doc-item__name">{doc.name}</span>
+            {doc.note && <span className="dm-doc-item__note">{doc.note}</span>}
+          </div>
+          <span className={`dm-doc-status dm-doc-status--${doc.status.toLowerCase()}`}>{doc.status}</span>
+          {doc.file ? (
+            <div className="dm-doc-actions">
+              <a className="dm-doc-action" href={doc.file} target="_blank" rel="noreferrer">Open</a>
+              <a className="dm-doc-action dm-doc-action--ghost" href={doc.file} download>Download</a>
+            </div>
+          ) : (
+            <span className="dm-doc-missing-link">No file</span>
+          )}
+        </div>
+      ))}
+      {documents.length === 0 && (
+        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>No documents uploaded.</p>
+      )}
+    </div>
+  )
+
   return (
     <div className="category-management admin-page dm-page">
       {/* Header */}
@@ -343,6 +405,53 @@ function DoctorManagement() {
         </div>
       </div>
       {loadError && <p className="dm-field-error">{loadError}</p>}
+
+      {visibleDoctorNotifications.length > 0 && (
+        <div className="dm-notification-panel" role="status" aria-live="polite">
+          <div className="dm-notification-panel__head">
+            <span className="dm-notification-panel__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18" aria-hidden="true">
+                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </span>
+            <div>
+              <p className="dm-notification-panel__title">New professional application alert</p>
+              <p className="dm-notification-panel__meta">
+                {visibleDoctorNotifications.length} admin notification{visibleDoctorNotifications.length !== 1 ? 's' : ''} awaiting review
+              </p>
+            </div>
+          </div>
+          <div className="dm-notification-list">
+            {visibleDoctorNotifications.slice(0, 3).map((notification) => (
+              <div key={notification.id} className={`dm-notification-item ${notification.is_read ? '' : 'dm-notification-item--unread'}`}>
+                <div>
+                  <p className="dm-notification-item__title">{notification.title || 'New application'}</p>
+                  <p className="dm-notification-item__message">{notification.message || 'A professional submitted credentials for admin review.'}</p>
+                  <p className="dm-notification-item__time">{formatDateTime(notification.created_at)}</p>
+                </div>
+                <button
+                  className="dm-notification-item__btn"
+                  type="button"
+                  onClick={() => {
+                    const reference = String(notification.data?.reference ?? '')
+                    const matchingDoctor = pendingDoctors.find((doctor) => doctor.reference === reference || doctor.id === reference)
+                      ?? pendingDoctors.find((doctor) => notification.message?.toLowerCase().includes(doctor.name.toLowerCase()))
+                    setSelectedPendingId(matchingDoctor?.id ?? pendingDoctors[0]?.id ?? null)
+                    setVerifyAction(null)
+                    setVerifyNote('')
+                    setVerifyNoteError(false)
+                    setVerifyError('')
+                    setShowVerifyModal(true)
+                  }}
+                >
+                  Review
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI grid */}
       <div className="cm-kpi-grid">
@@ -572,18 +681,7 @@ function DoctorManagement() {
 
                       {/* Documents */}
                       <p className="dm-section-label" style={{ marginTop: '1rem' }}>Documents</p>
-                      <div className="dm-doc-list">
-                        {selectedPendingDoctor.documents.map((doc) => (
-                          <div key={doc.name} className="dm-doc-item">
-                            <span className="dm-doc-item__name">{doc.name}</span>
-                            <span className={`dm-doc-status dm-doc-status--${doc.status.toLowerCase()}`}>{doc.status}</span>
-                            {doc.note && <span className="dm-doc-item__note">{doc.note}</span>}
-                          </div>
-                        ))}
-                        {selectedPendingDoctor.documents.length === 0 && (
-                          <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>No documents uploaded.</p>
-                        )}
-                      </div>
+                      {renderDocumentList(selectedPendingDoctor.documents)}
 
                       {/* Action choice */}
                       <p className="dm-section-label" style={{ marginTop: '1.25rem' }}>Decision</p>
@@ -667,18 +765,7 @@ function DoctorManagement() {
               )}
 
               <p className="dm-section-label" style={{ marginTop: '1rem' }}>Documents</p>
-              <div className="dm-doc-list">
-                {manageDoctorDetails.documents.map((doc) => (
-                  <div key={doc.name} className="dm-doc-item">
-                    <span className="dm-doc-item__name">{doc.name}</span>
-                    <span className={`dm-doc-status dm-doc-status--${doc.status.toLowerCase()}`}>{doc.status}</span>
-                    {doc.note && <span className="dm-doc-item__note">{doc.note}</span>}
-                  </div>
-                ))}
-                {manageDoctorDetails.documents.length === 0 && (
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>No documents uploaded.</p>
-                )}
-              </div>
+              {renderDocumentList(manageDoctorDetails.documents)}
               {detailLoadingId === manageDoctorDetails.id && (
                 <p className="dm-hint" style={{ marginTop: '0.5rem' }}>Refreshing application details…</p>
               )}

@@ -5,10 +5,12 @@ export interface DoctorDocument {
   name: string
   status: 'Submitted' | 'Verified' | 'Missing'
   note?: string
+  file?: string
 }
 
 export interface DoctorProfile {
   id: string
+  reference?: string
   name: string
   type: DoctorType
   specialty: string

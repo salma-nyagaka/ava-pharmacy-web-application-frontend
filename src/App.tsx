@@ -76,6 +76,7 @@ import PrescriptionManagement from './pages/Admin/PrescriptionManagement'
 import DoctorManagement from './pages/Admin/DoctorManagement'
 import Settings from './pages/Admin/Settings'
 import ProfessionalRegisterPage from './pages/Professional/ProfessionalRegisterPage'
+import ProfessionalResubmissionPage from './pages/Professional/ProfessionalResubmissionPage'
 import BrandsPage from './pages/Brands/BrandsPage'
 import ConditionsPage from './pages/Conditions/ConditionsPage'
 import HealthServicesPage from './pages/HealthServices/HealthServicesPage'
@@ -149,6 +150,7 @@ function App() {
               <Route path="terms" element={<TermsPage />} />
               <Route path="cookies" element={<CookiesPage />} />
               <Route path="professional/register" element={<ProfessionalRegisterPage />} />
+              <Route path="professional/resubmit" element={<ProfessionalResubmissionPage />} />
               <Route path="doctor/register" element={<ProfessionalRegisterPage />} />
               <Route path="pediatrician/register" element={<ProfessionalRegisterPage />} />
               <Route path="lab-tests" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />

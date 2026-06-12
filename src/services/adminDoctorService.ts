@@ -31,14 +31,25 @@ export interface AdminDoctorApi {
   availability?: string
   languages?: string[] | string
   doc_checklist?: string[] | string
-  documents?: Array<{ name?: string; status?: string; note?: string } | string>
+  documents?: Array<{ name?: string; status?: string; note?: string; file?: string } | string>
   status_note?: string
   rejection_note?: string
   note?: string
   [key: string]: unknown
 }
 
+export interface AdminNotificationApi {
+  id: number | string
+  type?: string
+  title?: string
+  message?: string
+  data?: Record<string, unknown>
+  is_read?: boolean
+  created_at?: string
+}
+
 export type DoctorAction = 'approve' | 'request_docs' | 'reject'
+export type AdminProfessionalType = 'Doctor' | 'Pediatrician'
 
 export class AdminDoctorError extends Error {
   fieldErrors: Record<string, string>
@@ -108,6 +119,22 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
   )
 }
 
+const unwrapList = <T,>(payload: T[] | { data?: T[]; results?: T[] } | null | undefined): T[] => {
+  if (Array.isArray(payload)) return payload
+  if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload.data)) return payload.data
+    if (Array.isArray(payload.results)) return payload.results
+  }
+  return []
+}
+
+const unwrapItem = <T,>(payload: T | { data?: T } | null | undefined): T => {
+  if (payload && typeof payload === 'object' && 'data' in payload && payload.data && !Array.isArray(payload.data)) {
+    return payload.data as T
+  }
+  return payload as T
+}
+
 export const adminDoctorService = {
   async listDoctors() {
     const response = await fetch(`${API_BASE_URL}/admin/doctors/`, {
@@ -115,23 +142,44 @@ export const adminDoctorService = {
         ...getAuthHeaders(),
       },
     })
-    const payload = await handleResponse<AdminDoctorApi[] | { results?: AdminDoctorApi[] }>(response)
-    if (Array.isArray(payload)) return payload
-    if (payload && typeof payload === 'object' && Array.isArray(payload.results)) return payload.results
-    return []
+    const payload = await handleResponse<AdminDoctorApi[] | { data?: AdminDoctorApi[]; results?: AdminDoctorApi[] }>(response)
+    return unwrapList(payload).map((item) => ({ ...item, type: item.type ?? 'doctor' }))
   },
 
-  async getDoctor(id: number | string) {
-    const response = await fetch(`${API_BASE_URL}/admin/doctors/${id}/`, {
+  async listPediatricians() {
+    const response = await fetch(`${API_BASE_URL}/admin/pediatricians/`, {
       headers: {
         ...getAuthHeaders(),
       },
     })
-    return handleResponse<AdminDoctorApi>(response)
+    const payload = await handleResponse<AdminDoctorApi[] | { data?: AdminDoctorApi[]; results?: AdminDoctorApi[] }>(response)
+    return unwrapList(payload).map((item) => ({ ...item, type: item.type ?? 'pediatrician' }))
   },
 
-  async actionDoctor(id: number | string, payload: { action: DoctorAction; note?: string }) {
-    const response = await fetch(`${API_BASE_URL}/admin/doctors/${id}/action/`, {
+  async listNotifications() {
+    const response = await fetch(`${API_BASE_URL}/notifications/`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    })
+    const payload = await handleResponse<AdminNotificationApi[] | { data?: AdminNotificationApi[]; results?: AdminNotificationApi[] }>(response)
+    return unwrapList(payload)
+  },
+
+  async getDoctor(id: number | string, professionalType: AdminProfessionalType = 'Doctor') {
+    const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
+    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    })
+    const payload = await handleResponse<AdminDoctorApi | { data?: AdminDoctorApi }>(response)
+    return { ...unwrapItem<AdminDoctorApi>(payload), type: professionalType === 'Pediatrician' ? 'pediatrician' : 'doctor' }
+  },
+
+  async actionDoctor(id: number | string, payload: { action: DoctorAction; note?: string }, professionalType: AdminProfessionalType = 'Doctor') {
+    const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
+    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/action/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -139,16 +187,19 @@ export const adminDoctorService = {
       },
       body: JSON.stringify(payload),
     })
-    return handleResponse<AdminDoctorApi>(response)
+    const responsePayload = await handleResponse<AdminDoctorApi | { data?: AdminDoctorApi }>(response)
+    return { ...unwrapItem<AdminDoctorApi>(responsePayload), type: professionalType === 'Pediatrician' ? 'pediatrician' : 'doctor' }
   },
 
-  async provisionAccount(id: number | string) {
-    const response = await fetch(`${API_BASE_URL}/admin/doctors/${id}/provision-account/`, {
+  async provisionAccount(id: number | string, professionalType: AdminProfessionalType = 'Doctor') {
+    const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
+    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/provision-account/`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
       },
     })
-    return handleResponse<AdminDoctorApi>(response)
+    const payload = await handleResponse<AdminDoctorApi | { data?: AdminDoctorApi }>(response)
+    return { ...unwrapItem<AdminDoctorApi>(payload), type: professionalType === 'Pediatrician' ? 'pediatrician' : 'doctor' }
   },
 }

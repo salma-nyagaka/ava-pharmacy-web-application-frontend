@@ -109,6 +109,114 @@
   color: #92400e;
 }
 
+/* ── Application notifications ─────────── */
+.dm-notification-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(216, 36, 87, 0.2);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #fff7fa 0%, #ffffff 72%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.dm-notification-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dm-notification-panel__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  background: rgba(216, 36, 87, 0.1);
+}
+
+.dm-notification-panel__title,
+.dm-notification-item__title,
+.dm-notification-item__message,
+.dm-notification-item__time {
+  margin: 0;
+}
+
+.dm-notification-panel__title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.dm-notification-panel__meta {
+  margin: 0.18rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.dm-notification-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.dm-notification-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #eef0f5;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.dm-notification-item--unread {
+  border-color: rgba(216, 36, 87, 0.25);
+  background: #fff;
+}
+
+.dm-notification-item__title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.dm-notification-item__message {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.dm-notification-item__time {
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.dm-notification-item__btn {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.dm-notification-item__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(216, 36, 87, 0.22);
+}
+
 /* ── Avatar ─────────────────────────────── */
 .dm-avatar {
   width: 34px;
@@ -831,6 +939,48 @@
   background: #fff;
   border: 1px solid #e5e7eb;
   flex-wrap: wrap;
+}
+
+.dm-doc-item__main {
+  display: flex;
+  flex: 1 1 220px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.16rem;
+}
+
+.dm-doc-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.dm-doc-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 0.65rem;
+  border-radius: 7px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.dm-doc-action--ghost {
+  background: #fff;
+  color: var(--color-primary);
+  border: 1px solid rgba(216, 36, 87, 0.24);
+}
+
+.dm-doc-missing-link {
+  margin-left: auto;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #94a3b8;
 }
 
 .dm-doc-status {
