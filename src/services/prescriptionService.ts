@@ -27,6 +27,9 @@ type ApiPrescriptionItem = {
   product_name?: string
   product_slug?: string
   product_image?: string | null
+  variant_id?: number | null
+  variant_name?: string
+  variant_sku?: string
   dose: string
   frequency: string
   quantity: number
@@ -62,6 +65,21 @@ type ApiPrescription = {
   clarification_message?: string
   clarification_messages?: ApiClarificationMessage[]
   audit_logs: ApiPrescriptionAudit[]
+}
+
+export interface PharmacistCatalogVariant {
+  id: number
+  product_id: number
+  product_name: string
+  variant_name: string
+  display_name: string
+  brand_name: string
+  sku: string
+  price: string
+  requires_prescription: boolean
+  inventory_status: string
+  available_quantity: number
+  can_select: boolean
 }
 
 const STATUS_FROM_API: Record<string, PrescriptionRecord['status']> = {
@@ -139,6 +157,9 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
       productName: item.product_name || '',
       productSlug: item.product_slug || '',
       productImage: item.product_image || null,
+      variantId: item.variant_id ?? null,
+      variantName: item.variant_name || '',
+      variantSku: item.variant_sku || '',
       dose: item.dose || '-',
       frequency: item.frequency || '-',
       qty: item.quantity ?? 0,
@@ -226,6 +247,7 @@ export const prescriptionService = {
       body.items = updates.items.map((item) => ({
         name: item.name,
         product_id: item.productId ?? null,
+        variant_id: item.variantId ?? null,
         dose: item.dose,
         frequency: item.frequency,
         quantity: item.qty,
@@ -303,9 +325,22 @@ export const prescriptionService = {
   pharmacistReview: async (backendId: number, payload: {
     action: 'approve' | 'reject' | 'request_clarification'
     notes?: string
+    items?: Array<{
+      name: string
+      product_id?: number | null
+      variant_id?: number | null
+      dose?: string
+      frequency?: string
+      quantity: number
+    }>
   }) => {
     await apiClient.post(`/pharmacist/prescriptions/${backendId}/review/`, payload)
     return prescriptionService.list()
+  },
+  searchCatalogVariants: async (query: string): Promise<PharmacistCatalogVariant[]> => {
+    const res = await apiClient.get('/pharmacist/catalog/variants/', { params: { q: query, limit: 12 } })
+    const payload = res.data?.data ?? res.data ?? {}
+    return Array.isArray(payload?.results) ? payload.results : []
   },
   addApprovedItemToCart: async (prescriptionId: string, itemId: number, quantity?: number) => {
     const prescription = await resolvePrescription(prescriptionId)

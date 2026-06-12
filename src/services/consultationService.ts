@@ -25,6 +25,15 @@ export interface ConsultationMessage {
   sentAt: string
 }
 
+export interface ConsultationPrescriptionSummary {
+  id: number
+  reference: string
+  status: 'draft' | 'sent' | 'dispensed'
+  itemsCount: number
+  sentAt: string | null
+  createdAt: string
+}
+
 export interface ConsultationRecord {
   id: number
   reference: string
@@ -51,6 +60,7 @@ export interface ConsultationRecord {
   dosageAlert: boolean
   lastMessageAt: string | null
   messages: ConsultationMessage[]
+  prescriptions: ConsultationPrescriptionSummary[]
   createdAt: string
   updatedAt: string
 }
@@ -72,6 +82,29 @@ export interface CreateConsultationPayload {
   weight_kg?: number | null
 }
 
+export type ConsultationPaymentProvider = 'mpesa' | 'paybill'
+export type ConsultationPaymentStatus = 'pending' | 'requires_action' | 'succeeded' | 'failed' | 'cancelled'
+
+export interface ConsultationPaymentIntent {
+  id: number
+  provider: ConsultationPaymentProvider
+  status: ConsultationPaymentStatus
+  reference: string
+  providerReference: string
+  externalReference: string
+  phoneNumber: string
+  checkoutRequestId: string
+  amount: number
+  currency: string
+  clientSecret: string
+  lastError: string
+  consultation: number | null
+  paybillNumber: string
+  paybillAccountReference: string
+  paybillAccountLabel: string
+  paybillInstructions: string
+}
+
 type StoredUser = {
   id?: number
   name?: string
@@ -80,7 +113,7 @@ type StoredUser = {
 }
 
 const LOCAL_CONSULTATIONS_KEY = 'ava_consultation_service_records'
-const USE_LOCAL_CONSULTATION_FLOW = true
+const USE_LOCAL_CONSULTATION_FLOW = false
 
 function unwrap<T>(value: unknown, fallback: T): T {
   if (value && typeof value === 'object' && 'data' in (value as Record<string, unknown>)) {
@@ -243,6 +276,7 @@ function ensureLocalConsultationConnected(record: ConsultationRecord, baseMessag
   const now = new Date().toISOString()
   return {
     ...record,
+    prescriptions: record.prescriptions ?? [],
     doctor: assignedDoctorId,
     pediatrician: assignedPediatricianId,
     doctorName: clinicianName,
@@ -336,6 +370,7 @@ function createLocalConsultation(payload: CreateConsultationPayload): Consultati
     dosageAlert: false,
     lastMessageAt: null,
     messages: [],
+    prescriptions: [],
     createdAt: now,
     updatedAt: now,
   }
@@ -369,8 +404,22 @@ function mapMessage(raw: Record<string, unknown>): ConsultationMessage {
   }
 }
 
+function mapConsultationPrescription(raw: Record<string, unknown>): ConsultationPrescriptionSummary {
+  return {
+    id: Number(raw.id ?? 0),
+    reference: String(raw.reference ?? ''),
+    status: String(raw.status ?? 'draft') as ConsultationPrescriptionSummary['status'],
+    itemsCount: normalizeNumber(raw.items_count),
+    sentAt: raw.sent_at ? String(raw.sent_at) : null,
+    createdAt: String(raw.created_at ?? ''),
+  }
+}
+
 function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
   const messages = Array.isArray(raw.messages) ? raw.messages.map((item) => mapMessage(item as Record<string, unknown>)) : []
+  const prescriptions = Array.isArray(raw.prescriptions)
+    ? raw.prescriptions.map((item) => mapConsultationPrescription(item as Record<string, unknown>))
+    : []
   return {
     id: Number(raw.id ?? 0),
     reference: String(raw.reference ?? ''),
@@ -397,8 +446,31 @@ function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
     dosageAlert: Boolean(raw.dosage_alert),
     lastMessageAt: raw.last_message_at ? String(raw.last_message_at) : null,
     messages,
+    prescriptions,
     createdAt: String(raw.created_at ?? ''),
     updatedAt: String(raw.updated_at ?? ''),
+  }
+}
+
+function mapConsultationPaymentIntent(raw: Record<string, unknown>): ConsultationPaymentIntent {
+  return {
+    id: normalizeNumber(raw.id),
+    provider: String(raw.provider ?? 'mpesa') as ConsultationPaymentProvider,
+    status: String(raw.status ?? 'pending') as ConsultationPaymentStatus,
+    reference: String(raw.reference ?? ''),
+    providerReference: String(raw.provider_reference ?? ''),
+    externalReference: String(raw.external_reference ?? ''),
+    phoneNumber: String(raw.phone_number ?? ''),
+    checkoutRequestId: String(raw.checkout_request_id ?? ''),
+    amount: normalizeNumber(raw.amount),
+    currency: String(raw.currency ?? 'KES'),
+    clientSecret: String(raw.client_secret ?? ''),
+    lastError: String(raw.last_error ?? ''),
+    consultation: raw.consultation == null ? null : normalizeNumber(raw.consultation),
+    paybillNumber: String(raw.paybill_number ?? ''),
+    paybillAccountReference: String(raw.paybill_account_reference ?? ''),
+    paybillAccountLabel: String(raw.paybill_account_label ?? 'Account Number'),
+    paybillInstructions: String(raw.paybill_instructions ?? ''),
   }
 }
 
@@ -456,6 +528,22 @@ export async function fetchMyConsultations(): Promise<ConsultationRecord[]> {
   }
 }
 
+export async function fetchDoctorConsultations(): Promise<ConsultationRecord[]> {
+  try {
+    const res = await apiClient.get('/doctor/consultations/')
+    const payload = unwrap<unknown>(res.data, [])
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as { results?: unknown[] })?.results)
+        ? (payload as { results: unknown[] }).results
+        : []
+    return list.map((item) => mapConsultation(item as Record<string, unknown>))
+  } catch (error) {
+    if (!shouldUseLocalFallback(error)) throw error
+    return []
+  }
+}
+
 export async function fetchConsultation(id: number): Promise<ConsultationRecord> {
   if (USE_LOCAL_CONSULTATION_FLOW) {
     return getLocalConsultation(id)
@@ -480,6 +568,25 @@ export async function createConsultation(payload: CreateConsultationPayload): Pr
     if (!shouldUseLocalFallback(error)) throw error
     return createLocalConsultation(payload)
   }
+}
+
+export async function createConsultationPaymentIntent(payload: {
+  provider: ConsultationPaymentProvider
+  phone?: string
+  consultation: CreateConsultationPayload
+}): Promise<ConsultationPaymentIntent> {
+  const res = await apiClient.post('/consultations/payments/intents/', payload)
+  return mapConsultationPaymentIntent(unwrap<Record<string, unknown>>(res.data, {}))
+}
+
+export async function syncConsultationPaymentIntent(id: number): Promise<ConsultationPaymentIntent> {
+  const res = await apiClient.post(`/consultations/payments/intents/${id}/sync/`)
+  return mapConsultationPaymentIntent(unwrap<Record<string, unknown>>(res.data, {}))
+}
+
+export async function finalizePaidConsultation(paymentIntentId: number): Promise<ConsultationRecord> {
+  const res = await apiClient.post('/consultations/payments/finalize/', { payment_intent_id: paymentIntentId })
+  return mapConsultation(unwrap<Record<string, unknown>>(res.data, {}))
 }
 
 export async function updateConsultation(id: number, payload: Partial<Pick<ConsultationRecord, 'status' | 'consentStatus' | 'dosageAlert'>>): Promise<ConsultationRecord> {
@@ -648,7 +755,29 @@ export interface ClinicianPrescriptionItem {
   dose: string
   frequency: string
   duration: string
+  variant_id?: number | null
+  product_variant_id?: number | null
+  product_id?: number | null
+  sku?: string
+  catalog_name?: string
+  catalog_fallback?: boolean
+  quantity?: number
   notes?: string
+}
+
+export interface ClinicianCatalogVariant {
+  id: number
+  product_id: number
+  product_name: string
+  variant_name: string
+  display_name: string
+  brand_name: string
+  sku: string
+  price: string
+  requires_prescription: boolean
+  inventory_status: string
+  available_quantity: number
+  can_prescribe: boolean
 }
 
 export interface ClinicianPrescription {
@@ -678,8 +807,18 @@ export async function createClinicianPrescription(payload: {
   consultation_id?: number | null
   items: ClinicianPrescriptionItem[]
 }): Promise<ClinicianPrescription> {
-  const res = await apiClient.post('/doctor/prescriptions/', payload)
+  const res = await apiClient.post('/doctor/prescriptions/', {
+    patient_name: payload.patient_name,
+    consultation: payload.consultation_id ?? null,
+    items: payload.items,
+  })
   return unwrap<ClinicianPrescription>(res.data, {} as ClinicianPrescription)
+}
+
+export async function searchClinicianCatalogVariants(query: string): Promise<ClinicianCatalogVariant[]> {
+  const res = await apiClient.get('/doctor/catalog/variants/', { params: { q: query, limit: 12 } })
+  const payload = unwrap<{ results?: ClinicianCatalogVariant[] }>(res.data, { results: [] })
+  return payload.results ?? []
 }
 
 export async function sendClinicianPrescription(id: number): Promise<ClinicianPrescription> {

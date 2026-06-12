@@ -301,6 +301,27 @@
   color: #9ca3af;
 }
 
+.inventory-readonly-parent {
+  min-height: 42px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.inventory-readonly-parent span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .adjust-callout {
   background: #fff7ed;
   border: 1px solid #fed7aa;

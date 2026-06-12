@@ -44,6 +44,7 @@ import LoginPage from './pages/Auth/LoginPage'
 import RegisterPage from './pages/Auth/RegisterPage'
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage'
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage'
+import VerifyEmailPage from './pages/Auth/VerifyEmailPage'
 import StaffActivatePage from './pages/Auth/StaffActivatePage'
 import OrderTrackingPage from './pages/OrderTracking/OrderTrackingPage'
 import OrderConfirmationPage from './pages/OrderConfirmation/OrderConfirmationPage'
@@ -125,6 +126,7 @@ function App() {
               <Route path="login" element={<LoginPage />} />
               <Route path="register" element={<RegisterPage />} />
               <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="verify-email" element={<VerifyEmailPage />} />
               <Route path="reset-password" element={<ResetPasswordPage />} />
               <Route path="auth/professional/activate" element={<StaffActivatePage />} />
               <Route path="order-confirmation" element={<OrderConfirmationPage />} />

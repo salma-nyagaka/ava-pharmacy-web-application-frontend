@@ -950,8 +950,9 @@
 
 .px-med-dropdown__item {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   width: 100%;
   text-align: left;
   padding: 0.65rem 1rem;
@@ -963,17 +964,39 @@
 }
 
 .px-med-dropdown__item:last-child { border-bottom: none; }
-.px-med-dropdown__item:hover { background: #f0f4ff; }
+.px-med-dropdown__item:hover:not(:disabled) { background: #f0f4ff; }
+.px-med-dropdown__item:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
 
 .px-med-dropdown__name {
+  display: block;
   font-size: 0.875rem;
   font-weight: 600;
   color: #0f172a;
 }
 
 .px-med-dropdown__meta {
+  display: block;
   font-size: 0.75rem;
   color: #64748b;
+}
+
+.px-med-dropdown__stock {
+  flex-shrink: 0;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: #e8f7f4;
+  color: #13766f;
+  font-size: 0.68rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.px-med-dropdown__stock--out {
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 /* Manually added items list */
@@ -1297,6 +1320,18 @@
 .portal-shell__main .px-item__meta,
 .portal-shell__main .px-item-picker-hint {
   color: var(--dashboard-text-muted);
+}
+
+.portal-shell__main .px-item__variant {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0.35rem 0 0;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  background: #e8f7f4;
+  color: #13766f;
+  font-size: 0.68rem;
+  font-weight: 800;
 }
 
 .portal-shell__main .px-item-picker-count,

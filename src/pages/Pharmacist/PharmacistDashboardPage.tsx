@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { CatalogProduct, productCatalog } from '../../data/products'
 import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
-import { prescriptionService } from '../../services/prescriptionService'
-import { cartService } from '../../services/cartService'
+import { prescriptionService, type PharmacistCatalogVariant } from '../../services/prescriptionService'
 import { addAdminOrderNote, listAdminOrders, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import '../../styles/admin/AdminShared.css'
@@ -129,8 +127,10 @@ function PharmacistDashboardPage() {
   const [clarificationNote, setClarificationNote] = useState('')
   const [cartAddedMsg, setCartAddedMsg] = useState<string | null>(null)
   const [itemSelections, setItemSelections] = useState<Record<string, boolean>>({})
-  const [manualItems, setManualItems] = useState<Array<{ product: CatalogProduct; qty: number }>>([])
+  const [manualItems, setManualItems] = useState<Array<{ variant: PharmacistCatalogVariant; qty: number }>>([])
   const [productSearch, setProductSearch] = useState('')
+  const [variantSuggestions, setVariantSuggestions] = useState<PharmacistCatalogVariant[]>([])
+  const [variantSearchLoading, setVariantSearchLoading] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [rejectionTemplate, setRejectionTemplate] = useState('')
@@ -211,48 +211,96 @@ function PharmacistDashboardPage() {
     setPrescriptions(r.data)
   }
 
-  const productSuggestions = useMemo(() => {
-    const q = productSearch.trim().toLowerCase()
-    if (q.length < 2) return []
-    return productCatalog
-      .filter((p) => p.name.toLowerCase().includes(q) && !manualItems.some((m) => m.product.id === p.id))
-      .slice(0, 6)
+  useEffect(() => {
+    const q = productSearch.trim()
+    if (q.length < 2) {
+      setVariantSuggestions([])
+      setVariantSearchLoading(false)
+      return
+    }
+    let cancelled = false
+    setVariantSearchLoading(true)
+    const timer = window.setTimeout(() => {
+      void prescriptionService.searchCatalogVariants(q)
+        .then((items) => {
+          if (!cancelled) {
+            const selectedIds = new Set(manualItems.map((item) => item.variant.id))
+            setVariantSuggestions(items.filter((item) => !selectedIds.has(item.id)))
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setVariantSuggestions([])
+        })
+        .finally(() => {
+          if (!cancelled) setVariantSearchLoading(false)
+        })
+    }, 220)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
   }, [productSearch, manualItems])
 
-  const addManualItem = (product: CatalogProduct) => {
-    setManualItems((prev) => [...prev, { product, qty: 1 }])
+  const addManualItem = (variant: PharmacistCatalogVariant) => {
+    setManualItems((prev) => [...prev, { variant, qty: 1 }])
     setProductSearch('')
+    setVariantSuggestions([])
     setShowDropdown(false)
   }
 
-  const removeManualItem = (productId: number) =>
-    setManualItems((prev) => prev.filter((m) => m.product.id !== productId))
+  const removeManualItem = (variantId: number) =>
+    setManualItems((prev) => prev.filter((m) => m.variant.id !== variantId))
 
-  const updateManualQty = (productId: number, qty: number) =>
-    setManualItems((prev) => prev.map((m) => m.product.id === productId ? { ...m, qty: Math.max(1, qty) } : m))
+  const updateManualQty = (variantId: number, qty: number) =>
+    setManualItems((prev) => prev.map((m) => {
+      if (m.variant.id !== variantId) return m
+      const maxQty = Math.max(1, m.variant.available_quantity || 1)
+      return { ...m, qty: Math.min(maxQty, Math.max(1, qty)) }
+    }))
 
   const handleApprove = async () => {
     if (!activeRx) return
-    await updateRx(activeRx.id, { status: 'Approved', pharmacist: actor }, `Approved by ${actor}`)
     const toAdd = activeRx.items.filter((item) => itemSelections[item.name])
-    for (const item of toAdd) {
-      const stableId = item.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-      await cartService.add(
-        { id: stableId, name: item.name, brand: 'Prescribed', price: 0, prescriptionId: activeRx.id },
-        item.qty,
-      )
+    const reviewItems = [
+      ...toAdd.map((item) => ({
+        name: item.name,
+        product_id: item.productId ?? null,
+        variant_id: item.variantId ?? null,
+        dose: item.dose,
+        frequency: item.frequency,
+        quantity: item.qty,
+      })),
+      ...manualItems.map(({ variant, qty }) => ({
+        name: variant.display_name,
+        product_id: variant.product_id,
+        variant_id: variant.id,
+        dose: '',
+        frequency: '',
+        quantity: qty,
+      })),
+    ]
+    if (activeRx.backendId) {
+      const response = await prescriptionService.pharmacistReview(activeRx.backendId, {
+        action: 'approve',
+        notes: `Approved by ${actor}`,
+        items: reviewItems,
+      })
+      setPrescriptions(response.data)
+    } else {
+      await updateRx(activeRx.id, { status: 'Approved', pharmacist: actor, items: reviewItems.map((item) => ({
+        name: item.name,
+        productId: item.product_id,
+        variantId: item.variant_id,
+        dose: item.dose || '-',
+        frequency: item.frequency || '-',
+        qty: item.quantity,
+      })) }, `Approved by ${actor}`)
     }
-    for (const { product, qty } of manualItems) {
-      await cartService.add(
-        { id: product.id, name: product.name, brand: product.brand, price: product.price, image: product.image, stockSource: product.stockSource === 'out' ? undefined : product.stockSource, prescriptionId: activeRx.id },
-        qty,
-      )
-    }
-    const totalAdded = toAdd.length + manualItems.length
+    const totalAdded = reviewItems.length
     const skipped = activeRx.items.length - toAdd.length
     const msg = totalAdded > 0
-      ? `${totalAdded} item${totalAdded !== 1 ? 's' : ''} added to patient's cart${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`
-      : 'Prescription approved. No items added.'
+      ? `Prescription approved with ${totalAdded} mapped item${totalAdded !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`
+      : 'Prescription approved. No items were selected.'
     setCartAddedMsg(msg)
     setTimeout(() => setCartAddedMsg(null), 6000)
   }
@@ -866,6 +914,11 @@ function PharmacistDashboardPage() {
                           <div className="px-item__info">
                             <p className="px-item__name">{item.name}</p>
                             <p className="px-item__meta">{item.dose} · {item.frequency}</p>
+                            {(item.variantName || item.variantSku) && (
+                              <p className="px-item__variant">
+                                {item.variantName || 'Selected variant'}{item.variantSku ? ` · SKU ${item.variantSku}` : ''}
+                              </p>
+                            )}
                           </div>
                           <div className="px-item__right">
                             <span className="px-item__qty">Qty {item.qty}</span>
@@ -880,14 +933,14 @@ function PharmacistDashboardPage() {
                 {/* Manual medication search */}
                 <div className="px-modal__section">
                   <p className="px-section-label">Add medications from catalog</p>
-                  <p className="px-item-picker-hint">For handwritten or unclear prescriptions, search and add medications directly.</p>
+                  <p className="px-item-picker-hint">For handwritten or unclear prescriptions, search Ava Pharmacy variants and add the exact SKU.</p>
                   <div className="px-med-search" ref={dropdownRef}>
                     <div className="px-med-search__wrap">
                       <svg className="px-med-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                       <input
                         type="text"
                         className="px-med-search__input"
-                        placeholder="Search e.g. Paracetamol, Amoxicillin…"
+                        placeholder="Search medicine, variant, SKU, or brand…"
                         value={productSearch}
                         onChange={(e) => { setProductSearch(e.target.value); setShowDropdown(true) }}
                         onFocus={() => setShowDropdown(true)}
@@ -896,27 +949,45 @@ function PharmacistDashboardPage() {
                         <button className="px-med-search__clear" type="button" onClick={() => { setProductSearch(''); setShowDropdown(false) }}>×</button>
                       )}
                     </div>
-                    {showDropdown && productSuggestions.length > 0 && (
+                    {showDropdown && variantSuggestions.length > 0 && (
                       <div className="px-med-dropdown">
-                        {productSuggestions.map((p) => (
-                          <button key={p.id} className="px-med-dropdown__item" type="button" onMouseDown={() => addManualItem(p)}>
-                            <span className="px-med-dropdown__name">{p.name}</span>
-                            <span className="px-med-dropdown__meta">{p.brand} · KSh {p.price.toLocaleString()}</span>
+                        {variantSuggestions.map((variant) => (
+                          <button
+                            key={variant.id}
+                            className="px-med-dropdown__item"
+                            type="button"
+                            disabled={!variant.can_select}
+                            onMouseDown={() => { if (variant.can_select) addManualItem(variant) }}
+                          >
+                            <span>
+                              <span className="px-med-dropdown__name">{variant.display_name}</span>
+                              <span className="px-med-dropdown__meta">
+                                {variant.brand_name || 'Ava Pharmacy'} · SKU {variant.sku || 'N/A'} · KSh {Number(variant.price || 0).toLocaleString()}
+                              </span>
+                            </span>
+                            <span className={`px-med-dropdown__stock ${variant.can_select ? '' : 'px-med-dropdown__stock--out'}`}>
+                              {variant.can_select ? `${variant.available_quantity} in stock` : 'Out of stock'}
+                            </span>
                           </button>
                         ))}
                       </div>
                     )}
-                    {showDropdown && productSearch.trim().length >= 2 && productSuggestions.length === 0 && (
-                      <div className="px-med-dropdown px-med-dropdown--empty">No matching products found.</div>
+                    {showDropdown && productSearch.trim().length >= 2 && variantSuggestions.length === 0 && (
+                      <div className="px-med-dropdown px-med-dropdown--empty">
+                        {variantSearchLoading ? 'Searching catalog…' : 'No matching variants found.'}
+                      </div>
                     )}
                   </div>
                   {manualItems.length > 0 && (
                     <div className="px-manual-items">
-                      {manualItems.map(({ product, qty }) => (
-                        <div key={product.id} className="px-manual-item">
+                      {manualItems.map(({ variant, qty }) => (
+                        <div key={variant.id} className="px-manual-item">
                           <div className="px-item__info">
-                            <p className="px-item__name">{product.name}</p>
-                            <p className="px-item__meta">{product.brand} · KSh {product.price.toLocaleString()}</p>
+                            <p className="px-item__name">{variant.display_name}</p>
+                            <p className="px-item__meta">{variant.brand_name || 'Ava Pharmacy'} · KSh {Number(variant.price || 0).toLocaleString()}</p>
+                            <p className="px-item__variant">
+                              {variant.variant_name || 'Selected variant'}{variant.sku ? ` · SKU ${variant.sku}` : ''}
+                            </p>
                           </div>
                           <div className="px-manual-item__controls">
                             <label className="px-manual-item__qty-label">Qty</label>
@@ -925,9 +996,10 @@ function PharmacistDashboardPage() {
                               className="px-manual-item__qty"
                               value={qty}
                               min={1}
-                              onChange={(e) => updateManualQty(product.id, parseInt(e.target.value) || 1)}
+                              max={variant.available_quantity || undefined}
+                              onChange={(e) => updateManualQty(variant.id, parseInt(e.target.value) || 1)}
                             />
-                            <button className="px-manual-item__remove" type="button" onClick={() => removeManualItem(product.id)} aria-label="Remove">×</button>
+                            <button className="px-manual-item__remove" type="button" onClick={() => removeManualItem(variant.id)} aria-label="Remove">×</button>
                           </div>
                         </div>
                       ))}

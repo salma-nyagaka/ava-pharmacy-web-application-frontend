@@ -1,4 +1,4 @@
-export type DoctorStatus = 'Active' | 'Pending' | 'Suspended'
+export type DoctorStatus = 'Active' | 'Pending' | 'Pending activation' | 'Rejected' | 'Suspended' | 'Deactivated'
 export type DoctorType = 'Doctor' | 'Pediatrician'
 
 export interface DoctorDocument {
@@ -44,6 +44,7 @@ export interface DoctorProfile {
 
 export interface Consultation {
   id: string
+  backendId?: number
   doctorId: string
   patientName: string
   patientAge: number
@@ -71,6 +72,7 @@ export interface DoctorMessage {
 
 export interface DoctorMessageThread {
   id: string
+  backendConsultationId?: number
   doctorId: string
   patientName: string
   lastMessage: string
@@ -84,6 +86,13 @@ export interface DoctorPrescriptionItem {
   name: string
   dosage: string
   quantity: number
+  variantId?: number | null
+  productId?: number | null
+  sku?: string
+  catalogName?: string
+  stockStatus?: string
+  availableQuantity?: number
+  catalogFallback?: boolean
 }
 
 export interface DoctorPrescription {
@@ -470,31 +479,56 @@ const safeLoad = <T,>(key: string, fallback: T): T => {
   }
 }
 
+const DEMO_CONSULTATION_IDS = new Set(defaultConsultations.map((item) => item.id))
+const DEMO_MESSAGE_THREAD_IDS = new Set(defaultMessageThreads.map((item) => item.id))
+const DEMO_PRESCRIPTION_IDS = new Set(defaultPrescriptions.map((item) => item.id))
+const DEMO_EARNING_IDS = new Set(defaultEarnings.map((item) => item.id))
+
+const loadWithoutDemoRows = <T extends { id: string }>(key: string, demoIds: Set<string>): T[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) {
+      window.localStorage.setItem(key, JSON.stringify([]))
+      return []
+    }
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    const cleaned = parsed.filter((item): item is T => Boolean(item?.id) && !demoIds.has(item.id))
+    if (cleaned.length !== parsed.length) {
+      window.localStorage.setItem(key, JSON.stringify(cleaned))
+    }
+    return cleaned
+  } catch {
+    return []
+  }
+}
+
 export const loadDoctorProfiles = () => safeLoad(STORAGE.doctors, defaultDoctors)
 export const saveDoctorProfiles = (doctors: DoctorProfile[]) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE.doctors, JSON.stringify(doctors))
 }
 
-export const loadConsultations = () => safeLoad(STORAGE.consultations, defaultConsultations)
+export const loadConsultations = () => loadWithoutDemoRows<Consultation>(STORAGE.consultations, DEMO_CONSULTATION_IDS)
 export const saveConsultations = (consultations: Consultation[]) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE.consultations, JSON.stringify(consultations))
 }
 
-export const loadDoctorMessages = () => safeLoad(STORAGE.messages, defaultMessageThreads)
+export const loadDoctorMessages = () => loadWithoutDemoRows<DoctorMessageThread>(STORAGE.messages, DEMO_MESSAGE_THREAD_IDS)
 export const saveDoctorMessages = (threads: DoctorMessageThread[]) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE.messages, JSON.stringify(threads))
 }
 
-export const loadDoctorPrescriptions = () => safeLoad(STORAGE.prescriptions, defaultPrescriptions)
+export const loadDoctorPrescriptions = () => loadWithoutDemoRows<DoctorPrescription>(STORAGE.prescriptions, DEMO_PRESCRIPTION_IDS)
 export const saveDoctorPrescriptions = (prescriptions: DoctorPrescription[]) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE.prescriptions, JSON.stringify(prescriptions))
 }
 
-export const loadDoctorEarnings = () => safeLoad(STORAGE.earnings, defaultEarnings)
+export const loadDoctorEarnings = () => loadWithoutDemoRows<DoctorEarning>(STORAGE.earnings, DEMO_EARNING_IDS)
 export const saveDoctorEarnings = (earnings: DoctorEarning[]) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE.earnings, JSON.stringify(earnings))

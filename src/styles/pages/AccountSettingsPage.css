@@ -202,7 +202,8 @@
   color: #374151;
 }
 
-.ase-form__group input {
+.ase-form__group input,
+.ase-form__group select {
   padding: 0.65rem 0.9rem;
   border: 1.5px solid rgba(15, 23, 42, 0.12);
   border-radius: 11px;
@@ -215,7 +216,21 @@
   box-sizing: border-box;
 }
 
-.ase-form__group input:focus {
+.ase-form__group select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #64748b 50%),
+    linear-gradient(135deg, #64748b 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2.25rem;
+}
+
+.ase-form__group input:focus,
+.ase-form__group select:focus {
   border-color: var(--color-primary);
   background: #fff;
 }

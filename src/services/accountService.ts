@@ -8,6 +8,7 @@ export interface AccountProfile {
   full_name: string
   phone: string
   date_of_birth: string | null
+  gender: string
   role: string
   status: string
   address: string
@@ -22,6 +23,7 @@ export interface AccountProfilePayload {
   last_name?: string
   phone?: string
   date_of_birth?: string | null
+  gender?: string
   address?: string
 }
 

@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3rem 2.5rem;
+  padding: 2rem 2.5rem;
   position: relative;
   overflow: hidden;
 }
@@ -47,7 +47,7 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1.2rem;
 }
 
 .login-brand__logo-wrap {
@@ -73,11 +73,11 @@
 .login-brand__body {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.8rem;
 }
 
 .login-brand__headline {
-  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-size: clamp(1.75rem, 2.7vw, 2.25rem);
   font-weight: 800;
   color: #fff;
   line-height: 1.15;
@@ -98,7 +98,7 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.55rem;
 }
 
 .login-brand__features li {
@@ -128,7 +128,7 @@
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  padding: 0.9rem 1.25rem;
+  padding: 0.7rem 1.1rem;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 14px;
   backdrop-filter: blur(8px);
@@ -255,7 +255,8 @@
   height: 17px;
 }
 
-.login-field__input-wrap input {
+.login-field__input-wrap input,
+.login-field__input-wrap select {
   width: 100%;
   padding: 0.75rem 2.75rem 0.75rem 2.75rem;
   border: 1.5px solid #e8e8ef;
@@ -271,10 +272,41 @@
   color: #c4c9d8;
 }
 
-.login-field__input-wrap input:focus {
+.login-field__input-wrap select {
+  appearance: none;
+}
+
+.login-field__input-wrap input:focus,
+.login-field__input-wrap select:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(232, 23, 80, 0.1);
+}
+
+.login-field__optional {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.35rem;
+}
+
+.login-form-panel--center {
+  grid-column: 1 / -1;
+  min-height: 100vh;
+}
+
+.login-success-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: #f0fdf4;
+  color: #166534;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .login-field__input--error {
@@ -586,11 +618,11 @@
   }
 
   .login-brand {
-    padding: 1.75rem 1.5rem;
+    padding: 1.35rem 1.5rem;
   }
 
   .login-brand__inner {
-    gap: 1.25rem;
+    gap: 1rem;
   }
 
   .login-brand__headline {
@@ -608,7 +640,7 @@
 
 @media (max-width: 480px) {
   .login-brand {
-    padding: 2rem 1.25rem;
+    padding: 1.35rem 1.25rem;
   }
 
   .login-form-panel {
@@ -617,7 +649,7 @@
 
   .login-brand__stats {
     gap: 1rem;
-    padding: 1rem 1.25rem;
+    padding: 0.75rem 1rem;
   }
 }
 

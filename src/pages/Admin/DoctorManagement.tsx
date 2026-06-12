@@ -26,8 +26,17 @@ const normalizeDoctorType = (value: unknown): DoctorType => {
 const normalizeDoctorStatus = (value: unknown): DoctorProfile['status'] => {
   const asText = String(value ?? '').toLowerCase()
   if (['approved', 'active', 'verified'].includes(asText)) return 'Active'
-  if (['rejected', 'declined', 'suspended'].includes(asText)) return 'Suspended'
+  if (asText.includes('approved_pending') || asText.includes('pending_activation')) return 'Pending activation'
+  if (['rejected', 'declined'].includes(asText)) return 'Rejected'
+  if (['deactivated', 'inactive'].includes(asText)) return 'Deactivated'
+  if (['suspended'].includes(asText)) return 'Suspended'
   return 'Pending'
+}
+
+const statusClass = (status: DoctorProfile['status']) => {
+  if (status === 'Active') return 'admin-status--success'
+  if (status === 'Pending' || status === 'Pending activation') return 'admin-status--warning'
+  return 'admin-status--danger'
 }
 
 const normalizeDocStatus = (value: unknown): DoctorDocument['status'] => {
@@ -238,7 +247,9 @@ function DoctorManagement() {
   const stats = useMemo(() => ({
     active: doctors.filter((d) => d.status === 'Active').length,
     pending: doctors.filter((d) => d.status === 'Pending').length,
+    pendingActivation: doctors.filter((d) => d.status === 'Pending activation').length,
     suspended: doctors.filter((d) => d.status === 'Suspended').length,
+    rejected: doctors.filter((d) => d.status === 'Rejected' || d.status === 'Deactivated').length,
   }), [doctors])
 
   // ── Verify ────────────────────────────────────────────
@@ -364,8 +375,17 @@ function DoctorManagement() {
         </div>
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Suspended</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : stats.suspended}</strong>
+            <span className="cm-kpi-card__label">Pending activation</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{loading ? '—' : stats.pendingActivation}</strong>
+          </div>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M4 4h16v16H4z"/><path d="m4 7 8 6 8-6"/></svg>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Blocked</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : stats.suspended + stats.rejected}</strong>
           </div>
           <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
@@ -403,7 +423,10 @@ function DoctorManagement() {
             <option value="all">All statuses</option>
             <option value="Active">Active</option>
             <option value="Pending">Pending</option>
+            <option value="Pending activation">Pending activation</option>
+            <option value="Rejected">Rejected</option>
             <option value="Suspended">Suspended</option>
+            <option value="Deactivated">Deactivated</option>
           </select>
         </div>
       </div>
@@ -446,10 +469,10 @@ function DoctorManagement() {
                   {doctor.rating > 0 && <span className="dm-rating">★ {doctor.rating.toFixed(1)}</span>}
                 </td>
                 <td>
-                  <span className={`admin-status ${doctor.status === 'Active' ? 'admin-status--success' : doctor.status === 'Pending' ? 'admin-status--warning' : 'admin-status--danger'}`}>
+                  <span className={`admin-status ${statusClass(doctor.status)}`}>
                     {doctor.status}
                   </span>
-                  {doctor.status === 'Suspended' && (doctor.statusNote || doctor.rejectionNote) && (
+                  {(doctor.status === 'Suspended' || doctor.status === 'Rejected' || doctor.status === 'Deactivated') && (doctor.statusNote || doctor.rejectionNote) && (
                     <p className="dm-suspension-reason">{doctor.statusNote || doctor.rejectionNote}</p>
                   )}
                 </td>

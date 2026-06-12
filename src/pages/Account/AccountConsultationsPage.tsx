@@ -9,14 +9,21 @@ import '../../styles/pages/AccountConsultationsPage.css'
 type Tab = 'All' | 'Doctor' | 'Paediatric'
 
 type ConsultationStatusKey = ConsultationRecord['status']
+type StatusFilter = 'all' | ConsultationStatusKey
 
 const TABS: readonly Tab[] = ['All', 'Doctor', 'Paediatric']
+const STATUS_FILTERS: readonly { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'All status' },
+  { key: 'waiting', label: 'Waiting' },
+  { key: 'in_progress', label: 'In progress' },
+  { key: 'completed', label: 'Completed' },
+]
 
 const STATUS_CFG: Record<ConsultationStatusKey, { label: string; color: string; bg: string; icon: string }> = {
-  completed: { label: 'Completed', color: '#16a34a', bg: 'rgba(22,163,74,0.1)', icon: '✓' },
-  in_progress: { label: 'In progress', color: '#2563eb', bg: 'rgba(37,99,235,0.1)', icon: '⏱' },
-  waiting: { label: 'Waiting', color: '#d97706', bg: 'rgba(217,119,6,0.1)', icon: '⏳' },
-  cancelled: { label: 'Cancelled', color: '#dc2626', bg: 'rgba(220,38,38,0.1)', icon: '✕' },
+  completed: { label: 'Completed', color: '#16803c', bg: 'rgba(22,128,60,0.1)', icon: '✓' },
+  in_progress: { label: 'In progress', color: '#2563eb', bg: 'rgba(37,99,235,0.1)', icon: '•' },
+  waiting: { label: 'Waiting', color: '#b45309', bg: 'rgba(180,83,9,0.1)', icon: '•' },
+  cancelled: { label: 'Cancelled', color: '#dc2626', bg: 'rgba(220,38,38,0.1)', icon: '×' },
 }
 
 function formatDateTime(value?: string | null) {
@@ -54,6 +61,7 @@ function sortConsultations(items: ConsultationRecord[]) {
 function AccountConsultationsPage() {
   const [consultations, setConsultations] = useState<ConsultationRecord[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('All')
+  const [activeStatus, setActiveStatus] = useState<StatusFilter>('all')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -83,6 +91,14 @@ function AccountConsultationsPage() {
   }, [])
 
   const filtered = useMemo(() => {
+    const byType = activeTab === 'All'
+      ? consultations
+      : consultations.filter((consultation) => consultation.isPediatric === (activeTab === 'Paediatric'))
+    if (activeStatus === 'all') return byType
+    return byType.filter((consultation) => consultation.status === activeStatus)
+  }, [activeStatus, activeTab, consultations])
+
+  const typedConsultations = useMemo(() => {
     if (activeTab === 'All') return consultations
     const targetIsPediatric = activeTab === 'Paediatric'
     return consultations.filter((consultation) => consultation.isPediatric === targetIsPediatric)
@@ -93,6 +109,12 @@ function AccountConsultationsPage() {
     Doctor: consultations.filter((consultation) => !consultation.isPediatric).length,
     Paediatric: consultations.filter((consultation) => consultation.isPediatric).length,
   }), [consultations])
+
+  const statusCounts = useMemo(() => ({
+    waiting: typedConsultations.filter((consultation) => consultation.status === 'waiting').length,
+    in_progress: typedConsultations.filter((consultation) => consultation.status === 'in_progress').length,
+    completed: typedConsultations.filter((consultation) => consultation.status === 'completed').length,
+  }), [typedConsultations])
 
   const toggle = (id: number) => setExpandedId((prev) => (prev === id ? null : id))
 
@@ -105,20 +127,50 @@ function AccountConsultationsPage() {
             <h1 className="ac-header__title">My Consultations</h1>
             <p className="ac-header__sub">Track active consultations and review your previous clinician conversations.</p>
           </div>
+          <Link to="/doctor-consultation" className="ac-header__action">New consultation</Link>
         </div>
 
-        <div className="ac-tabs">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className={`ac-tab${activeTab === tab ? ' ac-tab--active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-              <span className="ac-tab__count">{counts[tab]}</span>
-            </button>
-          ))}
+        <div className="ac-overview">
+          <div className="ac-overview__item">
+            <span>Waiting</span>
+            <strong>{statusCounts.waiting}</strong>
+          </div>
+          <div className="ac-overview__item">
+            <span>In progress</span>
+            <strong>{statusCounts.in_progress}</strong>
+          </div>
+          <div className="ac-overview__item">
+            <span>Completed</span>
+            <strong>{statusCounts.completed}</strong>
+          </div>
+        </div>
+
+        <div className="ac-controls">
+          <div className="ac-tabs">
+            {TABS.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={`ac-tab${activeTab === tab ? ' ac-tab--active' : ''}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab}
+                <span className="ac-tab__count">{counts[tab]}</span>
+              </button>
+            ))}
+          </div>
+          <div className="ac-status-tabs" aria-label="Consultation status filter">
+            {STATUS_FILTERS.map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                className={`ac-status-tab${activeStatus === filter.key ? ' ac-status-tab--active' : ''}`}
+                onClick={() => setActiveStatus(filter.key)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {error && (
@@ -202,6 +254,21 @@ function AccountConsultationsPage() {
                         <p className="ac-card__summary-text">{consultation.issue || 'No summary recorded yet.'}</p>
                       </div>
 
+                      <div className="ac-card__info-grid">
+                        <div>
+                          <span>Status</span>
+                          <strong>{status.label}</strong>
+                        </div>
+                        <div>
+                          <span>Started</span>
+                          <strong>{formatDateTime(consultation.createdAt)}</strong>
+                        </div>
+                        <div>
+                          <span>Last activity</span>
+                          <strong>{formatDateTime(activityDate)}</strong>
+                        </div>
+                      </div>
+
                       {consultation.scheduledAt && (
                         <div className="ac-card__followup">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -227,7 +294,7 @@ function AccountConsultationsPage() {
                       <div className="ac-card__actions">
                         {(consultation.status === 'waiting' || consultation.status === 'in_progress') && (
                           <Link to={route} className="btn btn--primary btn--sm">
-                            Resume consultation
+                            Open chat
                           </Link>
                         )}
                         {consultation.status === 'completed' && (

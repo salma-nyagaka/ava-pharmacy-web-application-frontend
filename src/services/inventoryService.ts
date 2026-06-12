@@ -6,10 +6,30 @@ export interface InventoryItem {
   product_name: string
   sku: string
   location: string
+  batch_number?: string
+  supplier?: string
   quantity_on_hand: number
+  reorder_level?: number
   low_stock_threshold: number
-  status: 'in_stock' | 'low_stock' | 'out_of_stock'
+  status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'expired' | 'damaged'
+  effective_status?: 'in_stock' | 'low_stock' | 'out_of_stock' | 'expired' | 'damaged'
+  expiry_date?: string | null
+  shelf_location?: string
   last_synced_at: string | null
+  inventories?: Array<{
+    id: number
+    location: string
+    batch_number: string
+    supplier: string
+    stock_quantity: number
+    reorder_level: number
+    low_stock_threshold: number
+    expiry_date: string | null
+    shelf_location: string
+    status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'expired' | 'damaged'
+    effective_status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'expired' | 'damaged'
+    last_synced_at: string | null
+  }>
 }
 
 export interface ProductAvailability {

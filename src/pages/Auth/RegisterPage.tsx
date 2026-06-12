@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
-import { apiClient, extractAuthTokens, saveTokens } from '../../lib/apiClient'
+import { apiClient } from '../../lib/apiClient'
 import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/pages/AuthPage.css'
 
@@ -34,7 +33,6 @@ const DotIcon = () => (
 )
 
 function RegisterPage() {
-  const { updateUser } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirect = searchParams.get('redirect') ?? '/'
@@ -43,6 +41,10 @@ function RegisterPage() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [city, setCity] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
+  const [gender, setGender] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -50,6 +52,7 @@ function RegisterPage() {
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
+  const [verificationSentTo, setVerificationSentTo] = useState('')
 
   const pwRules = [
     { key: 'length', label: 'At least 8 characters', pass: password.length >= 8 },
@@ -73,26 +76,21 @@ function RegisterPage() {
         password,
         password_confirm: passwordConfirm,
         role: 'customer',
+        delivery_address: deliveryAddress.trim(),
+        city: city.trim(),
+        county: city.trim(),
+        date_of_birth: dateOfBirth || null,
+        gender,
       })
       const data = res.data?.data ?? res.data
-      const { access, refresh } = extractAuthTokens(data)
-      saveTokens(access, refresh)
-      const u = data.user ?? data
-      updateUser({
-        id: u.id,
-        name: u.full_name ?? `${firstName} ${lastName}`.trim(),
-        email: u.email,
-        role: 'patient',
-        phone: u.phone,
-      })
-      navigate(redirect)
+      setVerificationSentTo(data?.verification_email?.sent_to ?? email.trim())
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string; details?: { errors?: { details?: Record<string, string[]> } } } } } }
       const axiosErr = err as ApiErr
       const details = axiosErr?.response?.data?.error?.details?.errors?.details
       if (details && typeof details === 'object') {
         const mapped: Record<string, string> = {}
-        const knownFields = ['first_name', 'last_name', 'email', 'phone', 'password', 'password_confirm']
+        const knownFields = ['first_name', 'last_name', 'email', 'phone', 'password', 'password_confirm', 'delivery_address', 'city', 'county', 'date_of_birth', 'gender']
         const leftover: string[] = []
         for (const [field, msgs] of Object.entries(details)) {
           const msg = Array.isArray(msgs) ? msgs[0] : String(msgs)
@@ -114,6 +112,30 @@ function RegisterPage() {
 
   const clearField = (field: string) =>
     setFieldErrors((prev) => { const n = { ...prev }; delete n[field]; return n })
+
+  if (verificationSentTo) {
+    return (
+      <div className="login-page">
+        <div className="login-form-panel login-form-panel--center">
+          <div className="login-form-inner">
+            <div className="login-form-header">
+              <h2 className="login-form-header__title">Verify your email</h2>
+              <p className="login-form-header__sub">
+                We sent a verification link to <strong>{verificationSentTo}</strong>. The link expires in 24 hours.
+              </p>
+            </div>
+            <div className="login-success-box">
+              <CheckIcon />
+              <span>Open the email, verify your account, then sign in to continue.</span>
+            </div>
+            <button className="login-submit" type="button" onClick={() => navigate(`/login?redirect=${encodeURIComponent(redirect)}`)}>
+              Go to sign in
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="login-page">
@@ -155,8 +177,8 @@ function RegisterPage() {
 
           <div className="login-brand__stats">
             <div className="login-brand__stat">
-              <strong>12k+</strong>
-              <span>Patients</span>
+              <strong>Licensed</strong>
+              <span>Pharmacy</span>
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
@@ -268,6 +290,96 @@ function RegisterPage() {
                 />
               </div>
               {fieldErrors.phone && <span className="login-field__error">{fieldErrors.phone}</span>}
+            </div>
+
+            <div className="login-field">
+              <label htmlFor="register-address">Delivery address</label>
+              <div className="login-field__input-wrap">
+                <span className="login-field__icon">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/>
+                    <circle cx="10" cy="8" r="2"/>
+                  </svg>
+                </span>
+                <input
+                  id="register-address"
+                  type="text"
+                  placeholder="Building, street, estate, or pickup notes"
+                  value={deliveryAddress}
+                  onChange={(e) => { setDeliveryAddress(e.target.value); clearField('delivery_address') }}
+                  className={fieldErrors.delivery_address ? 'login-field__input--error' : ''}
+                  required
+                />
+              </div>
+              {fieldErrors.delivery_address && <span className="login-field__error">{fieldErrors.delivery_address}</span>}
+            </div>
+
+            <div className="login-form-row">
+              <div className="login-field">
+                <label htmlFor="register-city">County / City</label>
+                <div className="login-field__input-wrap">
+                  <span className="login-field__icon">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                      <path d="M4 17V5l4-2 4 2 4-2v12l-4 2-4-2-4 2z"/>
+                      <path d="M8 3v12M12 5v12"/>
+                    </svg>
+                  </span>
+                  <input
+                    id="register-city"
+                    type="text"
+                    placeholder="Nairobi"
+                    value={city}
+                    onChange={(e) => { setCity(e.target.value); clearField('city'); clearField('county') }}
+                    className={fieldErrors.city || fieldErrors.county ? 'login-field__input--error' : ''}
+                    required
+                  />
+                </div>
+                {(fieldErrors.city || fieldErrors.county) && <span className="login-field__error">{fieldErrors.city || fieldErrors.county}</span>}
+              </div>
+              <div className="login-field">
+                <label htmlFor="register-dob">Date of birth <span className="login-field__optional">Optional</span></label>
+                <div className="login-field__input-wrap">
+                  <span className="login-field__icon">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                      <rect x="3" y="4" width="14" height="13" rx="2"/>
+                      <path d="M7 2v4M13 2v4M3 8h14"/>
+                    </svg>
+                  </span>
+                  <input
+                    id="register-dob"
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => { setDateOfBirth(e.target.value); clearField('date_of_birth') }}
+                    className={fieldErrors.date_of_birth ? 'login-field__input--error' : ''}
+                  />
+                </div>
+                {fieldErrors.date_of_birth && <span className="login-field__error">{fieldErrors.date_of_birth}</span>}
+              </div>
+            </div>
+
+            <div className="login-field">
+              <label htmlFor="register-gender">Gender <span className="login-field__optional">Optional</span></label>
+              <div className="login-field__input-wrap">
+                <span className="login-field__icon">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <circle cx="8" cy="8" r="4"/>
+                    <path d="M12 12l4 4M16 12v4h-4"/>
+                  </svg>
+                </span>
+                <select
+                  id="register-gender"
+                  value={gender}
+                  onChange={(e) => { setGender(e.target.value); clearField('gender') }}
+                  className={fieldErrors.gender ? 'login-field__input--error' : ''}
+                >
+                  <option value="">Prefer not to say</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="non_binary">Non-binary</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              {fieldErrors.gender && <span className="login-field__error">{fieldErrors.gender}</span>}
             </div>
 
             <div className="login-field">

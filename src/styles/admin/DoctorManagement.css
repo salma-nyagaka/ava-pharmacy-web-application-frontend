@@ -744,3 +744,131 @@
     min-width: 0;
   }
 }
+
+/* ── Doctor review polish ───────────────── */
+.dm-page .category-management__header,
+.dm-page .cm-panel,
+.dm-page .cm-kpi-card {
+  border-color: #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.dm-page .category-management__header {
+  background: #fff;
+  padding: 1rem 1.1rem;
+}
+
+.dm-page .cm-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.dm-modal {
+  max-width: 620px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+}
+
+.dm-avatar {
+  border-radius: 10px;
+  background: #111827;
+}
+
+.dm-pending-banner {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  border-radius: 10px;
+}
+
+.dm-type-badge--doctor {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.dm-type-badge--pediatrician {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.dm-verify-header,
+.dm-manage-header {
+  padding: 0.85rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.dm-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.dm-detail-row {
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #eef2f7;
+  border-radius: 9px;
+  background: #fff;
+  min-width: 0;
+}
+
+.dm-detail-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dm-detail-row > span:first-child {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.dm-doc-list {
+  gap: 0.5rem;
+}
+
+.dm-doc-item {
+  padding: 0.65rem 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+}
+
+.dm-doc-status {
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #f8fafc;
+}
+
+.dm-doc-status--submitted { color: #b45309; background: #fff7ed; }
+.dm-doc-status--verified  { color: #047857; background: #ecfdf5; }
+.dm-doc-status--missing   { color: #b91c1c; background: #fef2f2; }
+
+.dm-verify-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.dm-verify-btn {
+  border-radius: 9px;
+  min-width: 0;
+}
+
+.dm-verify-btn--approve.dm-verify-btn--selected {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
+}
+
+.dm-verify-btn--docs.dm-verify-btn--selected {
+  background: #fff7ed;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+@media (max-width: 768px) {
+  .dm-detail-grid,
+  .dm-verify-actions {
+    grid-template-columns: 1fr;
+  }
+}

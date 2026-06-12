@@ -121,8 +121,8 @@ function LoginPage() {
 
           <div className="login-brand__stats">
             <div className="login-brand__stat">
-              <strong>12k+</strong>
-              <span>Patients</span>
+              <strong>Licensed</strong>
+              <span>Pharmacy</span>
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">

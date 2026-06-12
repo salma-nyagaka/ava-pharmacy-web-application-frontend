@@ -12,6 +12,7 @@ function StaffActivatePage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   if (!token) {
     return (
@@ -57,10 +58,19 @@ function StaffActivatePage() {
       setError('Passwords do not match.')
       return
     }
+    if (!acceptedTerms) {
+      setError('You must accept the professional terms and confidentiality requirements.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
-      await adminUserService.activateStaffPassword({ token, new_password: password, new_password_confirm: confirmPassword })
+      await adminUserService.activateStaffPassword({
+        token,
+        new_password: password,
+        new_password_confirm: confirmPassword,
+        accepted_terms: acceptedTerms,
+      })
       setSuccess(true)
     } catch (err) {
       setError(err instanceof AdminUserError ? err.message : 'Activation failed. Your link may have expired -contact your administrator.')
@@ -123,6 +133,16 @@ function StaffActivatePage() {
             />
           </div>
 
+          <label className="staff-activate-terms" htmlFor="sa-terms">
+            <input
+              id="sa-terms"
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+            />
+            <span>I accept Ava Pharmacy's professional terms, confidentiality requirements, and account usage policy.</span>
+          </label>
+
           {error && (
             <div className="staff-activate-error">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
@@ -132,7 +152,7 @@ function StaffActivatePage() {
             </div>
           )}
 
-          <button type="submit" className="staff-activate-btn" disabled={loading}>
+          <button type="submit" className="staff-activate-btn" disabled={loading || !acceptedTerms}>
             {loading ? 'Activating…' : 'Activate My Account'}
           </button>
         </form>

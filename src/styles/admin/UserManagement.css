@@ -553,6 +553,14 @@
   margin: 0;
 }
 
+.um-field-error {
+  margin: 0.35rem 0 0;
+  color: #be123c;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .um-modal__footer {
   display: flex;
   align-items: center;

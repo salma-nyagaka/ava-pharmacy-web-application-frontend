@@ -356,6 +356,11 @@ function PrescriptionManagement() {
                           <div>
                             <p className="px-item__name">{item.name}</p>
                             <p className="px-item__meta">{item.dose} · {item.frequency}</p>
+                            {(item.variantName || item.variantSku) && (
+                              <p className="px-item__variant">
+                                {item.variantName || 'Selected variant'}{item.variantSku ? ` · SKU ${item.variantSku}` : ''}
+                              </p>
+                            )}
                           </div>
                           <span className="px-item__qty">Qty {item.qty}</span>
                         </div>

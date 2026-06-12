@@ -132,7 +132,7 @@ const blank = () => ({
 
 const STEPS = ['Role', 'Personal', 'Credentials', 'Practice', 'References', 'Documents', 'Confirm']
 const TOTAL_STEPS = STEPS.length
-const UI_TEST_MODE = true
+const UI_TEST_MODE = false
 
 const ROLE_CARDS: Array<{ type: ProfType; icon: React.ReactNode; tagline: string; perks: string[] }> = [
   {

@@ -1,9 +1,13 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/avapharmacy/api/v1').replace(/\/$/, '')
 
 export interface PharmacistCreatePayload {
-  name: string
+  firstName: string
+  lastName: string
   email: string
   phone: string
+  licenseNumber: string
+  branchLocation: string
+  position: string
   address?: string
   pharmacistPermissions: string[]
 }
@@ -21,6 +25,9 @@ export interface AdminUserApi {
   is_active?: boolean
   address?: string
   pharmacist_permissions?: string[]
+  pharmacist_license_number?: string
+  pharmacist_branch_location?: string
+  pharmacist_position?: string
   created_at?: string
   date_joined?: string
   total_orders?: number
@@ -126,13 +133,6 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
   )
 }
 
-const splitName = (fullName: string) => {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return { first_name: '', last_name: '' }
-  if (parts.length === 1) return { first_name: parts[0], last_name: '' }
-  return { first_name: parts[0], last_name: parts.slice(1).join(' ') }
-}
-
 export const adminUserService = {
   async listUsers() {
     const response = await fetch(`${API_BASE_URL}/admin/users/`, {
@@ -190,7 +190,6 @@ export const adminUserService = {
   },
 
   async createPharmacist(payload: PharmacistCreatePayload) {
-    const { first_name, last_name } = splitName(payload.name)
     const response = await fetch(`${API_BASE_URL}/admin/users/`, {
       method: 'POST',
       headers: {
@@ -198,12 +197,15 @@ export const adminUserService = {
         ...getAuthHeaders(),
       },
       body: JSON.stringify({
-        first_name,
-        last_name,
+        first_name: payload.firstName,
+        last_name: payload.lastName,
         email: payload.email,
         phone: payload.phone,
         role: 'pharmacist',
-        address: payload.address,
+        address: payload.address || payload.branchLocation,
+        pharmacist_license_number: payload.licenseNumber,
+        pharmacist_branch_location: payload.branchLocation,
+        pharmacist_position: payload.position,
         pharmacist_permissions: payload.pharmacistPermissions,
       }),
     })
@@ -219,7 +221,7 @@ export const adminUserService = {
     return handleResponse<{ detail: string }>(response)
   },
 
-  async activateStaffPassword(payload: { token: string; new_password: string; new_password_confirm: string }) {
+  async activateStaffPassword(payload: { token: string; new_password: string; new_password_confirm: string; accepted_terms: boolean }) {
     const response = await fetch(`${API_BASE_URL}/auth/professional/activate/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

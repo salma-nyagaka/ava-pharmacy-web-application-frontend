@@ -8,6 +8,9 @@ export interface PrescriptionItem {
   productName?: string
   productSlug?: string
   productImage?: string | null
+  variantId?: number | null
+  variantName?: string
+  variantSku?: string
   dose: string
   frequency: string
   qty: number
