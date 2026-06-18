@@ -165,6 +165,55 @@
   font-size: 0.875rem;
 }
 
+.orders-compact-table th,
+.orders-compact-table td {
+  padding: 0.42rem 0.52rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.orders-compact-table th {
+  font-size: 0.64rem;
+  letter-spacing: 0.045em;
+}
+
+.orders-compact-table .order-id,
+.orders-compact-table .order-total,
+.orders-compact-table .customer-name {
+  font-size: 0.78rem;
+}
+
+.orders-compact-table .customer-info {
+  gap: 0.08rem;
+}
+
+.orders-compact-table .customer-email {
+  font-size: 0.68rem;
+}
+
+.orders-compact-table .status {
+  padding: 0.12rem 0.38rem;
+  font-size: 0.66rem;
+}
+
+.orders-compact-table .action-buttons {
+  gap: 0.3rem;
+}
+
+.orders-compact-table .btn-sm,
+.orders-compact-table .btn--sm {
+  min-height: 28px;
+  padding: 0.25rem 0.42rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+}
+
+.orders-compact-table th .btn--sm {
+  min-height: 26px;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.64rem;
+}
+
 /* ── Cell content ───────────────────────────────────────────── */
 .order-id {
   font-size: 0.8125rem;

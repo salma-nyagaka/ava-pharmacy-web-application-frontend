@@ -527,6 +527,27 @@
   background-color: rgba(232, 23, 80, 0.06);
 }
 
+.hero__quick-links--professional {
+  background: #f8fafc;
+}
+
+.hero__quick-link--dashboard {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-color: rgba(46, 125, 114, 0.28);
+  background: #effaf6;
+  color: #235f57;
+  font-weight: 800;
+}
+
+.hero__quick-link--dashboard:hover {
+  color: #1f4f49;
+  border-color: rgba(46, 125, 114, 0.48);
+  background: #e3f6ef;
+  transform: translateY(-1px);
+}
+
 /* Promo Banner - horizontal trust strip */
 .promo-banner {
   background: #fff;

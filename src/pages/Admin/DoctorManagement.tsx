@@ -9,7 +9,13 @@ import {
   DoctorProfile,
   DoctorType,
 } from '../../data/telemedicine'
-import { adminDoctorService, AdminDoctorError, type AdminDoctorApi, type AdminNotificationApi } from '../../services/adminDoctorService'
+import {
+  adminDoctorService,
+  AdminDoctorError,
+  type AdminDoctorApi,
+  type AdminNotificationApi,
+  type AdminProfessionalType,
+} from '../../services/adminDoctorService'
 
 function getInitials(name: string) {
   const parts = name.replace(/^Dr\.\s*/i, '').trim().split(/\s+/)
@@ -144,6 +150,12 @@ const mapDoctor = (api: AdminDoctorApi): DoctorProfile => {
 
 function DoctorManagement() {
   const [searchParams] = useSearchParams()
+  const pageType = useMemo<AdminProfessionalType | 'all'>(() => {
+    const normalized = (searchParams.get('type') || '').toLowerCase()
+    if (normalized === 'pediatrician' || normalized === 'paedetrician') return 'Pediatrician'
+    if (normalized === 'doctor') return 'Doctor'
+    return 'all'
+  }, [searchParams])
   const [doctors, setDoctors] = useState<DoctorProfile[]>([])
   const [notifications, setNotifications] = useState<AdminNotificationApi[]>([])
   const [loading, setLoading] = useState(true)
@@ -176,8 +188,16 @@ function DoctorManagement() {
     setLoading(true)
     setLoadError('')
     try {
+      const professionalPayload = pageType === 'Pediatrician'
+        ? await adminDoctorService.listPediatricians()
+        : pageType === 'Doctor'
+          ? await adminDoctorService.listDoctors()
+          : [
+              ...(await adminDoctorService.listDoctors()),
+              ...(await adminDoctorService.listPediatricians()),
+            ]
       const [payload, notificationPayload] = await Promise.all([
-        adminDoctorService.listDoctors(),
+        Promise.resolve(professionalPayload),
         adminDoctorService.listNotifications().catch(() => []),
       ])
       setDoctors(payload.map(mapDoctor))
@@ -195,10 +215,12 @@ function DoctorManagement() {
 
   const loadDoctorDetail = async (doctorId: string) => {
     if (!doctorId || detailCache[doctorId]) return
+    const professionalType = doctors.find((doctor) => doctor.id === doctorId)?.type
+      ?? (pageType === 'all' ? 'Doctor' : pageType)
     setDetailLoadingId(doctorId)
     setDetailError('')
     try {
-      const payload = await adminDoctorService.getDoctor(doctorId)
+      const payload = await adminDoctorService.getDoctor(doctorId, professionalType)
       const mapped = mapDoctor(payload)
       setDetailCache((prev) => ({ ...prev, [doctorId]: mapped }))
       setDoctors((prev) => prev.map((doctor) => doctor.id === doctorId ? { ...doctor, ...mapped } : doctor))
@@ -214,20 +236,11 @@ function DoctorManagement() {
 
   useEffect(() => {
     refreshDoctors()
-  }, [])
+  }, [pageType])
 
   useEffect(() => {
-    const typeParam = searchParams.get('type')
-    if (!typeParam) return
-    const normalized = typeParam.toLowerCase()
-    if (normalized === 'doctor') {
-      setSelectedType('Doctor')
-      return
-    }
-    if (normalized === 'pediatrician' || normalized === 'paedetrician') {
-      setSelectedType('Pediatrician')
-    }
-  }, [searchParams])
+    setSelectedType(pageType === 'all' ? 'all' : pageType)
+  }, [pageType])
 
   const specialties = useMemo(
     () => Array.from(new Set(doctors.map((d) => d.specialty).filter(Boolean))),
@@ -253,6 +266,8 @@ function DoctorManagement() {
   const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / PAGE_SIZE))
   const pagedDoctors = filteredDoctors.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const pendingDoctors = doctors.filter((d) => d.status === 'Pending')
+  const pageEntityLabel = pageType === 'Pediatrician' ? 'Pediatrician' : pageType === 'Doctor' ? 'Doctor' : 'Professional'
+  const pageEntityPlural = pageType === 'Pediatrician' ? 'Pediatricians' : pageType === 'Doctor' ? 'Doctors' : 'Doctors & Specialists'
   const visibleDoctorNotifications = notifications.filter((notification) => {
     const title = String(notification.title ?? '').toLowerCase()
     const message = String(notification.message ?? '').toLowerCase()
@@ -310,13 +325,17 @@ function DoctorManagement() {
     setVerifySubmitting(true)
     setVerifyError('')
     try {
-      await adminDoctorService.actionDoctor(selectedPendingDoctor.id, {
-        action: verifyAction,
-        note: verifyNote.trim() || undefined,
-      })
+      await adminDoctorService.actionDoctor(
+        selectedPendingDoctor.id,
+        {
+          action: verifyAction,
+          note: verifyNote.trim() || undefined,
+        },
+        selectedPendingDoctor.type,
+      )
       logAdminAction({
-        action: `Doctor action: ${verifyAction}`,
-        entity: 'Doctor',
+        action: `${selectedPendingDoctor.type} action: ${verifyAction}`,
+        entity: selectedPendingDoctor.type,
         entityId: selectedPendingDoctor.id,
         detail: verifyNote.trim() || selectedPendingDoctor.name,
       })
@@ -346,8 +365,8 @@ function DoctorManagement() {
     setProvisionError('')
     setProvisionSuccess('')
     try {
-      await adminDoctorService.provisionAccount(manageDoctor.id)
-      logAdminAction({ action: 'Provision doctor account', entity: 'Doctor', entityId: manageDoctor.id, detail: manageDoctor.name })
+      await adminDoctorService.provisionAccount(manageDoctor.id, manageDoctor.type)
+      logAdminAction({ action: `Provision ${manageDoctor.type.toLowerCase()} account`, entity: manageDoctor.type, entityId: manageDoctor.id, detail: manageDoctor.name })
       setProvisionSuccess('Account provisioned successfully.')
       await refreshDoctors()
     } catch (error) {
@@ -390,8 +409,8 @@ function DoctorManagement() {
       {/* Header */}
       <div className="category-management__header">
         <div>
-          <h1>Doctors & Specialists</h1>
-          <p className="dm-subtitle">Manage registered doctors, pediatricians, and their verifications.</p>
+          <h1>{pageEntityPlural}</h1>
+          <p className="dm-subtitle">Manage registered {pageEntityPlural.toLowerCase()} and their verifications.</p>
         </div>
         <div className="dm-header-actions">
           {pendingDoctors.length > 0 && (
@@ -519,11 +538,17 @@ function DoctorManagement() {
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
             <input type="search" placeholder="Search by name, email, specialty…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <select className="cm-filter-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
-            <option value="all">All types</option>
-            <option value="Doctor">Doctors</option>
-            <option value="Pediatrician">Pediatricians</option>
-          </select>
+          {pageType === 'all' ? (
+            <select className="cm-filter-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+              <option value="all">All types</option>
+              <option value="Doctor">Doctors</option>
+              <option value="Pediatrician">Pediatricians</option>
+            </select>
+          ) : (
+            <select className="cm-filter-select" value={pageType} disabled aria-label="Professional type">
+              <option value={pageType}>{pageEntityPlural}</option>
+            </select>
+          )}
           <select className="cm-filter-select" value={selectedSpecialty} onChange={(e) => setSelectedSpecialty(e.target.value)}>
             <option value="all">All specialties</option>
             {specialties.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -546,7 +571,7 @@ function DoctorManagement() {
         <table className="cm-table">
           <thead>
             <tr>
-              <th>Doctor</th>
+              <th>{pageEntityLabel}</th>
               <th>Type</th>
               <th>Specialty</th>
               <th>Fee · Rating</th>
@@ -556,7 +581,7 @@ function DoctorManagement() {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={6} className="doctor-empty">Loading doctors…</td></tr>
+              <tr><td colSpan={6} className="doctor-empty">Loading {pageEntityPlural.toLowerCase()}…</td></tr>
             )}
             {!loading && pagedDoctors.map((doctor) => (
               <tr key={doctor.id}>
@@ -611,7 +636,7 @@ function DoctorManagement() {
               </tr>
             ))}
             {!loading && filteredDoctors.length === 0 && (
-              <tr><td colSpan={6} className="doctor-empty">No doctors match your filters.</td></tr>
+              <tr><td colSpan={6} className="doctor-empty">No {pageEntityPlural.toLowerCase()} match your filters.</td></tr>
             )}
           </tbody>
         </table>
@@ -731,7 +756,7 @@ function DoctorManagement() {
         <div className="modal-overlay" onClick={() => setManageDoctor(null)}>
           <div className="dm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
-              <h2>Doctor details</h2>
+              <h2>{manageDoctorDetails.type} details</h2>
               <button className="modal__close" type="button" onClick={() => setManageDoctor(null)}>×</button>
             </div>
             <div className="modal__content">

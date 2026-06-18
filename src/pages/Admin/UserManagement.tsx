@@ -27,6 +27,11 @@ function getInitials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
+function getUserJoinedTimestamp(user: AdminUser) {
+  const timestamp = Date.parse(user.joinedDate)
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
 const mapApiUser = (user: import('../../services/adminUserService').AdminUserApi) => ({
   id: user.id,
   name: user.name || `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email,
@@ -46,8 +51,19 @@ const mapApiUser = (user: import('../../services/adminUserService').AdminUserApi
   pharmacistPosition: user.pharmacist_position ?? '',
 })
 
+const PHARMACIST_MODAL_FIELD_ERROR_KEYS = new Set([
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'pharmacist_license_number',
+  'pharmacist_position',
+  'pharmacist_branch_location',
+  'pharmacist_permissions',
+])
+
 function UserManagement() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState<AdminUserRole | 'all'>(() => getRoleFromSearchParams(searchParams.get('role')))
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -163,7 +179,7 @@ function UserManagement() {
       if (!query) return matchesRole && matchesStatus
       const matchesQuery = [user.name, user.email, user.phone].some((v) => v.toLowerCase().includes(query))
       return matchesRole && matchesStatus && matchesQuery
-    })
+    }).sort((a, b) => getUserJoinedTimestamp(b) - getUserJoinedTimestamp(a) || b.id - a.id)
   }, [users, searchTerm, selectedRole, selectedStatus])
 
   useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedRole, selectedStatus])
@@ -172,14 +188,7 @@ function UserManagement() {
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedUsers = filteredUsers.slice(startIndex, startIndex + PAGE_SIZE)
-
-  const handleRoleChange = (nextRole: AdminUserRole | 'all') => {
-    setSelectedRole(nextRole)
-    const next = new URLSearchParams(searchParams)
-    if (nextRole === 'all') next.delete('role')
-    else next.set('role', nextRole)
-    setSearchParams(next, { replace: true })
-  }
+  const modalOtherErrors = Object.entries(mFieldErrors).filter(([key]) => !PHARMACIST_MODAL_FIELD_ERROR_KEYS.has(key))
 
   const handleToggleStatus = async (userId: number, nextStatus: 'active' | 'suspended') => {
     const targetUser = users.find((user) => user.id === userId)
@@ -274,18 +283,12 @@ function UserManagement() {
         </div>
       </div>
 
-      <div className="cm-toolbar">
-        <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
+      <div className="cm-toolbar user-management__toolbar">
+        <div className="cm-toolbar__right user-management__toolbar-actions">
           <div className="cm-search-box">
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75"/><path d="M13.5 13.5L17 17" strokeLinecap="round"/></svg>
             <input type="search" placeholder="Search by name, email, or phone…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <select className="cm-filter-select" value={selectedRole} onChange={(e) => handleRoleChange(e.target.value as AdminUserRole | 'all')}>
-            <option value="all">All Roles</option>
-            {adminRoleOptions.map((role) => (
-              <option key={role.value} value={role.value}>{role.label}</option>
-            ))}
-          </select>
           <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -491,7 +494,15 @@ function UserManagement() {
                       )
                     })}
                   </div>
+                  {mFieldErrors.pharmacist_permissions && <p className="um-field-error">{mFieldErrors.pharmacist_permissions}</p>}
                 </div>
+                {modalOtherErrors.length > 0 && (
+                  <div className="um-modal__field-errors" role="alert">
+                    {modalOtherErrors.map(([key, message]) => (
+                      <p key={key}>{message}</p>
+                    ))}
+                  </div>
+                )}
                 {mError && (
                   <p className="um-modal__error">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>

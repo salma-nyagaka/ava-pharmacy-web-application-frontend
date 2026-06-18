@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import { adminProductService, ApiBrand } from '../../services/adminProductService'
+import { adminProductService, ApiBrand, ApiPromotion } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
@@ -9,6 +9,7 @@ import '../../styles/admin/BrandManagement.css'
 
 const PAGE_SIZE = 8
 type SortDirection = 'asc' | 'desc'
+type SortField = 'name' | 'status' | 'created_at'
 
 function formatDate(value?: string): string {
   if (!value) return '—'
@@ -27,17 +28,35 @@ function compareCreatedAt(left?: string, right?: string): number {
   return leftTime - rightTime
 }
 
-function sortBrands(items: ApiBrand[]) {
-  return [...items].sort((a, b) => a.name.localeCompare(b.name))
+function isActivePromotion(promotion: ApiPromotion, now = new Date()): boolean {
+  if (promotion.status !== 'active') return false
+  const today = new Date(now.toISOString().slice(0, 10))
+  const start = new Date(promotion.start_date)
+  const end = new Date(promotion.end_date)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false
+  return start <= today && today <= end
+}
+
+function getBrandDealLabel(promotions: ApiPromotion[], slug?: string | null): string {
+  const activePromotions = promotions.filter((promotion) => isActivePromotion(promotion))
+  if (slug && activePromotions.some((promotion) => promotion.scope === 'brand' && promotion.targets.includes(slug))) {
+    return 'Active deal'
+  }
+  if (activePromotions.some((promotion) => promotion.scope === 'all')) {
+    return 'Storewide deal'
+  }
+  return 'No active deal'
 }
 
 function BrandManagement() {
   const [brands, setBrands] = useState<ApiBrand[]>([])
+  const [promotions, setPromotions] = useState<ApiPromotion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
-  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
@@ -55,8 +74,12 @@ function BrandManagement() {
     setLoading(true)
     setError('')
     try {
-      const results = await adminProductService.listBrands()
-      setBrands(sortBrands(results))
+      const [results, promoRows] = await Promise.all([
+        adminProductService.listBrands(),
+        adminProductService.listPromotions(),
+      ])
+      setBrands(results)
+      setPromotions(promoRows)
     } catch {
       setError('Unable to load brands. Check your connection and try again.')
     } finally {
@@ -161,7 +184,7 @@ function BrandManagement() {
               }
 
         const updated = await adminProductService.updateBrand(editing.id, payload)
-        setBrands((prev) => sortBrands(prev.map((brand) => (brand.id === editing.id ? updated : brand))))
+        setBrands((prev) => prev.map((brand) => (brand.id === editing.id ? updated : brand)))
       } else {
         const payload = new FormData()
         payload.append('name', trimmedName)
@@ -169,7 +192,7 @@ function BrandManagement() {
         payload.append('logo', formLogoFile!)
 
         const created = await adminProductService.createBrand(payload)
-        setBrands((prev) => sortBrands([...prev, created]))
+        setBrands((prev) => [created, ...prev])
       }
 
       resetForm()
@@ -187,7 +210,7 @@ function BrandManagement() {
     setTogglingIds((prev) => new Set(prev).add(brand.id))
     try {
       const updated = await adminProductService.updateBrand(brand.id, { is_active: !brand.is_active })
-      setBrands((prev) => sortBrands(prev.map((item) => (item.id === brand.id ? updated : item))))
+      setBrands((prev) => prev.map((item) => (item.id === brand.id ? updated : item)))
       window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch {
       // silent
@@ -220,15 +243,18 @@ function BrandManagement() {
   const sortedBrands = useMemo(() => {
     const items = [...filtered]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (sortField === 'name') comparison = left.name.localeCompare(right.name)
+      else if (sortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filtered, createdAtSortDirection])
+  }, [filtered, sortField, sortDirection])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, selectedStatus, createdAtSortDirection])
+  }, [search, selectedStatus, sortField, sortDirection])
 
   const totalPages = Math.max(1, Math.ceil(sortedBrands.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
@@ -249,9 +275,21 @@ function BrandManagement() {
     setSelectedStatus('all')
   }
 
-  const toggleCreatedAtSort = () => {
-    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
   }
+
+  const sortIndicator = (field: SortField) => sortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+  const renderSortButton = (field: SortField, label: string) => (
+    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort(field)}>
+      {label} {sortIndicator(field)}
+    </button>
+  )
 
   return (
     <div className="category-management">
@@ -395,24 +433,23 @@ function BrandManagement() {
             </div>
           ) : (
             <div className="cm-table-wrap">
-              <table className="cm-table">
+              <table className="cm-table brands-compact-table">
                 <thead>
                   <tr>
-                    <th>Brand</th>
+                    <th>{renderSortButton('name', 'Brand')}</th>
                     <th>Description</th>
-                    <th>Status</th>
-                    <th>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                      </button>
-                    </th>
+                    <th>{renderSortButton('status', 'Status')}</th>
+                    <th>Active Deal</th>
+                    <th>{renderSortButton('created_at', 'Created At')}</th>
                     <th>Created By</th>
                     <th>Updated By</th>
                     <th className="cm-th-actions"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pagedBrands.map((brand) => (
+                  {pagedBrands.map((brand) => {
+                    const dealLabel = getBrandDealLabel(promotions, brand.slug)
+                    return (
                     <tr key={brand.id}>
                       <td>
                         <div className="cm-brand-identity">
@@ -454,6 +491,11 @@ function BrandManagement() {
                           <span className="cm-toggle__knob" />
                         </button>
                       </td>
+                      <td>
+                        <span className={`cm-status ${dealLabel === 'No active deal' ? 'cm-status--inactive' : 'cm-status--active'}`}>
+                          {dealLabel}
+                        </span>
+                      </td>
                       <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(brand.created_at)}</td>
                       <td style={{ color: '#6b7280' }}>{brand.created_by_name || '—'}</td>
                       <td style={{ color: '#6b7280' }}>—</td>
@@ -474,7 +516,8 @@ function BrandManagement() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -555,7 +598,7 @@ function BrandManagement() {
                 <span>Description <em className="cm-field__optional">optional</em></span>
                 <textarea
                   value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
+                  onChange={(e) => { setFormDescription(e.target.value); setFormError('') }}
                   placeholder="Short description visible to shoppers"
                   disabled={saving}
                   rows={3}
@@ -571,7 +614,6 @@ function BrandManagement() {
                   accept="image/*"
                   onChange={(e) => { void handleLogoFileChange(e.currentTarget.files?.[0] ?? null) }}
                   disabled={saving}
-                  required={!editing}
                 />
                 <label htmlFor="brand-logo-input" className={`cm-file-input${saving ? ' cm-file-input--disabled' : ''}`}>
                   <span className="cm-file-input__button">

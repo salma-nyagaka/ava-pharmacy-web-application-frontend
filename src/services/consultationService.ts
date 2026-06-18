@@ -783,12 +783,22 @@ export interface ClinicianCatalogVariant {
 export interface ClinicianPrescription {
   id: number
   reference: string
-  consultation_id: number | null
+  consultation: number | null
+  consultation_id?: number | null
   patient_name: string
   status: 'draft' | 'sent' | 'dispensed'
   items: ClinicianPrescriptionItem[]
   digital_signature: string | null
+  notes?: string
   created_at: string
+}
+
+export interface ClinicianEarningRecord {
+  id: number
+  consultation: number | null
+  amount: string
+  description: string
+  earned_at: string
 }
 
 export async function fetchClinicianPrescriptions(): Promise<ClinicianPrescription[]> {
@@ -802,21 +812,34 @@ export async function fetchClinicianPrescriptions(): Promise<ClinicianPrescripti
   return list as ClinicianPrescription[]
 }
 
+export async function fetchClinicianEarnings(): Promise<ClinicianEarningRecord[]> {
+  const res = await apiClient.get('/clinician/earnings/')
+  const payload = unwrap<unknown>(res.data, [])
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as { results?: unknown[] })?.results)
+      ? (payload as { results: unknown[] }).results
+      : []
+  return list as ClinicianEarningRecord[]
+}
+
 export async function createClinicianPrescription(payload: {
   patient_name: string
   consultation_id?: number | null
+  notes?: string
   items: ClinicianPrescriptionItem[]
 }): Promise<ClinicianPrescription> {
   const res = await apiClient.post('/doctor/prescriptions/', {
     patient_name: payload.patient_name,
     consultation: payload.consultation_id ?? null,
+    notes: payload.notes ?? '',
     items: payload.items,
   })
   return unwrap<ClinicianPrescription>(res.data, {} as ClinicianPrescription)
 }
 
-export async function searchClinicianCatalogVariants(query: string): Promise<ClinicianCatalogVariant[]> {
-  const res = await apiClient.get('/doctor/catalog/variants/', { params: { q: query, limit: 12 } })
+export async function searchClinicianCatalogVariants(query: string, limit = 12): Promise<ClinicianCatalogVariant[]> {
+  const res = await apiClient.get('/doctor/catalog/variants/', { params: { q: query, limit } })
   const payload = unwrap<{ results?: ClinicianCatalogVariant[] }>(res.data, { results: [] })
   return payload.results ?? []
 }

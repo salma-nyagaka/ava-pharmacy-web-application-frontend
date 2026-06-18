@@ -216,14 +216,14 @@
 }
 
 .pharm-row-btn--next {
-  background: #be3455;
-  border-color: #be3455;
+  background: #0ea5e9;
+  border-color: #0ea5e9;
   color: #fff;
 }
 
 .pharm-row-btn--next:hover {
-  background: #a62d4a;
-  border-color: #a62d4a;
+  background: #0284c7;
+  border-color: #0284c7;
 }
 
 .pharm-order-state {
@@ -310,8 +310,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff1f2;
-  color: #be123c;
+  background: #f0f9ff;
+  color: #0284c7;
   font-size: 0.82rem;
   font-weight: 800;
 }
@@ -1259,39 +1259,97 @@
 
 /* Dashboard refresh overrides */
 .portal-shell__main .admin-page {
-  padding: 2rem 2.5rem 2.5rem;
+  padding: 1rem 1.35rem 1.5rem;
 }
 
 .portal-shell__main .px-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .portal-shell__main .px-stat {
-  border-left-width: 4px;
+  border-left-width: 3px;
   border-top: none;
-  border-radius: var(--dashboard-radius-lg);
+  border-radius: 10px;
   border-color: var(--dashboard-border);
   background: var(--dashboard-surface);
   box-shadow: var(--dashboard-shadow-sm);
-  padding: 1.2rem 1.35rem;
+  padding: 0.58rem 0.75rem;
+  min-height: 58px;
 }
 
 .portal-shell__main .px-stat__value {
-  font-size: 1.875rem;
+  font-size: 1.12rem;
   line-height: 1;
   letter-spacing: -0.02em;
 }
 
 .portal-shell__main .px-stat__label {
-  font-size: var(--dashboard-font-xs);
+  font-size: 0.58rem;
   font-weight: var(--dashboard-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--dashboard-text-faint);
-  margin-top: 0.25rem;
+  margin-top: 0.12rem;
+}
+
+.portal-shell__main .pharm-dashboard-layout {
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.portal-shell__main .pharm-table-panel {
+  padding: 0.75rem;
+  border-radius: 10px;
+}
+
+.portal-shell__main .pharm-table-panel__header {
+  margin-bottom: 0.55rem;
+  gap: 0.6rem;
+}
+
+.portal-shell__main .pharm-table-panel__header h2 {
+  font-size: 0.86rem;
+}
+
+.portal-shell__main .pharm-table-panel__header p {
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.portal-shell__main .pharm-table-panel__badge {
+  padding: 0.16rem 0.5rem;
+  font-size: 0.66rem;
+}
+
+.portal-shell__main .pharm-table th,
+.portal-shell__main .pharm-table td {
+  padding: 0.42rem 0.52rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.portal-shell__main .pharm-table th {
+  font-size: 0.64rem;
+  letter-spacing: 0.045em;
+}
+
+.portal-shell__main .pharm-table__primary {
+  font-size: 0.78rem;
+}
+
+.portal-shell__main .pharm-cell-muted,
+.portal-shell__main .pharm-order-items-preview {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.portal-shell__main .pharm-table .admin-status,
+.portal-shell__main .pharm-table .status-pill {
+  padding: 0.12rem 0.38rem;
+  font-size: 0.66rem;
 }
 
 .portal-shell__main .px-pending-banner {

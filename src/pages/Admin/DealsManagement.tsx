@@ -16,6 +16,7 @@ import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const PAGE_SIZE = 6
 type SortDirection = 'asc' | 'desc'
+type SortField = 'title' | 'scope' | 'discount' | 'status' | 'created_at'
 
 const SCOPE_LABELS: Record<PromotionScope, string> = {
   all: 'All products',
@@ -234,7 +235,8 @@ function DealsManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedScope, setSelectedScope] = useState<'all' | 'all-products' | PromotionScope>('all')
   const [selectedStatus, setSelectedStatus] = useState<'all' | PromotionDerivedStatus>('all')
-  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [draft, setDraft] = useState<PromotionDraft>(createBlankDraft())
@@ -271,7 +273,7 @@ function DealsManagement() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedScope, selectedStatus, createdAtSortDirection])
+  }, [searchTerm, selectedScope, selectedStatus, sortField, sortDirection])
 
   const categoryOptions = useMemo<TargetOption[]>(
     () => categories.map((category) => ({ value: category.slug, label: category.name })),
@@ -330,20 +332,37 @@ function DealsManagement() {
   const sortedPromotions = useMemo(() => {
     const items = [...filteredPromotions]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (sortField === 'title') comparison = left.title.localeCompare(right.title)
+      else if (sortField === 'scope') comparison = SCOPE_LABELS[left.scope].localeCompare(SCOPE_LABELS[right.scope])
+      else if (sortField === 'discount') comparison = Number(left.value ?? 0) - Number(right.value ?? 0)
+      else if (sortField === 'status') comparison = getPromotionStatus(left).localeCompare(getPromotionStatus(right))
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filteredPromotions, createdAtSortDirection])
+  }, [filteredPromotions, sortField, sortDirection])
 
   const totalPages = Math.max(1, Math.ceil(sortedPromotions.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedPromotions = sortedPromotions.slice(startIndex, startIndex + PAGE_SIZE)
   const discountPreview = getDiscountPreview(draft.type, draft.value)
 
-  const toggleCreatedAtSort = () => {
-    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
   }
+
+  const sortIndicator = (field: SortField) => sortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+  const renderSortButton = (field: SortField, label: string) => (
+    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort(field)}>
+      {label} {sortIndicator(field)}
+    </button>
+  )
 
   useEffect(() => {
     if (!promotionImageFile) {
@@ -628,19 +647,15 @@ function DealsManagement() {
         )}
         {!loading && filteredPromotions.length > 0 && (
           <div className="cm-table-wrap">
-            <table className="cm-table">
+            <table className="cm-table dm-products-table">
               <thead>
                 <tr>
-                  <th>Deal</th>
-                  <th>Scope</th>
-                  <th>Discount</th>
+                  <th>{renderSortButton('title', 'Deal')}</th>
+                  <th>{renderSortButton('scope', 'Scope')}</th>
+                  <th>{renderSortButton('discount', 'Discount')}</th>
                   <th>Schedule</th>
-                  <th>Status</th>
-                  <th>
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                      Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                    </button>
-                  </th>
+                  <th>{renderSortButton('status', 'Status')}</th>
+                  <th>{renderSortButton('created_at', 'Created At')}</th>
                   <th>Created By</th>
                   <th>Updated By</th>
                   <th className="cm-th-actions">Actions</th>

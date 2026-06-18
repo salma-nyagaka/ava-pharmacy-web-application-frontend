@@ -139,7 +139,6 @@ export interface ApiProduct {
   id: number
   name: string
   sku: string
-  barcode?: string | null
   pos_product_id?: string | null
   slug: string
   strength: string
@@ -148,7 +147,6 @@ export interface ApiProduct {
   dosage_frequency: string
   dosage_notes: string
   price: string
-  cost_price: string | null
   original_price: string | null
   final_price: string
   discount_total: string
@@ -202,13 +200,13 @@ export interface ApiProductVariant {
   original_price: string | null
   effective_price: string
   image: string | null
-  stock_source: StockSource
-  stock_quantity: number
-  low_stock_threshold: number
-  allow_backorder: boolean
-  max_backorder_quantity: number
-  inventory_status: string
-  available_quantity: number
+  stock_source: StockSource | null
+  stock_quantity: number | null
+  low_stock_threshold: number | null
+  allow_backorder: boolean | null
+  max_backorder_quantity: number | null
+  inventory_status: string | null
+  available_quantity: number | null
   inventories?: ApiProductInventory[]
   is_active: boolean
   sort_order: number
@@ -254,9 +252,9 @@ export interface ApiInventoryProduct extends ApiProductVariant {
   category_name?: string | null
   category_slug?: string | null
   short_description?: string | null
-  stock_quantity: number
-  low_stock_threshold: number
-  allow_backorder: boolean
+  stock_quantity: number | null
+  low_stock_threshold: number | null
+  allow_backorder: boolean | null
 }
 
 export interface ApiReports {
@@ -283,12 +281,9 @@ export interface ApiOrder {
 export interface ProductCreatePayload {
   name: string
   slug: string
-  sku: string
-  barcode?: string
   pos_product_id?: string
   strength?: string
   price?: number
-  cost_price?: number
   branch_inventory?: InventoryLocationPayload
   warehouse_inventory?: InventoryLocationPayload
   category_id?: number | null
@@ -426,10 +421,6 @@ export const adminProductService = {
   async updateProduct(id: number, payload: Partial<ProductCreatePayload> | FormData) {
     const res = await apiClient.patch(`/admin/products/${id}/`, payload)
     return unwrap<ApiProduct>(res)
-  },
-
-  async deleteProduct(id: number) {
-    await apiClient.delete(`/admin/products/${id}/`)
   },
 
   async listProductVariants(productId: number) {

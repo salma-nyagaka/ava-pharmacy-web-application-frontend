@@ -3,7 +3,7 @@
 /* ===== Global Design Tokens ===== */
 :root {
   /* Semantic status colors */
-  --color-urgent: #ef4444;
+  --color-urgent: #dc2626;
   --color-urgent-bg: #fee2e2;
   --color-urgent-text: #991b1b;
 
@@ -11,17 +11,25 @@
   --color-pending-bg: #fef3c7;
   --color-pending-text: #92400e;
 
-  --color-active: #10b981;
-  --color-active-bg: #dcfce7;
-  --color-active-text: #166534;
+  --color-active: #2563eb;
+  --color-active-bg: #eff6ff;
+  --color-active-text: #1d4ed8;
 
-  --color-completed: #64748b;
-  --color-completed-bg: #f1f5f9;
-  --color-completed-text: #1e293b;
+  --color-completed: #16a34a;
+  --color-completed-bg: #f0fdf4;
+  --color-completed-text: #166534;
 
-  --color-info: #3b82f6;
-  --color-info-bg: #dbeafe;
-  --color-info-text: #1e40af;
+  --color-follow-up: #8b5cf6;
+  --color-follow-up-bg: #f5f3ff;
+  --color-follow-up-text: #6d28d9;
+
+  --color-cancelled: #6b7280;
+  --color-cancelled-bg: #f3f4f6;
+  --color-cancelled-text: #374151;
+
+  --color-info: #0ea5e9;
+  --color-info-bg: #f0f9ff;
+  --color-info-text: #0369a1;
 
   /* Typography */
   --font-ui: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -126,13 +134,13 @@
   --container-max: 1280px;
   --header-height: 80px;
 
-  --dashboard-page-bg: #f9fafb;
+  --dashboard-page-bg: #f8fafc;
   --dashboard-surface: #ffffff;
-  --dashboard-surface-muted: #f9fafb;
+  --dashboard-surface-muted: #f8fafc;
   --dashboard-surface-soft: #f1f5f9;
   --dashboard-surface-accent: #f8fafc;
-  --dashboard-border: #e5e7eb;
-  --dashboard-border-strong: #d1d5db;
+  --dashboard-border: #e2e8f0;
+  --dashboard-border-strong: #cbd5e1;
   --dashboard-text-title: #0f172a;
   --dashboard-text-body: #374151;
   --dashboard-text-muted: #6b7280;

@@ -17,6 +17,18 @@ import {
   saveDoctorMessages,
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
+import {
+  createClinicianPrescription,
+  fetchClinicianEarnings,
+  fetchClinicianPrescriptions,
+  fetchDoctorConsultations,
+  searchClinicianCatalogVariants,
+  sendClinicianPrescription,
+  type ClinicianEarningRecord,
+  type ClinicianCatalogVariant,
+  type ClinicianPrescription,
+  type ConsultationRecord,
+} from '../../services/consultationService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/portals/DoctorDashboardPage.css'
@@ -24,17 +36,52 @@ import '../../styles/portals/PediatricianDashboardPage.css'
 
 type PediatricTab = 'queue' | 'messages' | 'consents' | 'prescriptions' | 'profiles' | 'earnings'
 
+type PediatricClinicalNoteKey = 'complaint' | 'history' | 'exam' | 'diagnosis' | 'plan' | 'followUp' | 'assessment'
+
+type PediatricClinicalNotes = Record<PediatricClinicalNoteKey, string>
+
+type ChildClinicalProfile = {
+  child: string
+  age: number
+  ageMonths: number
+  gender: string
+  dob: string
+  bloodGroup: string
+  guardian: string
+  relationship: string
+  phone: string
+  email: string
+  emergencyContact: string
+  lastVisit: string
+  weightKg?: number
+  heightCm: number
+  bmi: string
+  headCircumference: string
+  growthPercentile: string
+  growthStatus: string
+  allergies: string[]
+  chronicConditions: string[]
+  currentMedication: string[]
+  vaccinations: {
+    received: string[]
+    upcoming: string[]
+    missed: string[]
+  }
+  hospitalizations: string[]
+  documents: string[]
+}
+
 const STATUS_COLORS: Record<string, string> = {
   Waiting: '#f59e0b',
-  'In progress': '#3b82f6',
-  Completed: '#10b981',
-  Cancelled: '#ef4444',
+  'In progress': '#2563EB',
+  Completed: '#16A34A',
+  Cancelled: '#6B7280',
 }
 
 const RX_STATUS_COLORS: Record<string, string> = {
   Draft: '#f59e0b',
-  Sent: '#3b82f6',
-  Dispensed: '#10b981',
+  Sent: '#2563EB',
+  Dispensed: '#16A34A',
 }
 
 function initials(name: string) {
@@ -57,11 +104,147 @@ function consultStep(status: Consultation['status']) {
 
 const CONSULT_STEPS = ['Waiting', 'In progress', 'Completed']
 
+function timelineTime(value: string) {
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : 0
+}
+
+function formatTimelineDate(value: string) {
+  const time = timelineTime(value)
+  if (!time) return value || 'Not dated'
+  return new Date(time).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function consultationNumericId(id: string) {
+  const numericId = Number(String(id).replace(/\D/g, ''))
+  return Number.isFinite(numericId) && numericId > 0 ? numericId : null
+}
+
+function prescriptionMatchesConsultation(rx: DoctorPrescription, consultationId: string) {
+  return rx.notes.toLowerCase().includes(consultationId.toLowerCase())
+}
+
+function medicationSummary(items: DoctorPrescriptionItem[]) {
+  if (items.length === 0) return 'No medication items'
+  const [first, ...rest] = items
+  return `${first.name || 'Medication'}${rest.length > 0 ? ` + ${rest.length} more` : ''}`
+}
+
+const CONSULT_STATUS_FROM_API: Record<string, Consultation['status']> = {
+  waiting: 'Waiting',
+  in_progress: 'In progress',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+}
+
+function formatBackendDate(value: string | null | undefined) {
+  if (!value) return 'Not scheduled'
+  return new Date(value).toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+function mapBackendPediatricConsultation(record: ConsultationRecord, doctorId: string): Consultation {
+  return {
+    id: record.reference || `CONS-${record.id}`,
+    backendId: record.id,
+    doctorId,
+    patientName: record.patientName || record.guardianName || 'Guardian',
+    patientAge: record.patientAge ?? 0,
+    issue: record.issue,
+    status: CONSULT_STATUS_FROM_API[record.status] ?? 'Waiting',
+    scheduledAt: formatBackendDate(record.scheduledAt || record.createdAt),
+    channel: 'Chat',
+    priority: record.priority === 'priority' ? 'Priority' : 'Routine',
+    lastMessageAt: formatBackendDate(record.lastMessageAt || record.updatedAt),
+    pediatric: true,
+    guardianName: record.guardianName || record.patientName,
+    childName: record.childName || record.patientName,
+    childAge: record.childAge ?? undefined,
+    weightKg: record.weightKg == null ? undefined : Number(record.weightKg),
+    consentStatus: record.consentStatus === 'granted' ? 'Granted' : 'Pending',
+    dosageAlert: record.dosageAlert,
+  }
+}
+
+function mapBackendPediatricThread(record: ConsultationRecord, doctorId: string): DoctorMessageThread {
+  const messages = record.messages.map((message) => ({
+    id: String(message.id),
+    sender: message.senderName === record.patientName ? 'patient' as const : 'doctor' as const,
+    text: message.message,
+    time: message.sentAt ? new Date(message.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+  }))
+  return {
+    id: `CONS-${record.id}`,
+    backendConsultationId: record.id,
+    doctorId,
+    patientName: record.childName || record.patientName || 'Child',
+    lastMessage: messages[messages.length - 1]?.text || record.issue,
+    lastMessageAt: formatBackendDate(record.lastMessageAt || record.updatedAt),
+    unreadCount: 0,
+    status: record.status === 'completed' ? 'Resolved' : 'Open',
+    messages,
+  }
+}
+
+function mapBackendPediatricPrescription(rx: ClinicianPrescription, doctorId: string): DoctorPrescription {
+  const consultationId = rx.consultation_id ?? rx.consultation ?? null
+  return {
+    id: rx.reference,
+    backendId: rx.id,
+    doctorId,
+    patientName: rx.patient_name,
+    createdAt: rx.created_at ? new Date(rx.created_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+    status: rx.status === 'sent' ? 'Sent' : rx.status === 'dispensed' ? 'Dispensed' : 'Draft',
+    notes: rx.notes || (consultationId ? `Consultation #${consultationId}` : 'No notes provided.'),
+    pediatric: true,
+    items: (rx.items || []).map((item) => ({
+      name: item.drug_name || item.catalog_name || 'Medication',
+      dosage: [item.dose, item.frequency, item.duration].filter(Boolean).join(' · ') || '-',
+      quantity: item.quantity ?? 1,
+      variantId: item.variant_id ?? item.product_variant_id ?? null,
+      productId: item.product_id ?? null,
+      sku: item.sku,
+      catalogName: item.catalog_name,
+      catalogFallback: item.catalog_fallback,
+    })),
+  }
+}
+
+function mapBackendPediatricEarning(row: ClinicianEarningRecord, doctorId: string): DoctorEarning {
+  const earnedAt = row.earned_at ? new Date(row.earned_at) : new Date()
+  const payoutDate = new Date(earnedAt)
+  payoutDate.setDate(payoutDate.getDate() + 7)
+  return {
+    id: `EARN-${row.id}`,
+    doctorId,
+    period: row.description || earnedAt.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' }),
+    consults: row.consultation ? 1 : 0,
+    revenue: Number(row.amount) || 0,
+    payoutDate: payoutDate.toISOString().slice(0, 10),
+    status: 'Scheduled',
+  }
+}
+
+function PediatricTimeline({ items }: { items: Array<{ type: string; date: string; summary: string }> }) {
+  return (
+    <div className="doc-timeline pd-history-timeline">
+      {items.map((item, i) => (
+        <div key={i} className="doc-timeline__item">
+          <div className="doc-timeline__dot" data-type={item.type} />
+          <div className="doc-timeline__content">
+            <p className="doc-timeline__date">{formatTimelineDate(item.date)}</p>
+            <p className="doc-timeline__summary">{item.summary}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function getAgeBandInfo(ageYears: number | undefined, ageMonths?: number): { label: string; color: string; bg: string } {
   const totalMonths = ageYears !== undefined ? ageYears * 12 + (ageMonths || 0) : 0
   if (totalMonths < 24) return { label: 'Infant', color: '#f97316', bg: '#fff7ed' }
   if (totalMonths < 60) return { label: 'Toddler', color: '#f59e0b', bg: '#fffbeb' }
-  if (totalMonths < 144) return { label: 'Child', color: '#3b82f6', bg: '#eff6ff' }
+  if (totalMonths < 144) return { label: 'Child', color: '#06B6D4', bg: '#ECFEFF' }
   return { label: 'Teen', color: '#8b5cf6', bg: '#f5f3ff' }
 }
 
@@ -110,7 +293,7 @@ function GrowthChart({ weightKg, ageMonths }: { weightKg?: number; ageMonths?: n
         <path d={path(WHO_WEIGHT_PERCENTILES.p50)} fill="none" stroke="#93c5fd" strokeWidth="2" />
         <path d={path(WHO_WEIGHT_PERCENTILES.p3)} fill="none" stroke="#bfdbfe" strokeWidth="1.5" />
         <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p97[maxIdx])} fontSize="7" fill="#93c5fd">P97</text>
-        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p50[maxIdx])} fontSize="7" fill="#3b82f6">P50</text>
+        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p50[maxIdx])} fontSize="7" fill="#06B6D4">P50</text>
         <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p3[maxIdx])} fontSize="7" fill="#93c5fd">P3</text>
         {ageMonths <= 24 && (
           <circle cx={toX(months)} cy={patientY} r="5" fill="#ef4444" stroke="#fff" strokeWidth="2" />
@@ -163,6 +346,128 @@ function DosingCalculator({ weightKg }: { weightKg?: number }) {
       )}
     </div>
   )
+}
+
+const NOTE_FIELDS: Array<{ key: PediatricClinicalNoteKey; label: string; placeholder: string }> = [
+  { key: 'complaint', label: 'Presenting complaint', placeholder: 'Fever, cough, rash, vomiting, diarrhoea...' },
+  { key: 'history', label: 'History of present illness', placeholder: 'Onset, duration, associated symptoms, feeding, hydration, sleep...' },
+  { key: 'exam', label: 'Physical examination findings', placeholder: 'Vitals, hydration, ENT, chest, abdomen, skin, neuro...' },
+  { key: 'diagnosis', label: 'Diagnosis', placeholder: 'Working diagnosis and differentials...' },
+  { key: 'plan', label: 'Treatment plan', placeholder: 'Medication, fluids, investigations, home care instructions...' },
+  { key: 'followUp', label: 'Follow-up instructions', placeholder: 'Review date, red flags, when guardian should return urgently...' },
+  { key: 'assessment', label: 'Pediatric assessment notes', placeholder: 'Growth, nutrition, vaccination, safeguarding, dosing rationale...' },
+]
+
+const EMPTY_NOTES: PediatricClinicalNotes = {
+  complaint: '',
+  history: '',
+  exam: '',
+  diagnosis: '',
+  plan: '',
+  followUp: '',
+  assessment: '',
+}
+
+function monthsFromAge(ageYears?: number) {
+  return Math.max(0, Math.round((ageYears || 0) * 12))
+}
+
+function childProfileSeed(child: string) {
+  const seeds: Record<string, Partial<ChildClinicalProfile>> = {
+    'Ethan W.': {
+      gender: 'Male',
+      dob: '2021-03-18',
+      bloodGroup: 'O+',
+      relationship: 'Mother',
+      allergies: ['Penicillin'],
+      chronicConditions: ['Recurrent tonsillitis'],
+      currentMedication: ['Paracetamol syrup as needed'],
+      vaccinations: { received: ['BCG', 'Pentavalent 1-3', 'MMR 1'], upcoming: ['MMR 2'], missed: ['Influenza 2026'] },
+      documents: ['Previous prescriptions', 'Vaccination card'],
+    },
+    'Ava K.': {
+      gender: 'Female',
+      dob: '2024-01-09',
+      bloodGroup: 'A+',
+      relationship: 'Father',
+      allergies: ['No known drug allergies'],
+      chronicConditions: ['Nutrition follow-up'],
+      currentMedication: ['Zinc supplement'],
+      vaccinations: { received: ['BCG', 'OPV 1-3', 'Pentavalent 1-3'], upcoming: ['Vitamin A'], missed: [] },
+      documents: ['Growth record', 'Vaccination card'],
+    },
+    'Mia M.': {
+      gender: 'Female',
+      dob: '2017-06-23',
+      bloodGroup: 'B+',
+      relationship: 'Mother',
+      allergies: ['Skin irritants', 'Sulfa caution'],
+      chronicConditions: ['Atopic dermatitis'],
+      currentMedication: ['Emollient cream'],
+      vaccinations: { received: ['Routine childhood series'], upcoming: ['HPV counselling'], missed: [] },
+      documents: ['Lab reports', 'Dermatology notes'],
+    },
+    'Leo N.': {
+      gender: 'Male',
+      dob: '2020-09-11',
+      bloodGroup: 'AB+',
+      relationship: 'Father',
+      allergies: ['No known drug allergies'],
+      chronicConditions: ['Recent antibiotic course'],
+      currentMedication: ['Amoxicillin clavulanate'],
+      vaccinations: { received: ['Routine childhood series'], upcoming: ['Influenza 2026'], missed: [] },
+      documents: ['Prescription history', 'Medical records'],
+    },
+    'Jay O.': {
+      gender: 'Male',
+      dob: '2022-04-05',
+      bloodGroup: 'O-',
+      relationship: 'Mother',
+      allergies: ['Dust trigger'],
+      chronicConditions: ['Wheeze episodes'],
+      currentMedication: ['Salbutamol inhaler'],
+      vaccinations: { received: ['BCG', 'Pentavalent 1-3', 'MMR 1'], upcoming: ['MMR 2'], missed: [] },
+      documents: ['Asthma action notes', 'Vaccination card'],
+    },
+  }
+  return seeds[child] || {}
+}
+
+function buildChildClinicalProfile(consultation: Consultation): ChildClinicalProfile {
+  const child = consultation.childName || consultation.patientName
+  const seed = childProfileSeed(child)
+  const age = consultation.childAge ?? consultation.patientAge ?? 0
+  const ageMonths = monthsFromAge(age)
+  const weightKg = consultation.weightKg
+  const heightCm = age < 3 ? 88 : age < 6 ? 108 : age < 10 ? 132 : 152
+  const bmiValue = weightKg ? weightKg / Math.pow(heightCm / 100, 2) : 0
+  const growthStatus = weightKg && weightKg < Math.max(8, age * 2.1 + 7) ? 'Underweight watch' : 'Tracking expected curve'
+  return {
+    child,
+    age,
+    ageMonths,
+    gender: seed.gender || 'Not recorded',
+    dob: seed.dob || 'Not recorded',
+    bloodGroup: seed.bloodGroup || 'Not recorded',
+    guardian: consultation.guardianName || 'Guardian',
+    relationship: seed.relationship || 'Parent/Guardian',
+    phone: '+254 700 000 000',
+    email: `${(consultation.guardianName || 'guardian').toLowerCase().replace(/[^a-z]+/g, '.').replace(/^\.+|\.+$/g, '') || 'guardian'}@example.com`,
+    emergencyContact: '+254 711 000 000',
+    lastVisit: consultation.scheduledAt,
+    weightKg,
+    heightCm,
+    bmi: bmiValue ? bmiValue.toFixed(1) : '-',
+    headCircumference: ageMonths <= 24 ? `${44 + Math.min(ageMonths, 24) * 0.25} cm` : 'Not applicable',
+    growthPercentile: growthStatus === 'Underweight watch' ? 'P3-P10' : 'P50-P75',
+    growthStatus,
+    allergies: seed.allergies || ['No known drug allergies'],
+    chronicConditions: seed.chronicConditions || ['None recorded'],
+    currentMedication: seed.currentMedication || ['None recorded'],
+    vaccinations: seed.vaccinations || { received: ['Routine vaccines recorded'], upcoming: ['Next age-based review'], missed: [] },
+    hospitalizations: seed.hospitalizations || ['None recorded'],
+    documents: seed.documents || ['Medical records', 'Previous prescriptions'],
+  }
 }
 
 // ── Data seeding ─────────────────────────────────────────────────────────────
@@ -263,6 +568,7 @@ const createInitialPediatricEarnings = (): DoctorEarning[] => {
 function PediatricianDashboardPage() {
   const { user, logout } = useAuth()
   const [activeTab, setActiveTab] = useState<PediatricTab>('queue')
+  const isAdminPreview = user?.role === 'admin'
   const [doctors] = useState(loadDoctorProfiles())
   const [activeDoctorId, setActiveDoctorId] = useState(() => {
     const peds = loadDoctorProfiles().filter((d) => d.type === 'Pediatrician')
@@ -271,10 +577,11 @@ function PediatricianDashboardPage() {
   const [consultations, setConsultations] = useState<Consultation[]>(() => createInitialPediatricConsultations())
   const [threads, setThreads] = useState<DoctorMessageThread[]>(() => createInitialPediatricThreads())
   const [prescriptions, setPrescriptions] = useState<DoctorPrescription[]>(() => createInitialPediatricPrescriptions())
-  const [earningsData] = useState<DoctorEarning[]>(() => createInitialPediatricEarnings())
+  const [earningsData, setEarningsData] = useState<DoctorEarning[]>(() => createInitialPediatricEarnings())
 
   const [queueSearch, setQueueSearch] = useState('')
   const [selectedConsult, setSelectedConsult] = useState<Consultation | null>(null)
+  const [consultationNotes, setConsultationNotes] = useState<Record<string, PediatricClinicalNotes>>({})
 
   const [messageSearch, setMessageSearch] = useState('')
   const [activeThread, setActiveThread] = useState<DoctorMessageThread | null>(null)
@@ -289,7 +596,14 @@ function PediatricianDashboardPage() {
   const [showRxPanel, setShowRxPanel] = useState(false)
   const [rxPatient, setRxPatient] = useState('')
   const [rxNotes, setRxNotes] = useState('')
+  const [rxConsultationId, setRxConsultationId] = useState<number | null>(null)
   const [rxItems, setRxItems] = useState<DoctorPrescriptionItem[]>([{ name: '', dosage: '', quantity: 1 }])
+  const [rxCatalogOptions, setRxCatalogOptions] = useState<Record<number, ClinicianCatalogVariant[]>>({})
+  const [rxCatalogLoading, setRxCatalogLoading] = useState<Record<number, boolean>>({})
+  const [rxCatalogList, setRxCatalogList] = useState<ClinicianCatalogVariant[]>([])
+  const [rxCatalogListLoading, setRxCatalogListLoading] = useState(false)
+  const [workspaceError, setWorkspaceError] = useState('')
+  const [selectedChild, setSelectedChild] = useState<string | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -298,6 +612,41 @@ function PediatricianDashboardPage() {
   useEffect(() => {
     consultEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [consultThread?.messages])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadLiveWorkspace = async () => {
+      if (isAdminPreview) {
+        setWorkspaceError('')
+        setConsultations(createInitialPediatricConsultations())
+        setThreads(createInitialPediatricThreads())
+        setPrescriptions(createInitialPediatricPrescriptions())
+        setEarningsData(createInitialPediatricEarnings())
+        return
+      }
+      try {
+        setWorkspaceError('')
+        const [backendConsultations, backendPrescriptions, backendEarnings] = await Promise.all([
+          fetchDoctorConsultations(),
+          fetchClinicianPrescriptions(),
+          fetchClinicianEarnings(),
+        ])
+        if (cancelled) return
+        setConsultations(backendConsultations.map((record) => mapBackendPediatricConsultation(record, activeDoctorId)))
+        setThreads(
+          backendConsultations
+            .filter((record) => record.messages.length > 0 || record.status === 'in_progress')
+            .map((record) => mapBackendPediatricThread(record, activeDoctorId))
+        )
+        setPrescriptions(backendPrescriptions.map((rx) => mapBackendPediatricPrescription(rx, activeDoctorId)))
+        setEarningsData(backendEarnings.map((earning) => mapBackendPediatricEarning(earning, activeDoctorId)))
+      } catch {
+        if (!cancelled) setWorkspaceError('Unable to load the live pediatrician workspace. Showing saved local data.')
+      }
+    }
+    void loadLiveWorkspace()
+    return () => { cancelled = true }
+  }, [activeDoctorId, isAdminPreview])
 
   const pediatricDoctors = useMemo(
     () => doctors.filter((d) => d.type === 'Pediatrician'),
@@ -352,6 +701,16 @@ function PediatricianDashboardPage() {
     )
   }, [pedPrescriptions, prescriptionSearch])
 
+  const prescriptionPatientOptions = useMemo(() => {
+    return pedConsultations
+      .filter((consultation) => consultation.backendId && consultation.status !== 'Cancelled')
+      .map((consultation) => ({
+        value: String(consultation.backendId),
+        label: `${consultation.childName || consultation.patientName} · ${consultation.id}`,
+        childName: consultation.childName || consultation.patientName,
+      }))
+  }, [pedConsultations])
+
   const consentPending = useMemo(
     () => pedConsultations.filter((c) => c.consentStatus === 'Pending'),
     [pedConsultations]
@@ -363,19 +722,69 @@ function PediatricianDashboardPage() {
   )
 
   const childProfiles = useMemo(() => {
-    const map = new Map<string, { child: string; age: number; guardian: string; lastVisit: string; weight: string }>()
+    const map = new Map<string, ChildClinicalProfile>()
     pedConsultations.forEach((c) => {
       if (!c.childName) return
-      map.set(c.childName, {
-        child: c.childName,
-        age: c.childAge ?? 0,
-        guardian: c.guardianName ?? '-',
-        lastVisit: c.scheduledAt,
-        weight: c.weightKg ? `${c.weightKg} kg` : '-',
-      })
+      map.set(c.childName, buildChildClinicalProfile(c))
     })
     return Array.from(map.values())
   }, [pedConsultations])
+
+  const selectedClinicalProfile = useMemo(
+    () => selectedConsult ? buildChildClinicalProfile(selectedConsult) : null,
+    [selectedConsult]
+  )
+
+  const selectedConsultationNotes = selectedConsult ? consultationNotes[selectedConsult.id] || EMPTY_NOTES : EMPTY_NOTES
+
+  const selectedConsultContext = useMemo(() => {
+    if (!selectedConsult) {
+      return {
+        consults: [] as Consultation[],
+        prescriptions: [] as DoctorPrescription[],
+        threads: [] as DoctorMessageThread[],
+        timeline: [] as Array<{ type: string; date: string; summary: string }>,
+        linkedRx: undefined as DoctorPrescription | undefined,
+        linkedThread: undefined as DoctorMessageThread | undefined,
+      }
+    }
+    const childName = selectedConsult.childName || selectedConsult.patientName
+    const guardianName = selectedConsult.guardianName || selectedConsult.patientName
+    const consults = pedConsultations.filter((consultation) =>
+      (consultation.childName || consultation.patientName) === childName
+    )
+    const prescriptionsForChild = pedPrescriptions.filter((rx) => rx.patientName === childName)
+    const threadsForFamily = pedThreads.filter((thread) =>
+      thread.patientName === childName ||
+      thread.patientName === guardianName ||
+      thread.patientName.includes(childName) ||
+      thread.patientName.includes(guardianName)
+    )
+    const linkedRx = prescriptionsForChild.find((rx) => prescriptionMatchesConsultation(rx, selectedConsult.id))
+    const linkedThread = threadsForFamily.find((thread) =>
+      thread.backendConsultationId === selectedConsult.backendId || thread.id === `CONS-${selectedConsult.backendId}`
+    ) ?? threadsForFamily[0]
+    const timeline = [
+      ...consults.map((consultation) => ({
+        type: 'consultation',
+        date: consultation.scheduledAt,
+        summary: `${consultation.id}: ${consultation.issue} (${consultation.status})`,
+      })),
+      ...prescriptionsForChild.map((rx) => ({
+        type: 'prescription',
+        date: rx.createdAt,
+        summary: `${rx.id}: ${medicationSummary(rx.items)} (${rx.status})`,
+      })),
+      ...threadsForFamily.flatMap((thread) =>
+        thread.messages.slice(-2).map((message) => ({
+          type: 'message',
+          date: thread.lastMessageAt,
+          summary: `${message.sender === 'doctor' ? 'Pediatrician' : 'Guardian'}: ${message.text}`,
+        }))
+      ),
+    ].sort((a, b) => timelineTime(b.date) - timelineTime(a.date))
+    return { consults, prescriptions: prescriptionsForChild, threads: threadsForFamily, timeline, linkedRx, linkedThread }
+  }, [pedConsultations, pedPrescriptions, pedThreads, selectedConsult])
 
   const earnings = useMemo(
     () => earningsData.filter((e) => e.doctorId === activeDoctorId),
@@ -385,11 +794,15 @@ function PediatricianDashboardPage() {
   const stats = useMemo(() => {
     const total = pedConsultations.length
     const waiting = pedConsultations.filter((c) => c.status === 'Waiting').length
+    const ongoing = pedConsultations.filter((c) => c.status === 'In progress').length
+    const completed = pedConsultations.filter((c) => c.status === 'Completed').length
     const consents = consentPending.length
     const alerts = dosageAlerts.length
+    const prescriptionReviews = pedPrescriptions.filter((rx) => rx.status === 'Draft').length
+    const followUpsDue = pedConsultations.filter((c) => c.status === 'Completed').length
     const totalRevenue = earnings.reduce((sum, e) => sum + e.revenue, 0)
-    return { total, waiting, consents, alerts, totalRevenue }
-  }, [pedConsultations, consentPending, dosageAlerts, earnings])
+    return { total, waiting, ongoing, completed, consents, alerts, prescriptionReviews, followUpsDue, totalRevenue }
+  }, [pedConsultations, consentPending, dosageAlerts, pedPrescriptions, earnings])
 
   const unreadCount = useMemo(
     () => pedThreads.reduce((sum, t) => sum + (t.unreadCount || 0), 0),
@@ -496,6 +909,16 @@ function PediatricianDashboardPage() {
     saveConsultations(updated)
   }
 
+  const updateConsultationNote = (consultationId: string, key: PediatricClinicalNoteKey, value: string) => {
+    setConsultationNotes((prev) => ({
+      ...prev,
+      [consultationId]: {
+        ...(prev[consultationId] || EMPTY_NOTES),
+        [key]: value,
+      },
+    }))
+  }
+
   const findOrCreateThread = (consult: Consultation): DoctorMessageThread => {
     const existing = threads.find(
       (t) => t.doctorId === consult.doctorId && t.patientName === consult.patientName
@@ -527,7 +950,7 @@ function PediatricianDashboardPage() {
     const thread = findOrCreateThread(consult)
     setConsultThread({ ...thread, unreadCount: 0 })
     setSelectedConsult({ ...consult, status: 'In progress' })
-    setShowConsultChat(true)
+    setShowConsultChat(false)
   }
 
   const handleSendConsultMessage = () => {
@@ -579,25 +1002,152 @@ function PediatricianDashboardPage() {
     setNewMessage('')
   }
 
-  const handleCreatePrescription = () => {
-    if (!rxPatient.trim()) return
-    const rx: DoctorPrescription = {
-      id: `RX-${Math.floor(1000 + Math.random() * 9000)}`,
-      doctorId: activeDoctorId,
-      patientName: rxPatient,
-      createdAt: new Date().toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' }),
-      status: 'Draft',
-      notes: rxNotes || 'No notes provided.',
-      pediatric: true,
-      items: rxItems.filter((i) => i.name.trim()),
+  const updateRxItem = (index: number, patch: Partial<DoctorPrescriptionItem>) => {
+    setRxItems((prev) => prev.map((item, i) => i === index ? { ...item, ...patch } : item))
+  }
+
+  const loadPrescriptionCatalog = () => {
+    if (rxCatalogList.length > 0 || rxCatalogListLoading) return
+    setRxCatalogListLoading(true)
+    void searchClinicianCatalogVariants('', 1000)
+      .then((options) => setRxCatalogList(options))
+      .catch(() => setWorkspaceError('Unable to load the medicine catalog. You can still search manually.'))
+      .finally(() => setRxCatalogListLoading(false))
+  }
+
+  const handlePrescriptionConsultationSelect = (value: string) => {
+    const consultationId = Number(value) || null
+    setRxConsultationId(consultationId)
+    const selected = pedConsultations.find((consultation) => consultation.backendId === consultationId)
+    if (!selected) {
+      setRxPatient('')
+      setRxNotes('')
+      return
     }
-    const updated = [rx, ...prescriptions]
-    setPrescriptions(updated)
-    saveDoctorPrescriptions(updated)
-    setShowRxPanel(false)
+    const childName = selected.childName || selected.patientName
+    setRxPatient(childName)
+    setRxNotes(`Consultation ${selected.id}: ${selected.issue}`)
+  }
+
+  const handleCatalogSearch = (index: number, value: string) => {
+    updateRxItem(index, {
+      name: value,
+      variantId: null,
+      productId: null,
+      sku: '',
+      catalogName: '',
+      stockStatus: '',
+      availableQuantity: undefined,
+    })
+    if (value.trim().length < 2) {
+      setRxCatalogOptions((prev) => ({ ...prev, [index]: [] }))
+      return
+    }
+    setRxCatalogLoading((prev) => ({ ...prev, [index]: true }))
+    void searchClinicianCatalogVariants(value)
+      .then((options) => setRxCatalogOptions((prev) => ({ ...prev, [index]: options })))
+      .finally(() => setRxCatalogLoading((prev) => ({ ...prev, [index]: false })))
+  }
+
+  const selectCatalogVariant = (index: number, variant: ClinicianCatalogVariant) => {
+    updateRxItem(index, {
+      name: variant.display_name,
+      variantId: variant.id,
+      productId: variant.product_id,
+      sku: variant.sku,
+      catalogName: variant.display_name,
+      stockStatus: variant.inventory_status,
+      availableQuantity: variant.available_quantity,
+      catalogFallback: false,
+    })
+    setRxCatalogOptions((prev) => ({ ...prev, [index]: [] }))
+  }
+
+  const handleCatalogSelect = (index: number, value: string) => {
+    if (!value) {
+      updateRxItem(index, {
+        name: '',
+        variantId: null,
+        productId: null,
+        sku: '',
+        catalogName: '',
+        stockStatus: '',
+        availableQuantity: undefined,
+        catalogFallback: false,
+      })
+      return
+    }
+    const variant = rxCatalogList.find((option) => String(option.id) === value)
+    if (variant) selectCatalogVariant(index, variant)
+  }
+
+  const openNewPrescriptionPanel = () => {
     setRxPatient('')
     setRxNotes('')
+    setRxConsultationId(null)
     setRxItems([{ name: '', dosage: '', quantity: 1 }])
+    setRxCatalogOptions({})
+    setRxCatalogLoading({})
+    setWorkspaceError('')
+    setShowRxPanel(true)
+    loadPrescriptionCatalog()
+  }
+
+  const openPrescriptionForConsultation = (consultation: Consultation) => {
+    setRxPatient(consultation.childName || consultation.patientName)
+    setRxNotes(`Consultation ${consultation.id}: ${consultation.issue}`)
+    setRxConsultationId(consultation.backendId ?? consultationNumericId(consultation.id))
+    setRxItems([{ name: '', dosage: '', quantity: 1 }])
+    setRxCatalogOptions({})
+    setRxCatalogLoading({})
+    setWorkspaceError('')
+    setShowRxPanel(true)
+    loadPrescriptionCatalog()
+  }
+
+  const handleCreatePrescription = async () => {
+    if (!rxPatient.trim() || !rxConsultationId) {
+      setWorkspaceError('Select a child consultation before issuing a pediatric prescription.')
+      return
+    }
+    const filteredItems = rxItems.filter((i) => i.name.trim())
+    if (filteredItems.length === 0) return
+    try {
+      setWorkspaceError('')
+      const created = await createClinicianPrescription({
+        patient_name: rxPatient.trim(),
+        consultation_id: rxConsultationId,
+        notes: rxNotes,
+        items: filteredItems.map((item) => ({
+          drug_name: item.name,
+          dose: item.dosage,
+          frequency: item.dosage,
+          duration: '',
+          variant_id: item.variantId ?? null,
+          product_variant_id: item.variantId ?? null,
+          product_id: item.productId ?? null,
+          sku: item.sku,
+          catalog_name: item.catalogName,
+          catalog_fallback: Boolean(item.catalogFallback || !item.variantId),
+          quantity: item.quantity,
+        })),
+      })
+      const sent = await sendClinicianPrescription(created.id)
+      const rx = mapBackendPediatricPrescription(sent, activeDoctorId)
+      const updated = [rx, ...prescriptions]
+      setPrescriptions(updated)
+      saveDoctorPrescriptions(updated)
+      setShowRxPanel(false)
+      setRxPatient('')
+      setRxNotes('')
+      setRxConsultationId(null)
+      setRxItems([{ name: '', dosage: '', quantity: 1 }])
+      setRxCatalogOptions({})
+      return
+    } catch {
+      setWorkspaceError('The pediatric prescription could not be issued. Confirm the patient, stock availability, and medication details, then try again.')
+      return
+    }
   }
 
   const updatePrescriptionStatus = (id: string, status: DoctorPrescription['status']) => {
@@ -610,12 +1160,12 @@ function PediatricianDashboardPage() {
 
   return (
     <ProfessionalPortalShell
-      accentColor="#0ea5e9"
+      accentColor="#14B8A6"
       activeItemId={activeTab}
       navItems={navigationItems}
       onNavChange={(itemId) => setActiveTab(itemId as PediatricTab)}
       onLogout={() => { void logout() }}
-      roleLabel="Pediatrician"
+      roleLabel={isAdminPreview ? 'Admin · Pediatrician Preview' : 'Pediatrician'}
       sidebarHeaderContent={(
         <select
           value={activeDoctorId}
@@ -632,6 +1182,11 @@ function PediatricianDashboardPage() {
       userName={user?.name || doctor?.name || 'Pediatrician'}
     >
       <div className="dd-content">
+        {workspaceError && (
+          <div className="dd-alert dd-alert--warning" role="status">
+            <span>{workspaceError}</span>
+          </div>
+        )}
 
         {/* ── QUEUE TAB ── */}
         {activeTab === 'queue' && (
@@ -643,13 +1198,23 @@ function PediatricianDashboardPage() {
               </div>
             </div>
 
-            <div className="cm-kpi-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+            <div className="pd-home-section">
+              <div className="pd-section-heading">
+                <div>
+                  <p className="pd-eyebrow">Today&apos;s summary</p>
+                  <h2>Child care workload</h2>
+                </div>
+                <span>{childProfiles.length} registered child profile{childProfiles.length !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
+
+            <div className="cm-kpi-grid pd-summary-grid">
               <div className="cm-kpi-card">
                 <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
                 <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Total today</span>
+                  <span className="cm-kpi-card__label">Upcoming consultations</span>
                   <strong className="cm-kpi-card__value">{stats.total}</strong>
                 </div>
               </div>
@@ -658,8 +1223,8 @@ function PediatricianDashboardPage() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
                 <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Waiting</span>
-                  <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.waiting}</strong>
+                  <span className="cm-kpi-card__label">Ongoing consultations</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.ongoing}</strong>
                 </div>
               </div>
               <div className="cm-kpi-card">
@@ -667,8 +1232,8 @@ function PediatricianDashboardPage() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M9 11l3 3L22 4"/><circle cx="12" cy="12" r="10"/></svg>
                 </div>
                 <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Consents pending</span>
-                  <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.consents}</strong>
+                  <span className="cm-kpi-card__label">Follow-ups due</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.followUpsDue}</strong>
                 </div>
               </div>
               <div className="cm-kpi-card">
@@ -676,8 +1241,8 @@ function PediatricianDashboardPage() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 </div>
                 <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Dosage alerts</span>
-                  <strong className="cm-kpi-card__value cm-kpi-card__value--red">{stats.alerts}</strong>
+                  <span className="cm-kpi-card__label">New messages</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--red">{unreadCount}</strong>
                 </div>
               </div>
               <div className="cm-kpi-card">
@@ -685,10 +1250,25 @@ function PediatricianDashboardPage() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
                 <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Total revenue</span>
-                  <strong className="cm-kpi-card__value cm-kpi-card__value--purple">KSh {stats.totalRevenue.toLocaleString()}</strong>
+                  <span className="cm-kpi-card__label">Prescription reviews</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{stats.prescriptionReviews}</strong>
                 </div>
               </div>
+              <div className="cm-kpi-card">
+                <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></svg>
+                </div>
+                <div className="cm-kpi-card__body">
+                  <span className="cm-kpi-card__label">New child registrations</span>
+                  <strong className="cm-kpi-card__value cm-kpi-card__value--green">{childProfiles.length}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="pd-quick-actions">
+              <button type="button" onClick={() => queueItems[0] && handleStartConsultation(queueItems[0])}>Start consultation</button>
+              <button type="button" onClick={() => setActiveTab('messages')}>View messages</button>
+              <button type="button" onClick={() => setActiveTab('profiles')}>View medical records</button>
             </div>
 
             <div className="dd-table-card">
@@ -711,20 +1291,27 @@ function PediatricianDashboardPage() {
                 <table className="cm-table dd-table">
                   <thead>
                     <tr>
-                      <th>Child / Guardian</th>
-                      <th>Condition</th>
+                      <th>Child name</th>
+                      <th>Age</th>
+                      <th>Age in months</th>
+                      <th>Gender</th>
+                      <th>Guardian name</th>
+                      <th>Appointment type</th>
+                      <th>Appointment time</th>
+                      <th>Priority</th>
+                      <th>Consultation status</th>
                       <th>Weight</th>
-                      <th>Consent</th>
-                      <th>Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {queueItems.map((item) => (
+                    {queueItems.map((item) => {
+                      const profile = buildChildClinicalProfile(item)
+                      return (
                       <tr
                         key={item.id}
                         className={selectedConsult?.id === item.id ? 'dd-row--active' : ''}
-                        onClick={() => { setSelectedConsult(item); setShowConsultChat(false) }}
+                        onClick={() => { setSelectedConsult(item); setConsultThread(findOrCreateThread(item)); setShowConsultChat(false) }}
                       >
                         <td>
                           <div className="dd-td-patient">
@@ -745,21 +1332,20 @@ function PediatricianDashboardPage() {
                             </div>
                           </div>
                         </td>
+                        <td className="dd-td-meta">{formatPediatricAge(item.childAge)}</td>
+                        <td className="dd-td-meta">{profile.ageMonths}m</td>
+                        <td className="dd-td-meta">{profile.gender}</td>
+                        <td className="dd-td-meta">{item.guardianName ?? '-'}</td>
                         <td className="dd-td-issue">{item.issue}</td>
-                        <td className="dd-td-meta">{item.weightKg ? `${item.weightKg} kg` : '-'}</td>
-                        <td>
-                          <span className={`pd-consent ${item.consentStatus === 'Granted' ? 'pd-consent--ok' : 'pd-consent--pending'}`}>
-                            {item.consentStatus === 'Granted' ? (
-                              <><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> Granted</>
-                            ) : 'Pending'}
-                          </span>
-                        </td>
+                        <td className="dd-td-meta">{item.scheduledAt}</td>
+                        <td className="dd-td-meta">{item.priority}</td>
                         <td>
                           <div className="dd-status-cell">
                             <span className="dd-status-dot" style={{ background: STATUS_COLORS[item.status] ?? '#9ca3af' }} />
                             <span className="dd-status-text">{item.status}</span>
                           </div>
                         </td>
+                        <td className="dd-td-meta">{item.weightKg ? `${item.weightKg} kg` : '-'}</td>
                         <td>
                           <div className="dd-actions-cell" onClick={(e) => e.stopPropagation()}>
                             {item.status === 'Waiting' && (
@@ -783,9 +1369,15 @@ function PediatricianDashboardPage() {
                                 }}
                               >
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                                Chat
+                                Workspace
                               </button>
                             )}
+                            <button className="dd-action-btn" type="button" onClick={() => { setSelectedConsult(item); setConsultThread(findOrCreateThread(item)); setShowConsultChat(false) }}>
+                              Profile
+                            </button>
+                            <button className="dd-action-btn" type="button" onClick={() => { setSelectedConsult(item); setConsultThread(findOrCreateThread(item)); setShowConsultChat(false) }}>
+                              Guardian
+                            </button>
                             <button
                               className="dd-action-btn"
                               type="button"
@@ -794,10 +1386,18 @@ function PediatricianDashboardPage() {
                             >
                               Done
                             </button>
+                            <button
+                              className="dd-action-btn"
+                              type="button"
+                              disabled={item.status === 'Cancelled'}
+                              onClick={() => updateConsultationStatus(item.id, 'Cancelled')}
+                            >
+                              Cancel
+                            </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
                 {queueItems.length === 0 && (
@@ -808,6 +1408,139 @@ function PediatricianDashboardPage() {
                 )}
               </div>
             </div>
+
+            {selectedConsult && selectedClinicalProfile && (
+              <div className="pd-unified-workspace">
+                <div className="pd-section-heading">
+                  <div>
+                    <p className="pd-eyebrow">Unified consultation workspace</p>
+                    <h2>{selectedClinicalProfile.child}</h2>
+                  </div>
+                  <div className="pd-workspace-actions">
+                    <button type="button" onClick={() => handleStartConsultation(selectedConsult)}>Start consultation</button>
+                    <button type="button" onClick={() => {
+                      setRxPatient(selectedClinicalProfile.child)
+                      setRxNotes(`Consultation ${selectedConsult.id}: ${selectedConsult.issue}`)
+                      setRxConsultationId(selectedConsult.backendId ?? null)
+                      setRxItems([{ name: '', dosage: '', quantity: 1 }])
+                      setRxCatalogOptions({})
+                      setShowRxPanel(true)
+                    }}>Create prescription</button>
+                    <button type="button" onClick={() => updateConsultationStatus(selectedConsult.id, 'Completed')}>Schedule follow-up</button>
+                  </div>
+                </div>
+
+                <div className="pd-workspace-grid">
+                  <section className="pd-workspace-panel pd-workspace-panel--summary">
+                    <div className="pd-child-hero">
+                      <div className="pd-profile-card__avatar">{initials(selectedClinicalProfile.child)}</div>
+                      <div>
+                        <h3>{selectedClinicalProfile.child}</h3>
+                        <p>{selectedClinicalProfile.gender} · {formatPediatricAge(selectedClinicalProfile.age)} · {selectedClinicalProfile.ageMonths} months</p>
+                        <span className="pd-inline-status">{selectedClinicalProfile.growthPercentile} · {selectedClinicalProfile.growthStatus}</span>
+                      </div>
+                    </div>
+                    <div className="pd-info-list">
+                      <span>Date of birth <strong>{selectedClinicalProfile.dob}</strong></span>
+                      <span>Blood group <strong>{selectedClinicalProfile.bloodGroup}</strong></span>
+                      <span>Weight <strong>{selectedClinicalProfile.weightKg ? `${selectedClinicalProfile.weightKg} kg` : '-'}</strong></span>
+                      <span>Height <strong>{selectedClinicalProfile.heightCm} cm</strong></span>
+                      <span>BMI <strong>{selectedClinicalProfile.bmi}</strong></span>
+                      <span>Head circumference <strong>{selectedClinicalProfile.headCircumference}</strong></span>
+                    </div>
+                    <div className="pd-alert-stack">
+                      {[...selectedClinicalProfile.allergies, ...selectedClinicalProfile.chronicConditions, ...(selectedClinicalProfile.vaccinations.missed.length ? selectedClinicalProfile.vaccinations.missed.map((v) => `Missed: ${v}`) : [])].map((alert) => (
+                        <span key={alert}>{alert}</span>
+                      ))}
+                    </div>
+                    <GrowthChart weightKg={selectedConsult.weightKg} ageMonths={selectedClinicalProfile.ageMonths} />
+                    <DosingCalculator weightKg={selectedConsult.weightKg} />
+                    <div className="pd-mini-links">
+                      {['Medical history', 'Consultation history', 'Prescription history', 'Growth charts', 'Vaccination history'].map((label) => (
+                        <button key={label} type="button">{label}</button>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="pd-workspace-panel pd-notes-panel">
+                    <div className="pd-panel-title">
+                      <h3>Consultation notes</h3>
+                      <span>Autosaved locally</span>
+                    </div>
+                    <div className="pd-note-grid">
+                      {NOTE_FIELDS.map((field) => (
+                        <label key={field.key} className="pd-note-field">
+                          <span>{field.label}</span>
+                          <textarea
+                            rows={field.key === 'complaint' ? 2 : 3}
+                            placeholder={field.placeholder}
+                            value={selectedConsultationNotes[field.key]}
+                            onChange={(e) => updateConsultationNote(selectedConsult.id, field.key, e.target.value)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                    <div className="pd-care-modules">
+                      <div>
+                        <h4>Vaccination</h4>
+                        <p>Received: {selectedClinicalProfile.vaccinations.received.join(', ')}</p>
+                        <p>Upcoming: {selectedClinicalProfile.vaccinations.upcoming.join(', ') || 'None'}</p>
+                        <p>Missed: {selectedClinicalProfile.vaccinations.missed.join(', ') || 'None'}</p>
+                      </div>
+                      <div>
+                        <h4>Referral</h4>
+                        <p>Attach consultation summary, diagnosis, prescription history, growth records, and relevant documents.</p>
+                        <button type="button">Create referral</button>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="pd-workspace-panel pd-guardian-panel">
+                    <div className="pd-panel-title">
+                      <h3>Guardian communication</h3>
+                      <span>{selectedClinicalProfile.guardian}</span>
+                    </div>
+                    <div className="pd-info-list">
+                      <span>Relationship <strong>{selectedClinicalProfile.relationship}</strong></span>
+                      <span>Phone <strong>{selectedClinicalProfile.phone}</strong></span>
+                      <span>Email <strong>{selectedClinicalProfile.email}</strong></span>
+                      <span>Emergency <strong>{selectedClinicalProfile.emergencyContact}</strong></span>
+                    </div>
+                    <div className="pd-shared-files">
+                      {selectedClinicalProfile.documents.map((doc) => <span key={doc}>{doc}</span>)}
+                      <span>Uploaded child photos</span>
+                      <span>Shared treatment instructions</span>
+                    </div>
+                    <div className="dd-sp-chat-messages pd-inline-chat">
+                      {(consultThread?.messages ?? []).map((msg) => (
+                        <div key={msg.id} className={`dd-sp-msg dd-sp-msg--${msg.sender}`}>
+                          {msg.sender === 'system' ? (
+                            <span className="dd-sp-msg-system">{msg.text}</span>
+                          ) : (
+                            <div className="dd-sp-msg-bubble">
+                              <p>{msg.text}</p>
+                              <span className="dd-sp-msg-time">{msg.time}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="dd-sp-chat-input">
+                      <input
+                        type="text"
+                        placeholder="Message guardian, request photos, or share instructions..."
+                        value={consultMessage}
+                        onChange={(e) => setConsultMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendConsultMessage()}
+                      />
+                      <button className="dd-send-btn" type="button" onClick={handleSendConsultMessage} disabled={!consultMessage.trim()}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                      </button>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -863,6 +1596,7 @@ function PediatricianDashboardPage() {
                       <div>
                         <p className="dd-chat-header__name">{activeThread.patientName}</p>
                         <p className="dd-chat-header__status">
+                          <span>{activeThread.backendConsultationId ? `E-consultation #${activeThread.backendConsultationId}` : `E-consultation ${activeThread.id}`}</span>
                           <span className="dd-online-dot" /> Active
                         </p>
                       </div>
@@ -970,7 +1704,7 @@ function PediatricianDashboardPage() {
                 />
               </div>
               <span className="dd-count">{filteredPrescriptions.length} prescription{filteredPrescriptions.length !== 1 ? 's' : ''}</span>
-              <button className="dd-primary-btn" type="button" onClick={() => setShowRxPanel(true)}>
+              <button className="dd-primary-btn" type="button" onClick={openNewPrescriptionPanel}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 New prescription
               </button>
@@ -1068,26 +1802,96 @@ function PediatricianDashboardPage() {
                 <span className="dd-count">{childProfiles.length} profile{childProfiles.length !== 1 ? 's' : ''}</span>
               </div>
               <div className="pd-profile-grid">
-                {childProfiles.map((p) => (
-                  <div key={p.child} className="pd-profile-card">
-                    <div className="pd-profile-card__avatar">{initials(p.child)}</div>
-                    <div className="pd-profile-card__body">
-                      <p className="pd-profile-card__name">{p.child}</p>
-                      <p className="pd-profile-card__age">{formatPediatricAge(p.age)} <AgeBand ageYears={p.age} /></p>
+                {childProfiles.map((p) => {
+                  const childConsults = pedConsultations.filter((consultation) => (consultation.childName || consultation.patientName) === p.child)
+                  const childRx = pedPrescriptions.filter((rx) => rx.patientName === p.child)
+                  const timelineItems = [
+                    ...childConsults.map((consultation) => ({
+                      type: 'consultation',
+                      date: consultation.scheduledAt,
+                      summary: `${consultation.issue} (${consultation.status}) · Guardian: ${consultation.guardianName || p.guardian}`,
+                    })),
+                    ...childRx.map((rx) => ({
+                      type: 'prescription',
+                      date: rx.createdAt,
+                      summary: `Prescription ${rx.id}: ${rx.status} · ${rx.items.map((item) => item.name).filter(Boolean).join(', ') || 'No medication items'}`,
+                    })),
+                  ].sort((a, b) => timelineTime(b.date) - timelineTime(a.date))
+                  const latestPrescribableConsultation = childConsults.find((consultation) => consultation.backendId && consultation.status !== 'Cancelled')
+
+                  return (
+                    <div key={p.child} className="pd-profile-card">
+                      <div className="pd-profile-card__avatar">{initials(p.child)}</div>
+                      <div className="pd-profile-card__body">
+                        <p className="pd-profile-card__name">{p.child}</p>
+                        <p className="pd-profile-card__age">{formatPediatricAge(p.age)} · {p.ageMonths} months <AgeBand ageYears={p.age} /></p>
+                      </div>
+                      <div className="pd-profile-card__meta">
+                        <div className="pd-profile-card__row">
+                          <span>Guardian</span><strong>{p.guardian}</strong>
+                        </div>
+                        <div className="pd-profile-card__row">
+                          <span>Guardian contact</span><strong>{p.phone}</strong>
+                        </div>
+                        <div className="pd-profile-card__row">
+                          <span>Weight</span><strong>{p.weightKg ? `${p.weightKg} kg` : '-'}</strong>
+                        </div>
+                        <div className="pd-profile-card__row">
+                          <span>Height</span><strong>{p.heightCm} cm</strong>
+                        </div>
+                        <div className="pd-profile-card__row">
+                          <span>Growth</span><strong>{p.growthPercentile}</strong>
+                        </div>
+                        <div className="pd-profile-card__row">
+                          <span>Vaccines due</span><strong>{p.vaccinations.upcoming.length + p.vaccinations.missed.length}</strong>
+                        </div>
+                        <div className="pd-profile-card__row">
+                          <span>Last visit</span><strong>{p.lastVisit}</strong>
+                        </div>
+                        <div className="pd-profile-card__row">
+                          <span>Consults</span><strong>{childConsults.length}</strong>
+                        </div>
+                        <div className="pd-profile-card__row">
+                          <span>Prescriptions</span><strong>{childRx.length}</strong>
+                        </div>
+                      </div>
+                      <div className="pd-profile-card__actions">
+                        <button
+                          className="dd-action-btn"
+                          type="button"
+                          onClick={() => setSelectedChild(selectedChild === p.child ? null : p.child)}
+                        >
+                          {selectedChild === p.child ? 'Hide history' : 'View history'}
+                        </button>
+                        <button
+                          className="dd-action-btn dd-action-btn--rx"
+                          type="button"
+                          disabled={!latestPrescribableConsultation}
+                          onClick={() => {
+                            if (!latestPrescribableConsultation) return
+                            setRxPatient(p.child)
+                            setRxNotes(`Consultation ${latestPrescribableConsultation.id}: ${latestPrescribableConsultation.issue}`)
+                            setRxConsultationId(latestPrescribableConsultation.backendId ?? null)
+                            setRxItems([{ name: '', dosage: '', quantity: 1 }])
+                            setRxCatalogOptions({})
+                            setShowRxPanel(true)
+                          }}
+                        >
+                          Rx
+                        </button>
+                      </div>
+                      {selectedChild === p.child && (
+                        <div className="pd-profile-card__history">
+                          {timelineItems.length > 0 ? (
+                            <PediatricTimeline items={timelineItems} />
+                          ) : (
+                            <p className="pd-profile-card__empty-history">No clinical history recorded yet.</p>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="pd-profile-card__meta">
-                      <div className="pd-profile-card__row">
-                        <span>Guardian</span><strong>{p.guardian}</strong>
-                      </div>
-                      <div className="pd-profile-card__row">
-                        <span>Weight</span><strong>{p.weight}</strong>
-                      </div>
-                      <div className="pd-profile-card__row">
-                        <span>Last visit</span><strong>{p.lastVisit}</strong>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
                 {childProfiles.length === 0 && (
                   <div className="dd-empty dd-empty--full">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/></svg>
@@ -1150,7 +1954,7 @@ function PediatricianDashboardPage() {
                         <td>
                           <div className="dd-status-cell">
                             <span className="dd-status-dot" style={{
-                              background: entry.status === 'Paid' ? '#10b981' : entry.status === 'Scheduled' ? '#f59e0b' : '#ef4444'
+                              background: entry.status === 'Paid' ? '#16A34A' : entry.status === 'Scheduled' ? '#F59E0B' : '#EF4444'
                             }} />
                             <span className="dd-status-text">{entry.status}</span>
                           </div>
@@ -1173,10 +1977,10 @@ function PediatricianDashboardPage() {
       </div>
 
       {/* ── Consultation side panel ── */}
-      {selectedConsult && (
+      {selectedConsult && activeTab !== 'queue' && (
         <>
           <div className="dd-overlay" onClick={() => { setSelectedConsult(null); setShowConsultChat(false) }} />
-          <aside className={`dd-side-panel ${showConsultChat ? 'dd-side-panel--chat' : ''}`}>
+          <aside className={`dd-side-panel pd-consult-panel ${showConsultChat ? 'dd-side-panel--chat' : ''}`}>
             <div className="dd-sp-header">
               <div>
                 <p className="dd-sp-id">{selectedConsult.id}</p>
@@ -1199,7 +2003,7 @@ function PediatricianDashboardPage() {
                   <div className="dd-sp-patient__avatar">{initials(selectedConsult.childName ?? selectedConsult.patientName)}</div>
                   <div style={{ flex: 1 }}>
                     <p className="dd-sp-patient__name">{selectedConsult.childName ?? selectedConsult.patientName}</p>
-                    <p className="dd-sp-patient__meta">via {selectedConsult.guardianName}</p>
+                    <p className="dd-sp-patient__meta">{selectedConsult.id} · via {selectedConsult.guardianName}</p>
                   </div>
                   <div className="dd-online-status">
                     <span className="dd-online-dot" /> Online
@@ -1287,53 +2091,128 @@ function PediatricianDashboardPage() {
                   })}
                 </div>
 
-                <div className="dd-sp-body">
-                  <div className="dd-sp-section">
-                    <p className="dd-sp-section-title">Child</p>
-                    <div className="dd-sp-patient">
-                      <div className="dd-sp-patient__avatar">{initials(selectedConsult.childName ?? selectedConsult.patientName)}</div>
-                      <div>
-                        <p className="dd-sp-patient__name">{selectedConsult.childName ?? '-'}</p>
-                        <p className="dd-sp-patient__meta">{formatPediatricAge(selectedConsult.childAge)} · {selectedConsult.weightKg} kg</p>
-                        <div style={{ marginTop: '0.3rem' }}>
-                          <AgeBand ageYears={selectedConsult.childAge} />
+                <div className="dd-sp-body pd-consult-body">
+                  <div className="pd-consult-workspace">
+                    <section className="pd-consult-main">
+                      <div className="pd-child-summary-card">
+                        <div className="dd-sp-patient">
+                          <div className="dd-sp-patient__avatar">{initials(selectedConsult.childName ?? selectedConsult.patientName)}</div>
+                          <div>
+                            <p className="dd-sp-patient__name">{selectedConsult.childName ?? '-'}</p>
+                            <p className="dd-sp-patient__meta">
+                              {formatPediatricAge(selectedConsult.childAge)} · {selectedConsult.weightKg ? `${selectedConsult.weightKg} kg` : 'Weight not recorded'} · Guardian: {selectedConsult.guardianName ?? '-'}
+                            </p>
+                            <div className="pd-child-summary-card__badges">
+                              <AgeBand ageYears={selectedConsult.childAge} />
+                              <span className={`pd-consent ${selectedConsult.consentStatus === 'Granted' ? 'pd-consent--ok' : 'pd-consent--pending'}`}>
+                                {selectedConsult.consentStatus ?? 'Pending consent'}
+                              </span>
+                              <span className="dd-status-cell">
+                                <span className="dd-status-dot" style={{ background: STATUS_COLORS[selectedConsult.status] ?? '#9ca3af' }} />
+                                <span className="dd-status-text">{selectedConsult.status}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="pd-child-summary-card__metrics">
+                          <div><span>Scheduled</span><strong>{selectedConsult.scheduledAt}</strong></div>
+                          <div><span>Growth</span><strong>{selectedClinicalProfile?.growthPercentile ?? '-'}</strong></div>
+                          <div><span>Allergies</span><strong>{selectedClinicalProfile?.allergies.join(', ') ?? '-'}</strong></div>
+                          <div><span>Current meds</span><strong>{selectedClinicalProfile?.currentMedication.join(', ') ?? '-'}</strong></div>
                         </div>
                       </div>
-                    </div>
-                    <GrowthChart weightKg={selectedConsult.weightKg} ageMonths={selectedConsult.childAge !== undefined ? selectedConsult.childAge * 12 : undefined} />
-                    <DosingCalculator weightKg={selectedConsult.weightKg} />
-                  </div>
 
-                  <div className="dd-sp-section">
-                    <p className="dd-sp-section-title">Guardian</p>
-                    <p className="dd-sp-value">{selectedConsult.guardianName ?? '-'}</p>
-                  </div>
-
-                  <div className="dd-sp-section">
-                    <p className="dd-sp-section-title">Chief complaint</p>
-                    <p className="dd-sp-value">{selectedConsult.issue}</p>
-                  </div>
-
-                  <div className="dd-sp-grid">
-                    <div className="dd-sp-field">
-                      <p className="dd-sp-field-label">Scheduled</p>
-                      <p className="dd-sp-field-value">{selectedConsult.scheduledAt}</p>
-                    </div>
-                    <div className="dd-sp-field">
-                      <p className="dd-sp-field-label">Consent</p>
-                      <p className="dd-sp-field-value">
-                        <span className={`pd-consent ${selectedConsult.consentStatus === 'Granted' ? 'pd-consent--ok' : 'pd-consent--pending'}`}>
-                          {selectedConsult.consentStatus ?? 'Pending'}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="dd-sp-field">
-                      <p className="dd-sp-field-label">Status</p>
-                      <div className="dd-status-cell">
-                        <span className="dd-status-dot" style={{ background: STATUS_COLORS[selectedConsult.status] ?? '#9ca3af' }} />
-                        <span className="dd-status-text">{selectedConsult.status}</span>
+                      <div className="pd-complaint-card">
+                        <span>Chief complaint</span>
+                        <p>{selectedConsult.issue}</p>
                       </div>
-                    </div>
+
+                      <div className={`dd-handoff-card pd-rx-handoff ${selectedConsultContext.linkedRx ? 'dd-handoff-card--ready' : ''}`}>
+                        <div>
+                          <span className="dd-handoff-card__label">Prescription linked to this consultation</span>
+                          <strong>{selectedConsultContext.linkedRx ? selectedConsultContext.linkedRx.id : 'No prescription issued yet'}</strong>
+                          <p>
+                            {selectedConsultContext.linkedRx
+                              ? `${selectedConsultContext.linkedRx.status} · ${medicationSummary(selectedConsultContext.linkedRx.items)}`
+                              : 'Create the pediatric prescription from this consultation after diagnosis and dosing review.'}
+                          </p>
+                        </div>
+                        <button className="dd-action-btn dd-action-btn--rx" type="button" onClick={() => openPrescriptionForConsultation(selectedConsult)}>
+                          {selectedConsultContext.linkedRx ? 'Add another Rx' : 'Issue Rx'}
+                        </button>
+                      </div>
+
+                      <div className="pd-note-board">
+                        <div className="pd-note-board__header">
+                          <div>
+                            <p className="dd-sp-section-title">Clinical notes</p>
+                            <span>Autosaved locally while the consultation is open.</span>
+                          </div>
+                        </div>
+                        <div className="pd-note-grid">
+                          {NOTE_FIELDS.map((field) => (
+                            <label key={field.key} className="pd-note-field">
+                              <span>{field.label}</span>
+                              <textarea
+                                value={selectedConsultationNotes[field.key]}
+                                placeholder={field.placeholder}
+                                rows={field.key === 'assessment' ? 3 : 2}
+                                onChange={(event) => updateConsultationNote(selectedConsult.id, field.key, event.target.value)}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </section>
+
+                    <aside className="pd-consult-context">
+                      <div className="pd-context-card">
+                        <p className="dd-sp-section-title">Pediatric safety</p>
+                        <GrowthChart weightKg={selectedConsult.weightKg} ageMonths={selectedConsult.childAge !== undefined ? selectedConsult.childAge * 12 : undefined} />
+                        <DosingCalculator weightKg={selectedConsult.weightKg} />
+                      </div>
+
+                      <div className="pd-context-card">
+                        <div className="pd-context-card__header">
+                          <p className="dd-sp-section-title">History</p>
+                          <span>{selectedConsultContext.timeline.length}</span>
+                        </div>
+                        {selectedConsultContext.timeline.length > 0 ? (
+                          <PediatricTimeline items={selectedConsultContext.timeline.slice(0, 6)} />
+                        ) : (
+                          <p className="pd-context-empty">No previous child history recorded.</p>
+                        )}
+                      </div>
+
+                      <div className="pd-context-card">
+                        <div className="pd-context-card__header">
+                          <p className="dd-sp-section-title">Recent family chat</p>
+                          <span>{selectedConsultContext.threads.length}</span>
+                        </div>
+                        {selectedConsultContext.linkedThread ? (
+                          <div className="pd-chat-preview">
+                            {selectedConsultContext.linkedThread.messages.slice(-3).map((message) => (
+                              <p key={message.id}>
+                                <strong>{message.sender === 'doctor' ? 'You' : 'Guardian'}:</strong> {message.text}
+                              </p>
+                            ))}
+                            <button
+                              className="dd-action-btn dd-action-btn--chat"
+                              type="button"
+                              onClick={() => {
+                                const thread = findOrCreateThread(selectedConsult)
+                                setConsultThread(thread)
+                                setShowConsultChat(true)
+                              }}
+                            >
+                              Open chat
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="pd-context-empty">No messages yet for this consultation.</p>
+                        )}
+                      </div>
+                    </aside>
                   </div>
                 </div>
 
@@ -1363,6 +2242,13 @@ function PediatricianDashboardPage() {
                       </button>
                     ) : null}
                     <button
+                      className="dd-sp-btn dd-sp-btn--rx"
+                      type="button"
+                      onClick={() => openPrescriptionForConsultation(selectedConsult)}
+                    >
+                      Issue prescription
+                    </button>
+                    <button
                       className="dd-sp-btn dd-sp-btn--success"
                       type="button"
                       disabled={selectedConsult.status === 'Completed'}
@@ -1390,19 +2276,37 @@ function PediatricianDashboardPage() {
       {showRxPanel && (
         <>
           <div className="dd-overlay" onClick={() => setShowRxPanel(false)} />
-          <aside className="dd-side-panel">
+          <aside className="dd-side-panel dd-side-panel--rx">
             <div className="dd-sp-header">
               <div>
                 <p className="dd-sp-id">New Pediatric Prescription</p>
-                <p className="dd-sp-meta">Weight-adjusted dosing · age 0–18</p>
+                <p className="dd-sp-meta">
+                  {rxConsultationId ? `Linked to consultation #${rxConsultationId}` : 'Select a child consultation first'}
+                </p>
               </div>
-              <button className="dd-sp-close" type="button" onClick={() => setShowRxPanel(false)}>×</button>
+              <button className="dd-sp-close" type="button" onClick={() => { setShowRxPanel(false); setRxConsultationId(null) }}>×</button>
             </div>
             <div className="dd-sp-body">
               <div className="dd-sp-section">
                 <div className="dd-rx-field">
-                  <label>Child name</label>
-                  <input type="text" placeholder="Full name" value={rxPatient} onChange={(e) => setRxPatient(e.target.value)} />
+                  <label>Child consultation</label>
+                  <select
+                    value={rxConsultationId ? String(rxConsultationId) : ''}
+                    onChange={(e) => handlePrescriptionConsultationSelect(e.target.value)}
+                  >
+                    <option value="">Select a child</option>
+                    {prescriptionPatientOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {rxPatient && <p className="dd-rx-field-note">Child: {rxPatient}</p>}
+                  {prescriptionPatientOptions.length === 0 && (
+                    <p className="dd-rx-field-note dd-rx-field-note--warning">
+                      No pediatric consultations are available. Start or assign a consultation before issuing medicine.
+                    </p>
+                  )}
                 </div>
                 <div className="dd-rx-field">
                   <label>Clinical notes</label>
@@ -1411,26 +2315,104 @@ function PediatricianDashboardPage() {
               </div>
               <div className="dd-sp-section">
                 <p className="dd-sp-section-title">Medications</p>
+                <p className="dd-rx-catalog-hint">Select medicines from Ava Pharmacy inventory. Out-of-stock variants cannot be issued.</p>
                 <div className="dd-rx-items">
                   {rxItems.map((item, idx) => (
                     <div key={idx} className="dd-rx-item">
-                      <input type="text" placeholder="Medicine name" value={item.name} onChange={(e) => setRxItems((prev) => prev.map((it, i) => i === idx ? { ...it, name: e.target.value } : it))} />
-                      <input type="text" placeholder="Dosage (e.g. 5ml 3×/day)" value={item.dosage} onChange={(e) => setRxItems((prev) => prev.map((it, i) => i === idx ? { ...it, dosage: e.target.value } : it))} />
-                      <input type="number" min={1} placeholder="Qty" value={item.quantity} onChange={(e) => setRxItems((prev) => prev.map((it, i) => i === idx ? { ...it, quantity: Number(e.target.value) } : it))} />
+                      <div className="dd-rx-item__header">
+                        <span>Medication {idx + 1}</span>
+                        <div className="dd-rx-item__meta">
+                          {item.variantId && <em>Catalog selected</em>}
+                          {rxItems.length > 1 && (
+                            <button
+                              className="dd-rx-remove-btn"
+                              type="button"
+                              onClick={() => setRxItems((prev) => prev.filter((_, itemIndex) => itemIndex !== idx))}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="dd-rx-catalog-cell">
+                        <label>Medicine</label>
+                        <select
+                          value={item.variantId ? String(item.variantId) : ''}
+                          onFocus={loadPrescriptionCatalog}
+                          onChange={(e) => handleCatalogSelect(idx, e.target.value)}
+                        >
+                          <option value="">
+                            {rxCatalogListLoading ? 'Loading medicines...' : 'Select medicine from catalog'}
+                          </option>
+                          {((rxCatalogOptions[idx]?.length ?? 0) > 0 ? rxCatalogOptions[idx] : rxCatalogList).map((variant) => (
+                            <option key={variant.id} value={variant.id} disabled={!variant.can_prescribe}>
+                              {variant.display_name} · {variant.sku} · {variant.inventory_status.replace(/_/g, ' ')} · {variant.available_quantity} available
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Filter medicine list"
+                          value={item.variantId ? '' : item.name}
+                          onChange={(e) => handleCatalogSearch(idx, e.target.value)}
+                        />
+                        {item.variantId && (
+                          <div className="dd-rx-selected">
+                            <span>{item.sku}</span>
+                            <span>{item.stockStatus?.replace(/_/g, ' ') || 'in catalog'} · {item.availableQuantity ?? 0} available</span>
+                          </div>
+                        )}
+                        {item.catalogFallback && !item.variantId && (
+                          <div className="dd-rx-fallback-note">Non-catalog item. Pharmacist must review and map it before fulfillment.</div>
+                        )}
+                        {(rxCatalogLoading[idx] || (rxCatalogOptions[idx]?.length ?? 0) > 0) && (
+                          <div className="dd-rx-options">
+                            {rxCatalogLoading[idx] && <p className="dd-rx-options__empty">Searching inventory...</p>}
+                            {(rxCatalogOptions[idx] ?? []).map((variant) => (
+                              <button
+                                key={variant.id}
+                                className="dd-rx-option"
+                                type="button"
+                                disabled={!variant.can_prescribe}
+                                onClick={() => selectCatalogVariant(idx, variant)}
+                              >
+                                <span>
+                                  <strong>{variant.display_name}</strong>
+                                  <small>{variant.brand_name || 'Ava catalog'} · {variant.sku}</small>
+                                </span>
+                                <em>{variant.inventory_status.replace(/_/g, ' ')} · {variant.available_quantity}</em>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="dd-rx-dose-cell">
+                        <label>Dosage</label>
+                        <input type="text" placeholder="e.g. 5ml 3x/day" value={item.dosage} onChange={(e) => updateRxItem(idx, { dosage: e.target.value })} />
+                      </div>
+                      <div className="dd-rx-qty-cell">
+                        <label>Qty</label>
+                        <input type="number" min={1} placeholder="Qty" value={item.quantity} onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })} />
+                      </div>
                     </div>
                   ))}
                   <button className="dd-add-item-btn" type="button" onClick={() => setRxItems((prev) => [...prev, { name: '', dosage: '', quantity: 1 }])}>
-                    + Add medication
+                    + Add another medication
                   </button>
                 </div>
               </div>
             </div>
             <div className="dd-sp-footer">
               <div className="dd-sp-actions">
-                <button className="dd-sp-btn dd-sp-btn--primary" type="button" onClick={handleCreatePrescription} disabled={!rxPatient.trim()}>
-                  Save &amp; create
+                <button
+                  className="dd-sp-btn dd-sp-btn--primary"
+                  type="button"
+                  onClick={handleCreatePrescription}
+                  disabled={!rxConsultationId || !rxPatient.trim() || !rxItems.some((item) => item.name.trim())}
+                >
+                  Issue &amp; notify guardian
                 </button>
-                <button className="dd-sp-btn" type="button" onClick={() => setShowRxPanel(false)}>Cancel</button>
+                <button className="dd-sp-btn" type="button" onClick={() => { setShowRxPanel(false); setRxConsultationId(null) }}>Cancel</button>
               </div>
             </div>
           </aside>

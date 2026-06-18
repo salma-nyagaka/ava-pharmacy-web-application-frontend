@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService, type PharmacistCatalogVariant } from '../../services/prescriptionService'
@@ -113,6 +114,7 @@ type WorkspaceView = 'prescriptions' | 'orders'
 
 function PharmacistDashboardPage() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView>('prescriptions')
   const [searchTerm, setSearchTerm] = useState('')
@@ -454,7 +456,7 @@ function PharmacistDashboardPage() {
 
   return (
     <ProfessionalPortalShell
-      accentColor="#be3455"
+      accentColor="#0EA5E9"
       activeItemId={activeWorkspace}
       navItems={navigationItems}
       onNavChange={(itemId) => {
@@ -469,7 +471,10 @@ function PharmacistDashboardPage() {
           setOrderCurrentPage(1)
         }
       }}
-      onLogout={() => { void logout() }}
+      onLogout={async () => {
+        await logout()
+        navigate('/login', { replace: true })
+      }}
       roleLabel="Pharmacist"
       sidebarHeaderContent={(
         <div className="portal-shell__meta-card">

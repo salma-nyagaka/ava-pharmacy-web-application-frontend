@@ -30,6 +30,91 @@
   object-fit: cover;
 }
 
+.brands-compact-table th,
+.brands-compact-table td {
+  padding: 0.42rem 0.52rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.brands-compact-table th {
+  font-size: 0.64rem;
+  letter-spacing: 0.045em;
+}
+
+.brands-compact-table .cm-brand-identity {
+  gap: 0.5rem;
+}
+
+.brands-compact-table .cm-brand-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 0.35rem;
+}
+
+.brands-compact-table .cm-brand-logo--placeholder {
+  font-size: 0.68rem;
+}
+
+.brands-compact-table .cm-name-cell {
+  gap: 0.1rem;
+}
+
+.brands-compact-table .cm-name-cell__name {
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+
+.brands-compact-table .cm-name-cell__id,
+.brands-compact-table .cm-name-cell__desc {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.brands-compact-table .cm-toggle {
+  transform: scale(0.86);
+  transform-origin: left center;
+}
+
+.brands-compact-table .cm-row-actions {
+  gap: 0.3rem;
+}
+
+.brands-compact-table .cm-row-btn,
+.brands-compact-table .btn--sm {
+  min-height: 28px;
+  padding: 0.25rem 0.42rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+}
+
+.brands-compact-table th .btn--sm {
+  min-height: 26px;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.64rem;
+}
+
+.brands-compact-table {
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.brands-compact-table td,
+.brands-compact-table td span {
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.brands-compact-table .cm-name-cell__id,
+.brands-compact-table .cm-name-cell__desc {
+  font-size: 0.68rem;
+}
+
+.brands-compact-table .cm-row-btn,
+.brands-compact-table .btn--sm {
+  font-size: 0.7rem;
+}
+
 .cm-file-input__native {
   position: absolute;
   width: 1px;

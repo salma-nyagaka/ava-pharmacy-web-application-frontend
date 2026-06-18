@@ -98,6 +98,52 @@
   margin-top: 1.25rem;
 }
 
+.inventory-products-table th,
+.inventory-products-table td {
+  padding: 0.42rem 0.52rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.inventory-products-table th {
+  font-size: 0.64rem;
+  letter-spacing: 0.045em;
+}
+
+.inventory-products-table .cm-name-cell__id {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.inventory-products-table .cm-status,
+.inventory-products-table .admin-status {
+  padding: 0.12rem 0.38rem;
+  font-size: 0.66rem;
+}
+
+.inventory-products-table .cm-row-actions {
+  gap: 0.3rem;
+}
+
+.inventory-products-table .cm-row-btn,
+.inventory-products-table .btn--sm {
+  min-height: 28px;
+  padding: 0.25rem 0.42rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+}
+
+.inventory-products-table th .btn--sm {
+  min-height: 26px;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.64rem;
+}
+
+.inventory-search-box {
+  flex: 1 1 560px;
+  max-width: 720px;
+}
+
 .inventory-reservation {
   margin-top: 0;
 }
@@ -269,6 +315,19 @@
   letter-spacing: 0.04em;
 }
 
+.adjust-required {
+  color: #e81750;
+}
+
+.adjust-optional {
+  margin-left: 0.25rem;
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .adjust-field input,
 .adjust-field select,
 .adjust-field textarea {
@@ -299,6 +358,20 @@
 .adjust-field input::placeholder,
 .adjust-field textarea::placeholder {
   color: #9ca3af;
+}
+
+.adjust-field__error {
+  color: #b91c1c;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.adjust-field:has(.adjust-field__error) input,
+.adjust-field:has(.adjust-field__error) select,
+.adjust-field:has(.adjust-field__error) textarea {
+  border-color: #fca5a5;
+  background: #fffafa;
 }
 
 .inventory-readonly-parent {
@@ -404,9 +477,19 @@
 }
 
 .adjust-error {
-  color: #dc2626;
+  color: #b91c1c;
   margin-top: 0.75rem;
-  font-size: 0.875rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.adjust-error--top {
+  margin: 0 0 0.9rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fef2f2;
 }
 
 .stock-form__chips {

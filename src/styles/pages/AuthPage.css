@@ -19,24 +19,22 @@
 .login-brand::before {
   content: '';
   position: absolute;
-  top: -80px;
-  right: -80px;
-  width: 360px;
-  height: 360px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
+  inset: 0;
+  background-image: url('../../assets/images/auth/login-brand-illustration.png');
+  background-size: cover;
+  background-position: 62% center;
+  background-repeat: no-repeat;
+  opacity: 0.84;
   pointer-events: none;
 }
 
 .login-brand::after {
   content: '';
   position: absolute;
-  bottom: -60px;
-  left: -60px;
-  width: 280px;
-  height: 280px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(86, 3, 25, 0.96) 0%, rgba(111, 5, 32, 0.88) 42%, rgba(145, 7, 42, 0.32) 72%, rgba(145, 7, 42, 0.12) 100%),
+    linear-gradient(180deg, rgba(46, 2, 16, 0.18), rgba(46, 2, 16, 0.44));
   pointer-events: none;
 }
 
@@ -44,7 +42,7 @@
   max-width: 420px;
   width: 100%;
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
@@ -348,6 +346,10 @@
   color: #16a34a;
 }
 
+.pw-rules--compact {
+  padding: 0.45rem 0.65rem;
+}
+
 .login-field__toggle {
   position: absolute;
   right: 0.875rem;
@@ -409,6 +411,13 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+}
+
+.login-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+  box-shadow: none;
 }
 
 .login-spinner {
@@ -621,6 +630,17 @@
     padding: 1.35rem 1.5rem;
   }
 
+  .login-brand::before {
+    background-position: 78% center;
+    opacity: 0.42;
+  }
+
+  .login-brand::after {
+    background:
+      linear-gradient(90deg, rgba(86, 3, 25, 0.98) 0%, rgba(111, 5, 32, 0.9) 64%, rgba(145, 7, 42, 0.46) 100%),
+      linear-gradient(180deg, rgba(46, 2, 16, 0.28), rgba(46, 2, 16, 0.52));
+  }
+
   .login-brand__inner {
     gap: 1rem;
   }
@@ -641,6 +661,11 @@
 @media (max-width: 480px) {
   .login-brand {
     padding: 1.35rem 1.25rem;
+  }
+
+  .login-brand::before {
+    background-position: 86% center;
+    opacity: 0.28;
   }
 
   .login-form-panel {

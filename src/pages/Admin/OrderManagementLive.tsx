@@ -7,6 +7,7 @@ import '../../styles/admin/shared/AdminEntityManagement.css'
 const formatCurrency = (value: string | number) => `KSh ${Number(value || 0).toLocaleString()}`
 const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'
 type SortDirection = 'asc' | 'desc'
+type SortField = 'order' | 'customer' | 'created_at' | 'items' | 'total' | 'payment' | 'payment_status' | 'status'
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
@@ -62,7 +63,8 @@ function nextOrderStatus(order: AdminOrder) {
 function OrderManagementLive() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
-  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,15 +111,23 @@ function OrderManagementLive() {
   const sortedOrders = useMemo(() => {
     const items = [...filteredOrders]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (sortField === 'order') comparison = left.order_number.localeCompare(right.order_number)
+      else if (sortField === 'customer') comparison = (left.customer_name || '').localeCompare(right.customer_name || '')
+      else if (sortField === 'items') comparison = left.items.reduce((sum, item) => sum + item.quantity, 0) - right.items.reduce((sum, item) => sum + item.quantity, 0)
+      else if (sortField === 'total') comparison = Number(left.total || 0) - Number(right.total || 0)
+      else if (sortField === 'payment') comparison = left.payment_method.localeCompare(right.payment_method)
+      else if (sortField === 'payment_status') comparison = left.payment_status.localeCompare(right.payment_status)
+      else if (sortField === 'status') comparison = left.status.localeCompare(right.status)
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filteredOrders, createdAtSortDirection])
+  }, [filteredOrders, sortField, sortDirection])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedStatus, createdAtSortDirection])
+  }, [searchTerm, selectedStatus, sortField, sortDirection])
 
   const syncOrderInState = (updatedOrder: AdminOrder) => {
     setOrders((prev) => prev.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)))
@@ -190,9 +200,21 @@ function OrderManagementLive() {
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedOrders = sortedOrders.slice(startIndex, startIndex + PAGE_SIZE)
 
-  const toggleCreatedAtSort = () => {
-    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
   }
+
+  const sortIndicator = (field: SortField) => sortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+  const renderSortButton = (field: SortField, label: string) => (
+    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort(field)}>
+      {label} {sortIndicator(field)}
+    </button>
+  )
 
   return (
     <div className="category-management order-management">
@@ -302,21 +324,17 @@ function OrderManagementLive() {
 
         {!loading && (
           <div className="cm-table-wrap">
-            <table className="cm-table">
+            <table className="cm-table orders-compact-table">
               <thead>
                 <tr>
-                  <th>Order</th>
-                  <th>Customer</th>
-                  <th>
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                      Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                    </button>
-                  </th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Payment</th>
-                  <th>Payment Status</th>
-                  <th>Status</th>
+                  <th>{renderSortButton('order', 'Order')}</th>
+                  <th>{renderSortButton('customer', 'Customer')}</th>
+                  <th>{renderSortButton('created_at', 'Created At')}</th>
+                  <th>{renderSortButton('items', 'Items')}</th>
+                  <th>{renderSortButton('total', 'Total')}</th>
+                  <th>{renderSortButton('payment', 'Payment')}</th>
+                  <th>{renderSortButton('payment_status', 'Payment Status')}</th>
+                  <th>{renderSortButton('status', 'Status')}</th>
                   <th className="cm-th-actions">Actions</th>
                 </tr>
               </thead>

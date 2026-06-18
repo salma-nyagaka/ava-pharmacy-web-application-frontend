@@ -58,7 +58,7 @@ function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const navigate = useNavigate()
   const { categories } = useCatalog()
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, user } = useAuth()
   const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
 
   const valueBannerItems = [
@@ -157,6 +157,14 @@ function HomePage() {
     .filter((product) => isAvailableProduct(product) && isDealProduct(product))
     .sort((a, b) => getDealSavings(b) - getDealSavings(a))
   const spotlightOfferProducts = offerDeals.slice(0, 5)
+  const professionalDashboard =
+    user?.role === 'doctor'
+      ? { label: 'Doctor dashboard', path: '/doctor/dashboard' }
+      : user?.role === 'pediatrician'
+        ? { label: 'Pediatrician dashboard', path: '/pediatrician/dashboard' }
+        : user?.role === 'pharmacist'
+          ? { label: 'Pharmacist dashboard', path: '/pharmacist/dashboard' }
+          : null
 
   const formatPrice = (price: number) => {
     return `KSh ${price.toLocaleString()}`
@@ -474,6 +482,20 @@ function HomePage() {
         )}
 
       </section>
+
+      {professionalDashboard && (
+        <section className="hero__quick-links hero__quick-links--professional" aria-label="Professional shortcuts">
+          <div className="container">
+            <span className="hero__quick-links-label">Your workspace</span>
+            <div className="hero__quick-links-list">
+              <Link to={professionalDashboard.path} className="hero__quick-link hero__quick-link--dashboard">
+                {professionalDashboard.label}
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Promotional Banner */}
       <section className="promo-banner">

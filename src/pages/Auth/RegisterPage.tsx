@@ -56,15 +56,30 @@ function RegisterPage() {
 
   const pwRules = [
     { key: 'length', label: 'At least 8 characters', pass: password.length >= 8 },
-    { key: 'letter', label: 'Contains at least one letter', pass: /[a-zA-Z]/.test(password) },
-    { key: 'match', label: 'Passwords match', pass: password.length > 0 && password === passwordConfirm },
+    { key: 'uppercase', label: 'One uppercase letter', pass: /[A-Z]/.test(password) },
+    { key: 'lowercase', label: 'One lowercase letter', pass: /[a-z]/.test(password) },
+    { key: 'number', label: 'One number', pass: /[0-9]/.test(password) },
+    { key: 'special', label: 'One special character (!@#$%…)', pass: /[^A-Za-z0-9]/.test(password) },
   ]
+  const passwordMeetsRules = pwRules.every((rule) => rule.pass)
+  const passwordsMatch = password.length > 0 && password === passwordConfirm
   const showRules = password.length > 0
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setFieldErrors({})
+
+    if (!passwordMeetsRules) {
+      setFieldErrors({ password: 'Password does not meet all requirements.' })
+      return
+    }
+
+    if (!passwordsMatch) {
+      setFieldErrors({ password_confirm: 'Passwords do not match.' })
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -396,7 +411,7 @@ function RegisterPage() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Create a secure password"
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); clearField('password') }}
+                  onChange={(e) => { setPassword(e.target.value); clearField('password'); setError('') }}
                   className={fieldErrors.password ? 'login-field__input--error' : ''}
                   required
                 />
@@ -437,7 +452,7 @@ function RegisterPage() {
                   type={showPasswordConfirm ? 'text' : 'password'}
                   placeholder="Re-enter your password"
                   value={passwordConfirm}
-                  onChange={(e) => { setPasswordConfirm(e.target.value); clearField('password_confirm') }}
+                  onChange={(e) => { setPasswordConfirm(e.target.value); clearField('password_confirm'); setError('') }}
                   className={fieldErrors.password_confirm ? 'login-field__input--error' : ''}
                   required
                 />
@@ -451,6 +466,14 @@ function RegisterPage() {
                 </button>
               </div>
               {fieldErrors.password_confirm && <span className="login-field__error">{fieldErrors.password_confirm}</span>}
+              {passwordConfirm && (
+                <ul className="pw-rules pw-rules--compact">
+                  <li className={passwordsMatch ? 'pw-rules__item pw-rules__item--pass' : 'pw-rules__item'}>
+                    {passwordsMatch ? <CheckIcon /> : <DotIcon />}
+                    Passwords match
+                  </li>
+                </ul>
+              )}
             </div>
 
             {error && (
@@ -462,7 +485,7 @@ function RegisterPage() {
               </div>
             )}
 
-            <button type="submit" className="login-submit" disabled={loading}>
+            <button type="submit" className="login-submit" disabled={loading || !passwordMeetsRules || !passwordsMatch}>
               {loading ? <><span className="login-spinner" />Creating account…</> : 'Create account'}
             </button>
 

@@ -60,34 +60,118 @@ export class AdminUserError extends Error {
   }
 }
 
-const extractFieldErrors = (payload: unknown) => {
-  if (!payload || typeof payload !== 'object') {
-    return {}
+const stringifyErrorValue = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value.map(stringifyErrorValue).filter(Boolean).join('\n')
+  }
+  if (typeof value === 'string') {
+    return value
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    if (typeof record.detail === 'string') return record.detail
+    if (typeof record.message === 'string') return record.message
+    if (typeof record.error === 'string') return record.error
+  }
+  return ''
+}
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> => (
+  !!value && typeof value === 'object' && !Array.isArray(value)
+)
+
+const getErrorRecord = (payload: unknown): Record<string, unknown> | null => {
+  if (!isObjectRecord(payload)) {
+    return null
   }
 
-  const asRecord = payload as Record<string, unknown>
-  return Object.entries(asRecord).reduce<Record<string, string>>((acc, [key, value]) => {
-    if (key === 'detail' || key === 'error') {
+  const asRecord = payload
+  if (isObjectRecord(asRecord.error)) {
+    if (isObjectRecord(asRecord.error.details)) {
+      return asRecord.error.details
+    }
+    if (isObjectRecord(asRecord.error.errors)) {
+      return asRecord.error.errors
+    }
+    return asRecord.error
+  }
+  if (isObjectRecord(asRecord.errors)) {
+    if (isObjectRecord(asRecord.errors.details)) {
+      return asRecord.errors.details
+    }
+    return asRecord.errors
+  }
+  if (isObjectRecord(asRecord.detail)) {
+    return asRecord.detail
+  }
+  if (isObjectRecord(asRecord.data)) {
+    return asRecord.data
+  }
+  return asRecord
+}
+
+const extractFieldErrors = (payload: unknown) => {
+  const record = getErrorRecord(payload)
+  if (!record) return {}
+
+  return Object.entries(record).reduce<Record<string, string>>((acc, [key, value]) => {
+    if (key === 'code' || key === 'detail' || key === 'error' || key === 'message') {
       return acc
     }
-    if (Array.isArray(value) && value.length > 0) {
-      acc[key] = String(value[0])
-      return acc
-    }
-    if (typeof value === 'string') {
-      acc[key] = value
+    const message = stringifyErrorValue(value)
+    if (message) {
+      acc[key] = message
     }
     return acc
   }, {})
 }
 
 const extractMessage = (payload: unknown, fallback: string) => {
-  if (!payload || typeof payload !== 'object') {
+  if (!isObjectRecord(payload)) {
     return fallback
   }
-  const asRecord = payload as Record<string, unknown>
+  const asRecord = payload
+  if (isObjectRecord(asRecord.error)) {
+    if (typeof asRecord.error.message === 'string') {
+      return asRecord.error.message
+    }
+    if (Array.isArray(asRecord.error.message)) {
+      return stringifyErrorValue(asRecord.error.message) || fallback
+    }
+    if (typeof asRecord.error.detail === 'string') {
+      return asRecord.error.detail
+    }
+    if (Array.isArray(asRecord.error.detail)) {
+      return stringifyErrorValue(asRecord.error.detail) || fallback
+    }
+    return stringifyErrorValue(asRecord.error.details) || fallback
+  }
+  if (isObjectRecord(asRecord.errors)) {
+    if (typeof asRecord.errors.message === 'string') {
+      return asRecord.errors.message
+    }
+    return stringifyErrorValue(asRecord.errors.details) || fallback
+  }
   if (typeof asRecord.detail === 'string') {
     return asRecord.detail
+  }
+  if (Array.isArray(asRecord.detail)) {
+    return stringifyErrorValue(asRecord.detail) || fallback
+  }
+  if (typeof asRecord.error === 'string') {
+    return asRecord.error
+  }
+  if (Array.isArray(asRecord.error)) {
+    return stringifyErrorValue(asRecord.error) || fallback
+  }
+  if (typeof asRecord.message === 'string') {
+    return asRecord.message
+  }
+  if (Array.isArray(asRecord.message)) {
+    return stringifyErrorValue(asRecord.message) || fallback
+  }
+  if (Array.isArray(asRecord.non_field_errors)) {
+    return stringifyErrorValue(asRecord.non_field_errors) || fallback
   }
   return fallback
 }

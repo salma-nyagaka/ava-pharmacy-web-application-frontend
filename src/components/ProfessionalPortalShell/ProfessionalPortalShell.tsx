@@ -29,6 +29,23 @@ const EXPANDED_WIDTH = 248
 const COLLAPSED_WIDTH = 88
 const COMPACT_MEDIA_QUERY = '(max-width: 1023px)'
 
+function resolveRoleTheme(roleLabel: string, accentColor: string) {
+  const role = roleLabel.toLowerCase()
+  if (role.includes('pediatrician')) {
+    return { accent: '#14B8A6', hover: '#0F766E', light: '#F0FDFA' }
+  }
+  if (role.includes('pharmacist')) {
+    return { accent: '#0EA5E9', hover: '#0284C7', light: '#F0F9FF' }
+  }
+  if (role.includes('admin')) {
+    return { accent: '#4F46E5', hover: '#4338CA', light: '#EEF2FF' }
+  }
+  if (role.includes('doctor')) {
+    return { accent: '#2563EB', hover: '#1D4ED8', light: '#EFF6FF' }
+  }
+  return { accent: accentColor, hover: accentColor, light: '#F8FAFC' }
+}
+
 function resolveInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return 'AV'
@@ -74,8 +91,12 @@ function ProfessionalPortalShell({
     return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
 
+  const roleTheme = resolveRoleTheme(roleLabel, accentColor)
   const shellStyle = {
-    '--portal-shell-accent': accentColor,
+    '--portal-shell-accent': roleTheme.accent,
+    '--portal-shell-accent-hover': roleTheme.hover,
+    '--portal-shell-accent-light': roleTheme.light,
+    '--portal-shell-sidebar-bg': '#FFFFFF',
     '--portal-shell-sidebar-width': `${isSidebarCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH}px`,
   } as CSSProperties
 

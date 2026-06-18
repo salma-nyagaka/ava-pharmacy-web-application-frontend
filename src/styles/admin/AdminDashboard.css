@@ -1,7 +1,7 @@
 .admin-dashboard {
   width: 100%;
   box-sizing: border-box;
-  padding: 1.75rem 2.75rem 3rem;
+  padding: 1rem 1.35rem 1.75rem;
   background: transparent;
   min-height: 100%;
 }
@@ -12,10 +12,10 @@
   align-items: stretch;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.85rem;
   flex-wrap: wrap;
-  padding: 1.2rem 1.35rem;
-  border-radius: 18px;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
   background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
   border: 1px solid rgba(148, 163, 184, 0.14);
@@ -50,7 +50,7 @@
 }
 
 .ad-header__title {
-  font-size: clamp(1.55rem, 2.1vw, 2rem);
+  font-size: clamp(1.25rem, 1.7vw, 1.55rem);
   font-weight: 800;
   color: #f8fafc;
   letter-spacing: -0.03em;
@@ -68,8 +68,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.68rem 1.1rem;
-  border-radius: 12px;
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.94);
   color: #0f172a;
   font-size: 0.875rem;
@@ -127,20 +127,20 @@
 .ad-stats--5 {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0.9rem;
-  margin-bottom: 1.35rem;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .ad-stat {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-top: 4px solid var(--stat-color, #10b981);
-  border-radius: 16px;
-  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
   display: flex;
   flex-direction: column;
-  min-height: 106px;
+  min-height: 62px;
 }
 
 .ad-stat__top {
@@ -148,11 +148,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.25rem;
 }
 
 .ad-stat__label {
-  font-size: 0.68rem;
+  font-size: 0.58rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -161,12 +161,12 @@
 }
 
 .ad-stat__icon {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
+  border-radius: 8px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   color: var(--stat-color, #10b981);
@@ -181,7 +181,7 @@
 }
 
 .ad-stat__value {
-  font-size: clamp(1.4rem, 1.75vw, 1.8rem);
+  font-size: 1.12rem;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.04em;
@@ -191,7 +191,7 @@
 }
 
 .ad-stat__sub {
-  font-size: 0.76rem;
+  font-size: 0.66rem;
   line-height: 1.25;
   color: #64748b;
   margin: 0;
@@ -379,7 +379,7 @@
 
 /* ── Quick actions ───────────────────────────────── */
 .ad-quick {
-  margin-bottom: 1.75rem;
+  margin-bottom: 0.85rem;
 }
 
 .ad-quick__label {
@@ -449,7 +449,7 @@
 .ad-panel {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 10px;
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
   overflow: hidden;
 }
@@ -459,7 +459,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.25rem 1.5rem;
+  padding: 0.7rem 0.85rem;
   border-bottom: 1px solid #f1f5f9;
 }
 
@@ -506,13 +506,13 @@
   align-items: center;
   gap: 0.65rem;
   flex-wrap: wrap;
-  padding: 0.9rem 1.5rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid #f1f5f9;
 }
 
 .ad-toolbar__input,
 .ad-toolbar__select {
-  min-height: 34px;
+  min-height: 32px;
   padding: 0 0.75rem;
   border: 1px solid #e5e7eb;
   border-radius: 9px;
@@ -536,13 +536,13 @@
 }
 
 .ad-toolbar__clear {
-  min-height: 38px;
+  min-height: 32px;
   padding: 0 0.85rem;
   border-radius: 9px;
   border: 1px solid #e5e7eb;
   background: #fff;
   color: #6b7280;
-  font-size: 0.8125rem;
+  font-size: 0.74rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 140ms ease;
@@ -562,17 +562,17 @@
   width: 100%;
   min-width: 520px;
   border-collapse: collapse;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
 }
 
 .ad-table th {
-  padding: 0.55rem 1.25rem;
+  padding: 0.42rem 0.52rem;
   text-align: left;
-  font-size: 0.65rem;
+  font-size: 0.64rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.045em;
   color: #94a3b8;
   background: #f8fafc;
   border-bottom: 1px solid #f1f5f9;
@@ -580,12 +580,13 @@
 }
 
 .ad-table td {
-  padding: 0 1.25rem;
-  height: 44px;
+  padding: 0.38rem 0.52rem;
+  height: auto;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
   color: #374151;
-  font-size: 0.775rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
 }
 
 .ad-table tbody tr:nth-child(even) td {
@@ -633,16 +634,17 @@
   font-weight: 600;
   color: #0f172a;
   font-family: ui-monospace, monospace;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
 }
 
 .ad-table__amount {
   font-weight: 600;
   color: #0f172a;
+  font-size: 0.74rem;
 }
 
 .ad-table__view {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 600;
   color: #10b981;
   text-decoration: none;
@@ -678,9 +680,9 @@
 .ad-status {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.65rem;
+  padding: 0.12rem 0.38rem;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -699,7 +701,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.9rem 1.5rem;
+  padding: 0.55rem 0.75rem;
   border-top: 1px solid #f1f5f9;
   flex-wrap: wrap;
 }
@@ -716,14 +718,14 @@
 }
 
 .ad-pagination__btn {
-  min-width: 34px;
-  height: 34px;
+  min-width: 28px;
+  height: 28px;
   padding: 0 0.6rem;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #fff;
   color: #374151;
-  font-size: 0.8125rem;
+  font-size: 0.7rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 140ms ease, color 140ms ease;

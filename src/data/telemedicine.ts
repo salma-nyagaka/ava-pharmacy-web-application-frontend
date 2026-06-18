@@ -290,6 +290,30 @@ const defaultConsultations: Consultation[] = [
     lastMessageAt: '2026-02-07 10:58 AM',
   },
   {
+    id: 'CONS-1204',
+    doctorId: 'DOC-001',
+    patientName: 'Grace N.',
+    patientAge: 42,
+    issue: 'Diabetes medication review',
+    status: 'Completed',
+    scheduledAt: '2026-02-06 02:15 PM',
+    channel: 'Chat',
+    priority: 'Routine',
+    lastMessageAt: '2026-02-06 02:55 PM',
+  },
+  {
+    id: 'CONS-1205',
+    doctorId: 'DOC-001',
+    patientName: 'Kevin O.',
+    patientAge: 39,
+    issue: 'Migraine and nausea follow-up',
+    status: 'Waiting',
+    scheduledAt: '2026-02-07 12:05 PM',
+    channel: 'Chat',
+    priority: 'Priority',
+    lastMessageAt: '2026-02-07 11:48 AM',
+  },
+  {
     id: 'CONS-1203',
     doctorId: 'DOC-003',
     patientName: 'Aisha T.',
@@ -370,6 +394,31 @@ const defaultMessageThreads: DoctorMessageThread[] = [
     ],
   },
   {
+    id: 'MSG-904',
+    doctorId: 'DOC-001',
+    patientName: 'Grace N.',
+    lastMessage: 'I uploaded my glucose readings.',
+    lastMessageAt: '2026-02-06 02:52 PM',
+    unreadCount: 0,
+    status: 'Resolved',
+    messages: [
+      { id: 'MSG-904-1', sender: 'doctor', text: 'Please attach your glucose log before we adjust the dose.', time: '02:35 PM' },
+      { id: 'MSG-904-2', sender: 'patient', text: 'I uploaded my glucose readings.', time: '02:52 PM' },
+    ],
+  },
+  {
+    id: 'MSG-905',
+    doctorId: 'DOC-001',
+    patientName: 'Kevin O.',
+    lastMessage: 'The headache is worse with light.',
+    lastMessageAt: '2026-02-07 11:48 AM',
+    unreadCount: 1,
+    status: 'Open',
+    messages: [
+      { id: 'MSG-905-1', sender: 'patient', text: 'The headache is worse with light.', time: '11:48 AM' },
+    ],
+  },
+  {
     id: 'MSG-903',
     doctorId: 'PED-002',
     patientName: 'Guardian: Brian T.',
@@ -394,6 +443,29 @@ const defaultPrescriptions: DoctorPrescription[] = [
     notes: 'Monitor BP daily for 7 days.',
     items: [
       { name: 'Amlodipine', dosage: '5mg once daily', quantity: 30 },
+    ],
+  },
+  {
+    id: 'RX-4503',
+    doctorId: 'DOC-001',
+    patientName: 'Grace N.',
+    createdAt: '2026-02-06 02:50 PM',
+    status: 'Dispensed',
+    notes: 'Consultation CONS-1204: Diabetes medication review',
+    items: [
+      { name: 'Metformin', dosage: '500mg twice daily · 30 days', quantity: 60 },
+    ],
+  },
+  {
+    id: 'RX-4504',
+    doctorId: 'DOC-001',
+    patientName: 'Kevin O.',
+    createdAt: '2026-02-07 11:52 AM',
+    status: 'Draft',
+    notes: 'Consultation CONS-1205: Migraine and nausea follow-up',
+    items: [
+      { name: 'Paracetamol', dosage: '1g every 8 hours · 3 days', quantity: 9 },
+      { name: 'Oral rehydration salts', dosage: 'As needed · 2 days', quantity: 4 },
     ],
   },
   {
@@ -481,28 +553,26 @@ const safeLoad = <T,>(key: string, fallback: T): T => {
   }
 }
 
-const DEMO_CONSULTATION_IDS = new Set(defaultConsultations.map((item) => item.id))
-const DEMO_MESSAGE_THREAD_IDS = new Set(defaultMessageThreads.map((item) => item.id))
-const DEMO_PRESCRIPTION_IDS = new Set(defaultPrescriptions.map((item) => item.id))
-const DEMO_EARNING_IDS = new Set(defaultEarnings.map((item) => item.id))
-
-const loadWithoutDemoRows = <T extends { id: string }>(key: string, demoIds: Set<string>): T[] => {
-  if (typeof window === 'undefined') return []
+const loadWithDemoRows = <T extends { id: string }>(key: string, demoRows: T[]): T[] => {
+  if (typeof window === 'undefined') return demoRows
   try {
     const raw = window.localStorage.getItem(key)
     if (!raw) {
-      window.localStorage.setItem(key, JSON.stringify([]))
-      return []
+      window.localStorage.setItem(key, JSON.stringify(demoRows))
+      return demoRows
     }
     const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    const cleaned = parsed.filter((item): item is T => Boolean(item?.id) && !demoIds.has(item.id))
-    if (cleaned.length !== parsed.length) {
-      window.localStorage.setItem(key, JSON.stringify(cleaned))
+    const stored = Array.isArray(parsed) ? parsed.filter((item): item is T => Boolean(item?.id)) : []
+    const merged = [...stored]
+    demoRows.forEach((demoRow) => {
+      if (!merged.some((item) => item.id === demoRow.id)) merged.push(demoRow)
+    })
+    if (merged.length !== stored.length) {
+      window.localStorage.setItem(key, JSON.stringify(merged))
     }
-    return cleaned
+    return merged
   } catch {
-    return []
+    return demoRows
   }
 }
 
@@ -512,25 +582,25 @@ export const saveDoctorProfiles = (doctors: DoctorProfile[]) => {
   window.localStorage.setItem(STORAGE.doctors, JSON.stringify(doctors))
 }
 
-export const loadConsultations = () => loadWithoutDemoRows<Consultation>(STORAGE.consultations, DEMO_CONSULTATION_IDS)
+export const loadConsultations = () => loadWithDemoRows<Consultation>(STORAGE.consultations, defaultConsultations)
 export const saveConsultations = (consultations: Consultation[]) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE.consultations, JSON.stringify(consultations))
 }
 
-export const loadDoctorMessages = () => loadWithoutDemoRows<DoctorMessageThread>(STORAGE.messages, DEMO_MESSAGE_THREAD_IDS)
+export const loadDoctorMessages = () => loadWithDemoRows<DoctorMessageThread>(STORAGE.messages, defaultMessageThreads)
 export const saveDoctorMessages = (threads: DoctorMessageThread[]) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE.messages, JSON.stringify(threads))
 }
 
-export const loadDoctorPrescriptions = () => loadWithoutDemoRows<DoctorPrescription>(STORAGE.prescriptions, DEMO_PRESCRIPTION_IDS)
+export const loadDoctorPrescriptions = () => loadWithDemoRows<DoctorPrescription>(STORAGE.prescriptions, defaultPrescriptions)
 export const saveDoctorPrescriptions = (prescriptions: DoctorPrescription[]) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE.prescriptions, JSON.stringify(prescriptions))
 }
 
-export const loadDoctorEarnings = () => loadWithoutDemoRows<DoctorEarning>(STORAGE.earnings, DEMO_EARNING_IDS)
+export const loadDoctorEarnings = () => loadWithDemoRows<DoctorEarning>(STORAGE.earnings, defaultEarnings)
 export const saveDoctorEarnings = (earnings: DoctorEarning[]) => {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(STORAGE.earnings, JSON.stringify(earnings))

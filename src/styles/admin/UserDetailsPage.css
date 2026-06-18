@@ -57,7 +57,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.ud-section-head h2 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #111827;
+  letter-spacing: -0.01em;
 }
 
 .ud-section-link {
@@ -78,16 +87,82 @@
   flex-wrap: wrap;
 }
 
-/* Profile hero */
-.ud-hero {
-  display: flex;
-  align-items: center;
+/* Profile layout */
+.ud-profile-shell {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
   gap: 1.25rem;
-  padding: 1.25rem 1.5rem;
+  align-items: start;
+}
+
+.ud-profile-rail,
+.ud-detail-panel {
   background: #fff;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  margin-bottom: 1.25rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+}
+
+.ud-profile-rail {
+  position: sticky;
+  top: 1.25rem;
+  padding: 1.35rem;
+}
+
+.ud-profile-rail__identity {
+  margin-top: 1rem;
+}
+
+.ud-profile-rail__stats {
+  display: grid;
+  gap: 0;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  border-top: 1px solid #eef2f7;
+}
+
+.ud-profile-rail__stats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.ud-profile-rail__stats dt,
+.ud-profile-rail__stats dd {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.ud-profile-rail__stats dt {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.ud-profile-rail__stats dd {
+  color: #111827;
+  font-weight: 800;
+  text-align: right;
+}
+
+.ud-detail-panel {
+  padding: 0 1.35rem;
+}
+
+.ud-section {
+  padding: 1.35rem 0;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.ud-section:last-child {
+  border-bottom: none;
+}
+
+.ud-detail-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
 }
 
 .ud-avatar {
@@ -105,15 +180,17 @@
 }
 
 .ud-hero__name {
-  font-size: 1.1rem;
+  font-size: 1.18rem;
   font-weight: 700;
-  margin-bottom: 0.15rem;
+  margin: 0 0 0.15rem;
+  color: #111827;
 }
 
 .ud-hero__email {
   font-size: 0.875rem;
   color: var(--color-text-muted);
-  margin-bottom: 0.6rem;
+  margin: 0 0 0.75rem;
+  overflow-wrap: anywhere;
 }
 
 .ud-hero__badges {
@@ -122,29 +199,19 @@
   flex-wrap: wrap;
 }
 
-/* Grid */
-.ud-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.ud-wide {
-  grid-column: span 2;
-}
-
 /* Detail rows */
 .ud-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.55rem 0;
-  border-bottom: 1px solid #f3f4f6;
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
 }
 
 .ud-row:last-child {
-  border-bottom: none;
+  border-bottom: 1px solid #eef2f7;
 }
 
 .ud-row__label {
@@ -156,8 +223,9 @@
 .ud-row__value {
   font-size: 0.875rem;
   color: var(--color-text-primary);
-  font-weight: 500;
-  text-align: right;
+  font-weight: 700;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 /* Notes */
@@ -166,14 +234,15 @@
   padding: 0;
   list-style: none;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .ud-notes li {
   padding: 0.5rem 0.75rem;
-  background: var(--color-background-light);
-  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 999px;
   font-size: 0.875rem;
   color: var(--color-text-primary);
 }
@@ -185,17 +254,24 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .ud-history__item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.65rem 0.75rem;
-  background: var(--color-background-light);
-  border-radius: 8px;
+  padding: 0.8rem 0.9rem;
+  background: #fff;
+  border-bottom: 1px solid #eef2f7;
   font-size: 0.8125rem;
+}
+
+.ud-history__item:last-child {
+  border-bottom: none;
 }
 
 .ud-history__id {
@@ -338,13 +414,17 @@
   font-family: inherit;
 }
 
+.ud-section .form-group {
+  margin-bottom: 0;
+}
+
 @media (max-width: 768px) {
-  .ud-grid {
+  .ud-profile-shell {
     grid-template-columns: 1fr;
   }
 
-  .ud-wide {
-    grid-column: span 1;
+  .ud-profile-rail {
+    position: static;
   }
 
   .ud-form-grid {
@@ -360,8 +440,8 @@
     align-items: flex-start;
   }
 
-  .ud-row__value {
-    text-align: right;
+  .ud-detail-list {
+    grid-template-columns: 1fr;
   }
 
   .ud-history__item {

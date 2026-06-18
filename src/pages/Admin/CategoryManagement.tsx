@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   adminProductService,
+  ApiPromotion,
   ApiProductCategory,
   ApiProductSubcategory,
 } from '../../services/adminProductService'
@@ -17,6 +18,8 @@ function formatDate(value?: string): string {
 type ViewMode = 'categories' | 'subcategories'
 type ModalMode = 'create-category' | 'create-subcategory' | 'edit-category' | 'edit-subcategory'
 type SortDirection = 'asc' | 'desc'
+type CategorySortField = 'name' | 'status' | 'subcategories' | 'created_at'
+type SubcategorySortField = 'name' | 'parent' | 'status' | 'created_at'
 
 const PAGE_SIZE = 8
 
@@ -31,16 +34,39 @@ function compareCreatedAt(left?: string, right?: string): number {
   return leftTime - rightTime
 }
 
+function isActivePromotion(promotion: ApiPromotion, now = new Date()): boolean {
+  if (promotion.status !== 'active') return false
+  const today = new Date(now.toISOString().slice(0, 10))
+  const start = new Date(promotion.start_date)
+  const end = new Date(promotion.end_date)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false
+  return start <= today && today <= end
+}
+
+function getDealLabel(promotions: ApiPromotion[], scope: 'category' | 'brand', slug?: string | null): string {
+  const activePromotions = promotions.filter((promotion) => isActivePromotion(promotion))
+  if (slug && activePromotions.some((promotion) => promotion.scope === scope && promotion.targets.includes(slug))) {
+    return 'Active deal'
+  }
+  if (activePromotions.some((promotion) => promotion.scope === 'all')) {
+    return 'Storewide deal'
+  }
+  return 'No active deal'
+}
+
 function CategoryManagement() {
   const [categories, setCategories] = useState<ApiProductCategory[]>([])
   const [subcategories, setSubcategories] = useState<ApiProductSubcategory[]>([])
+  const [promotions, setPromotions] = useState<ApiPromotion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('categories')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>('all')
-  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
+  const [categorySortField, setCategorySortField] = useState<CategorySortField>('created_at')
+  const [subcategorySortField, setSubcategorySortField] = useState<SubcategorySortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
@@ -64,12 +90,14 @@ function CategoryManagement() {
     setLoading(true)
     setError('')
     try {
-      const [cats, subs] = await Promise.all([
+      const [cats, subs, promoRows] = await Promise.all([
         adminProductService.listProductCategories(),
         adminProductService.listProductSubcategories(),
+        adminProductService.listPromotions(),
       ])
       setCategories(cats)
       setSubcategories(subs)
+      setPromotions(promoRows)
     } catch {
       setError('Unable to load categories. Check your connection and try again.')
     } finally {
@@ -179,9 +207,7 @@ function CategoryManagement() {
             })
           )
         )
-        setSubcategories((prev) =>
-          [...prev, ...created].sort((a, b) => a.category_name.localeCompare(b.category_name) || a.name.localeCompare(b.name))
-        )
+        setSubcategories((prev) => [...created, ...prev])
         setCategories((prev) =>
           prev.map((c) =>
             c.id === Number(formParentId)
@@ -204,7 +230,10 @@ function CategoryManagement() {
     const isSubcategoryModal = modalMode === 'edit-subcategory'
     if (isSubcategoryModal && formParentId === '') { setFormError('Select a parent category.'); return }
     if (isCategoryModal && !formDescription.trim()) { setFormError('Category description is required.'); return }
-    if (isCategoryModal && modalMode === 'create-category' && !formImageFile) { setFormError('Category image is required.'); return }
+    const existingCategoryImage = modalMode === 'edit-category'
+      ? categories.find((category) => category.id === editingId)?.image || ''
+      : ''
+    if (isCategoryModal && !formImageFile && !existingCategoryImage) { setFormError('Category image is required.'); return }
 
     // Uniqueness check for edit-subcategory
     if (modalMode === 'edit-subcategory' && editingId !== null) {
@@ -226,7 +255,7 @@ function CategoryManagement() {
         if (formDescription.trim()) payload.append('description', formDescription.trim())
         if (formImageFile) payload.append('image', formImageFile)
         const created = await adminProductService.createProductCategory(payload)
-        setCategories((prev) => [...prev, { ...created, subcategories: [] }].sort((a, b) => a.name.localeCompare(b.name)))
+        setCategories((prev) => [{ ...created, subcategories: [] }, ...prev])
       } else if (modalMode === 'edit-category' && editingId !== null) {
         const payload = new FormData()
         payload.append('name', formName.trim())
@@ -311,24 +340,32 @@ function CategoryManagement() {
   const sortedCategories = useMemo(() => {
     const items = [...filteredCategories]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (categorySortField === 'name') comparison = left.name.localeCompare(right.name)
+      else if (categorySortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
+      else if (categorySortField === 'subcategories') comparison = left.subcategories.length - right.subcategories.length
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filteredCategories, createdAtSortDirection])
+  }, [filteredCategories, categorySortField, sortDirection])
 
   const sortedSubcategories = useMemo(() => {
     const items = [...filteredSubcategories]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (subcategorySortField === 'name') comparison = left.name.localeCompare(right.name)
+      else if (subcategorySortField === 'parent') comparison = left.category_name.localeCompare(right.category_name)
+      else if (subcategorySortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filteredSubcategories, createdAtSortDirection])
+  }, [filteredSubcategories, subcategorySortField, sortDirection])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [viewMode, searchTerm, selectedStatus, selectedParentCategory, createdAtSortDirection])
+  }, [viewMode, searchTerm, selectedStatus, selectedParentCategory, categorySortField, subcategorySortField, sortDirection])
 
   const visibleRows = viewMode === 'categories' ? sortedCategories : sortedSubcategories
   const totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE))
@@ -352,6 +389,10 @@ function CategoryManagement() {
 
   const isCreateMode = modalMode === 'create-category' || modalMode === 'create-subcategory'
   const isSubcategoryModal = modalMode === 'create-subcategory' || modalMode === 'edit-subcategory'
+  const currentCategoryImage = modalMode === 'edit-category'
+    ? categories.find((category) => category.id === editingId)?.image || ''
+    : ''
+  const isCategoryImageRequired = !isSubcategoryModal && !currentCategoryImage
 
   const clearFilters = () => {
     setSearchTerm('')
@@ -359,9 +400,40 @@ function CategoryManagement() {
     setSelectedParentCategory('all')
   }
 
-  const toggleCreatedAtSort = () => {
-    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  const handleCategorySort = (field: CategorySortField) => {
+    if (categorySortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setCategorySortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
   }
+
+  const handleSubcategorySort = (field: SubcategorySortField) => {
+    if (subcategorySortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSubcategorySortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
+  }
+
+  const categorySortIndicator = (field: CategorySortField) => categorySortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+  const subcategorySortIndicator = (field: SubcategorySortField) => subcategorySortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+
+  const sortButtonClass = 'btn btn--ghost btn--sm'
+
+  const renderCategorySortButton = (field: CategorySortField, label: string) => (
+    <button type="button" className={sortButtonClass} onClick={() => handleCategorySort(field)}>
+      {label} {categorySortIndicator(field)}
+    </button>
+  )
+
+  const renderSubcategorySortButton = (field: SubcategorySortField, label: string) => (
+    <button type="button" className={sortButtonClass} onClick={() => handleSubcategorySort(field)}>
+      {label} {subcategorySortIndicator(field)}
+    </button>
+  )
 
   return (
     <div className="category-management">
@@ -561,19 +633,16 @@ function CategoryManagement() {
             </div>
           ) : (
             <div className="cm-table-wrap">
-              <table className="cm-table">
+              <table className="cm-table category-compact-table">
                 <thead>
                   <tr>
-                    <th>Category</th>
+                    <th>{renderCategorySortButton('name', 'Category')}</th>
                     <th>Description</th>
                     <th>Image</th>
-                    <th>Status</th>
-                    <th>Subcategories</th>
-                    <th>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                      </button>
-                    </th>
+                    <th>{renderCategorySortButton('status', 'Status')}</th>
+                    <th>Active Deal</th>
+                    <th>{renderCategorySortButton('subcategories', 'Subcategories')}</th>
+                    <th>{renderCategorySortButton('created_at', 'Created At')}</th>
                     <th>Created By</th>
                     <th>Updated By</th>
                     <th className="cm-th-actions"></th>
@@ -584,6 +653,7 @@ function CategoryManagement() {
                     const preview = cat.subcategories.slice(0, 3)
                     const overflow = cat.subcategories.length - preview.length
                     const toggleKey = `category-${cat.id}`
+                    const dealLabel = getDealLabel(promotions, 'category', cat.slug)
                     return (
                       <tr key={cat.id}>
                         <td>
@@ -596,7 +666,7 @@ function CategoryManagement() {
                           </div>
                         </td>
                         <td>
-                          <span style={{ color: '#4b5563', fontSize: '0.875rem', lineHeight: 1.5 }}>
+                          <span style={{ color: '#4b5563', fontSize: '0.74rem', lineHeight: 1.25 }}>
                             {cat.description || '—'}
                           </span>
                         </td>
@@ -606,12 +676,12 @@ function CategoryManagement() {
                               href={cat.image}
                               target="_blank"
                               rel="noreferrer"
-                              style={{ color: '#2563eb', fontSize: '0.875rem', textDecoration: 'underline' }}
+                              style={{ color: '#2563eb', fontSize: '0.74rem', textDecoration: 'underline' }}
                             >
                               View image
                             </a>
                           ) : (
-                            <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>—</span>
+                            <span style={{ color: '#6b7280', fontSize: '0.74rem' }}>—</span>
                           )}
                         </td>
                         <td>
@@ -624,6 +694,11 @@ function CategoryManagement() {
                           >
                             <span className="cm-toggle__knob" />
                           </button>
+                        </td>
+                        <td>
+                          <span className={`cm-status ${dealLabel === 'No active deal' ? 'cm-status--inactive' : 'cm-status--active'}`}>
+                            {dealLabel}
+                          </span>
                         </td>
                         <td>
                           <div className="cm-chips">
@@ -705,17 +780,14 @@ function CategoryManagement() {
             </div>
           ) : (
             <div className="cm-table-wrap">
-              <table className="cm-table">
+              <table className="cm-table category-compact-table">
                 <thead>
                   <tr>
-                    <th>Subcategory</th>
-                    <th>Parent Category</th>
-                    <th>Status</th>
-                    <th>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                      </button>
-                    </th>
+                    <th>{renderSubcategorySortButton('name', 'Subcategory')}</th>
+                    <th>{renderSubcategorySortButton('parent', 'Parent Category')}</th>
+                    <th>{renderSubcategorySortButton('status', 'Status')}</th>
+                    <th>Active Deal</th>
+                    <th>{renderSubcategorySortButton('created_at', 'Created At')}</th>
                     <th>Created By</th>
                     <th>Updated By</th>
                     <th className="cm-th-actions"></th>
@@ -724,6 +796,8 @@ function CategoryManagement() {
                 <tbody>
                   {pagedSubcategories.map((sub) => {
                     const toggleKey = `subcategory-${sub.id}`
+                    const parentCategory = categories.find((category) => category.id === sub.category)
+                    const dealLabel = getDealLabel(promotions, 'category', parentCategory?.slug)
                     return (
                       <tr key={sub.id}>
                         <td>
@@ -748,6 +822,11 @@ function CategoryManagement() {
                           >
                             <span className="cm-toggle__knob" />
                           </button>
+                        </td>
+                        <td>
+                          <span className={`cm-status ${dealLabel === 'No active deal' ? 'cm-status--inactive' : 'cm-status--active'}`}>
+                            {dealLabel}
+                          </span>
                         </td>
                         <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(sub.created_at)}</td>
                         <td style={{ color: '#6b7280' }}>—</td>
@@ -981,13 +1060,13 @@ function CategoryManagement() {
 
               {!isSubcategoryModal && (
                 <label className="cm-field">
-                  <span>Category Image</span>
+                  <span>Category Image <span className="cm-required">*</span></span>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => { void handleCategoryImageChange(e.target.files?.[0] ?? null) }}
                     disabled={formSaving}
-                    required={modalMode === 'create-category'}
+                    required={isCategoryImageRequired}
                   />
                   <span className="cm-upload-note">{getImageUploadHint('category')}</span>
                   {formImagePreview && (

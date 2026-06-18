@@ -6,6 +6,7 @@ import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const PAGE_SIZE = 8
 type SortDirection = 'asc' | 'desc'
+type SortField = 'name' | 'status' | 'created_at'
 
 function formatDate(value?: string): string {
   if (!value) return '—'
@@ -30,7 +31,8 @@ function HealthConcernManagement() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
-  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
@@ -93,7 +95,7 @@ function HealthConcernManagement() {
         setConcerns((prev) => prev.map((c) => (c.id === editing.id ? updated : c)))
       } else {
         const created = await adminProductService.createHealthConcern(payload)
-        setConcerns((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+        setConcerns((prev) => [created, ...prev])
       }
       setShowModal(false)
       window.dispatchEvent(new Event('ava:catalog-updated'))
@@ -147,15 +149,18 @@ function HealthConcernManagement() {
   const sortedConcerns = useMemo(() => {
     const items = [...filtered]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (sortField === 'name') comparison = left.name.localeCompare(right.name)
+      else if (sortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filtered, createdAtSortDirection])
+  }, [filtered, sortField, sortDirection])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, selectedStatus, createdAtSortDirection])
+  }, [search, selectedStatus, sortField, sortDirection])
 
   const totalPages = Math.max(1, Math.ceil(sortedConcerns.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
@@ -175,9 +180,21 @@ function HealthConcernManagement() {
     setSelectedStatus('all')
   }
 
-  const toggleCreatedAtSort = () => {
-    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
   }
+
+  const sortIndicator = (field: SortField) => sortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+  const renderSortButton = (field: SortField, label: string) => (
+    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort(field)}>
+      {label} {sortIndicator(field)}
+    </button>
+  )
 
   return (
     <div className="category-management">
@@ -309,18 +326,14 @@ function HealthConcernManagement() {
             </div>
           ) : (
             <div className="cm-table-wrap">
-              <table className="cm-table">
+              <table className="cm-table health-concerns-compact-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
+                    <th>{renderSortButton('name', 'Name')}</th>
                     <th>Image</th>
                     <th>Description</th>
-                    <th>Status</th>
-                    <th>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                      </button>
-                    </th>
+                    <th>{renderSortButton('status', 'Status')}</th>
+                    <th>{renderSortButton('created_at', 'Created At')}</th>
                     <th>Created By</th>
                     <th>Updated By</th>
                     <th className="cm-th-actions"></th>
@@ -337,7 +350,7 @@ function HealthConcernManagement() {
                       </td>
                       <td>
                         {c.image
-                          ? <a href={c.image} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontSize: '0.875rem', textDecoration: 'underline' }}>View image</a>
+                          ? <a href={c.image} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontSize: '0.74rem', textDecoration: 'underline' }}>View image</a>
                           : <span className="cm-name-cell__id">—</span>}
                       </td>
                       <td>

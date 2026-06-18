@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { SearchableSelect } from '../../components/SearchableSelect/SearchableSelect'
 import { SearchableMultiSelect } from '../../components/SearchableMultiSelect/SearchableMultiSelect'
@@ -10,7 +10,6 @@ import {
   ApiHealthConcern,
   ApiProductSubcategory,
   ApiProduct,
-  ProductFormMeta,
   ProductCreatePayload,
 } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
@@ -21,6 +20,8 @@ import '../../styles/admin/ProductManagement.css'
 
 const PAGE_SIZE = 6
 type SortDirection = 'asc' | 'desc'
+type ProductSortField = 'name' | 'brand' | 'subcategory' | 'price' | 'stock' | 'rx' | 'status' | 'created_at'
+type ProductBrandSortField = 'name' | 'products' | 'status' | 'created_at'
 
 function formatDate(value?: string): string {
   if (!value) return '—'
@@ -45,23 +46,6 @@ function formatCurrency(value?: string | number | null): string {
   return Number.isFinite(amount) ? `KSh ${amount.toLocaleString()}` : '—'
 }
 
-function getEffectiveSellingPrice(product: ApiProduct): number {
-  const effectivePrice = Number(product.final_price ?? product.price)
-  if (Number.isFinite(effectivePrice) && effectivePrice > 0) return effectivePrice
-  return Number(product.price)
-}
-
-function getMarginData(product: ApiProduct): { amount: number; percent: number } | null {
-  const costPrice = Number(product.cost_price)
-  if (!Number.isFinite(costPrice) || costPrice <= 0) return null
-
-  const effectiveSellingPrice = getEffectiveSellingPrice(product)
-  const amount = effectiveSellingPrice - costPrice
-  const percent = effectiveSellingPrice > 0 ? (amount / effectiveSellingPrice) * 100 : 0
-
-  return { amount, percent }
-}
-
 function formatFeatureLines(features: string[] | null | undefined): string {
   return Array.isArray(features) ? features.join('\n') : ''
 }
@@ -71,12 +55,6 @@ function parseFeatureLines(value: string): string[] {
     .split('\n')
     .map((feature) => feature.trim())
     .filter(Boolean)
-}
-
-function generateSku(name: string): string {
-  const base = name.trim().toUpperCase().replace(/[^A-Z0-9]/g, '-').slice(0, 12)
-  const suffix = Date.now().toString(36).toUpperCase().slice(-4)
-  return `${base}-${suffix}`
 }
 
 function generateSlug(name: string): string {
@@ -145,8 +123,20 @@ function isFieldErrorMap(value: unknown): value is Record<string, string | strin
 }
 
 type ProductFormPayload =
-  Pick<ProductCreatePayload, 'name' | 'slug' | 'sku' | 'is_active' | 'requires_prescription'>
+  Pick<ProductCreatePayload, 'name' | 'slug' | 'is_active' | 'requires_prescription'>
   & Partial<ProductCreatePayload>
+
+type ProductFieldErrorKey =
+  | 'name'
+  | 'brand'
+  | 'subcategory'
+  | 'health_concerns'
+  | 'description'
+  | 'features'
+  | 'status'
+  | 'requires_prescription'
+
+type BrandFieldErrorKey = 'name' | 'description' | 'logo'
 
 function ProductManagement() {
   const [searchParams] = useSearchParams()
@@ -158,20 +148,19 @@ function ProductManagement() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [productFormMeta, setProductFormMeta] = useState<ProductFormMeta | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedSubcat, setSelectedSubcat] = useState('all')
   const [selectedConcern, setSelectedConcern] = useState('all')
-  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
+  const [productSortField, setProductSortField] = useState<ProductSortField>('created_at')
+  const [brandSortField, setBrandSortField] = useState<ProductBrandSortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null)
 
   const [productName, setProductName] = useState('')
   const [productSlug, setProductSlug] = useState('')
-  const [productSku, setProductSku] = useState('')
-  const [productBarcode, setProductBarcode] = useState('')
   const [productSubcategoryId, setProductSubcategoryId] = useState<number | ''>('')
   const [productBrandId, setProductBrandId] = useState<number | ''>('')
   const [productHealthConcernIds, setProductHealthConcernIds] = useState<number[]>([])
@@ -180,15 +169,14 @@ function ProductManagement() {
   const [productDescription, setProductDescription] = useState('')
   const [productFeaturesText, setProductFeaturesText] = useState('')
   const [formError, setFormError] = useState('')
+  const [productFieldErrors, setProductFieldErrors] = useState<Partial<Record<ProductFieldErrorKey, string>>>({})
   const [showBrandModal, setShowBrandModal] = useState(false)
   const [brandName, setBrandName] = useState('')
   const [brandDescription, setBrandDescription] = useState('')
   const [brandLogoFile, setBrandLogoFile] = useState<File | null>(null)
   const [brandSaving, setBrandSaving] = useState(false)
   const [brandFormError, setBrandFormError] = useState('')
-  const [deleteTarget, setDeleteTarget] = useState<ApiProduct | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
+  const [brandFieldErrors, setBrandFieldErrors] = useState<Partial<Record<BrandFieldErrorKey, string>>>({})
   const [activeTab, setActiveTab] = useState<'products' | 'brands'>('products')
   const [editingBrand, setEditingBrand] = useState<ApiBrand | null>(null)
   const [handledProductQuery, setHandledProductQuery] = useState('')
@@ -207,20 +195,18 @@ function ProductManagement() {
     setLoading(true)
     setError('')
     try {
-      const [prods, brandList, cats, subs, concerns, formMeta] = await Promise.all([
+      const [prods, brandList, cats, subs, concerns] = await Promise.all([
         adminProductService.listProducts(),
         adminProductService.listBrands(),
         adminProductService.listProductCategories(),
         adminProductService.listProductSubcategories(),
         adminProductService.listHealthConcerns(),
-        adminProductService.getProductFormMeta(),
       ])
       setProducts(prods)
       setBrands(brandList)
       setCategories(cats)
       setSubcategories(subs)
       setAllConcerns(concerns)
-      setProductFormMeta(formMeta)
     } catch {
       setError('Failed to load products.')
     } finally {
@@ -244,8 +230,6 @@ function ProductManagement() {
   const resetForm = () => {
     setProductName('')
     setProductSlug('')
-    setProductSku('')
-    setProductBarcode('')
     setProductSubcategoryId(subcategories[0]?.id ?? '')
     setProductBrandId(brands[0]?.id ?? '')
     setProductHealthConcernIds([])
@@ -255,6 +239,25 @@ function ProductManagement() {
     setProductFeaturesText('')
     setEditingProduct(null)
     setFormError('')
+    setProductFieldErrors({})
+  }
+
+  const clearProductFieldError = (field: ProductFieldErrorKey) => {
+    setProductFieldErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  const clearBrandFieldError = (field: BrandFieldErrorKey) => {
+    setBrandFieldErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
   }
 
   const openAddModal = () => {
@@ -268,6 +271,7 @@ function ProductManagement() {
     setBrandDescription('')
     setBrandLogoFile(null)
     setBrandFormError('')
+    setBrandFieldErrors({})
     setEditingBrand(null)
     setShowBrandModal(false)
   }
@@ -278,6 +282,7 @@ function ProductManagement() {
     setBrandDescription('')
     setBrandLogoFile(null)
     setBrandFormError('')
+    setBrandFieldErrors({})
     setShowBrandModal(true)
   }
 
@@ -287,6 +292,7 @@ function ProductManagement() {
     setBrandDescription(brand.description ?? '')
     setBrandLogoFile(null)
     setBrandFormError('')
+    setBrandFieldErrors({})
     setShowBrandModal(true)
   }
 
@@ -296,8 +302,6 @@ function ProductManagement() {
 
     setProductName(product.name)
     setProductSlug(product.slug ?? generateSlug(product.name))
-    setProductSku(product.sku)
-    setProductBarcode(product.barcode ?? '')
     setProductSubcategoryId(resolvedSubcategory?.id ?? product.subcategory_id ?? (subcategories[0]?.id ?? ''))
     setProductBrandId(resolvedBrand?.id ?? product.brand?.id ?? (brands[0]?.id ?? ''))
     setProductHealthConcernIds(product.health_concerns?.map((c) => c.id) ?? [])
@@ -307,33 +311,44 @@ function ProductManagement() {
     setProductFeaturesText(formatFeatureLines(product.features))
     setEditingProduct(product)
     setFormError('')
+    setProductFieldErrors({})
     setShowAddModal(true)
   }
 
   const handleSaveProduct = async (e: FormEvent) => {
     e.preventDefault()
-    if (!productName.trim()) { setFormError('Product name is required.'); return }
-    if (productBarcode.trim() === '') {
-      setFormError('Barcode is required.')
+    setFormError('')
+    setProductFieldErrors({})
+    if (!productName.trim()) {
+      setProductFieldErrors({ name: 'Product name is required.' })
       return
     }
     if (productBrandId === '') {
-      setFormError(brands.length === 0 ? 'Create a brand before adding a product.' : 'Brand is required.')
+      setProductFieldErrors({ brand: brands.length === 0 ? 'Create a brand before adding a product.' : 'Brand is required.' })
       return
     }
     if (productSubcategoryId === '') {
-      setFormError(subcategories.length === 0 ? 'Create a subcategory before adding a product.' : 'Subcategory is required.')
+      setProductFieldErrors({ subcategory: subcategories.length === 0 ? 'Create a subcategory before adding a product.' : 'Subcategory is required.' })
+      return
+    }
+    if (productHealthConcernIds.length === 0) {
+      setProductFieldErrors({ health_concerns: 'Select at least one health concern.' })
+      return
+    }
+    if (!productDescription.trim()) {
+      setProductFieldErrors({ description: 'Description is required.' })
       return
     }
 
     const features = parseFeatureLines(productFeaturesText)
-    const sku = productSku.trim() || generateSku(productName)
+    if (features.length === 0) {
+      setProductFieldErrors({ features: 'Add at least one feature.' })
+      return
+    }
     const slug = productSlug.trim() || generateSlug(productName)
     const commonPayload: ProductFormPayload = {
       name: productName.trim(),
       slug,
-      sku,
-      barcode: productBarcode.trim(),
       brand_id: Number(productBrandId),
       subcategory_id: Number(productSubcategoryId),
       health_concern_ids: productHealthConcernIds,
@@ -355,8 +370,6 @@ function ProductManagement() {
       const formData = new FormData()
       formData.append('name', payload.name)
       formData.append('slug', payload.slug)
-      formData.append('sku', payload.sku)
-      formData.append('barcode', payload.barcode ?? '')
       formData.append('is_active', String(payload.is_active))
       formData.append('requires_prescription', String(payload.requires_prescription))
       formData.append('description', payload.description ?? '')
@@ -369,7 +382,6 @@ function ProductManagement() {
     }
 
     setSaving(true)
-    setFormError('')
     try {
       if (editingProduct) {
         const updated = await adminProductService.updateProduct(editingProduct.id, updatePayload)
@@ -417,10 +429,36 @@ function ProductManagement() {
         }
       }
       if (fieldErrors) {
-        const msgs = Object.entries(fieldErrors)
-          .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : String(errs)}`)
-          .join(' · ')
-        setFormError(msgs)
+        const fieldMap: Partial<Record<ProductFieldErrorKey, string>> = {}
+        const genericMessages: string[] = []
+        const aliases: Record<string, ProductFieldErrorKey> = {
+          name: 'name',
+          product_name: 'name',
+          slug: 'name',
+          brand: 'brand',
+          brand_id: 'brand',
+          subcategory: 'subcategory',
+          subcategory_id: 'subcategory',
+          health_concerns: 'health_concerns',
+          health_concern_ids: 'health_concerns',
+          description: 'description',
+          features: 'features',
+          is_active: 'status',
+          status: 'status',
+          requires_prescription: 'requires_prescription',
+        }
+
+        Object.entries(fieldErrors).forEach(([field, errs]) => {
+          const message = Array.isArray(errs) ? errs.join(', ') : String(errs)
+          const key = aliases[field]
+          if (key) {
+            fieldMap[key] = message
+          } else {
+            genericMessages.push(`${field}: ${message}`)
+          }
+        })
+        setProductFieldErrors(fieldMap)
+        setFormError(genericMessages.join(' · '))
       } else {
         setFormError(apiErr?.message ?? 'Failed to save product.')
       }
@@ -432,28 +470,35 @@ function ProductManagement() {
   const handleQuickBrandLogoChange = async (file: File | null) => {
     if (!file) {
       setBrandLogoFile(null)
-      setBrandFormError('')
+      clearBrandFieldError('logo')
       return
     }
 
     const validationError = await validateImageFile(file, 'brand')
     if (validationError) {
       setBrandLogoFile(null)
-      setBrandFormError(validationError)
+      setBrandFieldErrors((prev) => ({ ...prev, logo: validationError }))
       return
     }
 
     setBrandLogoFile(file)
-    setBrandFormError('')
+    clearBrandFieldError('logo')
   }
 
   const handleSaveBrand = async (e: FormEvent) => {
     e.preventDefault()
-    if (!brandName.trim()) { setBrandFormError('Brand name is required.'); return }
-    if (!editingBrand && !brandLogoFile) { setBrandFormError('Brand logo is required.'); return }
+    setBrandFormError('')
+    setBrandFieldErrors({})
+    if (!brandName.trim()) {
+      setBrandFieldErrors({ name: 'Brand name is required.' })
+      return
+    }
+    if (!editingBrand && !brandLogoFile) {
+      setBrandFieldErrors({ logo: 'Brand logo is required.' })
+      return
+    }
 
     setBrandSaving(true)
-    setBrandFormError('')
     try {
       if (editingBrand) {
         let payload: FormData | Partial<{ name: string; description: string; is_active: boolean }>
@@ -479,8 +524,29 @@ function ProductManagement() {
       }
       closeBrandModal()
     } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setBrandFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save brand.')
+      type ApiErr = { response?: { data?: { error?: { message?: string; details?: Record<string, string[] | string> } } } }
+      const apiErr = (err as ApiErr)?.response?.data?.error
+      const details = apiErr?.details
+      if (details && isFieldErrorMap(details)) {
+        const fieldMap: Partial<Record<BrandFieldErrorKey, string>> = {}
+        const genericMessages: string[] = []
+        const aliases: Record<string, BrandFieldErrorKey> = {
+          name: 'name',
+          description: 'description',
+          logo: 'logo',
+          image: 'logo',
+        }
+        Object.entries(details).forEach(([field, errs]) => {
+          const message = Array.isArray(errs) ? errs.join(', ') : String(errs)
+          const key = aliases[field]
+          if (key) fieldMap[key] = message
+          else genericMessages.push(`${field}: ${message}`)
+        })
+        setBrandFieldErrors(fieldMap)
+        setBrandFormError(genericMessages.join(' · '))
+      } else {
+        setBrandFormError(apiErr?.message ?? 'Failed to save brand.')
+      }
     } finally {
       setBrandSaving(false)
     }
@@ -504,22 +570,7 @@ function ProductManagement() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    setDeleting(true); setDeleteError('')
-    try {
-      await adminProductService.deleteProduct(deleteTarget.id)
-      setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id))
-      setDeleteTarget(null)
-    } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setDeleteError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to delete. Please try again.')
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedCategory, selectedSubcat, selectedConcern, createdAtSortDirection])
+  useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedCategory, selectedSubcat, selectedConcern, productSortField, brandSortField, sortDirection])
 
   const visibleSubcategories =
     selectedCategory === 'all'
@@ -610,26 +661,39 @@ function ProductManagement() {
   const sortedProducts = useMemo(() => {
     const items = [...filteredProducts]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (productSortField === 'name') comparison = left.name.localeCompare(right.name)
+      else if (productSortField === 'brand') comparison = getProductBrandLabel(left).localeCompare(getProductBrandLabel(right))
+      else if (productSortField === 'subcategory') comparison = getProductCatalog(left).combinedLabel.localeCompare(getProductCatalog(right).combinedLabel)
+      else if (productSortField === 'price') comparison = Number(left.final_price || left.price || 0) - Number(right.final_price || right.price || 0)
+      else if (productSortField === 'stock') comparison = getSellableQuantity(left) - getSellableQuantity(right)
+      else if (productSortField === 'rx') comparison = Number(left.requires_prescription) - Number(right.requires_prescription)
+      else if (productSortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filteredProducts, createdAtSortDirection])
+  }, [filteredProducts, productSortField, sortDirection])
 
   const sortedBrands = useMemo(() => {
     const items = [...brands]
+    const getBrandProductCount = (brand: ApiBrand) => products.filter((product) => product.brand?.id === brand.id).length
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (brandSortField === 'name') comparison = left.name.localeCompare(right.name)
+      else if (brandSortField === 'products') comparison = getBrandProductCount(left) - getBrandProductCount(right)
+      else if (brandSortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [brands, createdAtSortDirection])
+  }, [brands, products, brandSortField, sortDirection])
 
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedProducts = sortedProducts.slice(startIndex, startIndex + PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE))
 
-  const getProductCatalog = (product: ApiProduct) => {
+  function getProductCatalog(product: ApiProduct) {
     const resolvedSubcategory = resolveProductSubcategory(product)
     const categoryName =
       product.category_name ||
@@ -651,11 +715,40 @@ function ProductManagement() {
     }
   }
 
-  const getProductBrandLabel = (product: ApiProduct) => product.brand?.name ?? product.brand_name ?? 'No brand'
-
-  const toggleCreatedAtSort = () => {
-    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  function getProductBrandLabel(product: ApiProduct) {
+    return product.brand?.name ?? product.brand_name ?? 'No brand'
   }
+
+  const handleProductSort = (field: ProductSortField) => {
+    if (productSortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setProductSortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
+  }
+
+  const handleBrandSort = (field: ProductBrandSortField) => {
+    if (brandSortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setBrandSortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
+  }
+
+  const productSortIndicator = (field: ProductSortField) => productSortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+  const brandSortIndicator = (field: ProductBrandSortField) => brandSortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+  const renderProductSortButton = (field: ProductSortField, label: string) => (
+    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleProductSort(field)}>
+      {label} {productSortIndicator(field)}
+    </button>
+  )
+  const renderBrandSortButton = (field: ProductBrandSortField, label: string) => (
+    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleBrandSort(field)}>
+      {label} {brandSortIndicator(field)}
+    </button>
+  )
 
   return (
     <div className="category-management product-management">
@@ -720,15 +813,11 @@ function ProductManagement() {
               <table className="cm-table">
                 <thead>
                   <tr>
-                    <th style={{ minWidth: 220 }}>Brand</th>
+                    <th style={{ minWidth: 220 }}>{renderBrandSortButton('name', 'Brand')}</th>
                     <th style={{ minWidth: 200 }}>Description</th>
-                    <th style={{ minWidth: 80 }}>Products</th>
-                    <th style={{ minWidth: 90 }}>Status</th>
-                    <th style={{ minWidth: 120, whiteSpace: 'nowrap' }}>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                      </button>
-                    </th>
+                    <th style={{ minWidth: 80 }}>{renderBrandSortButton('products', 'Products')}</th>
+                    <th style={{ minWidth: 90 }}>{renderBrandSortButton('status', 'Status')}</th>
+                    <th style={{ minWidth: 120, whiteSpace: 'nowrap' }}>{renderBrandSortButton('created_at', 'Created At')}</th>
                     <th style={{ minWidth: 110 }}>Created By</th>
                     <th className="cm-th-actions">Actions</th>
                   </tr>
@@ -754,7 +843,7 @@ function ProductManagement() {
                         </div>
                       </td>
                       <td>
-                        <span style={{ fontSize: '0.875rem', color: brand.description ? '#374151' : '#d1d5db' }}>
+                        <span style={{ fontSize: '0.74rem', color: brand.description ? '#374151' : '#d1d5db' }}>
                           {brand.description || '—'}
                         </span>
                       </td>
@@ -901,38 +990,34 @@ function ProductManagement() {
         )}
         {!loading && (
         <div className="cm-table-wrap">
-          <table className="cm-table">
+          <table className="cm-table pm-products-table">
             <thead>
               <tr>
-                <th style={{ minWidth: 220 }}>Product</th>
-                <th style={{ minWidth: 120 }}>Brand</th>
-                <th style={{ minWidth: 130 }}>Subcategory</th>
-                <th style={{ minWidth: 110 }}>Lead Variant Price</th>
-                <th style={{ minWidth: 140 }}>Active Deal</th>
-                <th style={{ minWidth: 100 }}>Lead Margin</th>
-                <th style={{ minWidth: 80 }}>Stock</th>
-                <th style={{ minWidth: 110 }}>Prescription</th>
-                <th style={{ minWidth: 90 }}>Status</th>
-                <th style={{ minWidth: 100, whiteSpace: 'nowrap' }}>
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                    Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                  </button>
-                </th>
-                <th style={{ minWidth: 100 }}>Created By</th>
-                <th style={{ minWidth: 100 }}>Updated By</th>
+                <th style={{ minWidth: 190 }}>{renderProductSortButton('name', 'Product')}</th>
+                <th style={{ minWidth: 100 }}>{renderProductSortButton('brand', 'Brand')}</th>
+                <th style={{ minWidth: 110 }}>{renderProductSortButton('subcategory', 'Subcategory')}</th>
+                <th style={{ minWidth: 92 }}>{renderProductSortButton('price', 'Lead Price')}</th>
+                <th style={{ minWidth: 115 }}>Active Deal</th>
+                <th style={{ minWidth: 72 }}>{renderProductSortButton('stock', 'Stock')}</th>
+                <th style={{ minWidth: 92 }}>{renderProductSortButton('rx', 'Rx')}</th>
+                <th style={{ minWidth: 78 }}>{renderProductSortButton('status', 'Status')}</th>
+                <th style={{ minWidth: 92, whiteSpace: 'nowrap' }}>{renderProductSortButton('created_at', 'Created At')}</th>
+                <th style={{ minWidth: 88 }}>Created By</th>
+                <th style={{ minWidth: 88 }}>Updated By</th>
                 <th className="cm-th-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
               {pagedProducts.map((product) => {
-                const margin = getMarginData(product)
                 const stockQty = getSellableQuantity(product)
                 const stockClass = getSellableStatusClass(product)
+                const activePromotion = product.active_promotions?.[0]
+                const activeDealLabel = activePromotion?.title || product.badge
                 return (
                 <tr key={product.id}>
                   <td>
-                    <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
-                      <ImageWithFallback src={product.image ?? ''} alt={product.name} style={{ width: 36, height: 36, borderRadius: '0.375rem', objectFit: 'cover', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                      <ImageWithFallback src={product.image ?? ''} alt={product.name} style={{ width: 30, height: 30, borderRadius: '0.35rem', objectFit: 'cover', flexShrink: 0 }} />
                       <div className="cm-name-cell">
                         <span className="cm-name-cell__name">{product.name}</span>
                         <span className="cm-name-cell__id">{product.sku}{product.strength ? ` · ${product.strength}` : ''}</span>
@@ -943,11 +1028,11 @@ function ProductManagement() {
                         )}
                         {product.health_concerns.length > 0 && (
                           <div className="cm-chips" style={{ marginTop: '0.25rem' }}>
-                            {product.health_concerns.slice(0, 3).map((concern) => (
+                            {product.health_concerns.slice(0, 1).map((concern) => (
                               <span key={concern.id} className="cm-chip">{concern.name}</span>
                             ))}
-                            {product.health_concerns.length > 3 && (
-                              <span className="cm-chip cm-chip--more">+{product.health_concerns.length - 3} more</span>
+                            {product.health_concerns.length > 1 && (
+                              <span className="cm-chip cm-chip--more">+{product.health_concerns.length - 1}</span>
                             )}
                           </div>
                         )}
@@ -955,7 +1040,7 @@ function ProductManagement() {
                     </div>
                   </td>
                   <td>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{getProductBrandLabel(product)}</span>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 500 }}>{getProductBrandLabel(product)}</span>
                   </td>
                   <td>
                     <div className="cm-name-cell">
@@ -963,22 +1048,12 @@ function ProductManagement() {
                       <span className="cm-name-cell__id">{getProductCatalog(product).categoryName}</span>
                     </div>
                   </td>
-                  <td>{formatCurrency(product.price)}</td>
+                  <td>{formatCurrency(product.final_price || product.price)}</td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <span>{product.badge || 'No active deal'}</span>
+                      <span>{activeDealLabel || 'No active deal'}</span>
                       <span className="cm-name-cell__id">
-                        {product.badge ? formatCurrency(product.final_price) : 'Manage in Deals'}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <span style={{ color: margin && margin.amount < 0 ? '#dc2626' : undefined }}>
-                        {margin ? formatCurrency(margin.amount) : '—'}
-                      </span>
-                      <span className="cm-name-cell__id">
-                        {margin ? `${margin.percent.toFixed(1)}%` : 'No cost price'}
+                        {activeDealLabel ? formatCurrency(product.final_price || product.price) : 'Manage in Deals'}
                       </span>
                     </div>
                   </td>
@@ -1013,14 +1088,6 @@ function ProductManagement() {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         Edit
                       </button>
-                      <Link
-                        className="cm-row-btn"
-                        title="Manage stock"
-                        to={`/admin/inventory?product=${product.id}`}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                        Stock
-                      </Link>
                       <button
                         type="button"
                         className="cm-row-btn"
@@ -1028,18 +1095,6 @@ function ProductManagement() {
                         onClick={() => handleToggleProduct(product)}
                       >
                         {product.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <button
-                        type="button"
-                        className="cm-row-btn cm-row-btn--delete"
-                        title="Delete product"
-                        onClick={() => { setDeleteTarget(product); setDeleteError('') }}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                          <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
-                        </svg>
-                        Delete
                       </button>
                     </div>
                   </td>
@@ -1107,32 +1162,10 @@ function ProductManagement() {
                         onChange={(e) => {
                           setProductName(e.target.value)
                           setProductSlug(generateSlug(e.target.value))
+                          clearProductFieldError('name')
                         }}
                       />
-                    </div>
-                  </div>
-                  <div className="pf-row">
-                    <div className="pf-field">
-                      <label className="pf-label">SKU <span className="pf-optional">optional</span></label>
-                      <input
-                        className="pf-input"
-                        type="text"
-                        placeholder="Auto-generated if blank"
-                        value={productSku}
-                        onChange={(e) => setProductSku(e.target.value)}
-                      />
-                    </div>
-                    <div className="pf-field">
-                      <label className="pf-label">
-                        Barcode {productFormMeta?.requires_barcode ? <span className="pf-req">*</span> : <span className="pf-optional">optional</span>}
-                      </label>
-                      <input
-                        className="pf-input"
-                        type="text"
-                        placeholder="Scan or enter barcode"
-                        value={productBarcode}
-                        onChange={(e) => setProductBarcode(e.target.value)}
-                      />
+                      {productFieldErrors.name && <span className="pf-error">{productFieldErrors.name}</span>}
                     </div>
                   </div>
                   <div className="pf-row">
@@ -1142,67 +1175,71 @@ function ProductManagement() {
                         <SearchableSelect
                           className="pf-ss"
                           value={productBrandId}
-                          onChange={(v) => setProductBrandId(v !== '' ? Number(v) : '')}
+                          onChange={(v) => { setProductBrandId(v !== '' ? Number(v) : ''); clearProductFieldError('brand') }}
                           options={brands.map((b) => ({ value: b.id, label: b.name }))}
                           placeholder={brands.length === 0 ? 'Create a brand first' : 'Select brand…'}
                           disabled={brands.length === 0}
                           emptyMessage="No brands found"
                         />
                       </div>
+                      {productFieldErrors.brand && <span className="pf-error">{productFieldErrors.brand}</span>}
                     </div>
                     <div className="pf-field">
                       <label className="pf-label">Subcategory <span className="pf-req">*</span></label>
                       <SearchableSelect
                         value={productSubcategoryId}
-                        onChange={(v) => setProductSubcategoryId(v !== '' ? Number(v) : '')}
+                        onChange={(v) => { setProductSubcategoryId(v !== '' ? Number(v) : ''); clearProductFieldError('subcategory') }}
                         options={subcategories.map((s) => ({ value: s.id, label: `${s.category_name} / ${s.name}` }))}
                         placeholder={subcategories.length === 0 ? 'Create a subcategory first' : 'Select subcategory…'}
                         disabled={subcategories.length === 0}
                         emptyMessage="No subcategories found"
                       />
+                      {productFieldErrors.subcategory && <span className="pf-error">{productFieldErrors.subcategory}</span>}
                     </div>
                   </div>
                   <div className="pf-row">
                     <div className="pf-field pf-field--sm">
-                      <label className="pf-label">Status</label>
-                      <select className="pf-input" value={productStatus} onChange={(e) => setProductStatus(e.target.value as 'active' | 'inactive')}>
+                      <label className="pf-label">Status <span className="pf-req">*</span></label>
+                      <select className="pf-input" value={productStatus} onChange={(e) => { setProductStatus(e.target.value as 'active' | 'inactive'); clearProductFieldError('status') }}>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                       </select>
+                      {productFieldErrors.status && <span className="pf-error">{productFieldErrors.status}</span>}
                     </div>
                   </div>
-                  {allConcerns.length > 0 && (
-                    <div className="pf-field">
-                      <label className="pf-label">Health Concerns <span className="pf-optional">optional</span></label>
-                      <SearchableMultiSelect
-                        value={productHealthConcernIds}
-                        onChange={(values) => setProductHealthConcernIds(values.map((v) => Number(v)))}
-                        options={allConcerns.filter((c) => c.is_active).map((c) => ({ value: c.id, label: c.name }))}
-                        placeholder="Select one or more concerns…"
-                      />
-                    </div>
-                  )}
                   <div className="pf-field">
-                    <label className="pf-label">Description <span className="pf-optional">optional</span></label>
+                    <label className="pf-label">Health Concerns <span className="pf-req">*</span></label>
+                    <SearchableMultiSelect
+                      value={productHealthConcernIds}
+                      onChange={(values) => { setProductHealthConcernIds(values.map((v) => Number(v))); clearProductFieldError('health_concerns') }}
+                      options={allConcerns.filter((c) => c.is_active).map((c) => ({ value: c.id, label: c.name }))}
+                      placeholder={allConcerns.length === 0 ? 'Create a health concern first' : 'Select one or more concerns…'}
+                    />
+                    {productFieldErrors.health_concerns && <span className="pf-error">{productFieldErrors.health_concerns}</span>}
+                  </div>
+                  <div className="pf-field">
+                    <label className="pf-label">Description <span className="pf-req">*</span></label>
                     <textarea
                       className="pf-input pf-textarea"
                       rows={2}
                       placeholder="Brief description shown on the product page"
                       value={productDescription}
-                      onChange={(e) => setProductDescription(e.target.value)}
+                      onChange={(e) => { setProductDescription(e.target.value); clearProductFieldError('description') }}
                     />
+                    {productFieldErrors.description && <span className="pf-error">{productFieldErrors.description}</span>}
                   </div>
                
                   <div className="pf-field">
-                    <label className="pf-label">Features <span className="pf-optional">optional</span></label>
+                    <label className="pf-label">Features <span className="pf-req">*</span></label>
                     <textarea
                       className="pf-input pf-textarea"
                       rows={3}
                       placeholder="Enter one feature per line"
                       value={productFeaturesText}
-                      onChange={(e) => setProductFeaturesText(e.target.value)}
+                      onChange={(e) => { setProductFeaturesText(e.target.value); clearProductFieldError('features') }}
                     />
                     <span className="pf-hint">Each line becomes a separate bullet point on the product page.</span>
+                    {productFieldErrors.features && <span className="pf-error">{productFieldErrors.features}</span>}
                   </div>
                 </div>
 
@@ -1219,7 +1256,7 @@ function ProductManagement() {
             
                 <div className="pf-section">
                   <div className="pf-section__label">Access</div>
-                  <div className="pf-toggle-row" onClick={() => setProductRequiresRx(!productRequiresRx)}>
+                  <div className="pf-toggle-row" onClick={() => { setProductRequiresRx(!productRequiresRx); clearProductFieldError('requires_prescription') }}>
                     <div className="pf-toggle-row__text">
                       <span className="pf-toggle-row__title">Prescription Required</span>
                       <span className="pf-toggle-row__sub">
@@ -1227,12 +1264,13 @@ function ProductManagement() {
                       </span>
                     </div>
                     <label className="rx-toggle" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" checked={productRequiresRx} onChange={(e) => setProductRequiresRx(e.target.checked)} />
+                      <input type="checkbox" checked={productRequiresRx} onChange={(e) => { setProductRequiresRx(e.target.checked); clearProductFieldError('requires_prescription') }} />
                       <span className={`rx-toggle__track${productRequiresRx ? ' rx-toggle__track--on' : ''}`}>
                         <span className="rx-toggle__thumb" style={{ transform: productRequiresRx ? 'translateX(20px)' : 'translateX(0)' }} />
                       </span>
                     </label>
                   </div>
+                  {productFieldErrors.requires_prescription && <span className="pf-error">{productFieldErrors.requires_prescription}</span>}
                 </div>
 
               </div>
@@ -1266,27 +1304,38 @@ function ProductManagement() {
             </div>
 
             <form className="cm-form" onSubmit={(e) => { void handleSaveBrand(e) }}>
+              {brandFormError && (
+                <p className="cm-form__error">
+                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  {brandFormError}
+                </p>
+              )}
+
               <label className="cm-field">
                 <span>Name</span>
                 <input
                   type="text"
                   value={brandName}
-                  onChange={(e) => { setBrandName(e.target.value); setBrandFormError('') }}
+                  onChange={(e) => { setBrandName(e.target.value); clearBrandFieldError('name') }}
                   placeholder="e.g. Panadol"
                   disabled={brandSaving}
                   autoFocus
                 />
+                {brandFieldErrors.name && <span className="cm-field__error">{brandFieldErrors.name}</span>}
               </label>
 
               <label className="cm-field">
                 <span>Description <em className="cm-field__optional">optional</em></span>
                 <textarea
                   value={brandDescription}
-                  onChange={(e) => setBrandDescription(e.target.value)}
+                  onChange={(e) => { setBrandDescription(e.target.value); clearBrandFieldError('description') }}
                   placeholder="Brief description visible to shoppers"
                   disabled={brandSaving}
                   rows={2}
                 />
+                {brandFieldErrors.description && <span className="cm-field__error">{brandFieldErrors.description}</span>}
               </label>
 
               <label className="cm-field">
@@ -1299,16 +1348,8 @@ function ProductManagement() {
                   required={!editingBrand}
                 />
                 <span className="cm-upload-note">{getImageUploadHint('brand')}</span>
+                {brandFieldErrors.logo && <span className="cm-field__error">{brandFieldErrors.logo}</span>}
               </label>
-
-              {brandFormError && (
-                <p className="cm-form__error">
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  {brandFormError}
-                </p>
-              )}
 
               <div className="cm-modal__actions">
                 <button type="button" className="btn btn--ghost btn--sm" onClick={closeBrandModal} disabled={brandSaving}>
@@ -1323,63 +1364,6 @@ function ProductManagement() {
         </div>
       )}
 
-      {/* ── Delete Confirmation ── */}
-      {deleteTarget && (
-        <div className="cm-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
-          <div className="cm-modal cm-modal--sm" onClick={(e) => e.stopPropagation()}>
-            <div className="cm-modal__header cm-modal__header--danger">
-              <h2>Delete Product</h2>
-              <button
-                type="button"
-                className="cm-modal__close"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                aria-label="Close"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <div className="cm-delete-body">
-              <div className="cm-delete-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-              </div>
-              <p>Delete <strong>"{deleteTarget.name}"</strong>? This action cannot be undone.</p>
-              <p className="cm-delete-warning">SKU: {deleteTarget.sku}</p>
-              {deleteError && (
-                <p className="cm-form__error" style={{ marginTop: '0.75rem', justifyContent: 'center' }}>
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                  </svg>
-                  {deleteError}
-                </p>
-              )}
-            </div>
-            <div className="cm-modal__actions">
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn--danger btn--sm"
-                onClick={() => void handleDelete()}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

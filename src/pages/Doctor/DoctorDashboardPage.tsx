@@ -1,4 +1,5 @@
-import { Fragment, useMemo, useRef, useState, useEffect } from 'react'
+import { useMemo, useRef, useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import {
   Consultation,
@@ -38,11 +39,11 @@ type DoctorTab = 'queue' | 'messages' | 'prescriptions' | 'patients' | 'earnings
 
 const STATUS_PILL_STYLES: Record<string, { background: string; color: string }> = {
   Waiting:      { background: 'rgba(245,158,11,0.12)',  color: '#92400e' },
-  'In progress':{ background: 'rgba(16,185,129,0.12)',  color: '#065f46' },
-  Completed:    { background: 'rgba(100,116,139,0.12)', color: '#1e293b' },
-  Cancelled:    { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
-  urgent:       { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
-  critical:     { background: 'rgba(239,68,68,0.12)',   color: '#991b1b' },
+  'In progress':{ background: 'rgba(37,99,235,0.12)',   color: '#1d4ed8' },
+  Completed:    { background: 'rgba(22,163,74,0.12)',   color: '#166534' },
+  Cancelled:    { background: 'rgba(107,114,128,0.14)', color: '#374151' },
+  urgent:       { background: 'rgba(220,38,38,0.12)',   color: '#991b1b' },
+  critical:     { background: 'rgba(220,38,38,0.12)',   color: '#991b1b' },
 }
 
 function initials(name: string) {
@@ -128,6 +129,7 @@ function mapBackendThread(record: ConsultationRecord, doctorId: string): DoctorM
 }
 
 function mapBackendPrescription(rx: ClinicianPrescription, doctorId: string): DoctorPrescription {
+  const consultationId = rx.consultation_id ?? rx.consultation ?? null
   return {
     id: rx.reference,
     backendId: rx.id,
@@ -135,7 +137,7 @@ function mapBackendPrescription(rx: ClinicianPrescription, doctorId: string): Do
     patientName: rx.patient_name,
     createdAt: rx.created_at ? new Date(rx.created_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
     status: rx.status === 'sent' ? 'Sent' : rx.status === 'dispensed' ? 'Dispensed' : 'Draft',
-    notes: rx.consultation_id ? `Consultation ${rx.consultation_id}` : 'No notes provided.',
+    notes: rx.notes || (consultationId ? `Consultation #${consultationId}` : 'No notes provided.'),
     items: (rx.items || []).map((item) => ({
       name: item.drug_name || item.catalog_name || 'Medication',
       dosage: [item.dose, item.frequency, item.duration].filter(Boolean).join(' · ') || '-',
@@ -164,6 +166,31 @@ function medicationSummary(items: DoctorPrescriptionItem[]) {
   return `${first.name || 'Medication'}${rest.length > 0 ? ` + ${rest.length} more` : ''}`
 }
 
+function timelineTime(value: string) {
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : 0
+}
+
+function formatTimelineDate(value: string) {
+  const time = timelineTime(value)
+  if (!time) return value || 'Not dated'
+  return new Date(time).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function patientProfileSeed(name: string) {
+  const safeName = name.toLowerCase().replace(/[^a-z]+/g, '.').replace(/^\.+|\.+$/g, '') || 'patient'
+  return {
+    gender: 'Not recorded',
+    phone: '+254 700 000 000',
+    email: `${safeName}@example.com`,
+    allergies: ['No known drug allergies'],
+    chronicConditions: ['None recorded'],
+    currentMedication: ['None recorded'],
+    bloodGroup: 'Not recorded',
+    documents: ['Medical record', 'Consultation attachment'],
+  }
+}
+
 function WaitTimer({ since }: { since: string | Date | undefined }) {
   const [mins, setMins] = useState(0)
   useEffect(() => {
@@ -176,7 +203,7 @@ function WaitTimer({ since }: { since: string | Date | undefined }) {
     const id = setInterval(calc, 30000)
     return () => clearInterval(id)
   }, [since])
-  const color = mins < 10 ? '#10b981' : mins < 20 ? '#f59e0b' : '#ef4444'
+  const color = mins < 10 ? '#16A34A' : mins < 20 ? '#F59E0B' : '#DC2626'
   return (
     <span className="doc-wait-timer" style={{ color, '--wait-color': color } as React.CSSProperties}>
       Waiting {mins} min
@@ -191,7 +218,7 @@ function PatientTimeline({ items }: { items: Array<{ type: string; date: string;
         <div key={i} className="doc-timeline__item">
           <div className="doc-timeline__dot" data-type={item.type} />
           <div className="doc-timeline__content">
-            <p className="doc-timeline__date">{new Date(item.date).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+            <p className="doc-timeline__date">{formatTimelineDate(item.date)}</p>
             <p className="doc-timeline__summary">{item.summary}</p>
           </div>
         </div>
@@ -202,9 +229,23 @@ function PatientTimeline({ items }: { items: Array<{ type: string; date: string;
 
 function DoctorDashboardPage() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<DoctorTab>('queue')
+  const isAdminPreview = user?.role === 'admin'
   const doctors = useMemo(() => loadDoctorProfiles(), [])
   const doctor = useMemo(() => {
+    if (user?.role === 'admin') {
+      const previewDoctor = doctors.find((d) => d.type === 'Doctor' && d.status === 'Active')
+        ?? doctors.find((d) => d.type === 'Doctor')
+      if (previewDoctor) {
+        return {
+          ...previewDoctor,
+          name: user.name || previewDoctor.name,
+          email: user.email || previewDoctor.email,
+          specialty: `Admin preview · ${previewDoctor.specialty}`,
+        }
+      }
+    }
     const userEmail = user?.email?.trim().toLowerCase()
     const matchedProfile = userEmail
       ? doctors.find((d) => d.type === 'Doctor' && d.email.toLowerCase() === userEmail)
@@ -258,6 +299,8 @@ function DoctorDashboardPage() {
   const [rxItems, setRxItems] = useState<DoctorPrescriptionItem[]>([{ name: '', dosage: '', quantity: 1 }])
   const [rxCatalogOptions, setRxCatalogOptions] = useState<Record<number, ClinicianCatalogVariant[]>>({})
   const [rxCatalogLoading, setRxCatalogLoading] = useState<Record<number, boolean>>({})
+  const [rxCatalogList, setRxCatalogList] = useState<ClinicianCatalogVariant[]>([])
+  const [rxCatalogListLoading, setRxCatalogListLoading] = useState(false)
 
   const [patientSearch, setPatientSearch] = useState('')
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null)
@@ -273,6 +316,14 @@ function DoctorDashboardPage() {
   useEffect(() => {
     let cancelled = false
     const loadWorkspace = async () => {
+      if (isAdminPreview) {
+        setWorkspaceError('')
+        setWorkspaceLoading(false)
+        setConsultations(loadConsultations())
+        setThreads(loadDoctorMessages())
+        setPrescriptions(loadDoctorPrescriptions())
+        return
+      }
       setWorkspaceLoading(true)
       setWorkspaceError('')
       try {
@@ -302,7 +353,7 @@ function DoctorDashboardPage() {
     }
     void loadWorkspace()
     return () => { cancelled = true }
-  }, [activeDoctorId])
+  }, [activeDoctorId, isAdminPreview])
 
   const doctorConsultations = useMemo(
     () => consultations.filter((c) => c.doctorId === activeDoctorId && !c.pediatric),
@@ -359,6 +410,16 @@ function DoctorDashboardPage() {
     return Array.from(map.values())
   }, [doctorConsultations])
 
+  const prescriptionPatientOptions = useMemo(() => {
+    return doctorConsultations
+      .filter((consultation) => consultation.backendId && consultation.status !== 'Cancelled')
+      .map((consultation) => ({
+        value: String(consultation.backendId),
+        label: `${consultation.patientName} · ${consultation.id}`,
+        patientName: consultation.patientName,
+      }))
+  }, [doctorConsultations])
+
   const filteredPatients = useMemo(() => {
     const q = patientSearch.trim().toLowerCase()
     if (!q) return patientRecords
@@ -405,6 +466,17 @@ function DoctorDashboardPage() {
   }
 
   const loadLiveWorkspace = async (options?: { clearSelection?: boolean }) => {
+    if (isAdminPreview) {
+      setWorkspaceError('')
+      setConsultations(loadConsultations())
+      setThreads(loadDoctorMessages())
+      setPrescriptions(loadDoctorPrescriptions())
+      if (options?.clearSelection) {
+        setSelectedConsult(null)
+        setShowConsultChat(false)
+      }
+      return
+    }
     setWorkspaceLoading(true)
     setWorkspaceError('')
     try {
@@ -623,11 +695,49 @@ function DoctorDashboardPage() {
     setActiveThread({ ...thread, unreadCount: 0 })
   }
 
+  const loadPrescriptionCatalog = () => {
+    if (rxCatalogList.length > 0 || rxCatalogListLoading) return
+    setRxCatalogListLoading(true)
+    void searchClinicianCatalogVariants('', 1000)
+      .then((options) => setRxCatalogList(options))
+      .catch(() => setWorkspaceError('Unable to load the medicine catalog. You can still search manually.'))
+      .finally(() => setRxCatalogListLoading(false))
+  }
+
   const openPrescriptionForConsultation = (consult: Consultation) => {
     setRxPatient(consult.patientName)
     setRxNotes(`Consultation ${consult.id}: ${consult.issue}`)
     setRxConsultationId(consult.backendId ?? consultationNumericId(consult.id))
+    setRxItems([{ name: '', dosage: '', quantity: 1 }])
+    setRxCatalogOptions({})
+    setRxCatalogLoading({})
     setShowRxPanel(true)
+    loadPrescriptionCatalog()
+  }
+
+  const openNewPrescriptionPanel = () => {
+    setRxPatient('')
+    setRxNotes('')
+    setRxConsultationId(null)
+    setRxItems([{ name: '', dosage: '', quantity: 1 }])
+    setRxCatalogOptions({})
+    setRxCatalogLoading({})
+    setWorkspaceError('')
+    setShowRxPanel(true)
+    loadPrescriptionCatalog()
+  }
+
+  const handlePrescriptionConsultationSelect = (value: string) => {
+    const consultationId = Number(value) || null
+    setRxConsultationId(consultationId)
+    const selected = doctorConsultations.find((consultation) => consultation.backendId === consultationId)
+    if (!selected) {
+      setRxPatient('')
+      setRxNotes('')
+      return
+    }
+    setRxPatient(selected.patientName)
+    setRxNotes(`Consultation ${selected.id}: ${selected.issue}`)
   }
 
   const updateRxItem = (index: number, patch: Partial<DoctorPrescriptionItem>) => {
@@ -668,41 +778,61 @@ function DoctorDashboardPage() {
     setRxCatalogOptions((prev) => ({ ...prev, [index]: [] }))
   }
 
+  const handleCatalogSelect = (index: number, value: string) => {
+    if (!value) {
+      updateRxItem(index, {
+        name: '',
+        variantId: null,
+        productId: null,
+        sku: '',
+        catalogName: '',
+        stockStatus: '',
+        availableQuantity: undefined,
+        catalogFallback: false,
+      })
+      return
+    }
+    const variant = rxCatalogList.find((option) => String(option.id) === value)
+    if (variant) selectCatalogVariant(index, variant)
+  }
+
   const handleCreatePrescription = async () => {
-    if (!rxPatient.trim()) return
+    if (!rxPatient.trim() || !rxConsultationId) {
+      setWorkspaceError('Select a patient consultation before issuing an e-prescription.')
+      return
+    }
     const filteredItems = rxItems.filter((i) => i.name.trim())
+    if (filteredItems.length === 0) return
     let backendId: number | undefined
     let backendReference: string | undefined
     let nextStatus: DoctorPrescription['status'] = 'Draft'
-    if (rxConsultationId && filteredItems.length > 0) {
-      try {
-        setWorkspaceError('')
-        const created = await createClinicianPrescription({
-          patient_name: rxPatient.trim(),
-          consultation_id: rxConsultationId,
-          items: filteredItems.map((item) => ({
-            drug_name: item.name,
-            dose: item.dosage,
-            frequency: item.dosage,
-            duration: '',
-            variant_id: item.variantId ?? null,
-            product_variant_id: item.variantId ?? null,
-            product_id: item.productId ?? null,
-            sku: item.sku,
-            catalog_name: item.catalogName,
-            catalog_fallback: Boolean(item.catalogFallback || !item.variantId),
-            quantity: item.quantity,
-            notes: rxNotes,
-          })),
-        })
-        const sent = await sendClinicianPrescription(created.id)
-        backendId = sent.id
-        backendReference = sent.reference
-        nextStatus = 'Sent'
-      } catch {
-        backendId = undefined
-        setWorkspaceError('The prescription could not be sent to the pharmacy. It was saved locally as a draft.')
-      }
+    try {
+      setWorkspaceError('')
+      const created = await createClinicianPrescription({
+        patient_name: rxPatient.trim(),
+        consultation_id: rxConsultationId,
+        notes: rxNotes,
+        items: filteredItems.map((item) => ({
+          drug_name: item.name,
+          dose: item.dosage,
+          frequency: item.dosage,
+          duration: '',
+          variant_id: item.variantId ?? null,
+          product_variant_id: item.variantId ?? null,
+          product_id: item.productId ?? null,
+          sku: item.sku,
+          catalog_name: item.catalogName,
+          catalog_fallback: Boolean(item.catalogFallback || !item.variantId),
+          quantity: item.quantity,
+        })),
+      })
+      const sent = await sendClinicianPrescription(created.id)
+      backendId = sent.id
+      backendReference = sent.reference
+      nextStatus = 'Sent'
+    } catch {
+      setWorkspaceError('The prescription could not be issued. Confirm the patient, stock availability, and medication details, then try again.')
+      return
     }
     const rx: DoctorPrescription = {
       id: backendReference || `RX-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -773,19 +903,6 @@ function DoctorDashboardPage() {
       ),
     },
     {
-      id: 'prescriptions',
-      label: 'E-prescriptions',
-      badge: prescriptionStats.draft + prescriptionStats.sent,
-      icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-          <line x1="16" y1="13" x2="8" y2="13" />
-          <line x1="16" y1="17" x2="8" y2="17" />
-        </svg>
-      ),
-    },
-    {
       id: 'patients',
       label: 'Patients',
       badge: 0,
@@ -795,6 +912,19 @@ function DoctorDashboardPage() {
           <circle cx="9" cy="7" r="4" />
           <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+    },
+    {
+      id: 'prescriptions',
+      label: 'E-prescriptions',
+      badge: prescriptionStats.draft + prescriptionStats.sent,
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
         </svg>
       ),
     },
@@ -813,12 +943,15 @@ function DoctorDashboardPage() {
 
   return (
     <ProfessionalPortalShell
-      accentColor="#4f46e5"
+      accentColor="#2563EB"
       activeItemId={activeTab}
       navItems={navigationItems}
       onNavChange={(itemId) => setActiveTab(itemId as DoctorTab)}
-      onLogout={() => { void logout() }}
-      roleLabel="Doctor"
+      onLogout={async () => {
+        await logout()
+        navigate('/login', { replace: true })
+      }}
+      roleLabel={isAdminPreview ? 'Admin · Doctor Preview' : 'Doctor'}
       userInitials={initials(doctor.name)}
       userMeta={doctor.specialty || 'Doctor Portal'}
       userName={doctor.name}
@@ -1246,6 +1379,7 @@ function DoctorDashboardPage() {
                       <div>
                         <p className="dd-chat-header__name">{activeThread.patientName}</p>
                         <p className="dd-chat-header__status">
+                          <span>{activeThread.backendConsultationId ? `E-consultation #${activeThread.backendConsultationId}` : `E-consultation ${activeThread.id}`}</span>
                           <span className="dd-online-dot" /> Active
                         </p>
                       </div>
@@ -1326,7 +1460,7 @@ function DoctorDashboardPage() {
                 />
               </div>
               <span className="dd-count">{filteredPrescriptions.length} prescription{filteredPrescriptions.length !== 1 ? 's' : ''}</span>
-              <button className="dd-primary-btn" type="button" onClick={() => { setRxConsultationId(null); setShowRxPanel(true) }}>
+              <button className="dd-primary-btn" type="button" onClick={openNewPrescriptionPanel}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 New prescription
               </button>
@@ -1424,43 +1558,53 @@ function DoctorDashboardPage() {
 
         {/* ── PATIENTS TAB ── */}
         {activeTab === 'patients' && (
-          <div className="dd-table-card">
-            <div className="dd-toolbar">
-              <div className="dd-search-wrap">
-                <svg className="dd-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                <input
-                  className="dd-search-input"
-                  type="text"
-                  placeholder="Search patients…"
-                  value={patientSearch}
-                  onChange={(e) => setPatientSearch(e.target.value)}
-                />
+          <>
+            <div className="dd-table-card">
+              <div className="dd-toolbar">
+                <div className="dd-search-wrap">
+                  <svg className="dd-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  <input
+                    className="dd-search-input"
+                    type="text"
+                    placeholder="Search patients..."
+                    value={patientSearch}
+                    onChange={(e) => setPatientSearch(e.target.value)}
+                  />
+                </div>
+                <span className="dd-count">{filteredPatients.length} patient{filteredPatients.length !== 1 ? 's' : ''}</span>
               </div>
-              <span className="dd-count">{filteredPatients.length} patient{filteredPatients.length !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="cm-panel cm-table-wrap dd-table-wrap">
-              <table className="cm-table dd-table dd-patient-table">
-                <thead>
-                  <tr>
-                    <th>Patient</th>
-                    <th>Last visit</th>
-                    <th>Consultations</th>
-                    <th>Prescriptions</th>
-                    <th>Latest activity</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPatients.map((p) => {
-                    const patientConsults = doctorConsultations.filter((c) => c.patientName === p.name)
-                    const patientRx = doctorPrescriptions.filter((rx) => rx.patientName === p.name)
-                    const timelineItems = [
-                      ...patientConsults.map((c) => ({ type: 'consultation', date: c.scheduledAt, summary: `Consultation: ${c.issue} (${c.status})` })),
-                      ...patientRx.map((rx) => ({ type: 'prescription', date: rx.createdAt, summary: `Prescription ${rx.id}: ${medicationSummary(rx.items)}` })),
-                    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    const latest = timelineItems[0]
-                    return (
-                      <Fragment key={p.name}>
+              <div className="cm-panel cm-table-wrap dd-table-wrap">
+                <table className="cm-table dd-table dd-patient-table">
+                  <thead>
+                    <tr>
+                      <th>Patient</th>
+                      <th>Age</th>
+                      <th>Last Visit</th>
+                      <th>Active Prescriptions</th>
+                      <th>Last Activity</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPatients.map((p) => {
+                      const patientConsults = doctorConsultations.filter((c) => c.patientName === p.name)
+                      const patientRx = doctorPrescriptions.filter((rx) => rx.patientName === p.name)
+                      const activeRx = patientRx.filter((rx) => rx.status === 'Draft' || rx.status === 'Sent')
+                      const timelineItems = [
+                        ...patientConsults.map((c) => ({ type: 'consultation', date: c.scheduledAt, summary: `Consultation ${c.status}: ${c.issue}` })),
+                        ...patientRx.map((rx) => ({ type: 'prescription', date: rx.createdAt, summary: `Prescription ${rx.status}: ${medicationSummary(rx.items)}` })),
+                        ...doctorThreads
+                          .filter((thread) => thread.patientName === p.name)
+                          .flatMap((thread) => thread.messages.slice(-2).map((message) => ({
+                            type: 'message',
+                            date: thread.lastMessageAt,
+                            summary: `${message.sender === 'doctor' ? 'Doctor' : 'Patient'} message: ${message.text}`,
+                          }))),
+                      ].sort((a, b) => timelineTime(b.date) - timelineTime(a.date))
+                      const latest = timelineItems[0]
+                      const latestPrescribableConsultation = patientConsults.find((consultation) => consultation.backendId && consultation.status !== 'Cancelled')
+                      const age = patientConsults.find((consultation) => consultation.patientAge)?.patientAge ?? 0
+                      return (
                         <tr key={p.name} className={selectedPatient === p.name ? 'dd-row--active' : ''}>
                           <td>
                             <div className="dd-td-patient">
@@ -1471,54 +1615,176 @@ function DoctorDashboardPage() {
                               </div>
                             </div>
                           </td>
+                          <td className="dd-td-meta">{age || '-'}</td>
                           <td className="dd-td-meta">{p.lastVisit}</td>
-                          <td><strong>{patientConsults.length}</strong></td>
-                          <td><strong>{patientRx.length}</strong></td>
+                          <td><strong>{activeRx.length}</strong></td>
                           <td className="dd-td-issue">{latest?.summary ?? 'No activity recorded'}</td>
                           <td>
                             <div className="dd-actions-cell">
-                              <button
-                                className="dd-action-btn"
-                                type="button"
-                                onClick={() => setSelectedPatient(selectedPatient === p.name ? null : p.name)}
-                              >
-                                {selectedPatient === p.name ? 'Hide' : 'History'}
+                              <button className="dd-action-btn" type="button" onClick={() => setSelectedPatient(p.name)}>
+                                View Profile
                               </button>
                               <button
-                                className="dd-action-btn dd-action-btn--rx"
+                                className="dd-action-btn dd-action-btn--start"
                                 type="button"
-                                onClick={() => {
-                                  setRxPatient(p.name)
-                                  setRxNotes(`Manual prescription for ${p.name}`)
-                                  setRxConsultationId(null)
-                                  setShowRxPanel(true)
-                                }}
+                                disabled={!latestPrescribableConsultation}
+                                onClick={() => { if (latestPrescribableConsultation) void handleStartConsultation(latestPrescribableConsultation) }}
                               >
-                                Rx
+                                Start Consultation
                               </button>
                             </div>
                           </td>
                         </tr>
-                        {selectedPatient === p.name && timelineItems.length > 0 && (
-                          <tr key={`${p.name}-history`} className="dd-patient-history-row">
-                            <td colSpan={6}>
-                              <PatientTimeline items={timelineItems} />
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    )
-                  })}
-                </tbody>
-              </table>
-              {filteredPatients.length === 0 && (
-                <div className="dd-empty dd-empty--full">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                  <p>No patients found.</p>
-                </div>
-              )}
+                      )
+                    })}
+                  </tbody>
+                </table>
+                {filteredPatients.length === 0 && (
+                  <div className="dd-empty dd-empty--full">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    <p>No patients found.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+
+            {selectedPatient && (() => {
+              const patient = patientRecords.find((record) => record.name === selectedPatient)
+              const profile = patientProfileSeed(selectedPatient)
+              const patientConsults = doctorConsultations.filter((consultation) => consultation.patientName === selectedPatient)
+              const patientRx = doctorPrescriptions.filter((rx) => rx.patientName === selectedPatient)
+              const patientThreads = doctorThreads.filter((thread) => thread.patientName === selectedPatient)
+              const activeRx = patientRx.filter((rx) => rx.status === 'Draft' || rx.status === 'Sent')
+              const latestPrescribableConsultation = patientConsults.find((consultation) => consultation.backendId && consultation.status !== 'Cancelled')
+              const timelineItems = [
+                ...patientConsults.map((consultation) => ({
+                  type: 'consultation',
+                  date: consultation.scheduledAt,
+                  summary: `Consultation ${consultation.status}. Diagnosis/need: ${consultation.issue}. Notes: ${consultation.priority} priority ${consultation.channel.toLowerCase()} visit.`,
+                })),
+                ...patientRx.map((rx) => ({
+                  type: 'prescription',
+                  date: rx.createdAt,
+                  summary: `Prescription ${rx.status}: ${rx.items.map((item) => `${item.name}${item.dosage ? ` (${item.dosage})` : ''}`).join(', ') || 'No medication items'}`,
+                })),
+                ...patientThreads.flatMap((thread) =>
+                  thread.messages.map((message) => ({
+                    type: 'message',
+                    date: thread.lastMessageAt,
+                    summary: `${message.sender === 'doctor' ? 'Doctor' : 'Patient'} message: ${message.text}`,
+                  }))
+                ),
+                { type: 'lab', date: patient?.lastVisit || '', summary: 'Documents: lab reports, medical records, imaging, prescriptions, and consultation attachments available when uploaded.' },
+              ].sort((a, b) => timelineTime(b.date) - timelineTime(a.date))
+              const latestConsultation = patientConsults[0]
+
+              return (
+                <>
+                  <div className="dd-overlay" onClick={() => setSelectedPatient(null)} />
+                  <section className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
+                  <div className="dd-patient-profile__header">
+                    <div className="dd-td-patient">
+                      <div className="dd-td-patient__avatar">{initials(selectedPatient)}</div>
+                      <div>
+                        <h2>{selectedPatient}</h2>
+                        <p>Who this patient is, what has happened, and what to do next.</p>
+                      </div>
+                    </div>
+                    <div className="dd-patient-profile__header-actions">
+                      <details className="dd-patient-action-menu">
+                        <summary>Actions</summary>
+                        <div className="dd-patient-action-menu__panel">
+                          <button className="dd-sp-btn dd-sp-btn--primary" type="button" disabled={!latestPrescribableConsultation} onClick={() => { if (latestPrescribableConsultation) void handleStartConsultation(latestPrescribableConsultation) }}>
+                            Start Consultation
+                          </button>
+                          <button className="dd-sp-btn dd-sp-btn--rx" type="button" disabled={!latestPrescribableConsultation} onClick={() => { if (latestPrescribableConsultation) openPrescriptionForConsultation(latestPrescribableConsultation) }}>
+                            Create Prescription
+                          </button>
+                        </div>
+                      </details>
+                      <button className="dd-sp-close" type="button" aria-label="Close patient profile" onClick={() => setSelectedPatient(null)}>×</button>
+                    </div>
+                  </div>
+
+                  <div className="dd-patient-profile__grid">
+                    <div className="dd-profile-card dd-profile-card--summary">
+                      <h3>Patient Summary</h3>
+                      <div className="dd-profile-list">
+                        <span>Full Name <strong>{selectedPatient}</strong></span>
+                        <span>Age <strong>{latestConsultation?.patientAge ?? '-'}</strong></span>
+                        <span>Gender <strong>{profile.gender}</strong></span>
+                        <span>Phone Number <strong>{profile.phone}</strong></span>
+                        <span>Email Address <strong>{profile.email}</strong></span>
+                        <span>Allergies <strong>{profile.allergies.join(', ')}</strong></span>
+                        <span>Chronic Conditions <strong>{profile.chronicConditions.join(', ')}</strong></span>
+                        <span>Current Medication <strong>{profile.currentMedication.join(', ')}</strong></span>
+                        <span>Blood Group <strong>{profile.bloodGroup}</strong></span>
+                        <span>Active Prescriptions <strong>{activeRx.length}</strong></span>
+                        <span>Last Consultation Date <strong>{patient?.lastVisit ?? '-'}</strong></span>
+                      </div>
+                    </div>
+
+                    <div className="dd-profile-card dd-profile-card--timeline">
+                      <h3>Patient Timeline</h3>
+                      <PatientTimeline items={timelineItems} />
+                    </div>
+
+                    <div className="dd-profile-card">
+                      <h3>Prescriptions</h3>
+                      <div className="dd-profile-table-wrap">
+                        <table className="dd-profile-table">
+                          <thead><tr><th>Date</th><th>Medication</th><th>Diagnosis</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+                          <tbody>
+                            {patientRx.map((rx) => (
+                              <tr key={rx.id}>
+                                <td>{rx.createdAt}</td>
+                                <td>{medicationSummary(rx.items)}</td>
+                                <td>{rx.notes || 'Not recorded'}</td>
+                                <td>{rx.items[0]?.dosage || '-'}</td>
+                                <td>{rx.status}</td>
+                                <td>
+                                  <div className="dd-actions-cell">
+                                    <button className="dd-action-btn" type="button">View</button>
+                                    <button className="dd-action-btn" type="button" disabled={!rx.backendId} onClick={() => handleDownloadPdf(rx)}>Download PDF</button>
+                                    <button className="dd-action-btn dd-action-btn--rx" type="button" disabled={!latestPrescribableConsultation} onClick={() => { if (latestPrescribableConsultation) openPrescriptionForConsultation(latestPrescribableConsultation) }}>Reuse</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                            {patientRx.length === 0 && <tr><td colSpan={6}>No prescriptions recorded.</td></tr>}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="dd-profile-card">
+                      <h3>Messages</h3>
+                      <div className="dd-message-records">
+                        {patientThreads.flatMap((thread) => thread.messages.map((message) => (
+                          <p key={message.id}><strong>{message.sender === 'doctor' ? 'Doctor' : 'Patient'}:</strong> {message.text} <span>{thread.lastMessageAt}</span></p>
+                        )))}
+                        {patientThreads.length === 0 && <p>No conversation history recorded.</p>}
+                      </div>
+                    </div>
+
+                    <div className="dd-profile-card">
+                      <h3>Documents</h3>
+                      <div className="dd-documents-grid">
+                        {[...profile.documents, 'Lab Reports', 'Imaging', 'Prescriptions'].map((document) => (
+                          <div key={document} className="dd-document-chip">
+                            <span>{document}</span>
+                            <button type="button">Preview</button>
+                            <button type="button">Download</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  </section>
+                </>
+              )
+            })()}
+          </>
         )}
 
         {/* ── EARNINGS TAB ── */}
@@ -1545,7 +1811,7 @@ function DoctorDashboardPage() {
                     <p className="dd-earnings-summary__label">This month</p>
                     <p className="dd-earnings-summary__num">KSh {thisMonthRevenue.toLocaleString()}</p>
                     {momPct !== null && (
-                      <p className="dd-earnings-trend" style={{ color: momDiff >= 0 ? '#10b981' : '#ef4444' }}>
+                      <p className="dd-earnings-trend" style={{ color: momDiff >= 0 ? '#16A34A' : '#DC2626' }}>
                         {momDiff >= 0 ? '▲' : '▼'} {Math.abs(momPct)}% vs {prevMonthLabel}
                       </p>
                     )}
@@ -1643,7 +1909,7 @@ function DoctorDashboardPage() {
                   <div className="dd-sp-patient__avatar">{initials(selectedConsult.patientName)}</div>
                   <div style={{ flex: 1 }}>
                     <p className="dd-sp-patient__name">{selectedConsult.patientName}</p>
-                    <p className="dd-sp-patient__meta">{selectedConsult.issue}</p>
+                    <p className="dd-sp-patient__meta">{selectedConsult.id} · {selectedConsult.issue}</p>
                   </div>
                   <div className="dd-online-status">
                     <span className="dd-online-dot" /> Online
@@ -1851,26 +2117,42 @@ function DoctorDashboardPage() {
       {showRxPanel && (
         <>
           <div className="dd-overlay" onClick={() => setShowRxPanel(false)} />
-          <aside className="dd-side-panel">
+          <aside className="dd-side-panel dd-side-panel--rx">
             <div className="dd-sp-header">
               <div>
                 <p className="dd-sp-id">New E-Prescription</p>
                 <p className="dd-sp-meta">
-                  {rxConsultationId ? `Linked to consultation #${rxConsultationId}` : 'Fill in the details below'}
+                  {rxConsultationId ? `Linked to consultation #${rxConsultationId}` : 'Select a patient consultation first'}
                 </p>
               </div>
               <button className="dd-sp-close" type="button" onClick={() => { setShowRxPanel(false); setRxConsultationId(null) }}>×</button>
             </div>
             <div className="dd-sp-body">
-              <div className="dd-sp-section">
+              <div className="dd-sp-section dd-rx-context-section">
                 <div className="dd-rx-field">
-                  <label>Patient name</label>
-                  <input
-                    type="text"
-                    placeholder="Full name"
-                    value={rxPatient}
-                    onChange={(e) => setRxPatient(e.target.value)}
-                  />
+                  <label>Patient consultation</label>
+                  <select
+                    value={rxConsultationId ? String(rxConsultationId) : ''}
+                    onChange={(e) => handlePrescriptionConsultationSelect(e.target.value)}
+                  >
+                    <option value="">Select a patient</option>
+                    {prescriptionPatientOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {rxPatient && (
+                    <p className="dd-rx-patient-chip">
+                      <span>{initials(rxPatient)}</span>
+                      Patient: {rxPatient}
+                    </p>
+                  )}
+                  {prescriptionPatientOptions.length === 0 && (
+                    <p className="dd-rx-field-note dd-rx-field-note--warning">
+                      No consultation patients are available. Start or assign a consultation before issuing medicine.
+                    </p>
+                  )}
                 </div>
                 <div className="dd-rx-field">
                   <label>Clinical notes</label>
@@ -1884,16 +2166,51 @@ function DoctorDashboardPage() {
               </div>
 
               <div className="dd-sp-section">
-                <p className="dd-sp-section-title">Medications</p>
-                <p className="dd-rx-catalog-hint">Select medicines from Ava Pharmacy inventory. Use non-catalog only when the item is not available in the catalog.</p>
+                <div className="dd-rx-section-heading">
+                  <div>
+                    <p className="dd-sp-section-title">Medications</p>
+                    <p className="dd-rx-catalog-hint">Select medicines from Ava Pharmacy inventory. Use non-catalog only when the item is not available in the catalog.</p>
+                  </div>
+                  <span>{rxItems.length} item{rxItems.length !== 1 ? 's' : ''}</span>
+                </div>
                 <div className="dd-rx-items">
                   {rxItems.map((item, idx) => (
                     <div key={idx} className="dd-rx-item">
+                      <div className="dd-rx-item__header">
+                        <span>Medication {idx + 1}</span>
+                        <div className="dd-rx-item__meta">
+                          {item.variantId && <em>Catalog selected</em>}
+                          {rxItems.length > 1 && (
+                            <button
+                              className="dd-rx-remove-btn"
+                              type="button"
+                              onClick={() => setRxItems((prev) => prev.filter((_, itemIndex) => itemIndex !== idx))}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
                       <div className="dd-rx-catalog-cell">
+                        <label>Medicine</label>
+                        <select
+                          value={item.variantId ? String(item.variantId) : ''}
+                          onFocus={loadPrescriptionCatalog}
+                          onChange={(e) => handleCatalogSelect(idx, e.target.value)}
+                        >
+                          <option value="">
+                            {rxCatalogListLoading ? 'Loading medicines...' : 'Select medicine from catalog'}
+                          </option>
+                          {((rxCatalogOptions[idx]?.length ?? 0) > 0 ? rxCatalogOptions[idx] : rxCatalogList).map((variant) => (
+                            <option key={variant.id} value={variant.id} disabled={!variant.can_prescribe}>
+                              {variant.display_name} · {variant.sku} · {variant.inventory_status.replace(/_/g, ' ')} · {variant.available_quantity} available
+                            </option>
+                          ))}
+                        </select>
                         <input
                           type="text"
-                          placeholder="Search catalog medicine or variant"
-                          value={item.name}
+                          placeholder="Filter medicine list"
+                          value={item.variantId ? '' : item.name}
                           onChange={(e) => handleCatalogSearch(idx, e.target.value)}
                         />
                         {item.variantId && (
@@ -1937,19 +2254,25 @@ function DoctorDashboardPage() {
                           <span>Use as non-catalog item</span>
                         </label>
                       </div>
-                      <input
-                        type="text"
-                        placeholder="Dosage (e.g. 500mg 3×/day)"
-                        value={item.dosage}
-                        onChange={(e) => updateRxItem(idx, { dosage: e.target.value })}
-                      />
-                      <input
-                        type="number"
-                        min={1}
-                        placeholder="Qty"
-                        value={item.quantity}
-                        onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })}
-                      />
+                      <div className="dd-rx-dose-cell">
+                        <label>Dosage</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 500mg 3x/day"
+                          value={item.dosage}
+                          onChange={(e) => updateRxItem(idx, { dosage: e.target.value })}
+                        />
+                      </div>
+                      <div className="dd-rx-qty-cell">
+                        <label>Qty</label>
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="Qty"
+                          value={item.quantity}
+                          onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })}
+                        />
+                      </div>
                     </div>
                   ))}
                   <button
@@ -1957,7 +2280,7 @@ function DoctorDashboardPage() {
                     type="button"
                     onClick={() => setRxItems((prev) => [...prev, { name: '', dosage: '', quantity: 1 }])}
                   >
-                    + Add medication
+                    + Add another medication
                   </button>
                 </div>
               </div>
@@ -1968,9 +2291,9 @@ function DoctorDashboardPage() {
                   className="dd-sp-btn dd-sp-btn--primary"
                   type="button"
                   onClick={handleCreatePrescription}
-                  disabled={!rxPatient.trim() || !rxHasMedication}
+                  disabled={!rxConsultationId || !rxPatient.trim() || !rxHasMedication}
                 >
-                  {rxConsultationId ? 'Issue & notify patient' : 'Save & create'}
+                  Issue & notify patient
                 </button>
                 <button className="dd-sp-btn" type="button" onClick={() => { setShowRxPanel(false); setRxConsultationId(null) }}>
                   Cancel

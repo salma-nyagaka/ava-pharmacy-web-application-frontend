@@ -160,11 +160,14 @@ function AdminDashboard() {
       setReports(rpts)
       setRecentOrders(orders)
       setLowStockProducts(
-        lowStock.slice(0, 5).map((p) => ({
-          name: p.name,
-          stock: p.stock_quantity,
-          low_stock_threshold: p.low_stock_threshold,
-        }))
+        lowStock
+          .filter((p) => p.stock_quantity !== null && p.low_stock_threshold !== null)
+          .slice(0, 5)
+          .map((p) => ({
+            name: p.name,
+            stock: p.stock_quantity as number,
+            low_stock_threshold: p.low_stock_threshold as number,
+          }))
       )
     } catch {
       // fail silently

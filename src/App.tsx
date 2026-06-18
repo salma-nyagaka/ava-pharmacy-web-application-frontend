@@ -163,11 +163,11 @@ function App() {
               </div>} />
             </Route>
 
-            <Route path="doctor/dashboard" element={<DoctorDashboardPage />} />
+            <Route path="doctor/dashboard" element={<ProtectedRoute><DoctorDashboardPage /></ProtectedRoute>} />
             <Route path="doctor/onboarding" element={<ProtectedRoute><DoctorOnboardingPage /></ProtectedRoute>} />
             <Route path="pediatrician/dashboard" element={<PediatricianDashboardPage />} />
             <Route path="paedetrician/dashboard" element={<Navigate to="/pediatrician/dashboard" replace />} />
-            <Route path="pharmacist/dashboard" element={<PharmacistDashboardPage />} />
+            <Route path="pharmacist/dashboard" element={<ProtectedRoute><PharmacistDashboardPage /></ProtectedRoute>} />
             <Route path="lab/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
             <Route path="ab/dashboard" element={<ProtectedRoute><LegacyLabDashboardRedirect /></ProtectedRoute>} />
             <Route path="laboratory/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
