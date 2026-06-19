@@ -360,6 +360,10 @@
   font-size: 0.7rem;
 }
 
+.rup-hub-page .rup-dispatch-status {
+  font-weight: 650;
+}
+
 .rup-hub-page .ac-card__body {
   display: grid;
   gap: 0.65rem;

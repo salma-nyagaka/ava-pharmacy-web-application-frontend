@@ -32,6 +32,14 @@ const STATUS_CFG: Record<PrescriptionStatus, { label: string; color: string; bg:
   Clarification: { label: 'Clarification', color: '#2563eb', bg: 'rgba(37,99,235,0.1)', icon: '•' },
   Rejected: { label: 'Rejected', color: '#dc2626', bg: 'rgba(220,38,38,0.1)', icon: '×' },
 }
+const PAID_STATUS_CFG = { label: 'Paid', color: '#047857', bg: 'rgba(4,120,87,0.12)', icon: '✓' }
+const DISPATCH_CFG: Record<PrescriptionRecord['dispatchStatus'], { label: string; color: string; bg: string }> = {
+  'Not started': { label: 'Not started', color: '#64748b', bg: 'rgba(100,116,139,0.12)' },
+  Queued: { label: 'Queued', color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
+  Packed: { label: 'Packed', color: '#0369a1', bg: 'rgba(3,105,161,0.12)' },
+  Dispatched: { label: 'Dispatched', color: '#0f766e', bg: 'rgba(15,118,110,0.12)' },
+  Delivered: { label: 'Delivered', color: '#047857', bg: 'rgba(4,120,87,0.12)' },
+}
 
 function formatDate(value: string) {
   if (!value) return '—'
@@ -60,6 +68,22 @@ function isPediatricianPrescription(rx: PrescriptionRecord) {
 
 function isDoctorPrescription(rx: PrescriptionRecord) {
   return isEPrescription(rx) && !isPediatricianPrescription(rx)
+}
+
+function hasUnpaidApprovedItems(rx: PrescriptionRecord) {
+  return rx.status === 'Approved' && rx.items.some((item) => !item.isPaidFor && item.backendId && (item.productId || item.variantId))
+}
+
+function isPaidPrescription(rx: PrescriptionRecord) {
+  return rx.status === 'Approved' && rx.items.length > 0 && rx.items.every((item) => item.isPaidFor)
+}
+
+function displayStatusForPrescription(rx: PrescriptionRecord) {
+  return isPaidPrescription(rx) ? PAID_STATUS_CFG : STATUS_CFG[rx.status]
+}
+
+function dispatchStatusForPrescription(rx: PrescriptionRecord) {
+  return DISPATCH_CFG[rx.dispatchStatus] ?? DISPATCH_CFG['Not started']
 }
 
 function sourceLabelForPrescription(rx: PrescriptionRecord) {
@@ -447,7 +471,8 @@ function PrescriptionUploadPage() {
           ) : (
             <ul className="ac-list">
               {filteredPrescriptions.map((rx) => {
-                const status = STATUS_CFG[rx.status]
+                const status = displayStatusForPrescription(rx)
+                const dispatchStatus = dispatchStatusForPrescription(rx)
                 const isExpanded = expandedId === rx.id
                 const sourceLabel = sourceLabelForPrescription(rx)
                 const threadCount = rx.clarificationMessages.length || (rx.clarificationMessage ? 1 : 0)
@@ -488,6 +513,9 @@ function PrescriptionUploadPage() {
                       <div className="ac-card__right">
                         <span className="ac-card__status" style={{ color: status.color, background: status.bg }}>
                           {status.icon} {status.label}
+                        </span>
+                        <span className="ac-card__status rup-dispatch-status" style={{ color: dispatchStatus.color, background: dispatchStatus.bg }}>
+                          {dispatchStatus.label}
                         </span>
                         <svg
                           className={`ac-card__chevron${isExpanded ? ' ac-card__chevron--open' : ''}`}
@@ -556,8 +584,8 @@ function PrescriptionUploadPage() {
                           >
                             {rx.status === 'Clarification' ? 'View thread' : 'View details'}
                           </button>
-                          {rx.status === 'Approved' && (
-                            <Link to="/cart" className="btn btn--outline btn--sm">
+                          {hasUnpaidApprovedItems(rx) && (
+                            <Link to={`/cart?prescription=${encodeURIComponent(rx.id)}`} className="btn btn--outline btn--sm">
                               Open cart
                             </Link>
                           )}
@@ -617,8 +645,11 @@ function PrescriptionUploadPage() {
                     <p className="rx-modal__sub">Review files, pharmacist notes, clarification messages, and fulfilment items.</p>
                   </div>
                   <div className="rx-modal__header-side">
-                    <span className="ac-card__status" style={{ color: STATUS_CFG[activeRx.status].color, background: STATUS_CFG[activeRx.status].bg }}>
-                      {STATUS_CFG[activeRx.status].icon} {STATUS_CFG[activeRx.status].label}
+                    <span className="ac-card__status" style={{ color: displayStatusForPrescription(activeRx).color, background: displayStatusForPrescription(activeRx).bg }}>
+                      {displayStatusForPrescription(activeRx).icon} {displayStatusForPrescription(activeRx).label}
+                    </span>
+                    <span className="ac-card__status rup-dispatch-status" style={{ color: dispatchStatusForPrescription(activeRx).color, background: dispatchStatusForPrescription(activeRx).bg }}>
+                      {dispatchStatusForPrescription(activeRx).label}
                     </span>
                     <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
                   </div>
@@ -743,6 +774,7 @@ function PrescriptionUploadPage() {
                               <p className="rx-approved-items__name">{item.productName || item.name}</p>
                               <p className="rx-approved-items__meta">{item.dose} · {item.frequency} · Qty {item.qty}</p>
                             </div>
+                            {item.isPaidFor && <span className="status-pill status-pill--success">Paid</span>}
                           </li>
                         ))}
                       </ul>
@@ -751,8 +783,8 @@ function PrescriptionUploadPage() {
                 </div>
 
                 <div className="modal__footer rx-modal__footer">
-                  {activeRx.status === 'Approved' && (
-                    <Link to="/cart" className="btn btn--outline btn--sm">Open cart</Link>
+                  {hasUnpaidApprovedItems(activeRx) && (
+                    <Link to={`/cart?prescription=${encodeURIComponent(activeRx.id)}`} className="btn btn--outline btn--sm">Open cart</Link>
                   )}
                   <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
                 </div>

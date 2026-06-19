@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import backgroundBanner from '../../assets/images/banner/background.jpg'
-
-// import easterBanner from '../../assets/images/banner/easter.png'
-// import easterBannerMobile from '../../assets/images/banner/easter2.png'
-// import uncoverBanner from '../../assets/images/banner/uncover.png'
-// import uncoverBannerMobile from '../../assets/images/banner/uncover2.png'
+import otcImg from '../../assets/images/category-cards/over-the-counter-medicines.jpg'
+import prescriptionImg from '../../assets/images/category-cards/prescription-medicines.jpg'
+import herbalRemediesImg from '../../assets/images/category-cards/natural-herbal-remedies.jpg'
+import babyMotherImg from '../../assets/images/category-cards/baby-mother-family-care.jpg'
+import vitaminsImg from '../../assets/images/category-cards/vitamins-supplements.jpg'
+import personalCareImg from '../../assets/images/category-cards/personal-care-beauty.jpg'
+import medicalDevicesImg from '../../assets/images/category-cards/medical-devices-home-diagnostics.jpg'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
@@ -18,34 +19,151 @@ import { categoryCardImages } from '../../data/categoryCardImages'
 import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import '../../styles/pages/HomePage.css'
 
+type HeroIllustration = 'consultation' | 'heart' | 'diabetes'
+
 type HeroSlide = {
   id: number
-  image: string
-  mobileImage: string
-  alt: string
-  link: string
-  background: string
+  eyebrow: string
+  headline: string
+  supporting: string
+  cta: { label: string; link: string }
+  image?: string
+  illustration?: HeroIllustration
+  theme: { from: string; to: string; accent: string }
+  trust: string[]
 }
 
 const bannerSlides: HeroSlide[] = [
   {
     id: 1,
-    image: backgroundBanner,
-    mobileImage: backgroundBanner,
-    alt: 'Coming Soon',
-    link: '/',
-    background: '#d8f3fb',
+    eyebrow: 'Online pharmacy',
+    headline: 'Healthcare, delivered to your door',
+    supporting: 'Order genuine medicines online and get fast, same-day delivery across Kenya.',
+    cta: { label: 'Shop now', link: '/products' },
+    image: otcImg,
+    theme: { from: '#EFF6FF', to: '#F0FDFA', accent: '#2563EB' },
+    trust: ['Licensed pharmacy', 'Same-day delivery', 'M-Pesa & card'],
   },
-  // {
-  //   id: 2,
-  //   image: uncoverBanner,
-  //   mobileImage: uncoverBannerMobile,
-  //   alt: 'Ava Pharmacy uncover skincare banner',
-  //   link: '/products',
-  //   background: '#e7d3be',
-  // },
+  {
+    id: 2,
+    eyebrow: 'Prescriptions',
+    headline: 'Upload your prescription in minutes',
+    supporting: 'Skip the queue — send your Rx for pharmacist review and have it delivered.',
+    cta: { label: 'Upload prescription', link: '/prescriptions' },
+    image: prescriptionImg,
+    theme: { from: '#EFF6FF', to: '#F8FAFC', accent: '#2563EB' },
+    trust: ['Secure & confidential', 'Pharmacist-reviewed', 'No queues'],
+  },
+  {
+    id: 3,
+    eyebrow: 'Telehealth',
+    headline: 'Talk to a licensed doctor online',
+    supporting: 'Care from the comfort of home, with follow-up prescriptions when you need them.',
+    cta: { label: 'Book consultation', link: '/doctor-consultation' },
+    illustration: 'consultation',
+    theme: { from: '#F0FDFA', to: '#EFF6FF', accent: '#0EA5A4' },
+    trust: ['Licensed clinicians', 'Available 7 days a week', 'Private & secure'],
+  },
+  {
+    id: 4,
+    eyebrow: 'This month',
+    headline: 'Save on everyday health essentials',
+    supporting: 'Curated monthly deals across wellness, personal care and family health.',
+    cta: { label: 'View offers', link: '/offers' },
+    image: herbalRemediesImg,
+    theme: { from: '#ECFDF5', to: '#EFF6FF', accent: '#10B981' },
+    trust: ['Updated monthly', 'Genuine products', 'Member savings'],
+  },
+  {
+    id: 5,
+    eyebrow: 'Wellness',
+    headline: 'Build your daily wellness routine',
+    supporting: 'Immunity, energy and everyday supplements, lab-verified for quality.',
+    cta: { label: 'Shop supplements', link: '/products' },
+    image: vitaminsImg,
+    theme: { from: '#ECFDF5', to: '#F0FDFA', accent: '#10B981' },
+    trust: ['Lab-verified quality', 'Pharmacist advice', 'Daily wellness'],
+  },
+  {
+    id: 6,
+    eyebrow: 'Family care',
+    headline: 'Gentle care for little ones',
+    supporting: 'Trusted baby and children’s essentials from brands paediatricians recommend.',
+    cta: { label: 'Shop baby & child care', link: '/products' },
+    image: babyMotherImg,
+    theme: { from: '#F0FDFA', to: '#ECFDF5', accent: '#0EA5A4' },
+    trust: ['Paediatrician-approved', 'Gentle formulations', 'Family essentials'],
+  },
+  {
+    id: 7,
+    eyebrow: 'Care & beauty',
+    headline: 'Nourish your skin, every day',
+    supporting: 'Skincare, hygiene and self-care favourites, delivered to your door.',
+    cta: { label: 'Shop personal care', link: '/products' },
+    image: personalCareImg,
+    theme: { from: '#F0FDFA', to: '#F8FAFC', accent: '#0EA5A4' },
+    trust: ['Genuine brands', 'Dermatologist-friendly', 'Fast delivery'],
+  },
+  {
+    id: 8,
+    eyebrow: 'Diagnostics',
+    headline: 'Monitor your health at home',
+    supporting: 'Blood pressure, glucose and wellness devices, plus easy lab test booking.',
+    cta: { label: 'Shop medical devices', link: '/products' },
+    image: medicalDevicesImg,
+    theme: { from: '#EFF6FF', to: '#F1F5F9', accent: '#2563EB' },
+    trust: ['Clinically reliable', 'Home use', 'Expert support'],
+  },
+  {
+    id: 9,
+    eyebrow: 'Heart health',
+    headline: 'Care for your heart every day',
+    supporting: 'Support cardiovascular wellness with trusted heart-health essentials and advice.',
+    cta: { label: 'Shop heart health', link: '/products' },
+    illustration: 'heart',
+    theme: { from: '#EFF6FF', to: '#F8FAFC', accent: '#2563EB' },
+    trust: ['Trusted brands', 'Pharmacist advice', 'Daily support'],
+  },
+  {
+    id: 10,
+    eyebrow: 'Diabetes care',
+    headline: 'Manage diabetes with confidence',
+    supporting: 'Glucose monitoring, test strips and lifestyle support, all in one place.',
+    cta: { label: 'Shop diabetes care', link: '/products' },
+    illustration: 'diabetes',
+    theme: { from: '#ECFDF5', to: '#EFF6FF', accent: '#10B981' },
+    trust: ['Monitoring essentials', 'Genuine products', 'Expert guidance'],
+  },
 ]
 
+function renderHeroIllustration(key: HeroIllustration) {
+  if (key === 'heart') {
+    return (
+      <svg className="hero-banner__illustration" viewBox="0 0 240 240" fill="none" aria-hidden="true">
+        <circle cx="120" cy="120" r="96" fill="var(--hb-accent)" opacity="0.08" />
+        <path d="M120 192s-58-36-78-78c-12-26 6-52 32-52 18 0 30 12 46 30 16-18 28-30 46-30 26 0 44 26 32 52-20 42-78 78-78 78z" fill="var(--hb-accent)" opacity="0.14" />
+        <path d="M64 128h26l14-26 18 52 14-26h26" stroke="var(--hb-accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+  if (key === 'diabetes') {
+    return (
+      <svg className="hero-banner__illustration" viewBox="0 0 240 240" fill="none" aria-hidden="true">
+        <circle cx="120" cy="120" r="96" fill="var(--hb-accent)" opacity="0.08" />
+        <path d="M120 44c30 44 56 74 56 104a56 56 0 0 1-112 0c0-30 26-60 56-104z" fill="var(--hb-accent)" opacity="0.16" />
+        <path d="M96 150h44M118 132v36" stroke="var(--hb-accent)" strokeWidth="6" strokeLinecap="round" />
+        <circle cx="150" cy="104" r="6" fill="var(--hb-accent)" opacity="0.6" />
+      </svg>
+    )
+  }
+  return (
+    <svg className="hero-banner__illustration" viewBox="0 0 240 240" fill="none" aria-hidden="true">
+      <circle cx="120" cy="120" r="96" fill="var(--hb-accent)" opacity="0.08" />
+      <path d="M120 44v28M120 168v28M44 120h28M168 120h28" stroke="var(--hb-accent)" strokeWidth="4" strokeLinecap="round" opacity="0.25" />
+      <path d="M88 120h22l12-30 18 60 14-30h26" stroke="var(--hb-accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
 const FEATURED_PRODUCTS_LIMIT = 5
 const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
 const isEligibleFeaturedProduct = (product: CatalogProduct) => isAvailableProduct(product) && !product.requiresPrescription
@@ -68,21 +186,28 @@ function HomePage() {
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
   ]
 
-  const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
-  const { products: latestStockedProducts } = useProducts({
+  const { products: catalogProducts, loading: catalogLoading } = useProducts({ page_size: 48 })
+  const { products: latestStockedProducts, loading: newLoading } = useProducts({
     page_size: 5,
     ordering: '-created_at',
     inventory_status: 'available',
   })
   const [featuredSeedProducts, setFeaturedSeedProducts] = useState<CatalogProduct[]>([])
+  const [featuredLoading, setFeaturedLoading] = useState(true)
   const visibleCategories = categories.filter((category) => {
     const normalizedName = category.name.trim().toLowerCase()
     const normalizedSlug = category.slug.trim().toLowerCase()
     return normalizedName !== 'collections' && normalizedSlug !== 'collections'
   })
 
-  const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name'>) =>
-    `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+  const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name' | 'variantId'>) => {
+    const params = new URLSearchParams({
+      product_id: String(product.id),
+      product_name: product.name,
+    })
+    if (product.variantId) params.set('variant_id', String(product.variantId))
+    return `/prescriptions?${params.toString()}`
+  }
 
   const isDealProduct = (product: CatalogProduct) => product.originalPrice !== null && product.originalPrice > product.price
   const getDealSavings = (product: CatalogProduct) => (product.originalPrice ?? product.price) - product.price
@@ -130,13 +255,17 @@ function HomePage() {
         if (!isMounted) return
         setFeaturedSeedProducts([])
       })
+      .finally(() => {
+        if (!isMounted) return
+        setFeaturedLoading(false)
+      })
 
     return () => {
       isMounted = false
     }
   }, [])
 
-  const featuredProducts = (() => {
+  const featuredProducts = useMemo(() => {
     const seen = new Set<number>()
     const merged: CatalogProduct[] = []
 
@@ -152,14 +281,16 @@ function HomePage() {
     appendUnique(catalogProducts)
 
     return merged.slice(0, FEATURED_PRODUCTS_LIMIT)
-  })()
+  }, [featuredSeedProducts, catalogProducts])
 
-  const newProducts = latestStockedProducts.slice(0, 5)
+  const newProducts = useMemo(() => latestStockedProducts.slice(0, 5), [latestStockedProducts])
 
-  const offerDeals = [...catalogProducts]
-    .filter((product) => isAvailableProduct(product) && isDealProduct(product))
-    .sort((a, b) => getDealSavings(b) - getDealSavings(a))
-  const spotlightOfferProducts = offerDeals.slice(0, 5)
+  const spotlightOfferProducts = useMemo(() => {
+    return [...catalogProducts]
+      .filter((product) => isAvailableProduct(product) && isDealProduct(product))
+      .sort((a, b) => getDealSavings(b) - getDealSavings(a))
+      .slice(0, 5)
+  }, [catalogProducts])
   const professionalDashboard =
     user?.role === 'doctor'
       ? { label: 'Doctor dashboard', path: '/doctor/dashboard' }
@@ -227,6 +358,7 @@ function HomePage() {
   }, [visibleCategories.length])
 
   useEffect(() => {
+    if (bannerSlides.length <= 1) return undefined
     const t = window.setInterval(() => {
       setCurrentSlide(s => (s + 1) % bannerSlides.length)
     }, 6000)
@@ -418,7 +550,10 @@ function HomePage() {
         Skip to main content
       </a>
       {/* Hero Carousel - full-width promotional banner */}
-      <section className="hero-carousel" id="main-content">
+      <section className="hero-carousel" id="main-content" aria-label="Promotional banners">
+        <h1 className="hero-carousel__sr-title">
+          Ava Pharmacy — online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya
+        </h1>
         <div
           className="hero-carousel__track"
           style={{ transform: `translateX(-${currentSlide * 100}%)` }}
@@ -426,24 +561,42 @@ function HomePage() {
           {bannerSlides.map((slide, index) => (
             <Link
               key={slide.id}
-              to={slide.link}
-              className="hero-carousel__slide"
-              style={{ background: slide.background }}
+              to={slide.cta.link}
+              className="hero-carousel__slide hero-banner"
+              style={{ '--hb-from': slide.theme.from, '--hb-to': slide.theme.to, '--hb-accent': slide.theme.accent } as CSSProperties}
+              aria-label={slide.headline}
             >
-              <picture className="hero-carousel__picture">
-                <source media="(max-width: 768px)" srcSet={slide.mobileImage} />
-                <img
-                  src={slide.image}
-                  alt={slide.alt}
-                  className="hero-carousel__img"
-                  loading={index === 0 ? 'eager' : 'lazy'}
-                  decoding="async"
-                  fetchPriority={index === 0 ? 'high' : 'auto'}
-                />
-              </picture>
-              <div className="hero-carousel__overlay">
-                <span className="hero-carousel__eyebrow">Announcement</span>
-                <h1 className="hero-carousel__headline">Coming Soon</h1>
+              <div className="hero-banner__content">
+                <span className="hero-banner__eyebrow">{slide.eyebrow}</span>
+                <h2 className="hero-banner__headline">{slide.headline}</h2>
+                <p className="hero-banner__supporting">{slide.supporting}</p>
+                <span className="hero-banner__cta">
+                  {slide.cta.label}
+                  <span aria-hidden="true">→</span>
+                </span>
+                <ul className="hero-banner__trust">
+                  {slide.trust.map((item) => (
+                    <li key={item}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="hero-banner__visual">
+                <span className="hero-banner__blob" aria-hidden="true" />
+                {slide.image ? (
+                  <ImageWithFallback
+                    src={slide.image}
+                    alt={slide.headline}
+                    className="hero-banner__photo"
+                    loading={index === 0 ? 'eager' : 'lazy'}
+                  />
+                ) : (
+                  renderHeroIllustration(slide.illustration ?? 'consultation')
+                )}
               </div>
             </Link>
           ))}
@@ -559,15 +712,7 @@ function HomePage() {
                       </div>
                       <div className="category-card__body">
                         <h3 className="category-card__name">{cat.name}</h3>
-                        {/* <p className="category-card__description">
-                          {cat.description || `Explore trusted ${cat.name.toLowerCase()} picks curated for everyday care.`}
-                        </p> */}
                         <div className="category-card__footer">
-                          {/* <span className="category-card__eyebrow">
-                            {cat.subcategories.length > 0
-                              ? `${cat.subcategories.length} ${cat.subcategories.length === 1 ? 'collection' : 'collections'}`
-                              : 'Coming soon'}
-                          </span> */}
                           <span className="category-card__cta">
                             Explore
                             <span aria-hidden="true">→</span>
@@ -594,20 +739,21 @@ function HomePage() {
       )}
       <section className="section offers-preview home-section--offers">
         <div className="container">
-          {/* Hot Offers campaign header and promotion cards are intentionally hidden for now. */}
-          {spotlightOfferProducts.length === 0 ? (
+          <div className="section__header">
+            <h2 className="section__title">Products On Offer</h2>
+          </div>
+          {catalogLoading ? (
+            <div className="empty-state">
+              <p className="empty-state__message">Loading offers…</p>
+            </div>
+          ) : spotlightOfferProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No live offers are available right now.</p>
             </div>
           ) : (
-            <>
-              <div className="section__header">
-                <h2 className="section__title" >Products On Offer</h2>
-              </div>
-              <div className="products__grid products__grid--compact">
-                {spotlightOfferProducts.map((product) => renderProductCard(product, 'deals'))}
-              </div>
-            </>
+            <div className="products__grid products__grid--compact">
+              {spotlightOfferProducts.map((product) => renderProductCard(product, 'deals'))}
+            </div>
           )}
           <div className="featured-products__cta">
             <Link to="/offers" className="featured-products__link-cta">
@@ -624,7 +770,11 @@ function HomePage() {
           <div className="section__header">
             <h2 className="section__title">Top Rated Products</h2>
           </div>
-          {featuredProducts.length === 0 ? (
+          {featuredLoading && catalogLoading ? (
+            <div className="empty-state">
+              <p className="empty-state__message">Loading top rated products…</p>
+            </div>
+          ) : featuredProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No top rated products available at the moment.</p>
             </div>
@@ -633,6 +783,12 @@ function HomePage() {
               {featuredProducts.map((product) => renderProductCard(product, 'featured'))}
             </div>
           )}
+          <div className="featured-products__cta">
+            <Link to="/products?sort=rating" className="featured-products__link-cta">
+              View All Top Rated Products
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -654,7 +810,7 @@ function HomePage() {
             </div>
 
             <div className="hp-services__grid">
-              <Link to="/doctor-consultation" className="hp-svc-card hp-svc-card--doctor" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <Link to="/doctor-consultation" className="hp-svc-card hp-svc-card--doctor">
                 <div className="hp-svc-card__icon-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/>
@@ -670,7 +826,7 @@ function HomePage() {
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>
 
-              <Link to="/pediatric-consultation" className="hp-svc-card hp-svc-card--paed" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <Link to="/pediatric-consultation" className="hp-svc-card hp-svc-card--paed">
                 <div className="hp-svc-card__icon-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <circle cx="12" cy="6" r="3"/>
@@ -686,7 +842,7 @@ function HomePage() {
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>
 
-              <Link to="/prescriptions" className="hp-svc-card hp-svc-card--rx" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <Link to="/prescriptions" className="hp-svc-card hp-svc-card--rx">
                 <div className="hp-svc-card__icon-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -703,7 +859,7 @@ function HomePage() {
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>
 
-              <Link to="/laboratory" className="hp-svc-card hp-svc-card--lab" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <Link to="/laboratory" className="hp-svc-card hp-svc-card--lab">
                 <div className="hp-svc-card__icon-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11M3 9h18M3 9l3 9h12l3-9"/>
@@ -730,7 +886,11 @@ function HomePage() {
           <div className="section__header">
             <h2 className="section__title">New Products</h2>
           </div>
-          {newProducts.length === 0 ? (
+          {newLoading ? (
+            <div className="empty-state">
+              <p className="empty-state__message">Loading new products…</p>
+            </div>
+          ) : newProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No new products have been added yet.</p>
             </div>
@@ -740,7 +900,7 @@ function HomePage() {
             </div>
           )}
           <div className="featured-products__cta">
-            <Link to="/products" className="featured-products__link-cta">
+            <Link to="/products?sort=newest" className="featured-products__link-cta">
               View All New Products
               <span aria-hidden="true">→</span>
             </Link>

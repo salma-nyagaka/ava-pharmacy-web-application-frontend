@@ -9,6 +9,7 @@ import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/PrescriptionManagement.css'
 import '../../styles/portals/PharmacistDashboardPage.css'
+import '../../styles/portals/PharmacistDashboardRedesign.css'
 
 const statusClass = (status: PrescriptionStatus) =>
   status === 'Approved' ? 'admin-status--success'
@@ -142,6 +143,17 @@ function formatOrderItemsPreview(order: AdminOrder) {
   if (names.length === 1) return names[0]
   if (names.length === 2) return `${names[0]}, ${names[1]}`
   return `${names[0]}, ${names[1]} +${names.length - 2} more`
+}
+
+function orderPrescriptionReferences(order: AdminOrder) {
+  return Array.from(new Set(order.items.map((item) => item.prescription_id).filter(Boolean) as string[]))
+}
+
+function formatOrderPrescriptionReferences(order: AdminOrder) {
+  const references = orderPrescriptionReferences(order)
+  if (references.length === 0) return ''
+  if (references.length === 1) return references[0]
+  return `${references[0]} +${references.length - 1} more`
 }
 
 function formatOrderLineItems(order: AdminOrder) {
@@ -582,7 +594,7 @@ function PharmacistDashboardPage() {
       userMeta={activeWorkspace === 'prescriptions' ? 'Prescription Operations' : 'Order Follow-up'}
       userName={user?.name || 'Pharmacist'}
     >
-      <div className="admin-page">
+      <div className="admin-page pharm-portal">
       {/* Workspace */}
       {activeWorkspace === 'prescriptions' ? (
         <>
@@ -857,11 +869,15 @@ function PharmacistDashboardPage() {
                     <tbody>
                       {pagedOrderRecords.map((order) => {
                         const upcomingStatus = nextOrderStatus(order)
+                        const prescriptionReference = formatOrderPrescriptionReferences(order)
                         return (
                           <tr key={order.id}>
                             <td>
                               <div className="pharm-cell-stack">
                                 <strong className="pharm-table__primary">{order.order_number}</strong>
+                                {prescriptionReference && (
+                                  <span className="pharm-cell-muted">Rx {prescriptionReference}</span>
+                                )}
                                 <span className="pharm-cell-muted">
                                   {order.items.length} item{order.items.length === 1 ? '' : 's'}
                                 </span>
@@ -1029,7 +1045,7 @@ function PharmacistDashboardPage() {
                             <p className="px-item__meta">{item.dose} · {item.frequency}</p>
                             {hasCatalogVariant ? (
                               <p className="px-item__variant">
-                                {item.variantName || 'Selected variant'}{item.variantSku ? ` · SKU ${item.variantSku}` : ''}
+                                Patient requested catalog item · {item.variantName || 'Selected variant'}{item.variantSku ? ` · SKU ${item.variantSku}` : ''}
                               </p>
                             ) : (
                               <p className="px-item__variant px-item__variant--unmatched">
@@ -1348,6 +1364,12 @@ function PharmacistDashboardPage() {
                     <span>Payment</span>
                     <strong>{activeOrder.payment_method.replace(/_/g, ' ')} · {activeOrder.payment_status.replace(/_/g, ' ')}</strong>
                   </div>
+                  {formatOrderPrescriptionReferences(activeOrder) && (
+                    <div>
+                      <span>Prescription</span>
+                      <strong>{formatOrderPrescriptionReferences(activeOrder)}</strong>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pharm-pack-list">
@@ -1362,6 +1384,7 @@ function PharmacistDashboardPage() {
                         <div className="pharm-pack-list__details">
                           <strong>{item.product_name}</strong>
                           <span>SKU: {item.product_sku || 'Not available'}</span>
+                          {item.prescription_id && <span>Rx: {item.prescription_id}</span>}
                         </div>
                         <div className="pharm-pack-list__pricing">
                           <span>{formatCurrency(item.unit_price)} each</span>

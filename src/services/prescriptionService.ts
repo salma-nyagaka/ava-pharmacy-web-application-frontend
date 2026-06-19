@@ -39,6 +39,7 @@ type ApiPrescriptionItem = {
   dose: string
   frequency: string
   quantity: number
+  is_paid_for?: boolean
 }
 
 type ApiPrescriptionAudit = {
@@ -188,6 +189,7 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
       dose: item.dose || '-',
       frequency: item.frequency || '-',
       qty: item.quantity ?? 0,
+      isPaidFor: item.is_paid_for ?? false,
     })),
     notes: record.notes || '',
     pharmacistNotes: record.pharmacist_notes || '',

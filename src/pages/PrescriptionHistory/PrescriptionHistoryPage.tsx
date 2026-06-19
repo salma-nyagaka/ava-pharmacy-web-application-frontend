@@ -47,6 +47,10 @@ function fallbackClarificationMessages(rx: PrescriptionRecord): PrescriptionClar
   }]
 }
 
+function hasUnpaidApprovedItems(rx: PrescriptionRecord) {
+  return rx.status === 'Approved' && rx.items.some((item) => !item.isPaidFor && item.backendId && (item.productId || item.variantId))
+}
+
 function PrescriptionHistoryPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -403,7 +407,9 @@ function PrescriptionHistoryPage() {
                                   <span className="rx-expanded__item-name">{item.productName || item.name}</span>
                                   <span className="rx-expanded__item-meta">{item.dose} · {item.frequency} · Qty {item.qty}</span>
                                 </div>
-                                {rx.status === 'Approved' && item.productId && item.backendId ? (
+                                {item.isPaidFor ? (
+                                  <span className="status-pill status-pill--success">Paid</span>
+                                ) : rx.status === 'Approved' && item.productId && item.backendId ? (
                                   <button
                                     className="btn btn--primary btn--sm"
                                     type="button"
@@ -551,7 +557,9 @@ function PrescriptionHistoryPage() {
                           <p className="rx-approved-items__name">{item.productName || item.name}</p>
                           <p className="rx-approved-items__meta">{item.dose} · {item.frequency} · Qty {item.qty}</p>
                         </div>
-                        {activeRx.status === 'Approved' && item.productId && item.backendId ? (
+                        {item.isPaidFor ? (
+                          <span className="status-pill status-pill--success">Paid</span>
+                        ) : activeRx.status === 'Approved' && item.productId && item.backendId ? (
                           <button
                             className="btn btn--primary btn--sm"
                             type="button"
@@ -570,8 +578,8 @@ function PrescriptionHistoryPage() {
               </section>
             </div>
             <div className="modal__footer rx-modal__footer">
-              {activeRx.status === 'Approved' && (
-                <button className="btn btn--outline btn--sm" type="button" onClick={() => navigate('/cart')}>Open cart</button>
+              {hasUnpaidApprovedItems(activeRx) && (
+                <button className="btn btn--outline btn--sm" type="button" onClick={() => navigate(`/cart?prescription=${encodeURIComponent(activeRx.id)}`)}>Open cart</button>
               )}
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
             </div>

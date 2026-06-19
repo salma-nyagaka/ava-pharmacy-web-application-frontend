@@ -14,6 +14,7 @@ export interface PrescriptionItem {
   dose: string
   frequency: string
   qty: number
+  isPaidFor?: boolean
 }
 
 export interface PrescriptionAuditEntry {

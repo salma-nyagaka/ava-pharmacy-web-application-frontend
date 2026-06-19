@@ -35,7 +35,7 @@ function resolveRoleTheme(roleLabel: string, accentColor: string) {
     return { accent: '#14B8A6', hover: '#0F766E', light: '#F0FDFA' }
   }
   if (role.includes('pharmacist')) {
-    return { accent: '#0EA5E9', hover: '#0284C7', light: '#F0F9FF' }
+    return { accent: '#2563EB', hover: '#1D4ED8', light: '#EFF6FF' }
   }
   if (role.includes('admin')) {
     return { accent: '#4F46E5', hover: '#4338CA', light: '#EEF2FF' }

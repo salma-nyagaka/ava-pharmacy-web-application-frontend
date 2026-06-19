@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { useAuth } from '../../context/AuthContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
@@ -12,6 +12,8 @@ import '../../styles/pages/CartPage.css'
 function CartPage() {
   const { isLoggedIn } = useAuth()
   const { settings } = useSiteSettings()
+  const [searchParams] = useSearchParams()
+  const focusedPrescriptionId = searchParams.get('prescription')?.trim() || ''
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [movedId, setMovedId] = useState<number | null>(null)
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
@@ -34,24 +36,38 @@ function CartPage() {
     }).catch(() => setPrescriptions([]))
   }, [isLoggedIn])
 
-  const subtotal = useMemo(() => cartItems.reduce((s, i) => s + i.price * i.quantity, 0), [cartItems])
-  const delivery = subtotal >= settings.freeDeliveryThreshold || cartItems.length === 0 ? 0 : settings.baseDeliveryFee
+  const visibleCartItems = useMemo(
+    () => focusedPrescriptionId
+      ? cartItems.filter((item) => item.prescriptionId === focusedPrescriptionId)
+      : cartItems,
+    [cartItems, focusedPrescriptionId],
+  )
+  const focusedPrescription = useMemo(
+    () => focusedPrescriptionId
+      ? prescriptions.find((rx) => rx.id === focusedPrescriptionId)
+      : null,
+    [focusedPrescriptionId, prescriptions],
+  )
+  const subtotal = useMemo(() => visibleCartItems.reduce((s, i) => s + i.price * i.quantity, 0), [visibleCartItems])
+  const delivery = subtotal >= settings.freeDeliveryThreshold || visibleCartItems.length === 0 ? 0 : settings.baseDeliveryFee
   const total = subtotal + delivery
   const deliveryProgress = settings.freeDeliveryThreshold > 0
     ? Math.min(100, (subtotal / settings.freeDeliveryThreshold) * 100)
     : 100
   const amountToFree = Math.max(0, settings.freeDeliveryThreshold - subtotal)
-  const itemCount = cartItems.reduce((s, i) => s + i.quantity, 0)
+  const itemCount = visibleCartItems.reduce((s, i) => s + i.quantity, 0)
   const prescriptionItemCount = cartItems.filter((item) => !!item.prescriptionId).length
+  const hasHiddenCartItems = focusedPrescriptionId ? cartItems.length !== visibleCartItems.length : false
   const approvedPrescriptionItems = useMemo(() => {
     const cartKeys = new Set(cartItems.map((item) => `${item.prescriptionId || ''}:${item.prescriptionItemId || ''}:${item.variantId || item.productId || item.id}`))
     return prescriptions
+      .filter((rx) => !focusedPrescriptionId || rx.id === focusedPrescriptionId)
       .filter((rx) => rx.status === 'Approved')
       .flatMap((rx) => rx.items
-        .filter((item) => item.backendId && (item.variantId || item.productId))
+        .filter((item) => !item.isPaidFor && item.backendId && (item.variantId || item.productId))
         .filter((item) => !cartKeys.has(`${rx.id}:${item.backendId || ''}:${item.variantId || item.productId}`))
         .map((item) => ({ rx, item })))
-  }, [cartItems, prescriptions])
+  }, [cartItems, focusedPrescriptionId, prescriptions])
 
   const fmt = (n: number) => `KSh ${n.toLocaleString()}`
 
@@ -96,10 +112,10 @@ function CartPage() {
 
         <div className="cart-header">
           <h1 className="cart-header__title">
-            Shopping Cart
+            {focusedPrescriptionId ? 'Prescription Cart' : 'Shopping Cart'}
             {itemCount > 0 && <span className="cart-header__count">{itemCount} item{itemCount !== 1 ? 's' : ''}</span>}
           </h1>
-          {cartItems.length > 0 && (
+          {visibleCartItems.length > 0 && (
             <Link to="/products" className="cart-header__continue">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
               Continue shopping
@@ -107,7 +123,24 @@ function CartPage() {
           )}
         </div>
 
-        {cartItems.length === 0 && approvedPrescriptionItems.length === 0 ? (
+        {focusedPrescriptionId && (
+          <div className="cart-rx-banner">
+            <div className="cart-rx-banner__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6"/>
+              </svg>
+            </div>
+            <div>
+              <p className="cart-rx-banner__title">Prescription {focusedPrescriptionId}</p>
+              <p className="cart-rx-banner__text">
+                Showing only items tied to this prescription{focusedPrescription ? ` for ${focusedPrescription.patient}` : ''}.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {visibleCartItems.length === 0 && approvedPrescriptionItems.length === 0 ? (
           <div className="cart-empty">
             <div className="cart-empty__icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -161,7 +194,7 @@ function CartPage() {
                 </div>
               )}
 
-              {prescriptionItemCount > 0 && (
+              {!focusedPrescriptionId && prescriptionItemCount > 0 && (
                 <div className="cart-rx-banner">
                   <div className="cart-rx-banner__icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -176,7 +209,7 @@ function CartPage() {
                   </div>
                 </div>
               )}
-              {cartItems.length > 0 && (
+              {visibleCartItems.length > 0 && (
                 <div className="cart-items__head">
                   <span>Product</span>
                   <span>Qty</span>
@@ -184,7 +217,7 @@ function CartPage() {
                 </div>
               )}
 
-              {cartItems.map((item) => (
+              {visibleCartItems.map((item) => (
                 <div key={`${item.serverItemId ?? item.id}-${item.prescriptionId ?? 'direct'}`} className="cart-item">
                   <Link to={`/product/${item.id}`} className="cart-item__img-wrap">
                     <ImageWithFallback src={item.image} alt={item.name} className="cart-item__image" />
@@ -267,11 +300,20 @@ function CartPage() {
                 </div>
               </div>
 
-              {isLoggedIn && cartItems.length > 0 ? (
+              {isLoggedIn && visibleCartItems.length > 0 && !hasHiddenCartItems ? (
                 <Link to="/checkout" className="btn btn--primary btn--lg cart-summary__cta">
                   Proceed to Checkout
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </Link>
+              ) : isLoggedIn && visibleCartItems.length > 0 && hasHiddenCartItems ? (
+                <>
+                  <button className="btn btn--primary btn--lg cart-summary__cta" type="button" disabled>
+                    Checkout this prescription only
+                  </button>
+                  <p className="cart-summary__note cart-summary__note--rx">
+                    Remove or checkout other cart items first. Checkout currently submits the full cart.
+                  </p>
+                </>
               ) : isLoggedIn ? (
                 <button className="btn btn--primary btn--lg cart-summary__cta" type="button" disabled>
                   Add an item to continue

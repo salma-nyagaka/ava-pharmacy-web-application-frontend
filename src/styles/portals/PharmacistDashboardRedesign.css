@@ -1,0 +1,268 @@
+/* Pharmacist Dashboard — healthcare-grade redesign layer.
+   Scoped to .pharm-portal so admin/doctor/lab portals are untouched. */
+
+.pharm-portal {
+  --hc-blue: #2563EB;
+  --hc-blue-hover: #1D4ED8;
+  --hc-blue-soft: #EFF6FF;
+  --hc-teal: #0F766E;
+  --hc-teal-soft: #F0FDFA;
+  --hc-success: #10B981;
+  --hc-success-soft: #ECFDF5;
+  --hc-warning: #F59E0B;
+  --hc-warning-soft: #FFFBEB;
+  --hc-danger: #EF4444;
+  --hc-danger-soft: #FEF2F2;
+  --hc-bg: #F8FAFC;
+  --hc-card: #FFFFFF;
+  --hc-border: #E2E8F0;
+  --hc-text: #0F172A;
+  --hc-muted: #64748B;
+  --hc-muted-2: #94A3B8;
+  font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--hc-text);
+  background: var(--hc-bg);
+}
+
+/* Page surface & header hierarchy */
+.pharm-portal.admin-page { padding: clamp(1.25rem, 2.4vw, 2rem); background: var(--hc-bg); }
+
+.pharm-portal .admin-page__header h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--hc-text);
+  margin: 0 0 0.35rem;
+}
+.pharm-portal .px-subtitle,
+.pharm-portal .admin-page__header p {
+  color: var(--hc-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 70ch;
+}
+
+/* ── KPI overview cards ─────────────────────────────────────── */
+.pharm-portal .cm-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.1rem;
+}
+.pharm-portal .cm-kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: var(--hc-card);
+  border: 1px solid var(--hc-border);
+  border-left: 3px solid var(--hc-border);
+  border-radius: 14px;
+  padding: 0.8rem 0.95rem;
+  min-height: 64px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+.pharm-portal .cm-kpi-card:hover {
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.1);
+  transform: translateY(-2px);
+  border-color: #CBD5E1;
+}
+.pharm-portal .cm-kpi-card:focus-visible { outline: 2px solid var(--hc-blue); outline-offset: 2px; }
+.pharm-portal .cm-kpi-card__icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.pharm-portal .cm-kpi-card__icon--blue   { background: var(--hc-blue-soft);   color: var(--hc-blue); }
+.pharm-portal .cm-kpi-card__icon--green  { background: var(--hc-success-soft); color: var(--hc-success); }
+.pharm-portal .cm-kpi-card__icon--amber  { background: var(--hc-warning-soft); color: #B45309; }
+.pharm-portal .cm-kpi-card__icon--red    { background: var(--hc-danger-soft);  color: var(--hc-danger); }
+.pharm-portal .cm-kpi-card__icon--teal   { background: var(--hc-teal-soft);    color: var(--hc-teal); }
+.pharm-portal .cm-kpi-card__icon--purple { background: #F5F3FF; color: #7C3AED; }
+.pharm-portal .cm-kpi-card__body { gap: 0.18rem; }
+.pharm-portal .cm-kpi-card__label {
+  font-size: 0.68rem; font-weight: 600; color: var(--hc-muted);
+  text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.2;
+}
+.pharm-portal .cm-kpi-card__value {
+  font-size: 1.5rem; font-weight: 800; color: var(--hc-text);
+  letter-spacing: -0.03em; line-height: 1;
+}
+.pharm-portal .cm-kpi-card__value--green { color: var(--hc-success); }
+.pharm-portal .cm-kpi-card__value--amber { color: #B45309; }
+.pharm-portal .cm-kpi-card__value--red   { color: var(--hc-danger); }
+.pharm-portal .cm-kpi-card__value--blue  { color: var(--hc-blue); }
+
+/* accent left borders per card position */
+.pharm-portal .cm-kpi-grid .cm-kpi-card:nth-child(1) { border-left-color: var(--hc-blue); }
+.pharm-portal .cm-kpi-grid .cm-kpi-card:nth-child(2) { border-left-color: var(--hc-success); }
+.pharm-portal .cm-kpi-grid .cm-kpi-card:nth-child(3) { border-left-color: #7C3AED; }
+.pharm-portal .cm-kpi-grid .cm-kpi-card:nth-child(4) { border-left-color: var(--hc-danger); }
+.pharm-portal .cm-kpi-grid .cm-kpi-card:nth-child(5) { border-left-color: var(--hc-warning); }
+.pharm-portal .cm-kpi-grid .cm-kpi-card:nth-child(6) { border-left-color: var(--hc-teal); }
+
+/* ── Pending banner ─────────────────────────────────────────── */
+.pharm-portal .px-pending-banner {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem;
+  background: linear-gradient(90deg, var(--hc-blue-soft), #DBEAFE);
+  border: 1px solid #BFDBFE;
+  border-radius: 12px;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1rem;
+  color: #1E3A8A; font-size: 0.875rem;
+}
+.pharm-portal .px-pending-banner strong { color: var(--hc-blue); }
+.pharm-portal .px-pending-banner__btn {
+  background: var(--hc-blue); color: #fff; border: none;
+  border-radius: 8px; padding: 0.5rem 0.9rem; font-weight: 600; font-size: 0.8rem;
+  cursor: pointer; transition: background 0.15s ease;
+}
+.pharm-portal .px-pending-banner__btn:hover { background: var(--hc-blue-hover); }
+
+/* ── Filters ─────────────────────────────────────────────────── */
+.pharm-portal .admin-page__filters { gap: 0.6rem; margin-bottom: 1rem; }
+.pharm-portal .admin-page__filters input,
+.pharm-portal .admin-page__filters select {
+  border: 1px solid var(--hc-border);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.825rem;
+  color: var(--hc-text);
+  background: var(--hc-card);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.pharm-portal .admin-page__filters input::placeholder { color: var(--hc-muted-2); }
+.pharm-portal .admin-page__filters input:focus,
+.pharm-portal .admin-page__filters select:focus {
+  outline: none;
+  border-color: var(--hc-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+.pharm-portal .px-clear-filter {
+  background: transparent; border: 1px solid var(--hc-border);
+  color: var(--hc-muted); border-radius: 8px; padding: 0.5rem 0.75rem;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.pharm-portal .px-clear-filter:hover { background: #F1F5F9; color: var(--hc-text); border-color: #CBD5E1; }
+
+/* ── Panels ─────────────────────────────────────────────────── */
+.pharm-portal .pharm-dashboard-layout { gap: 1rem; }
+.pharm-portal .pharm-table-panel {
+  background: var(--hc-card);
+  border: 1px solid var(--hc-border);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+.pharm-portal .pharm-table-panel__header {
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid var(--hc-border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+}
+.pharm-portal .pharm-table-panel__header h2 {
+  font-size: 1.0625rem; font-weight: 700; color: var(--hc-text);
+  letter-spacing: -0.01em; margin: 0 0 0.2rem;
+}
+.pharm-portal .pharm-table-panel__header p {
+  font-size: 0.8rem; color: var(--hc-muted); line-height: 1.45; margin: 0; max-width: 60ch;
+}
+.pharm-portal .pharm-table-panel__badge {
+  background: var(--hc-blue-soft); color: var(--hc-blue);
+  border-radius: 999px; padding: 0.3rem 0.7rem;
+  font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+}
+
+/* ── Tables ─────────────────────────────────────────────────── */
+.pharm-portal .cm-table-wrap { max-height: 560px; }
+.pharm-portal .cm-table thead { background: #F8FAFC; }
+.pharm-portal .cm-table th {
+  background: #F8FAFC;
+  color: var(--hc-muted);
+  font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  border-color: var(--hc-border);
+  padding: 0.62rem 0.75rem;
+}
+.pharm-portal .cm-table td {
+  border-color: var(--hc-border);
+  color: #334155;
+  font-size: 0.8rem;
+  padding: 0.62rem 0.75rem;
+}
+.pharm-portal .cm-table tbody tr:nth-child(even) td { background: #FCFCFD; }
+.pharm-portal .cm-table tbody tr:hover td { background: var(--hc-blue-soft) !important; }
+.pharm-portal .px-row--pending td { background: #FFFBEB !important; }
+.pharm-portal .px-row--pending:hover td { background: #FEF3C7 !important; }
+
+.pharm-portal .pharm-cell-stack { display: flex; flex-direction: column; gap: 0.15rem; }
+.pharm-portal .pharm-cell-muted { color: var(--hc-muted); font-size: 0.74rem; }
+.pharm-portal .px-rx-id { font-weight: 700; color: var(--hc-text); font-variant-numeric: tabular-nums; }
+.pharm-portal .px-patient { font-weight: 600; color: var(--hc-text); margin: 0; }
+.pharm-portal .px-date { color: var(--hc-muted); font-size: 0.78rem; }
+.pharm-portal .pharm-age { font-size: 0.7rem; color: var(--hc-muted); }
+.pharm-portal .pharm-age--overdue { color: var(--hc-danger); font-weight: 700; }
+
+/* ── Status pills ───────────────────────────────────────────── */
+.pharm-portal .admin-status {
+  padding: 0.28rem 0.66rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+.pharm-portal .admin-status--success { background: var(--hc-success-soft); color: #047857; border-color: #A7F3D0; }
+.pharm-portal .admin-status--warning { background: var(--hc-warning-soft); color: #92400E; border-color: #FDE68A; }
+.pharm-portal .admin-status--danger  { background: var(--hc-danger-soft);  color: #B91C1C; border-color: #FECACA; }
+.pharm-portal .admin-status--info    { background: var(--hc-blue-soft);    color: #1D4ED8; border-color: #BFDBFE; }
+
+/* ── Row action buttons ──────────────────────────────────────── */
+.pharm-portal .cm-row-actions { gap: 0.4rem; }
+.pharm-portal .cm-row-btn {
+  border-radius: 9px;
+  border: 1px solid var(--hc-border);
+  background: var(--hc-card);
+  color: var(--hc-blue);
+  padding: 0.46rem 0.85rem;
+  font-size: 0.78rem; font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.pharm-portal .cm-row-btn:hover {
+  background: var(--hc-blue); color: #fff; border-color: var(--hc-blue);
+  transform: translateY(-1px);
+}
+.pharm-portal .cm-row-btn--edit { color: var(--hc-blue); }
+.pharm-portal .cm-row-btn--warn { color: #B45309; }
+.pharm-portal .cm-row-btn--warn:hover { background: var(--hc-warning); color: #fff; border-color: var(--hc-warning); }
+.pharm-portal .cm-row-btn--delete { color: var(--hc-danger); }
+.pharm-portal .cm-row-btn--delete:hover { background: var(--hc-danger); color: #fff; border-color: var(--hc-danger); }
+
+/* ── Empty state ─────────────────────────────────────────────── */
+.pharm-portal .prescription-empty {
+  text-align: center; color: var(--hc-muted); padding: 2.2rem 1rem; font-size: 0.85rem;
+}
+
+/* ── Pagination ──────────────────────────────────────────────── */
+.pharm-portal .prescription-pagination { gap: 0.4rem; margin-top: 1.1rem; }
+.pharm-portal .pagination__button,
+.pharm-portal .pagination__page {
+  border: 1px solid var(--hc-border); background: var(--hc-card);
+  color: var(--hc-muted); border-radius: 8px;
+  min-width: 34px; height: 34px; padding: 0 0.5rem;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.pharm-portal .pagination__button:not([disabled]):hover,
+.pharm-portal .pagination__page:not(.pagination__page--active):hover {
+  background: var(--hc-blue-soft); color: var(--hc-blue); border-color: #BFDBFE;
+}
+.pharm-portal .pagination__button[disabled] { opacity: 0.5; cursor: not-allowed; }
+.pharm-portal .pagination__page--active {
+  background: var(--hc-blue); color: #fff; border-color: var(--hc-blue);
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .pharm-portal .cm-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .pharm-portal .cm-kpi-grid { grid-template-columns: 1fr; }
+  .pharm-portal .admin-page__header h1 { font-size: 1.4rem; }
+}

@@ -59,7 +59,10 @@ function ProductListingPage() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [minRating, setMinRating] = useState(0)
   const [availability, setAvailability] = useState<'all' | 'in_stock' | 'out_of_stock'>('all')
-  const [sortBy, setSortBy] = useState('recommended')
+  const SORT_OPTIONS = ['recommended', 'price-low', 'price-high', 'rating', 'newest'] as const
+  const initialSort = searchParams.get('sort')
+  const validInitialSort = initialSort && (SORT_OPTIONS as readonly string[]).includes(initialSort) ? initialSort : 'recommended'
+  const [sortBy, setSortBy] = useState(validInitialSort)
   const [restockAlerts, setRestockAlerts] = useState<Record<number, boolean>>({})
   const [addedProductId, setAddedProductId] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -134,8 +137,14 @@ function ProductListingPage() {
     setCurrentPage(1)
   }, [queryFromUrl, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
 
-  const prescriptionPathFor = (product: Pick<ListingProduct, 'id' | 'name'>) =>
-    `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+  const prescriptionPathFor = (product: Pick<ListingProduct, 'id' | 'name' | 'variantId'>) => {
+    const params = new URLSearchParams({
+      product_id: String(product.id),
+      product_name: product.name,
+    })
+    if (product.variantId) params.set('variant_id', String(product.variantId))
+    return `/prescriptions?${params.toString()}`
+  }
 
   const toggleWishlist = (product: ListingProduct) => {
     if (!isLoggedIn) {
