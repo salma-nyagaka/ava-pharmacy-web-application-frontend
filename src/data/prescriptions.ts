@@ -35,6 +35,8 @@ export interface PrescriptionRecord {
   id: string
   patient: string
   pharmacist: string
+  source?: 'upload' | 'e_prescription'
+  clinicianType?: 'doctor' | 'pediatrician' | ''
   status: PrescriptionStatus
   dispatchStatus: DispatchStatus
   submitted: string
@@ -171,6 +173,8 @@ export const createUploadedPrescription = (
     doctor: payload.doctor || 'Doctor not specified',
     submitted: toIsoDate(),
     pharmacist: 'Unassigned',
+    source: 'upload',
+    clinicianType: '',
     status: 'Pending',
     dispatchStatus: 'Not started',
     files: payload.files,

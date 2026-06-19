@@ -218,8 +218,16 @@ function ProductDetailPage() {
   const requiresPrescription = selectedVariant?.requires_prescription ?? product?.requires_prescription ?? false
 
   const prescriptionRedirectTarget = useMemo(
-    () => `/prescriptions?product_id=${product?.id ?? 0}&product_name=${encodeURIComponent(product?.name ?? '')}`,
-    [product?.id, product?.name],
+    () => {
+      const params = new URLSearchParams({
+        product_id: String(product?.id ?? 0),
+        product_name: product?.name ?? '',
+      })
+      const selectedVariantId = selectedVariant?.id
+      if (selectedVariantId) params.set('variant_id', String(selectedVariantId))
+      return `/prescriptions?${params.toString()}`
+    },
+    [product?.id, product?.name, selectedVariant?.id],
   )
   const loginForPrescriptionPath = `/login?redirect=${encodeURIComponent(prescriptionRedirectTarget)}`
   const registerForPrescriptionPath = `/register?redirect=${encodeURIComponent(prescriptionRedirectTarget)}`

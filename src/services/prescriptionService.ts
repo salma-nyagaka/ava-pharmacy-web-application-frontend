@@ -13,6 +13,12 @@ type UploadPayload = {
   doctor: string
   notes?: string
   files: File[]
+  requestedItem?: {
+    name: string
+    productId?: number | null
+    variantId?: number | null
+    quantity?: number
+  }
 }
 
 type ApiPrescriptionFile = {
@@ -55,6 +61,8 @@ type ApiPrescription = {
   patient_name: string
   patient_name_display?: string
   pharmacist_name?: string
+  source?: 'upload' | 'e_prescription'
+  clinician_type?: 'doctor' | 'pediatrician' | ''
   status: string
   dispatch_status: string
   submitted_at: string
@@ -160,6 +168,8 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
     id: record.reference,
     patient: record.patient_name_display || record.patient_name,
     pharmacist: record.pharmacist_name || 'Unassigned',
+    source: record.source || 'upload',
+    clinicianType: record.clinician_type || '',
     status: STATUS_FROM_API[record.status] ?? 'Pending',
     dispatchStatus: DISPATCH_FROM_API[record.dispatch_status] ?? 'Not started',
     submitted: record.submitted_at ? new Date(record.submitted_at).toISOString().slice(0, 10) : '',
@@ -241,6 +251,16 @@ export const prescriptionService = {
     formData.append('patient_name', payload.patient)
     formData.append('doctor_name', payload.doctor || '')
     formData.append('notes', payload.notes || '')
+    if (payload.requestedItem?.name) {
+      formData.append('items_json', JSON.stringify([{
+        name: payload.requestedItem.name,
+        product_id: payload.requestedItem.productId ?? null,
+        variant_id: payload.requestedItem.variantId ?? null,
+        dose: '',
+        frequency: '',
+        quantity: payload.requestedItem.quantity ?? 1,
+      }]))
+    }
     payload.files.forEach((file) => formData.append('files', file))
     try {
       await apiClient.post('/prescriptions/upload/', formData)

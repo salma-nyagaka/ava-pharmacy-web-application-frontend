@@ -227,8 +227,9 @@ function OrderTrackingPage() {
           </nav>
 
           <div className="track-page-header">
-            <h1>Track order</h1>
-            <p>Check status, payment, items, and delivery.</p>
+            <span>Order tracking</span>
+            <h1>Track your AVA Pharmacy order</h1>
+            <p>Enter your order number and checkout contact to see the latest payment, packing, and delivery updates.</p>
           </div>
 
           <div className="track-card track-hero">
@@ -236,6 +237,20 @@ function OrderTrackingPage() {
               <span className="track-chip">Order lookup</span>
               <h2>Enter your order details</h2>
               <p>Use your order number and the phone or email used at checkout.</p>
+              <div className="track-lookup-guide" aria-label="Order tracking help">
+                <div>
+                  <strong>1</strong>
+                  <span>Find your order number in your confirmation email or SMS.</span>
+                </div>
+                <div>
+                  <strong>2</strong>
+                  <span>Use the same phone or email entered at checkout.</span>
+                </div>
+                <div>
+                  <strong>3</strong>
+                  <span>View status, payment, delivery address, and item details.</span>
+                </div>
+              </div>
               {searchParams.get('order') && (
                 <p className="track-inline-help">Order number filled from checkout.</p>
               )}

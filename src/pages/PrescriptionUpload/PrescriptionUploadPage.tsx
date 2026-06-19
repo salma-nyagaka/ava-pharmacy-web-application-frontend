@@ -9,10 +9,15 @@ import '../../styles/pages/AccountConsultationsPage.css'
 import '../../styles/pages/PrescriptionHistoryPage.css'
 import '../../styles/pages/PrescriptionUploadPage.css'
 
-type SourceFilter = 'All' | 'Uploaded' | 'E-Prescription'
+type SourceFilter = 'all' | 'upload' | 'doctor' | 'pediatrician'
 type StatusFilter = 'all' | PrescriptionStatus
 
-const SOURCE_TABS: readonly SourceFilter[] = ['All', 'Uploaded', 'E-Prescription']
+const SOURCE_TABS: readonly { key: SourceFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'upload', label: 'Uploaded Prescription' },
+  { key: 'doctor', label: 'Doctor Prescription' },
+  { key: 'pediatrician', label: 'Pediatrician Prescription' },
+]
 const STATUS_FILTERS: readonly { key: StatusFilter; label: string }[] = [
   { key: 'all', label: 'All status' },
   { key: 'Pending', label: 'Pending' },
@@ -40,7 +45,27 @@ function formatDate(value: string) {
 }
 
 function isEPrescription(rx: PrescriptionRecord) {
-  return rx.notes?.toLowerCase().includes('e-prescription') || rx.doctor?.toLowerCase().includes('clinician')
+  return rx.source === 'e_prescription' || rx.notes?.toLowerCase().includes('e-prescription') || rx.doctor?.toLowerCase().includes('clinician')
+}
+
+function isPediatricianPrescription(rx: PrescriptionRecord) {
+  const haystack = [rx.id, rx.doctor, rx.notes].join(' ').toLowerCase()
+  return isEPrescription(rx) && (
+    rx.clinicianType === 'pediatrician'
+    || haystack.includes('pediatric')
+    || haystack.includes('paediatric')
+    || haystack.includes('ped-rx')
+  )
+}
+
+function isDoctorPrescription(rx: PrescriptionRecord) {
+  return isEPrescription(rx) && !isPediatricianPrescription(rx)
+}
+
+function sourceLabelForPrescription(rx: PrescriptionRecord) {
+  if (isPediatricianPrescription(rx)) return 'Pediatrician Prescription'
+  if (isDoctorPrescription(rx)) return 'Doctor Prescription'
+  return 'Uploaded'
 }
 
 function formatFileLabel(value: string, index: number) {
@@ -114,11 +139,13 @@ function PrescriptionUploadPage() {
   const [submitted, setSubmitted] = useState(false)
   const [submittedId, setSubmittedId] = useState('')
   const requestedProductName = searchParams.get('product_name')?.trim() ?? ''
+  const requestedProductId = Number(searchParams.get('product_id') || 0) || null
+  const requestedVariantId = Number(searchParams.get('variant_id') || 0) || null
   const [showUploadForm, setShowUploadForm] = useState(Boolean(requestedProductName))
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [activeSource, setActiveSource] = useState<SourceFilter>('All')
+  const [activeSource, setActiveSource] = useState<SourceFilter>('all')
   const [activeStatus, setActiveStatus] = useState<StatusFilter>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
@@ -161,17 +188,19 @@ function PrescriptionUploadPage() {
   }, [isLoggedIn, showUploadForm])
 
   const counts = useMemo(() => ({
-    All: prescriptions.length,
-    Uploaded: prescriptions.filter((rx) => !isEPrescription(rx)).length,
-    'E-Prescription': prescriptions.filter(isEPrescription).length,
+    all: prescriptions.length,
+    upload: prescriptions.filter((rx) => !isEPrescription(rx)).length,
+    doctor: prescriptions.filter(isDoctorPrescription).length,
+    pediatrician: prescriptions.filter(isPediatricianPrescription).length,
     pending: prescriptions.filter((rx) => rx.status === 'Pending').length,
     clarification: prescriptions.filter((rx) => rx.status === 'Clarification').length,
     approved: prescriptions.filter((rx) => rx.status === 'Approved').length,
   }), [prescriptions])
 
   const filteredPrescriptions = useMemo(() => prescriptions.filter((rx) => {
-    if (activeSource === 'Uploaded' && isEPrescription(rx)) return false
-    if (activeSource === 'E-Prescription' && !isEPrescription(rx)) return false
+    if (activeSource === 'upload' && isEPrescription(rx)) return false
+    if (activeSource === 'doctor' && !isDoctorPrescription(rx)) return false
+    if (activeSource === 'pediatrician' && !isPediatricianPrescription(rx)) return false
     if (activeStatus !== 'all' && rx.status !== activeStatus) return false
     return true
   }), [activeSource, activeStatus, prescriptions])
@@ -248,6 +277,14 @@ function PrescriptionUploadPage() {
         requestedProductName ? `Requested product: ${requestedProductName}` : '',
       ].filter(Boolean).join('\n'),
       files: uploadedFiles,
+      requestedItem: requestedProductName
+        ? {
+          name: requestedProductName,
+          productId: requestedProductId,
+          variantId: requestedVariantId,
+          quantity: 1,
+        }
+        : undefined,
     }).then((response) => {
       const newest = response.data.find(
         (record) => record.patient.toLowerCase() === patientName.toLowerCase() && record.status === 'Pending'
@@ -355,13 +392,13 @@ function PrescriptionUploadPage() {
             <div className="ac-tabs">
               {SOURCE_TABS.map((tab) => (
                 <button
-                  key={tab}
+                  key={tab.key}
                   type="button"
-                  className={`ac-tab${activeSource === tab ? ' ac-tab--active' : ''}`}
-                  onClick={() => setActiveSource(tab)}
+                  className={`ac-tab${activeSource === tab.key ? ' ac-tab--active' : ''}`}
+                  onClick={() => setActiveSource(tab.key)}
                 >
-                  {tab}
-                  <span className="ac-tab__count">{counts[tab]}</span>
+                  {tab.label}
+                  <span className="ac-tab__count">{counts[tab.key]}</span>
                 </button>
               ))}
             </div>
@@ -412,7 +449,7 @@ function PrescriptionUploadPage() {
               {filteredPrescriptions.map((rx) => {
                 const status = STATUS_CFG[rx.status]
                 const isExpanded = expandedId === rx.id
-                const sourceLabel = isEPrescription(rx) ? 'E-Prescription' : 'Uploaded'
+                const sourceLabel = sourceLabelForPrescription(rx)
                 const threadCount = rx.clarificationMessages.length || (rx.clarificationMessage ? 1 : 0)
                 const latestThreadMessage = rx.clarificationMessages.length > 0
                   ? rx.clarificationMessages[rx.clarificationMessages.length - 1]
