@@ -285,8 +285,8 @@ function DealsManagement() {
   )
   const productOptions = useMemo<TargetOption[]>(
     () => products.map((product) => ({
-      value: product.sku || product.slug || String(product.id),
-      label: product.sku ? `${product.name} (${product.sku})` : product.name,
+      value: product.slug || String(product.id),
+      label: product.name,
     })),
     [products],
   )

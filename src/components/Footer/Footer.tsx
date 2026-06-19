@@ -119,32 +119,10 @@ function Footer() {
               </ul>
             </div>
 
-            {/* Map */}
             <div className="footer__column">
-              <h4 className="footer__title">Find Us</h4>
-              <div className="footer__map-card">
-                <div className="footer__map">
-                  <iframe
-                    title=" location"
-                    src="https://maps.google.com/maps?q=The+Hub+Karen,Nairobi,Kenya&output=embed&z=15"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    allowFullScreen
-                  />
-                </div>
-                <a
-                  href="https://maps.google.com/?q=The+Hub+Karen,Nairobi,Kenya"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="footer__map-cta"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                    <circle cx="12" cy="10" r="3"/>
-                  </svg>
-                  Get Directions
-                </a>
-              </div>
+              <h4 className="footer__title">Location</h4>
+              <p className="footer__location">{settings.supportAddress}</p>
+              <Link to="/contact" className="footer__location-link">Contact Us</Link>
             </div>
 
           </div>

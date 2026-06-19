@@ -1,12 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { fetchOrder, type Order } from '../../services/orderService'
+import { formatPhoneHref } from '../../services/siteSettingsService'
 import '../../styles/pages/OrderConfirmationPage.css'
 
 const CHECKOUT_ORDER_STORAGE_KEY = 'ava_checkout_order_id'
 
 const formatKsh = (amount: string | number) =>
   `KSh ${Number(amount).toLocaleString('en-KE', { minimumFractionDigits: 0 })}`
+
+const formatOrderDate = (value: string) =>
+  new Date(value).toLocaleString('en-KE', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 
 const paymentMethodLabel: Record<string, string> = {
   mpesa_stk: 'M-Pesa STK Push',
@@ -54,17 +65,9 @@ function TruckIcon() {
   )
 }
 
-function MapPinIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-      <circle cx="12" cy="10" r="3"/>
-    </svg>
-  )
-}
-
 function OrderConfirmationPage() {
   const location = useLocation()
+  const { settings } = useSiteSettings()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -121,6 +124,51 @@ function OrderConfirmationPage() {
   const customerName = [order.shipping_first_name, order.shipping_last_name]
     .filter(Boolean)
     .join(' ')
+  const orderDate = formatOrderDate(order.created_at)
+  const estimatedDelivery = order.shipping_method?.estimated_delivery_window || '1-2 business days'
+  const paymentLabel = paymentMethodLabel[order.payment_method] ?? order.payment_method.replace(/_/g, ' ')
+  const discountTotal = Number(order.discount_total)
+  const supportHref = `tel:${formatPhoneHref(settings.supportPhone)}`
+
+  const statusOrder = ['pending', 'processing', 'shipped', 'delivered']
+  const currentStatusIndex = Math.max(0, statusOrder.indexOf(order.status))
+  const isStageDone = (stageIndex: number) => stageIndex <= currentStatusIndex
+  const isStageCurrent = (stageIndex: number) => stageIndex === currentStatusIndex
+
+  const timelineStages = [
+    { key: 'received', label: 'Order Received', eta: 'Now', stage: 0 },
+    { key: 'review', label: 'Review & Packaging', eta: 'Pharmacist checks and prepares items', stage: 1 },
+    { key: 'dispatched', label: 'Dispatched', eta: 'Courier handoff', stage: 2 },
+    { key: 'delivered', label: 'Delivered', eta: estimatedDelivery, stage: 3 },
+  ]
+
+  const invoiceText = [
+    'AVA Pharmacy Invoice',
+    `Order: ${order.order_number}`,
+    `Date: ${orderDate}`,
+    `Customer: ${customerName || 'Customer'}`,
+    `Payment: ${paymentLabel} - ${order.payment_status}`,
+    '',
+    'Items',
+    ...order.items.map((item) => `${item.quantity} x ${item.product_name} @ ${formatKsh(item.unit_price)} = ${formatKsh(item.subtotal)}`),
+    '',
+    `Subtotal: ${formatKsh(order.subtotal)}`,
+    `Discounts: ${discountTotal > 0 ? `-${formatKsh(order.discount_total)}` : formatKsh(0)}`,
+    `Delivery Fee: ${Number(order.shipping_fee) === 0 ? 'Free' : formatKsh(order.shipping_fee)}`,
+    `Total Paid: ${formatKsh(order.total)}`,
+  ].join('\n')
+
+  const downloadInvoice = () => {
+    const blob = new Blob([invoiceText], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `invoice-${order.order_number}.txt`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
 
   const handleCopyOrderNumber = async () => {
     try {
@@ -145,19 +193,23 @@ function OrderConfirmationPage() {
           <span>Confirmation</span>
         </nav>
 
-        {/* Success banner */}
         <div className="oc-banner">
           <div className="oc-banner__icon">
-            <CheckIcon size={26} />
+            <CheckIcon size={34} />
           </div>
           <div className="oc-banner__text">
-            <h1 className="oc-banner__title">Order confirmed!</h1>
+            <p className="oc-banner__eyebrow">Order confirmed</p>
+            <h1 className="oc-banner__title">Thank you for choosing AVA Pharmacy</h1>
             <p className="oc-banner__sub">
               Thank you{customerName ? `, ${customerName.split(' ')[0]}` : ''}. We've received your order and will start preparing it shortly.
             </p>
+            <div className="oc-banner__meta">
+              <span><strong>Date</strong>{orderDate}</span>
+              <span><strong>Estimated delivery</strong>{estimatedDelivery}</span>
+              <span><strong>Payment</strong>{statusChip(order.payment_status)}</span>
+            </div>
           </div>
           <div className="oc-banner__order-no">
-            <span>Order number</span>
             <div className="oc-banner__order-no-row">
               <strong>{order.order_number}</strong>
               <button
@@ -174,15 +226,17 @@ function OrderConfirmationPage() {
               </button>
             </div>
             {copiedOrderNumber && <small className="oc-banner__copy-state">Copied</small>}
+            <div className="oc-receipt-actions" aria-label="Receipt actions">
+              <button type="button" onClick={downloadInvoice}>Download invoice</button>
+              <button type="button" onClick={() => window.print()}>Print</button>
+            </div>
           </div>
         </div>
 
         <div className="oc-layout">
 
-          {/* ── Left column ── */}
           <div>
 
-            {/* Items */}
             <div className="oc-section">
               <div className="oc-section__head">
                 <span className="oc-section__icon">
@@ -194,12 +248,24 @@ function OrderConfirmationPage() {
               <div className="oc-items">
                 {order.items.map((item) => (
                   <div key={item.id} className="oc-item">
-                    <div className="oc-item__qty">{item.quantity}</div>
-                    <div className="oc-item__name">
-                      {item.product_name}
-                      <span className="oc-item__sku">{item.product_sku}</span>
+                    <div className="oc-item__thumb" aria-hidden="true">
+                      {item.product_name.slice(0, 2).toUpperCase()}
                     </div>
-                    <span className="oc-item__price">{formatKsh(item.subtotal)}</span>
+                    <div className="oc-item__main">
+                      <p className="oc-item__category">Pharmacy item</p>
+                      <div className="oc-item__name">
+                        {item.product_name}
+                        <span className="oc-item__sku">{item.product_sku}</span>
+                      </div>
+                    </div>
+                    <div className="oc-item__qty">
+                      <span>Qty</span>
+                      <strong>{item.quantity}</strong>
+                    </div>
+                    <div className="oc-item__money">
+                      <span>{formatKsh(item.unit_price)} each</span>
+                      <strong>{formatKsh(item.subtotal)}</strong>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -209,9 +275,9 @@ function OrderConfirmationPage() {
                   <span>Subtotal</span>
                   <span>{formatKsh(order.subtotal)}</span>
                 </div>
-                {Number(order.discount_total) > 0 && (
+                {discountTotal > 0 && (
                   <div className="oc-totals__row">
-                    <span>Discount</span>
+                    <span>Savings / discounts</span>
                     <span style={{ color: '#16a34a' }}>− {formatKsh(order.discount_total)}</span>
                   </div>
                 )}
@@ -226,132 +292,57 @@ function OrderConfirmationPage() {
               </div>
             </div>
 
-            {/* Delivery details */}
+          </div>
+
+          <div>
+
             <div className="oc-section">
               <div className="oc-section__head">
                 <span className="oc-section__icon">
                   <TruckIcon />
                 </span>
-                <h2 className="oc-section__title">Delivery details</h2>
+                <h2 className="oc-section__title">Delivery & status</h2>
               </div>
-              <div className="oc-info-rows">
-                {customerName && (
-                  <div className="oc-info-row">
-                    <span className="oc-info-row__label">Name</span>
-                    <span className="oc-info-row__value">{customerName}</span>
-                  </div>
-                )}
-                {order.shipping_email && (
-                  <div className="oc-info-row">
-                    <span className="oc-info-row__label">Email</span>
-                    <span className="oc-info-row__value">{order.shipping_email}</span>
-                  </div>
-                )}
-                {order.shipping_phone && (
-                  <div className="oc-info-row">
-                    <span className="oc-info-row__label">Phone</span>
-                    <span className="oc-info-row__value">{order.shipping_phone}</span>
-                  </div>
-                )}
-                {address && (
-                  <div className="oc-info-row">
-                    <span className="oc-info-row__label">Address</span>
-                    <span className="oc-info-row__value">{address}</span>
-                  </div>
-                )}
-                {order.shipping_method && (
-                  <div className="oc-info-row">
-                    <span className="oc-info-row__label">Method</span>
-                    <span className="oc-info-row__value">
-                      {order.shipping_method.name}
-                      {order.shipping_method.estimated_delivery_window && (
-                        <span style={{ color: '#94a3b8', marginLeft: '0.4rem', fontSize: '0.8125rem' }}>
-                          · {order.shipping_method.estimated_delivery_window}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                )}
-                <div className="oc-info-row">
-                  <span className="oc-info-row__label">Payment</span>
-                  <span className="oc-info-row__value" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {paymentMethodLabel[order.payment_method] ?? order.payment_method}
-                    {statusChip(order.payment_status)}
-                  </span>
+
+              <div className="oc-summary-list">
+                <div>
+                  <span>Customer</span>
+                  <strong>{customerName || 'Customer'}</strong>
+                  {order.shipping_phone && <small>{order.shipping_phone}</small>}
                 </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* ── Right column ── */}
-          <div>
-
-            {/* What happens next */}
-            <div className="oc-section">
-              <div className="oc-section__head">
-                <span className="oc-section__icon oc-section__icon--green">
-                  <MapPinIcon />
-                </span>
-                <h2 className="oc-section__title">What happens next</h2>
+                <div>
+                  <span>Delivery address</span>
+                  <strong>{address || order.shipping_address || 'Address pending'}</strong>
+                  <small>{order.shipping_method?.name || 'Doorstep delivery'}</small>
+                </div>
+                <div>
+                  <span>Payment</span>
+                  <strong>{paymentLabel}</strong>
+                  {statusChip(order.payment_status)}
+                </div>
               </div>
 
               <div className="oc-timeline">
-                <div className="oc-step">
-                  <div className="oc-step__dot oc-step__dot--done">
-                    <CheckIcon size={14} />
+                {timelineStages.map((stage) => (
+                  <div key={stage.key} className={`oc-step ${isStageDone(stage.stage) ? 'oc-step--done' : ''} ${isStageCurrent(stage.stage) ? 'oc-step--active' : ''}`}>
+                    <div className="oc-step__dot">
+                      {isStageDone(stage.stage) ? <CheckIcon size={14} /> : <span />}
+                    </div>
+                    <div className="oc-step__text">
+                      <p className="oc-step__title">{stage.label}</p>
+                      <p className="oc-step__sub">{stage.eta}</p>
+                    </div>
                   </div>
-                  <div className="oc-step__text">
-                    <p className="oc-step__title">Order received</p>
-                    <p className="oc-step__sub">Your order has been placed successfully.</p>
-                  </div>
-                </div>
-                <div className="oc-step">
-                  <div className="oc-step__dot oc-step__dot--active">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                      <circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/>
-                    </svg>
-                  </div>
-                  <div className="oc-step__text">
-                    <p className="oc-step__title">Pharmacist review</p>
-                    <p className="oc-step__sub">Prescription verified &amp; items checked.</p>
-                  </div>
-                </div>
-                <div className="oc-step">
-                  <div className="oc-step__dot">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                      <rect x="2" y="7" width="14" height="10" rx="2"/><path d="M16 10h4l2 4v3h-6"/>
-                      <circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/>
-                    </svg>
-                  </div>
-                  <div className="oc-step__text">
-                    <p className="oc-step__title">Dispatched</p>
-                    <p className="oc-step__sub">Courier picks up within 2 hours.</p>
-                  </div>
-                </div>
-                <div className="oc-step">
-                  <div className="oc-step__dot">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                      <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                  </div>
-                  <div className="oc-step__text">
-                    <p className="oc-step__title">Delivered</p>
-                    <p className="oc-step__sub">SMS updates sent until delivery.</p>
-                  </div>
-                </div>
+                ))}
               </div>
 
               <div className="oc-cta">
                 <Link to={`/track-order?order=${order.order_number}`} className="btn btn--primary">
-                  Track order
+                  Track Order
                 </Link>
-                <Link to="/account/orders" className="btn btn--secondary">
-                  View all orders
-                </Link>
+                <a href={supportHref} className="btn btn--secondary">Contact Pharmacist</a>
                 <Link to="/products" className="btn btn--ghost">
-                  Continue shopping
+                  Continue Shopping
                 </Link>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { FormEvent, Fragment, useEffect, useMemo, useState } from 'react'
+import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PrescriptionClarificationMessage, PrescriptionRecord } from '../../data/prescriptions'
 import { resolveMediaUrl } from '../../lib/apiClient'
@@ -6,6 +6,7 @@ import { prescriptionService } from '../../services/prescriptionService'
 import '../../styles/pages/PrescriptionHistoryPage.css'
 
 type SourceFilter = 'all' | 'upload' | 'e_prescription'
+const PAGE_SIZE = 8
 
 function statusPillClass(status: string) {
   if (status === 'Approved') return 'status-pill--success'
@@ -49,30 +50,35 @@ function fallbackClarificationMessages(rx: PrescriptionRecord): PrescriptionClar
 function PrescriptionHistoryPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const targetPrescription = searchParams.get('prescription')
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [isAddingItemId, setIsAddingItemId] = useState<number | null>(null)
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
+  const [currentPage, setCurrentPage] = useState(1)
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
   const [selectedResubmitFiles, setSelectedResubmitFiles] = useState<Record<string, File[]>>({})
   const [sendingReplyId, setSendingReplyId] = useState<number | null>(null)
   const [resubmittingId, setResubmittingId] = useState<number | null>(null)
 
   useEffect(() => {
-    void prescriptionService.list().then((response) => setPrescriptions(response.data))
+    void prescriptionService.list({ scope: 'patient' }).then((response) => setPrescriptions(response.data))
   }, [])
 
   useEffect(() => {
     if (!prescriptions.length) return
-    const target = searchParams.get('prescription')
-    if (!target) return
-    const match = prescriptions.find((rx) => String(rx.backendId) === target || rx.id === target)
+    if (!targetPrescription) return
+    const match = prescriptions.find((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
     if (!match) return
     setExpandedId(match.id)
     setActiveRx(match)
-  }, [prescriptions, searchParams])
+    window.requestAnimationFrame(() => {
+      rowRefs.current[match.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [prescriptions, targetPrescription])
 
   useEffect(() => {
     if (!activeRx) return
@@ -82,14 +88,41 @@ function PrescriptionHistoryPage() {
     }
   }, [prescriptions, activeRx])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [sourceFilter])
+
   const sortedPrescriptions = useMemo(() => {
     const filtered = prescriptions.filter((rx) => {
       if (sourceFilter === 'e_prescription') return rx.notes?.toLowerCase().includes('e-prescription') || rx.doctor?.toLowerCase().includes('clinician')
       if (sourceFilter === 'upload') return !rx.notes?.toLowerCase().includes('e-prescription')
       return true
     })
-    return [...filtered].sort((a, b) => b.id.localeCompare(a.id))
+    return filtered
   }, [prescriptions, sourceFilter])
+
+  const totalPages = Math.max(1, Math.ceil(sortedPrescriptions.length / PAGE_SIZE))
+  const pageStart = (currentPage - 1) * PAGE_SIZE
+  const pagedPrescriptions = sortedPrescriptions.slice(pageStart, pageStart + PAGE_SIZE)
+
+  useEffect(() => {
+    if (!targetPrescription) return
+    const targetIndex = sortedPrescriptions.findIndex((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
+    if (targetIndex >= 0) {
+      setCurrentPage(Math.floor(targetIndex / PAGE_SIZE) + 1)
+    }
+  }, [sortedPrescriptions, targetPrescription])
+
+  useEffect(() => {
+    if (!targetPrescription) return
+    const match = pagedPrescriptions.find((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
+    if (!match) return
+    setExpandedId(match.id)
+    setActiveRx(match)
+    window.requestAnimationFrame(() => {
+      rowRefs.current[match.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [pagedPrescriptions, targetPrescription])
 
   const handleAddApprovedItem = async (prescriptionId: string, itemId?: number, name?: string) => {
     if (!itemId) {
@@ -272,6 +305,10 @@ function PrescriptionHistoryPage() {
     setExpandedId((prev) => (prev === id ? null : id))
   }
 
+  const isTargetPrescription = (rx: PrescriptionRecord) => (
+    Boolean(targetPrescription) && (String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
+  )
+
   return (
     <div className="rx-page">
       <div className="rx-header">
@@ -309,9 +346,14 @@ function PrescriptionHistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {sortedPrescriptions.map((rx) => (
+            {pagedPrescriptions.map((rx) => (
               <Fragment key={rx.id}>
-                <tr>
+                <tr
+                  ref={(node) => {
+                    rowRefs.current[rx.id] = node
+                  }}
+                  className={isTargetPrescription(rx) ? 'rx-row--target' : undefined}
+                >
                   <td>
                     <button
                       className="rx-expand-btn"
@@ -404,6 +446,23 @@ function PrescriptionHistoryPage() {
         {message && <p className="card__meta" style={{ marginTop: '0.75rem' }}>{message}</p>}
       </div>
 
+      {sortedPrescriptions.length > PAGE_SIZE && (
+        <div className="rx-pagination">
+          <span className="rx-pagination__info">
+            Showing {pageStart + 1}-{Math.min(pageStart + PAGE_SIZE, sortedPrescriptions.length)} of {sortedPrescriptions.length}
+          </span>
+          <div className="rx-pagination__controls">
+            <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>Prev</button>
+            <div className="pagination__pages">
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>{page}</button>
+              ))}
+            </div>
+            <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>Next</button>
+          </div>
+        </div>
+      )}
+
       {activeRx && (
         <div className="modal-overlay" onClick={() => setActiveRx(null)}>
           <div className="modal rx-modal" onClick={(event) => event.stopPropagation()}>
@@ -482,12 +541,12 @@ function PrescriptionHistoryPage() {
                   <h3>Approved items</h3>
                   <span>{activeRx.items.length}</span>
                 </div>
-                <div className="rx-approved-items rx-approved-items--modal">
+                <ul className="rx-approved-items rx-approved-items--modal rx-approved-items--simple">
                   {activeRx.items.length === 0 ? (
                     <p className="rx-modal__empty">No fulfilment items have been set yet.</p>
                   ) : (
                     activeRx.items.map((item) => (
-                      <div key={`${item.backendId || item.name}-${item.name}`} className="rx-approved-items__row">
+                      <li key={`${item.backendId || item.name}-${item.name}`} className="rx-approved-items__row">
                         <div>
                           <p className="rx-approved-items__name">{item.productName || item.name}</p>
                           <p className="rx-approved-items__meta">{item.dose} · {item.frequency} · Qty {item.qty}</p>
@@ -504,10 +563,10 @@ function PrescriptionHistoryPage() {
                         ) : (
                           <span className="status-pill status-pill--warning">Awaiting mapping</span>
                         )}
-                      </div>
+                      </li>
                     ))
                   )}
-                </div>
+                </ul>
               </section>
             </div>
             <div className="modal__footer rx-modal__footer">

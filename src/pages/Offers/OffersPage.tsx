@@ -157,6 +157,8 @@ function OffersPage() {
     }
     void cartService.add({
       id: deal.id,
+      productId: deal.productId,
+      variantId: deal.variantId,
       name: deal.name,
       brand: deal.brand,
       price: deal.price,

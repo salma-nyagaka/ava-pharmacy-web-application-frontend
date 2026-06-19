@@ -144,18 +144,32 @@ function ProductDetailPage() {
     }
   }, [parsedId])
 
+  const selectedVariant = useMemo(() => {
+    if (!product?.variants?.length) return null
+    return (
+      product.variants.find((variant) => variant.id === parsedId)
+      ?? product.variants.find((variant) => variant.is_active && (variant.available_quantity ?? 0) > 0)
+      ?? product.variants.find((variant) => variant.is_active)
+      ?? product.variants[0]
+    )
+  }, [parsedId, product])
+
+  const commerceProductId = product?.id ?? parsedId
+  const commerceVariantId = selectedVariant?.id
+  const wishlistItemId = commerceVariantId ?? commerceProductId
+
   useEffect(() => {
-    if (!parsedId) return
+    if (!wishlistItemId) return
 
     const refreshWishlist = () => {
       void favouritesService.list().then((response) => {
-        setIsFavourite(response.data.some((item) => item.id === parsedId))
+        setIsFavourite(response.data.some((item) => item.id === wishlistItemId || item.variantId === wishlistItemId))
       })
     }
 
     refreshWishlist()
     return favouritesService.subscribe(refreshWishlist)
-  }, [parsedId])
+  }, [wishlistItemId])
 
   useEffect(() => {
     const currentUserReview = reviews.find((review) => review.user === user?.id)
@@ -175,26 +189,33 @@ function ProductDetailPage() {
 
   const imageGallery = useMemo(() => {
     if (!product) return []
-    const gallery = [product.image, ...(product.gallery ?? []).map((item) => item.image)].filter(Boolean) as string[]
+    const gallery = [selectedVariant?.image, product.image, ...(product.gallery ?? []).map((item) => item.image)].filter(Boolean) as string[]
     return Array.from(new Set(gallery))
-  }, [product])
+  }, [product, selectedVariant?.image])
 
-  const currentPrice = Number.parseFloat(product?.final_price ?? product?.price ?? '0')
-  const originalPrice = product?.original_price ? Number.parseFloat(product.original_price) : null
+  const currentPrice = Number.parseFloat(selectedVariant?.final_price ?? selectedVariant?.effective_price ?? selectedVariant?.price ?? product?.final_price ?? product?.price ?? '0')
+  const originalPrice = selectedVariant?.original_price
+    ? Number.parseFloat(selectedVariant.original_price)
+    : product?.original_price
+      ? Number.parseFloat(product.original_price)
+      : null
   const averageRating = product?.average_rating ?? 0
   const reviewCount = product?.review_count ?? 0
   const featureList = normalizeFeatures(product?.features ?? [])
 
-  const stockSource: StockSource = liveAvailability?.stock_source === 'warehouse'
+  const stockSource: StockSource = selectedVariant?.stock_source === 'warehouse' || liveAvailability?.stock_source === 'warehouse'
     ? 'warehouse'
-    : liveAvailability?.stock_source === 'out'
+    : selectedVariant?.stock_source === 'out' || liveAvailability?.stock_source === 'out'
       ? 'out'
-      : product?.inventory_status === 'backorder'
+      : selectedVariant?.inventory_status === 'backorder' || product?.inventory_status === 'backorder'
         ? 'warehouse'
-        : product?.inventory_status === 'out_of_stock'
+        : selectedVariant?.inventory_status === 'out_of_stock' || product?.inventory_status === 'out_of_stock'
           ? 'out'
           : 'branch'
-  const inStock = liveAvailability?.is_available ?? Boolean(product?.can_purchase)
+  const inStock = selectedVariant
+    ? (selectedVariant.available_quantity ?? 0) > 0
+    : liveAvailability?.is_available ?? Boolean(product?.can_purchase)
+  const requiresPrescription = selectedVariant?.requires_prescription ?? product?.requires_prescription ?? false
 
   const prescriptionRedirectTarget = useMemo(
     () => `/prescriptions?product_id=${product?.id ?? 0}&product_name=${encodeURIComponent(product?.name ?? '')}`,
@@ -231,7 +252,7 @@ function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (!product) return
-    if (product.requires_prescription) {
+    if (requiresPrescription) {
       setCartMessage('Upload a valid prescription first. Approved prescription items can then be requested from your prescription history.')
       return
     }
@@ -239,8 +260,10 @@ function ProductDetailPage() {
 
     await cartService.add(
       {
-        id: product.id,
-        name: product.name,
+        id: wishlistItemId,
+        productId: commerceProductId,
+        variantId: commerceVariantId,
+        name: selectedVariant?.name ?? product.name,
         brand: product.brand?.name ?? product.brand_name,
         price: currentPrice,
         image: imageGallery[0] ?? '',
@@ -259,8 +282,10 @@ function ProductDetailPage() {
       return
     }
     void favouritesService.toggle({
-      id: product.id,
-      name: product.name,
+      id: wishlistItemId,
+      productId: commerceProductId,
+      variantId: commerceVariantId,
+      name: selectedVariant?.name ?? product.name,
       brand: product.brand?.name ?? product.brand_name,
       price: currentPrice,
       originalPrice,
@@ -306,7 +331,10 @@ function ProductDetailPage() {
     return (
       <div className="pdp">
         <div className="container">
-          <p>Loading product…</p>
+          <div className="pdp-state">
+            <p className="pdp-state__eyebrow">Loading</p>
+            <h1>Loading product</h1>
+          </div>
         </div>
       </div>
     )
@@ -316,7 +344,12 @@ function ProductDetailPage() {
     return (
       <div className="pdp">
         <div className="container">
-          <p>{loadError || 'Product not found.'}</p>
+          <div className="pdp-state">
+            <p className="pdp-state__eyebrow">Product unavailable</p>
+            <h1>{loadError || 'Product not found.'}</h1>
+            <p>Try browsing the catalog or checking the product link again.</p>
+            <Link to="/products" className="btn btn--primary btn--sm">Browse products</Link>
+          </div>
         </div>
       </div>
     )
@@ -369,7 +402,7 @@ function ProductDetailPage() {
               )}
             </div>
 
-            <p className="pdp__sku">SKU: {product.sku}</p>
+            <p className="pdp__sku">SKU: {selectedVariant?.sku ?? product.sku}</p>
 
             <div className="pdp__availability">
               {inStock ? (
@@ -390,7 +423,7 @@ function ProductDetailPage() {
               <p>{product.description || product.short_description}</p>
             </div>
 
-            {product.requires_prescription ? (
+            {requiresPrescription ? (
               <div className="pdp__rx-gate">
                 <div className="pdp__rx-gate-badge">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

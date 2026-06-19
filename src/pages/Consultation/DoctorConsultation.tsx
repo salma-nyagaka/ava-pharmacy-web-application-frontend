@@ -58,6 +58,7 @@ const SPECIALTIES = [
   'Urology',
   'Women\'s Health',
 ]
+const CONSULTATION_PAYMENT_PLACEHOLDER = 1
 
 function sortConsultations(items: ConsultationRecord[]) {
   return [...items].sort((a, b) => {
@@ -95,6 +96,13 @@ function formatDateTime(value?: string | null) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  const data = (error as { response?: { data?: { error?: { message?: string }; detail?: string | string[]; message?: string } } })?.response?.data
+  const detail = data?.error?.message ?? data?.message ?? data?.detail
+  if (Array.isArray(detail)) return detail[0] || fallback
+  return detail || fallback
 }
 
 function mapViewState(consultation: ConsultationRecord | null): ConsultationViewState {
@@ -246,8 +254,7 @@ function DoctorConsultation() {
     return null
   }, [currentConsultation?.doctor, doctors])
   const routingDoctorsCount = filteredDoctors.length
-  const estimatedFee = filteredDoctors[0]?.consultFee ?? doctors[0]?.consultFee ?? 0
-  const selectedFee = estimatedFee
+  const paymentPlaceholderAmount = CONSULTATION_PAYMENT_PLACEHOLDER
   const queueLabel = formData.urgency === 'Urgent' ? 'Priority queue' : 'Standard queue'
   const routingLabel = formData.specialty || 'Any available doctor'
   const hubFiltered = useMemo(() => {
@@ -362,10 +369,6 @@ function DoctorConsultation() {
       setSubmitError('Please complete your consultation details first.')
       return
     }
-    if (selectedFee <= 0) {
-      setSubmitError('This doctor does not have a consultation fee configured.')
-      return
-    }
     if (mpesaFlow === 'stk') {
       const normalized = mpesaPhone.trim().replace(/\s+/g, '')
       if (!/^(\+?254|0)?7\d{8}$/.test(normalized)) {
@@ -401,9 +404,10 @@ function DoctorConsultation() {
           : 'Use the Paybill details shown, then click Confirm payment. Chat opens only after Safaricom confirms the payment.',
       )
     } catch (error) {
-      const message = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      const message = apiErrorMessage(error, 'Unable to start M-Pesa payment. Please try again.')
       setPaymentStatus('failed')
-      setSubmitError(message || 'Unable to start M-Pesa payment. Please try again.')
+      setPaymentNotice(message)
+      setSubmitError(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -447,9 +451,10 @@ function DoctorConsultation() {
         setPaymentNotice('Payment is not confirmed yet. Complete the M-Pesa payment, then check status again.')
       }
     } catch (error) {
-      const message = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      const message = apiErrorMessage(error, 'Payment is not confirmed yet. Please check again after completing M-Pesa payment.')
       setPaymentStatus('waiting')
-      setSubmitError(message || 'Payment is not confirmed yet. Please check again after completing M-Pesa payment.')
+      setPaymentNotice(message)
+      setSubmitError(message)
     } finally {
       setIsSubmitting(false)
     }
@@ -1062,20 +1067,6 @@ function DoctorConsultation() {
             <span className="page-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Licensed &amp; verified</span>
             <span className="page-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Encrypted &amp; private</span>
           </div>
-          <div className="dc-hero-metrics" aria-label="Doctor consultation summary">
-            <div>
-              <span>Available doctors</span>
-              <strong>{doctors.length}</strong>
-            </div>
-            <div>
-              <span>Selected care</span>
-              <strong>{formData.specialty || 'General'}</strong>
-            </div>
-            <div>
-              <span>Consultation fee</span>
-              <strong>KSh {selectedFee.toLocaleString()}</strong>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -1198,7 +1189,7 @@ function DoctorConsultation() {
                     <h3>Pay consultation fee</h3>
                     <p>Payment is required before your request enters the doctor queue. Medicines, lab tests, and delivery are billed separately if needed.</p>
                   </div>
-                  <strong>KSh {selectedFee.toLocaleString()}</strong>
+                  <strong>KSh {paymentPlaceholderAmount.toLocaleString()}</strong>
                 </div>
 
                 <div className="dc-payment-methods" aria-label="Consultation payment method">
@@ -1257,7 +1248,7 @@ function DoctorConsultation() {
                     </div>
                     <div className="dc-paybill-box__row">
                       <span>Amount</span>
-                      <strong>KSh {(paymentIntent?.amount || selectedFee).toLocaleString()}</strong>
+                      <strong>KSh {(paymentIntent?.amount || paymentPlaceholderAmount).toLocaleString()}</strong>
                     </div>
                     <p className="dc-paybill-box__hint">
                       After paying through M-Pesa, click Confirm payment. The chat opens only after payment is verified.
@@ -1291,7 +1282,7 @@ function DoctorConsultation() {
                       onClick={() => { void handleInitiateConsultationPayment() }}
                       disabled={isSubmitting}
                     >
-                      {mpesaFlow === 'stk' ? `Send STK Push for KSh ${selectedFee.toLocaleString()}` : 'Create Paybill payment reference'}
+                      {mpesaFlow === 'stk' ? `Send STK Push for KSh ${paymentPlaceholderAmount.toLocaleString()}` : 'Create Paybill payment reference'}
                     </button>
                   )}
                   {paymentStatus === 'waiting' && (
@@ -1331,7 +1322,7 @@ function DoctorConsultation() {
               <div className="dc-care-summary__top">
                 <div>
                   <p className="dc-fee-card__label">Consultation fee</p>
-                  <p className="dc-fee-card__amount">KSh {selectedFee.toLocaleString()}</p>
+                  <p className="dc-fee-card__amount">KSh {paymentPlaceholderAmount.toLocaleString()}</p>
                 </div>
                 <span>{queueLabel}</span>
               </div>
@@ -1359,10 +1350,6 @@ function DoctorConsultation() {
                 <div>
                   <span>Routing preference</span>
                   <strong>{routingLabel}</strong>
-                </div>
-                <div>
-                  <span>Assignment</span>
-                  <strong>After payment</strong>
                 </div>
               </div>
             </div>

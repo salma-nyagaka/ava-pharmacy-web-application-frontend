@@ -69,6 +69,11 @@ function HomePage() {
   ]
 
   const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
+  const { products: latestStockedProducts } = useProducts({
+    page_size: 5,
+    ordering: '-created_at',
+    inventory_status: 'available',
+  })
   const [featuredSeedProducts, setFeaturedSeedProducts] = useState<CatalogProduct[]>([])
   const visibleCategories = categories.filter((category) => {
     const normalizedName = category.name.trim().toLowerCase()
@@ -149,9 +154,7 @@ function HomePage() {
     return merged.slice(0, FEATURED_PRODUCTS_LIMIT)
   })()
 
-  const newProducts = catalogProducts
-    .filter((product) => isAvailableProduct(product) && !isDealProduct(product))
-    .slice(0, 5)
+  const newProducts = latestStockedProducts.slice(0, 5)
 
   const offerDeals = [...catalogProducts]
     .filter((product) => isAvailableProduct(product) && isDealProduct(product))
@@ -269,6 +272,8 @@ function HomePage() {
 
     await cartService.add({
       id: product.id,
+      productId: product.productId,
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,
@@ -290,6 +295,8 @@ function HomePage() {
 
     void favouritesService.toggle({
       id: product.id,
+      productId: product.productId,
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,

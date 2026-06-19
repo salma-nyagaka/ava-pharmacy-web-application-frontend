@@ -49,6 +49,60 @@
   gap: 0.75rem;
 }
 
+.rx-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.rx-pagination__info {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.rx-pagination__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.rx-pagination .pagination__pages {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.rx-pagination .pagination__button,
+.rx-pagination .pagination__page {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rx-pagination .pagination__button[disabled] {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.rx-pagination .pagination__page--active {
+  border-color: var(--color-primary, #E81750);
+  background: var(--color-primary, #E81750);
+  color: #fff;
+}
+
 .rx-actions {
   display: inline-flex;
   align-items: center;
@@ -122,6 +176,15 @@
   color: #94a3b8;
   font-size: 0.625rem;
   padding: 0.25rem;
+}
+
+.rx-row--target td {
+  background: #fff7ed;
+  box-shadow: inset 0 1px 0 rgba(249, 115, 22, 0.16), inset 0 -1px 0 rgba(249, 115, 22, 0.16);
+}
+
+.rx-row--target td:first-child {
+  box-shadow: inset 3px 0 0 #f97316, inset 0 1px 0 rgba(249, 115, 22, 0.16), inset 0 -1px 0 rgba(249, 115, 22, 0.16);
 }
 
 .rx-expanded-row td {
@@ -599,6 +662,32 @@
 
 .rx-approved-items--modal .rx-approved-items__meta {
   line-height: 1.55;
+}
+
+.rx-approved-items--simple {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rx-approved-items--simple .rx-approved-items__row {
+  padding: 0.45rem 0;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.rx-approved-items--simple .rx-approved-items__row:last-child {
+  border-bottom: 0;
+}
+
+.rx-approved-items--simple .rx-approved-items__meta {
+  margin-top: 0.1rem;
+  font-size: 0.76rem;
+  line-height: 1.35;
 }
 
 .rx-modal .rx-clarification {

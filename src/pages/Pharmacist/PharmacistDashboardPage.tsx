@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
+import { PrescriptionClarificationMessage, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService, type PharmacistCatalogVariant } from '../../services/prescriptionService'
-import { addAdminOrderNote, listAdminOrders, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
+import { listAdminOrders, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
@@ -80,6 +80,62 @@ function formatCurrency(value?: string | null) {
   return `KSh ${Number.isFinite(amount) ? amount.toLocaleString() : '0'}`
 }
 
+function formatThreadTime(value: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('en-KE', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function buildClarificationThread(rx: PrescriptionRecord): PrescriptionClarificationMessage[] {
+  const messages = [...rx.clarificationMessages]
+  const hasPharmacyMessage = messages.some((entry) => entry.senderRole === 'pharmacist' || entry.senderRole === 'admin' || entry.senderRole === 'system')
+  if (hasPharmacyMessage) return messages
+
+  const auditGuidance = rx.audit.find((entry) => entry.action.toLowerCase().includes('clarification requested'))
+  if (auditGuidance) {
+    const [, senderPart = '', messagePart = ''] = auditGuidance.action.match(/^Clarification requested by ([^:]+):?\s*(.*)$/i) || []
+    messages.unshift({
+      id: -1,
+      senderRole: 'pharmacist',
+      senderName: senderPart || rx.pharmacist,
+      senderDisplay: senderPart || rx.pharmacist || 'Pharmacist',
+      message: messagePart || auditGuidance.action,
+      createdAt: auditGuidance.time,
+    })
+  } else if (rx.clarificationMessage) {
+    messages.unshift({
+      id: -1,
+      senderRole: 'pharmacist',
+      senderName: rx.pharmacist,
+      senderDisplay: rx.pharmacist || 'Pharmacist',
+      message: rx.clarificationMessage,
+      createdAt: rx.submitted,
+    })
+  }
+
+  return messages
+}
+
+function orderCustomerName(order: AdminOrder) {
+  return `${order.shipping_first_name ?? ''} ${order.shipping_last_name ?? ''}`.trim()
+    || order.customer_name
+    || 'Walk-in customer'
+}
+
+function orderCustomerEmail(order: AdminOrder) {
+  return order.shipping_email || order.customer_email || 'Email not provided'
+}
+
+function orderCustomerPhone(order: AdminOrder) {
+  return order.shipping_phone || order.customer_phone || 'Phone not provided'
+}
+
 function formatOrderItemsPreview(order: AdminOrder) {
   const names = order.items.map((item) => item.product_name).filter(Boolean)
   if (names.length === 0) return 'No item details available'
@@ -88,19 +144,15 @@ function formatOrderItemsPreview(order: AdminOrder) {
   return `${names[0]}, ${names[1]} +${names.length - 2} more`
 }
 
-function buildOrderTrackingSteps(order: AdminOrder) {
-  const flow = ['pending', 'processing', 'shipped', 'delivered']
-  const currentIndex = flow.indexOf(order.status)
-  return flow.map((status, index) => {
-    const event = order.events.find((item) => item.event_type === `status_${status}`)
-    return {
-      status,
-      label: ORDER_STATUS_LABELS[status] ?? status,
-      isDone: currentIndex > index || order.status === 'delivered' && index === flow.length - 1,
-      isCurrent: currentIndex === index && order.status !== 'delivered',
-      at: event?.created_at ?? (index === 0 ? order.created_at : null),
-    }
-  })
+function formatOrderLineItems(order: AdminOrder) {
+  if (order.items.length === 0) return 'No item details available'
+  return order.items
+    .slice(0, 3)
+    .map((item) => {
+      const unitText = Number(item.quantity) > 1 ? ` @ ${formatCurrency(item.unit_price)}` : ''
+      return `${item.quantity}x ${item.product_name} - ${formatCurrency(item.subtotal)}${unitText}`
+    })
+    .join(' · ')
 }
 
 function nextOrderStatus(order: AdminOrder) {
@@ -134,6 +186,7 @@ function PharmacistDashboardPage() {
   const [variantSuggestions, setVariantSuggestions] = useState<PharmacistCatalogVariant[]>([])
   const [variantSearchLoading, setVariantSearchLoading] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
+  const [showCatalogPicker, setShowCatalogPicker] = useState(false)
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [rejectionTemplate, setRejectionTemplate] = useState('')
   const [rejectionCustom, setRejectionCustom] = useState('')
@@ -141,30 +194,70 @@ function PharmacistDashboardPage() {
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [ordersError, setOrdersError] = useState('')
   const [activeOrder, setActiveOrder] = useState<AdminOrder | null>(null)
-  const [orderNote, setOrderNote] = useState('')
   const [orderSaving, setOrderSaving] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<{ order: AdminOrder; nextStatus: string } | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    void prescriptionService.list().then((r) => setPrescriptions(r.data))
+  const refreshPrescriptions = useCallback(async () => {
+    const response = await prescriptionService.list()
+    setPrescriptions(response.data)
   }, [])
 
-  useEffect(() => {
-    const loadOrders = async () => {
+  const refreshOrders = useCallback(async (background = false) => {
+    if (!background) {
       setOrdersLoading(true)
-      setOrdersError('')
-      try {
-        setOrders(await listAdminOrders({ ordering: '-created_at' }))
-      } catch {
-        setOrdersError('Unable to load staff order updates right now.')
-      } finally {
+    }
+    setOrdersError('')
+    try {
+      setOrders(await listAdminOrders({ ordering: '-created_at' }))
+    } catch {
+      setOrdersError('Unable to load staff order updates right now.')
+    } finally {
+      if (!background) {
         setOrdersLoading(false)
       }
     }
-
-    void loadOrders()
   }, [])
+
+  useEffect(() => {
+    void refreshPrescriptions()
+  }, [refreshPrescriptions])
+
+  useEffect(() => {
+    if (activeWorkspace !== 'prescriptions') return undefined
+    const timer = window.setInterval(() => {
+      void refreshPrescriptions().catch(() => undefined)
+    }, 10000)
+    return () => window.clearInterval(timer)
+  }, [activeWorkspace, refreshPrescriptions])
+
+  useEffect(() => {
+    if (!activeRx) return undefined
+    const timer = window.setInterval(() => {
+      void refreshPrescriptions().catch(() => undefined)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [activeRx?.id, refreshPrescriptions])
+
+  useEffect(() => {
+    void refreshOrders()
+  }, [refreshOrders])
+
+  useEffect(() => {
+    if (activeWorkspace !== 'orders') return undefined
+    const timer = window.setInterval(() => {
+      void refreshOrders(true)
+    }, 10000)
+    return () => window.clearInterval(timer)
+  }, [activeWorkspace, refreshOrders])
+
+  useEffect(() => {
+    if (!activeOrder) return undefined
+    const timer = window.setInterval(() => {
+      void refreshOrders(true)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [activeOrder?.id, refreshOrders])
 
   useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedStatus])
   useEffect(() => { setOrderCurrentPage(1) }, [orderSearchTerm, selectedOrderStatus, selectedOrderPaymentStatus])
@@ -176,6 +269,12 @@ function PharmacistDashboardPage() {
   }, [prescriptions]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!activeOrder) return
+    const updated = orders.find((order) => order.id === activeOrder.id)
+    setActiveOrder(updated ?? null)
+  }, [orders]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (!activeRx) { return }
     setShowClarificationInput(false)
     setClarificationNote('')
@@ -183,11 +282,12 @@ function PharmacistDashboardPage() {
     setManualItems([])
     setProductSearch('')
     setShowDropdown(false)
+    setShowCatalogPicker(false)
     setShowRejectInput(false)
     setRejectionTemplate('')
     setRejectionCustom('')
     const initial: Record<string, boolean> = {}
-    activeRx.items.forEach((item) => { initial[item.name] = true })
+    activeRx.items.forEach((item) => { initial[item.name] = Boolean(item.variantId) })
     setItemSelections(initial)
   }, [activeRx?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -214,16 +314,15 @@ function PharmacistDashboardPage() {
   }
 
   useEffect(() => {
-    const q = productSearch.trim()
-    if (q.length < 2) {
-      setVariantSuggestions([])
+    if (!showDropdown) {
       setVariantSearchLoading(false)
       return
     }
+    const q = productSearch.trim()
     let cancelled = false
     setVariantSearchLoading(true)
     const timer = window.setTimeout(() => {
-      void prescriptionService.searchCatalogVariants(q)
+      void prescriptionService.searchCatalogVariants(q, 500)
         .then((items) => {
           if (!cancelled) {
             const selectedIds = new Set(manualItems.map((item) => item.variant.id))
@@ -241,13 +340,14 @@ function PharmacistDashboardPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [productSearch, manualItems])
+  }, [productSearch, manualItems, showDropdown])
 
   const addManualItem = (variant: PharmacistCatalogVariant) => {
     setManualItems((prev) => [...prev, { variant, qty: 1 }])
     setProductSearch('')
     setVariantSuggestions([])
     setShowDropdown(false)
+    setShowCatalogPicker(false)
   }
 
   const removeManualItem = (variantId: number) =>
@@ -262,7 +362,7 @@ function PharmacistDashboardPage() {
 
   const handleApprove = async () => {
     if (!activeRx) return
-    const toAdd = activeRx.items.filter((item) => itemSelections[item.name])
+    const toAdd = activeRx.items.filter((item) => itemSelections[item.name] && item.variantId)
     const reviewItems = [
       ...toAdd.map((item) => ({
         name: item.name,
@@ -281,6 +381,11 @@ function PharmacistDashboardPage() {
         quantity: qty,
       })),
     ]
+    if (reviewItems.length === 0) {
+      setCartAddedMsg('Select at least one catalog variant before approving this prescription.')
+      setTimeout(() => setCartAddedMsg(null), 6000)
+      return
+    }
     if (activeRx.backendId) {
       const response = await prescriptionService.pharmacistReview(activeRx.backendId, {
         action: 'approve',
@@ -302,14 +407,23 @@ function PharmacistDashboardPage() {
     const skipped = activeRx.items.length - toAdd.length
     const msg = totalAdded > 0
       ? `Prescription approved with ${totalAdded} mapped item${totalAdded !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`
-      : 'Prescription approved. No items were selected.'
+      : 'Prescription approved.'
     setCartAddedMsg(msg)
     setTimeout(() => setCartAddedMsg(null), 6000)
   }
 
-  const handleClarification = (note: string) => {
+  const handleClarification = async (note: string) => {
     if (!activeRx) return
-    void updateRx(activeRx.id, { status: 'Clarification', dispatchStatus: 'Not started', pharmacist: actor }, `Clarification requested by ${actor}${note ? ': ' + note : ''}`)
+    const trimmed = note.trim()
+    if (activeRx.backendId) {
+      const response = await prescriptionService.pharmacistReview(activeRx.backendId, {
+        action: 'request_clarification',
+        notes: trimmed,
+      })
+      setPrescriptions(response.data)
+    } else {
+      await updateRx(activeRx.id, { status: 'Clarification', dispatchStatus: 'Not started', pharmacist: actor }, `Clarification requested by ${actor}${trimmed ? ': ' + trimmed : ''}`)
+    }
     setShowClarificationInput(false)
     setClarificationNote('')
   }
@@ -375,7 +489,6 @@ function PharmacistDashboardPage() {
 
   const openOrderModal = (order: AdminOrder) => {
     setActiveOrder(order)
-    setOrderNote('')
     setOrdersError('')
   }
 
@@ -388,26 +501,9 @@ function PharmacistDashboardPage() {
     setActiveOrder((prev) => (prev?.id === updated.id ? updated : prev))
   }
 
-  const handleOrderUpdate = async (status?: string) => {
+  const handleOrderUpdate = async (status: string) => {
     if (!activeOrder) return
-    if (status) {
-      promptOrderStatusUpdate(activeOrder, status)
-      return
-    }
-    setOrderSaving(true)
-    setOrdersError('')
-    try {
-      let updated = activeOrder
-      if (orderNote.trim()) {
-        updated = await addAdminOrderNote(activeOrder.id, orderNote.trim())
-      }
-      syncOrder(updated)
-      setOrderNote('')
-    } catch {
-      setOrdersError('Unable to update the order right now.')
-    } finally {
-      setOrderSaving(false)
-    }
+    promptOrderStatusUpdate(activeOrder, status)
   }
 
   const confirmOrderStatusUpdate = async () => {
@@ -750,15 +846,16 @@ function PharmacistDashboardPage() {
                       <tr>
                         <th>Order</th>
                         <th>Customer</th>
+                        <th>Items</th>
+                        <th>Total</th>
                         <th>Status</th>
-                        <th>Payment</th>
+                        <th>Payment status</th>
                         <th>Updated</th>
                         <th className="cm-th-actions">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {pagedOrderRecords.map((order) => {
-                        const customerName = order.customer_name || `${order.shipping_first_name} ${order.shipping_last_name}`.trim()
                         const upcomingStatus = nextOrderStatus(order)
                         return (
                           <tr key={order.id}>
@@ -766,22 +863,30 @@ function PharmacistDashboardPage() {
                               <div className="pharm-cell-stack">
                                 <strong className="pharm-table__primary">{order.order_number}</strong>
                                 <span className="pharm-cell-muted">
-                                  {order.items.length} item{order.items.length === 1 ? '' : 's'} · {formatCurrency(order.total)}
+                                  {order.items.length} item{order.items.length === 1 ? '' : 's'}
                                 </span>
                                 <span className="pharm-order-items-preview">{formatOrderItemsPreview(order)}</span>
                               </div>
                             </td>
                             <td>
                               <div className="pharm-cell-stack">
-                                <strong className="pharm-table__primary">{customerName || 'Walk-in customer'}</strong>
-                                <span className="pharm-cell-muted">{order.shipping_city || order.shipping_county || 'Delivery details pending'}</span>
+                                <strong className="pharm-table__primary">{orderCustomerName(order)}</strong>
+                                <span className="pharm-cell-muted">{orderCustomerEmail(order)}</span>
+                                <span className="pharm-cell-muted">{orderCustomerPhone(order)}</span>
                               </div>
                             </td>
+                            <td>
+                              <div className="pharm-cell-stack pharm-cell-stack--items">
+                                <span>{formatOrderLineItems(order)}</span>
+                                {order.items.length > 3 && <span className="pharm-cell-muted">+{order.items.length - 3} more line{order.items.length - 3 === 1 ? '' : 's'}</span>}
+                              </div>
+                            </td>
+                            <td><strong className="pharm-table__primary">{formatCurrency(order.total)}</strong></td>
                             <td><span className={`admin-status status--${order.status}`}>{ORDER_STATUS_LABELS[order.status] ?? order.status}</span></td>
                             <td>
                               <div className="pharm-cell-stack">
+                                <span className={`admin-status status--${order.payment_status}`}>{order.payment_status.replace(/_/g, ' ')}</span>
                                 <span className="pharm-cell-muted">{order.payment_method.replace(/_/g, ' ')}</span>
-                                <span className="pharm-cell-muted">{order.payment_status.replace(/_/g, ' ')}</span>
                               </div>
                             </td>
                             <td>
@@ -906,22 +1011,29 @@ function PharmacistDashboardPage() {
                         {Object.values(itemSelections).filter(Boolean).length} / {activeRx.items.length} in stock
                       </span>
                     </div>
-                    <p className="px-item-picker-hint">Uncheck items that are out of stock_ only checked items will be added to the patient's cart.</p>
+                    <p className="px-item-picker-hint">Only catalog-matched variants can be approved. For handwritten or unmatched lines, select the exact variant below.</p>
                     <div className="px-items-list">
-                      {activeRx.items.map((item) => (
-                        <label key={item.name} className={`px-item px-item--selectable${!itemSelections[item.name] ? ' px-item--oos' : ''}`}>
+                      {activeRx.items.map((item) => {
+                        const hasCatalogVariant = Boolean(item.variantId)
+                        return (
+                        <label key={item.name} className={`px-item px-item--selectable${!itemSelections[item.name] ? ' px-item--oos' : ''}${!hasCatalogVariant ? ' px-item--unmatched' : ''}`}>
                           <input
                             type="checkbox"
                             className="px-item__check"
                             checked={itemSelections[item.name] ?? true}
+                            disabled={!hasCatalogVariant}
                             onChange={(e) => setItemSelections((prev) => ({ ...prev, [item.name]: e.target.checked }))}
                           />
                           <div className="px-item__info">
                             <p className="px-item__name">{item.name}</p>
                             <p className="px-item__meta">{item.dose} · {item.frequency}</p>
-                            {(item.variantName || item.variantSku) && (
+                            {hasCatalogVariant ? (
                               <p className="px-item__variant">
                                 {item.variantName || 'Selected variant'}{item.variantSku ? ` · SKU ${item.variantSku}` : ''}
+                              </p>
+                            ) : (
+                              <p className="px-item__variant px-item__variant--unmatched">
+                                Select exact catalog variant below
                               </p>
                             )}
                           </div>
@@ -930,61 +1042,106 @@ function PharmacistDashboardPage() {
                             {!itemSelections[item.name] && <span className="px-item__oos-tag">Out of stock</span>}
                           </div>
                         </label>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 )}
 
-                {/* Manual medication search */}
                 <div className="px-modal__section">
-                  <p className="px-section-label">Add medications from catalog</p>
-                  <p className="px-item-picker-hint">For handwritten or unclear prescriptions, search Ava Pharmacy variants and add the exact SKU.</p>
-                  <div className="px-med-search" ref={dropdownRef}>
-                    <div className="px-med-search__wrap">
-                      <svg className="px-med-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                      <input
-                        type="text"
-                        className="px-med-search__input"
-                        placeholder="Search medicine, variant, SKU, or brand…"
-                        value={productSearch}
-                        onChange={(e) => { setProductSearch(e.target.value); setShowDropdown(true) }}
-                        onFocus={() => setShowDropdown(true)}
-                      />
-                      {productSearch && (
-                        <button className="px-med-search__clear" type="button" onClick={() => { setProductSearch(''); setShowDropdown(false) }}>×</button>
-                      )}
+                  <button
+                    className="px-catalog-toggle"
+                    type="button"
+                    onClick={() => {
+                      setShowCatalogPicker((open) => {
+                        const next = !open
+                        if (!next) {
+                          setProductSearch('')
+                          setVariantSuggestions([])
+                          setShowDropdown(false)
+                        }
+                        return next
+                      })
+                    }}
+                    aria-expanded={showCatalogPicker}
+                  >
+                    <span>
+                      <span className="px-section-label">Add medications from catalog</span>
+                      <span className="px-item-picker-hint">List and select from Ava Pharmacy variants only.</span>
+                    </span>
+                    <span className={`px-catalog-toggle__chevron ${showCatalogPicker ? 'px-catalog-toggle__chevron--open' : ''}`}>⌄</span>
+                  </button>
+
+                  {showCatalogPicker && (
+                    <div className="px-catalog-picker">
+                      <p className="px-catalog-picker__note">Showing active catalog variants. Search by medicine, variant, SKU, brand, or strength to narrow the list.</p>
+                      <div className="px-med-search" ref={dropdownRef}>
+                        <div className="px-med-search__wrap">
+                          <svg className="px-med-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                          <input
+                            type="text"
+                            className="px-med-search__input"
+                            placeholder="Search medicine, variant, SKU, or brand…"
+                            value={productSearch}
+                            onChange={(e) => { setProductSearch(e.target.value); setShowDropdown(true) }}
+                            onFocus={() => setShowDropdown(true)}
+                            autoFocus
+                          />
+                          {(productSearch || showDropdown) && (
+                            <button
+                              className="px-med-search__clear"
+                              type="button"
+                              onClick={() => { setProductSearch(''); setVariantSuggestions([]); setShowDropdown(false) }}
+                              aria-label="Close catalog search"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        {showDropdown && (variantSearchLoading || variantSuggestions.length > 0 || productSearch.trim().length > 0) && (
+                          <div className="px-med-dropdown">
+                            {variantSearchLoading && (
+                              <div className="px-med-dropdown--empty">Loading catalog variants…</div>
+                            )}
+                            {!variantSearchLoading && variantSuggestions.length > 0 && (
+                              <div className="px-med-dropdown__summary">
+                                {variantSuggestions.length} variant{variantSuggestions.length === 1 ? '' : 's'} available
+                              </div>
+                            )}
+                            {!variantSearchLoading && variantSuggestions.map((variant) => (
+                              <button
+                                key={variant.id}
+                                className="px-med-dropdown__item"
+                                type="button"
+                                disabled={!variant.can_select}
+                                onMouseDown={() => { if (variant.can_select) addManualItem(variant) }}
+                              >
+                                <span>
+                                  <span className="px-med-dropdown__name">{variant.display_name}</span>
+                                  <span className="px-med-dropdown__meta">
+                                    {variant.brand_name || 'Ava Pharmacy'} · SKU {variant.sku || 'N/A'} · KSh {Number(variant.price || 0).toLocaleString()}
+                                    {variant.requires_prescription ? ' · Prescription' : ' · Non-prescription'}
+                                  </span>
+                                </span>
+                                <span className={`px-med-dropdown__stock ${variant.can_select ? '' : 'px-med-dropdown__stock--out'}`}>
+                                  {variant.can_select ? `${variant.available_quantity} in stock` : 'Out of stock'}
+                                </span>
+                              </button>
+                            ))}
+                            {!variantSearchLoading && variantSuggestions.length === 0 && (
+                              <div className="px-med-dropdown--empty">No matching catalog variants.</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <button className="btn btn--outline btn--sm px-catalog-picker__close" type="button" onClick={() => { setProductSearch(''); setVariantSuggestions([]); setShowDropdown(false); setShowCatalogPicker(false) }}>
+                        Close catalog
+                      </button>
                     </div>
-                    {showDropdown && variantSuggestions.length > 0 && (
-                      <div className="px-med-dropdown">
-                        {variantSuggestions.map((variant) => (
-                          <button
-                            key={variant.id}
-                            className="px-med-dropdown__item"
-                            type="button"
-                            disabled={!variant.can_select}
-                            onMouseDown={() => { if (variant.can_select) addManualItem(variant) }}
-                          >
-                            <span>
-                              <span className="px-med-dropdown__name">{variant.display_name}</span>
-                              <span className="px-med-dropdown__meta">
-                                {variant.brand_name || 'Ava Pharmacy'} · SKU {variant.sku || 'N/A'} · KSh {Number(variant.price || 0).toLocaleString()}
-                              </span>
-                            </span>
-                            <span className={`px-med-dropdown__stock ${variant.can_select ? '' : 'px-med-dropdown__stock--out'}`}>
-                              {variant.can_select ? `${variant.available_quantity} in stock` : 'Out of stock'}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {showDropdown && productSearch.trim().length >= 2 && variantSuggestions.length === 0 && (
-                      <div className="px-med-dropdown px-med-dropdown--empty">
-                        {variantSearchLoading ? 'Searching catalog…' : 'No matching variants found.'}
-                      </div>
-                    )}
-                  </div>
+                  )}
                   {manualItems.length > 0 && (
                     <div className="px-manual-items">
+                      <p className="px-selected-variants-title">Selected catalog variants</p>
                       {manualItems.map(({ variant, qty }) => (
                         <div key={variant.id} className="px-manual-item">
                           <div className="px-item__info">
@@ -1017,6 +1174,29 @@ function PharmacistDashboardPage() {
                   <div className="px-modal__section">
                     <p className="px-section-label">Patient notes</p>
                     <p className="px-notes-text">{activeRx.notes}</p>
+                  </div>
+                )}
+
+                {buildClarificationThread(activeRx).length > 0 && (
+                  <div className="px-modal__section pharm-thread-section">
+                    <div className="pharm-thread-section__head">
+                      <p className="px-section-label">Clarification messages</p>
+                      <span>{buildClarificationThread(activeRx).length} message{buildClarificationThread(activeRx).length === 1 ? '' : 's'}</span>
+                    </div>
+                    <div className="pharm-thread">
+                      {buildClarificationThread(activeRx).map((entry) => (
+                        <article
+                          key={`${activeRx.id}-${entry.id}-${entry.createdAt}`}
+                          className={`pharm-thread__message ${entry.senderRole === 'patient' ? 'pharm-thread__message--patient' : 'pharm-thread__message--staff'}`}
+                        >
+                          <div className="pharm-thread__meta">
+                            <strong>{entry.senderRole === 'patient' ? 'Customer' : (entry.senderDisplay || entry.senderName || 'Pharmacy team')}</strong>
+                            <span>{formatThreadTime(entry.createdAt)}</span>
+                          </div>
+                          <p>{entry.message}</p>
+                        </article>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -1156,7 +1336,9 @@ function PharmacistDashboardPage() {
                 <div className="pharm-order-modal__summary">
                   <div>
                     <span>Customer</span>
-                    <strong>{activeOrder.customer_name || `${activeOrder.shipping_first_name} ${activeOrder.shipping_last_name}`}</strong>
+                    <strong>{orderCustomerName(activeOrder)}</strong>
+                    <p>{orderCustomerEmail(activeOrder)}</p>
+                    <p>{orderCustomerPhone(activeOrder)}</p>
                   </div>
                   <div>
                     <span>Address</span>
@@ -1191,36 +1373,6 @@ function PharmacistDashboardPage() {
                   <p className="pharm-pack-list__hint">Verify the SKU and quantity for each line before moving the order to the next status.</p>
                 </div>
 
-                <div className="pharm-order-track">
-                  {buildOrderTrackingSteps(activeOrder).map((step, index) => (
-                    <div
-                      key={step.status}
-                      className={`pharm-order-track__step ${step.isDone ? 'pharm-order-track__step--done' : ''} ${step.isCurrent ? 'pharm-order-track__step--current' : ''}`}
-                    >
-                      <div className="pharm-order-track__dot">
-                        {step.isDone ? '✓' : step.isCurrent ? '●' : index + 1}
-                      </div>
-                      <div>
-                        <strong>{step.label}</strong>
-                        <span>{formatOrderDate(step.at)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="pharm-order-events">
-                  {activeOrder.events.length === 0 ? (
-                    <p className="pharm-order-events__empty">No order events recorded yet.</p>
-                  ) : activeOrder.events.map((event) => (
-                    <div key={event.id} className="pharm-order-events__item">
-                      <div>
-                        <strong>{event.event_type.replace(/_/g, ' ')}</strong>
-                        <p>{event.message}</p>
-                      </div>
-                      <span>{formatOrderDate(event.created_at)}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               <div className="px-modal__right">
@@ -1238,25 +1390,6 @@ function PharmacistDashboardPage() {
                   ) : (
                     <p className="pharm-order-actions__hint">No further operational status change is needed for this order.</p>
                   )}
-
-                  <div className="form-group" style={{ marginTop: '1rem' }}>
-                    <label htmlFor="pharm-order-note">Order note</label>
-                    <textarea
-                      id="pharm-order-note"
-                      rows={4}
-                      value={orderNote}
-                      onChange={(event) => setOrderNote(event.target.value)}
-                      placeholder="Add a fulfilment or courier handoff note…"
-                    />
-                  </div>
-                  <button
-                    className="btn btn--outline btn--sm"
-                    type="button"
-                    disabled={orderSaving || !orderNote.trim()}
-                    onClick={() => void handleOrderUpdate()}
-                  >
-                    Save note
-                  </button>
                 </div>
               </div>
             </div>
@@ -1301,16 +1434,9 @@ function PharmacistDashboardPage() {
                   </div>
                 </div>
 
-                <div className="pharm-order-events">
-                  <div className="pharm-order-events__item">
-                    <div>
-                      <strong>Status transition confirmation</strong>
-                      <p>
-                        You are updating this order from {ORDER_STATUS_LABELS[statusConfirm.order.status] ?? statusConfirm.order.status} to {ORDER_STATUS_LABELS[statusConfirm.nextStatus] ?? statusConfirm.nextStatus}. Confirm only if that fulfilment step is complete.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <p className="pharm-order-actions__hint">
+                  You are updating this order from {ORDER_STATUS_LABELS[statusConfirm.order.status] ?? statusConfirm.order.status} to {ORDER_STATUS_LABELS[statusConfirm.nextStatus] ?? statusConfirm.nextStatus}. Confirm only if that fulfilment step is complete.
+                </p>
               </div>
 
               <div className="px-modal__right">

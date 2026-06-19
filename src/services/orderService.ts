@@ -153,7 +153,7 @@ export interface CheckoutDraftPayload {
   save_address?: boolean
   address_label?: string
   set_default_address?: boolean
-  payment_method: 'mpesa_stk' | 'mpesa_paybill' | 'card' | 'cash_on_delivery'
+  payment_method: 'mpesa_stk' | 'mpesa_paybill' | 'card'
   delivery_method?: string
   shipping_method_id?: number | null
   delivery_notes?: string

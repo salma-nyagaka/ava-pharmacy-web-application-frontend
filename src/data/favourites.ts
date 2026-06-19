@@ -2,6 +2,8 @@ import type { StockSource } from './cart'
 
 export interface FavouriteItem {
   id: number
+  productId?: number
+  variantId?: number
   serverWishlistId?: number
   name: string
   brand: string

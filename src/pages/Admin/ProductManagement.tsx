@@ -647,8 +647,7 @@ function ProductManagement() {
   const filteredProducts = products.filter((p) => {
     const query = searchTerm.toLowerCase()
     const matchSearch =
-      p.name.toLowerCase().includes(query) ||
-      p.sku.toLowerCase().includes(query)
+      p.name.toLowerCase().includes(query)
     const matchCategory = selectedCategory === 'all' || String(getProductCategoryId(p)) === selectedCategory
     const matchSubcategory = selectedSubcat === 'all' || String(p.subcategory_id) === selectedSubcat
     const matchConcern =
@@ -1020,7 +1019,7 @@ function ProductManagement() {
                       <ImageWithFallback src={product.image ?? ''} alt={product.name} style={{ width: 30, height: 30, borderRadius: '0.35rem', objectFit: 'cover', flexShrink: 0 }} />
                       <div className="cm-name-cell">
                         <span className="cm-name-cell__name">{product.name}</span>
-                        <span className="cm-name-cell__id">{product.sku}{product.strength ? ` · ${product.strength}` : ''}</span>
+                        {product.strength && <span className="cm-name-cell__id">{product.strength}</span>}
                         {product.dosage_quantity && product.dosage_unit && product.dosage_frequency && (
                           <span className="cm-name-cell__id" style={{ color: '#10b981' }}>
                             {product.dosage_quantity} {product.dosage_unit} · {product.dosage_frequency.replace(/_/g, ' ')}{product.dosage_notes ? ` · ${product.dosage_notes}` : ''}
@@ -1151,8 +1150,8 @@ function ProductManagement() {
 
                 <div className="pf-section">
                   <div className="pf-section__label">Basic Info</div>
-                  <div className="pf-row">
-                    <div className="pf-field">
+                  <div className="pf-grid pf-grid--basic">
+                    <div className="pf-field pf-field--name">
                       <label className="pf-label">Product Name <span className="pf-req">*</span></label>
                       <input
                         className="pf-input"
@@ -1167,11 +1166,17 @@ function ProductManagement() {
                       />
                       {productFieldErrors.name && <span className="pf-error">{productFieldErrors.name}</span>}
                     </div>
-                  </div>
-                  <div className="pf-row">
-                    <div className="pf-field">
+                    <div className="pf-field pf-field--status">
+                      <label className="pf-label">Status <span className="pf-req">*</span></label>
+                      <select className="pf-input" value={productStatus} onChange={(e) => { setProductStatus(e.target.value as 'active' | 'inactive'); clearProductFieldError('status') }}>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                      {productFieldErrors.status && <span className="pf-error">{productFieldErrors.status}</span>}
+                    </div>
+                    <div className="pf-field pf-field--brand">
                       <label className="pf-label">Brand <span className="pf-req">*</span></label>
-                      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                      <div className="pf-control-wrap">
                         <SearchableSelect
                           className="pf-ss"
                           value={productBrandId}
@@ -1184,7 +1189,7 @@ function ProductManagement() {
                       </div>
                       {productFieldErrors.brand && <span className="pf-error">{productFieldErrors.brand}</span>}
                     </div>
-                    <div className="pf-field">
+                    <div className="pf-field pf-field--subcategory">
                       <label className="pf-label">Subcategory <span className="pf-req">*</span></label>
                       <SearchableSelect
                         value={productSubcategoryId}
@@ -1197,17 +1202,7 @@ function ProductManagement() {
                       {productFieldErrors.subcategory && <span className="pf-error">{productFieldErrors.subcategory}</span>}
                     </div>
                   </div>
-                  <div className="pf-row">
-                    <div className="pf-field pf-field--sm">
-                      <label className="pf-label">Status <span className="pf-req">*</span></label>
-                      <select className="pf-input" value={productStatus} onChange={(e) => { setProductStatus(e.target.value as 'active' | 'inactive'); clearProductFieldError('status') }}>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                      {productFieldErrors.status && <span className="pf-error">{productFieldErrors.status}</span>}
-                    </div>
-                  </div>
-                  <div className="pf-field">
+                  <div className="pf-field pf-field--full pf-field--spaced">
                     <label className="pf-label">Health Concerns <span className="pf-req">*</span></label>
                     <SearchableMultiSelect
                       value={productHealthConcernIds}
@@ -1217,7 +1212,7 @@ function ProductManagement() {
                     />
                     {productFieldErrors.health_concerns && <span className="pf-error">{productFieldErrors.health_concerns}</span>}
                   </div>
-                  <div className="pf-field">
+                  <div className="pf-field pf-field--full pf-field--spaced">
                     <label className="pf-label">Description <span className="pf-req">*</span></label>
                     <textarea
                       className="pf-input pf-textarea"
@@ -1229,7 +1224,7 @@ function ProductManagement() {
                     {productFieldErrors.description && <span className="pf-error">{productFieldErrors.description}</span>}
                   </div>
                
-                  <div className="pf-field">
+                  <div className="pf-field pf-field--full pf-field--spaced">
                     <label className="pf-label">Features <span className="pf-req">*</span></label>
                     <textarea
                       className="pf-input pf-textarea"
@@ -1248,7 +1243,9 @@ function ProductManagement() {
                 <div className="pf-section">
                   <div className="pf-section__label">Variants and Stock Management</div>
                   {!editingProduct && (
-                    <span className="pf-hint">Save the product first, then use Inventory → New Stock to create variants(tablets, syrup, or sachets) stock, thresholds, backorder rules, and POS sync are managed</span>
+                    <div className="pf-note">
+                      <span>Save the product first, then use Inventory → New Stock to create variants such as tablets, syrup, or sachets. Stock, thresholds, backorder rules, and POS sync are managed there.</span>
+                    </div>
                   )}
                
                 </div>

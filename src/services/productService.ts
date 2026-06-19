@@ -2,6 +2,8 @@ import { apiClient, resolveMediaUrl } from '../lib/apiClient'
 
 export interface Product {
   id: number
+  product_id?: number
+  variant_id?: number
   sku: string
   slug: string
   name: string
@@ -31,13 +33,31 @@ export interface ProductDetail extends Product {
   brand: { id: number; name: string; slug: string; logo: string | null; image?: string | null }
   category: { id: number; name: string; slug: string }
   gallery: { id: number; image: string; alt_text: string; order: number }[]
-  variants: unknown[]
+  variants: ProductVariant[]
   description: string
   features: string[] | string
   directions: string
   warnings: string
   created_at: string
   updated_at: string
+}
+
+export interface ProductVariant {
+  id: number
+  sku: string
+  name: string
+  price: string
+  original_price: string | null
+  effective_price?: string
+  final_price?: string
+  image: string | null
+  requires_prescription: boolean
+  inventory_status: string | null
+  available_quantity: number | null
+  can_purchase?: boolean
+  stock_source: string | null
+  stock_quantity: number | null
+  is_active: boolean
 }
 
 export interface ProductReview {
@@ -74,6 +94,8 @@ export interface ProductFilters {
   min_price?: number
   max_price?: number
   requires_prescription?: boolean
+  inventory_status?: string
+  stock_source?: string
 }
 
 export interface SearchSuggestion {

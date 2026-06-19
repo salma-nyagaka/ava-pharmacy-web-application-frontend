@@ -2,6 +2,8 @@ export type StockSource = 'branch' | 'warehouse' | 'out'
 
 export interface CartItem {
   id: number
+  productId?: number
+  variantId?: number
   serverItemId?: number
   name: string
   brand: string
@@ -10,6 +12,7 @@ export interface CartItem {
   image?: string
   stockSource?: Exclude<StockSource, 'out'>
   prescriptionId?: string
+  prescriptionItemId?: number
 }
 
 const STORAGE_KEY = 'ava_cart_items'

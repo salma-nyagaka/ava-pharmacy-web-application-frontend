@@ -19,17 +19,20 @@ function isAuthenticated() {
 
 function mapApiItem(item: Record<string, unknown>): CartItem {
   const product = (item.product ?? {}) as Record<string, unknown>
-  const variant = (item.product_variant ?? {}) as Record<string, unknown>
+  const variant = (item.variant ?? item.product_variant ?? {}) as Record<string, unknown>
   return {
-    id: (product.id ?? item.product_id ?? item.id) as number,
+    id: (variant.id ?? product.id ?? item.product_id ?? item.id) as number,
+    productId: (product.id ?? item.product_id) as number | undefined,
+    variantId: variant.id as number | undefined,
     serverItemId: item.id as number,
-    name: (product.name ?? variant.name ?? '') as string,
+    name: (variant.name ?? product.name ?? '') as string,
     brand: (product.brand_name ?? (product.brand as Record<string, unknown> | undefined)?.name ?? '') as string,
     price: parseFloat((item.unit_price ?? item.price ?? '0') as string),
     quantity: (item.quantity ?? 1) as number,
     image: (product.image ?? '') as string,
     stockSource: ((product.inventory_status ?? '') === 'out_of_stock' ? undefined : ((product.stock_source ?? 'branch') as 'branch' | 'warehouse')),
     prescriptionId: item.prescription_id as string | undefined,
+    prescriptionItemId: item.prescription_item as number | undefined,
   }
 }
 
@@ -48,7 +51,8 @@ export const cartService = {
     if (!localItems.length) return cartService.list()
     await apiClient.post('/cart/merge/', {
       items: localItems.map((item) => ({
-        product_id: item.id,
+        product_id: item.productId ?? item.id,
+        variant_id: item.variantId,
         quantity: item.quantity,
         prescription_id: item.prescriptionId,
       })),
@@ -78,11 +82,15 @@ export const cartService = {
       return { data: updated }
     }
     try {
-      await apiClient.post('/cart/items/', {
-        product_id: item.id,
+      const payload: Record<string, unknown> = {
+        product_id: item.productId ?? item.id,
         quantity,
         prescription_id: item.prescriptionId,
-      })
+      }
+      if (item.variantId) {
+        payload.variant_id = item.variantId
+      }
+      await apiClient.post('/cart/items/', payload)
       const res = await apiClient.get('/cart/')
       const items: CartItem[] = ((res.data?.data?.items ?? res.data?.items ?? []) as Record<string, unknown>[]).map(mapApiItem)
       dispatchCartEvent()
@@ -136,6 +144,8 @@ export const cartService = {
     if (!isAuthenticated()) {
       addFavourite({
         id: item.id,
+        productId: item.productId,
+        variantId: item.variantId,
         name: item.name,
         brand: item.brand,
         price: item.price,
@@ -156,6 +166,8 @@ export const cartService = {
     } catch {
       addFavourite({
         id: item.id,
+        productId: item.productId,
+        variantId: item.variantId,
         name: item.name,
         brand: item.brand,
         price: item.price,

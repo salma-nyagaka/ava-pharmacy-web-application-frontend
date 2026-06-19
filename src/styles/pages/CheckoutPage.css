@@ -311,12 +311,6 @@
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
 }
 
-.co-pm--selected-cash {
-  border-color: #ca8a04;
-  background: rgba(202, 138, 4, 0.07);
-  box-shadow: 0 0 0 1px rgba(202, 138, 4, 0.14);
-}
-
 .co-pm input[type="radio"] { display: none; }
 
 .co-pm__icon {
@@ -331,8 +325,6 @@
 
 .co-pm__icon--mpesa { background: #e7f7ef; color: #15803d; }
 .co-pm__icon--card  { background: #eff6ff; color: #1d4ed8; }
-.co-pm__icon--cash  { background: #fefce8; color: #a16207; }
-
 .co-pm__text {
   display: flex;
   flex-direction: column;
@@ -367,8 +359,6 @@
 
 .co-pm--selected-mpesa .co-pm__radio { border-color: #16a34a; }
 .co-pm--selected-card .co-pm__radio { border-color: #2563eb; }
-.co-pm--selected-cash .co-pm__radio { border-color: #ca8a04; }
-
 /* ── M-Pesa options ─────────────────────────────────────────── */
 .co-mpesa-flow {
   margin-bottom: 1rem;
@@ -481,11 +471,6 @@
   background: rgba(37, 99, 235, 0.06);
 }
 
-.co-paybill-box--cash {
-  border-color: rgba(202, 138, 4, 0.35);
-  background: rgba(202, 138, 4, 0.07);
-}
-
 .co-paybill-box__label {
   font-size: 0.78rem;
   font-weight: 700;
@@ -497,8 +482,6 @@
 
 .co-paybill-box--mpesa .co-paybill-box__label { color: #166534; }
 .co-paybill-box--card .co-paybill-box__label { color: #1d4ed8; }
-.co-paybill-box--cash .co-paybill-box__label { color: #a16207; }
-
 .co-paybill-box__rows {
   display: flex;
   flex-direction: column;
@@ -705,13 +688,42 @@
 /* ── Actions row ────────────────────────────────────────────── */
 .co-actions {
   display: flex;
-  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
   margin-top: 1.25rem;
   flex-wrap: wrap;
 }
 
-.co-actions .btn { display: inline-flex; align-items: center; gap: 0.4rem; }
-.co-actions .btn--primary { margin-left: auto; }
+.co-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 40px;
+  padding: 0.58rem 0.9rem;
+  font-size: 0.84rem;
+  line-height: 1.2;
+}
+
+.co-actions .co-actions__place {
+  min-width: 220px;
+  margin-left: 0;
+  padding-inline: 1.05rem;
+}
+
+.co-actions .co-actions__confirm {
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.co-actions__hint {
+  margin: 0 auto 0 0;
+  color: #64748b;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
 
 /* ── Summary sidebar ────────────────────────────────────────── */
 .co-summary {
@@ -835,8 +847,20 @@
     grid-template-columns: 1fr;
   }
 
-  .co-actions { flex-direction: column; }
-  .co-actions .btn--primary { margin-left: 0; }
+  .co-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .co-actions .btn,
+  .co-actions .co-actions__place {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .co-actions__hint {
+    margin-right: 0;
+  }
 
   .co-section { padding: 1.25rem; }
 }

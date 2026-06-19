@@ -41,6 +41,8 @@ export function mapApiProduct(p: Product | ProductDetail): CatalogProduct {
 
   return {
     id: p.id,
+    productId: p.product_id ?? p.id,
+    variantId: p.product_id ? p.id : p.variant_id,
     slug: p.slug,
     sku: p.sku,
     name: p.name,

@@ -47,14 +47,6 @@ const MpesaIcon = () => (
   </svg>
 )
 
-const CashIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
-    <rect x="2" y="7" width="20" height="14" rx="2"/>
-    <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-    <circle cx="12" cy="14" r="2"/>
-  </svg>
-)
-
 const CheckIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" width="14" height="14">
     <polyline points="20 6 9 17 4 12"/>
@@ -68,16 +60,44 @@ const CopyIcon = () => (
   </svg>
 )
 
+function parseThrottleSeconds(message: string): number | null {
+  const match = message.match(/available in\s+(\d+)\s+seconds?/i)
+  if (!match) return null
+  const seconds = Number(match[1])
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null
+}
+
+function formatRetryTime(seconds: number): string {
+  if (seconds < 60) return `${seconds} second${seconds === 1 ? '' : 's'}`
+  const minutes = Math.ceil(seconds / 60)
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`
+}
+
+function paymentIntentErrorMessage(intent: PaymentIntent | null | undefined): string {
+  return intent?.last_error || 'Payment failed. Try again.'
+}
+
+function isOrderPaymentPaid(order: Order | null | undefined): boolean {
+  return ['paid', 'succeeded', 'success', 'confirmed', 'complete', 'completed'].includes(String(order?.payment_status ?? '').toLowerCase())
+}
+
+function isIntentSuccessful(intent: PaymentIntent | null | undefined): boolean {
+  return intent?.status === 'succeeded'
+}
+
 function CheckoutPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { settings } = useSiteSettings()
   const [searchParams, setSearchParams] = useSearchParams()
   const [currentStep, setCurrentStep] = useState(1)
-  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card' | 'cash'>('mpesa')
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card'>('mpesa')
   const [mpesaFlow, setMpesaFlow] = useState<MpesaFlow>('stk')
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('idle')
   const [paymentNotice, setPaymentNotice] = useState('')
+  const [paymentRetryAvailableAt, setPaymentRetryAvailableAt] = useState<number | null>(null)
+  const [manualConfirmAvailableAt, setManualConfirmAvailableAt] = useState<number | null>(null)
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const [mpesaPhone, setMpesaPhone] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -139,9 +159,11 @@ function CheckoutPage() {
   const applyRestoredPaymentState = (order: Order, latestIntent: PaymentIntent | null) => {
     setPaymentIntent(latestIntent)
     if (order.payment_method === 'cash_on_delivery') {
+      setPaymentMethod('mpesa')
+      setMpesaFlow('stk')
       setPaymentStatus('idle')
-      setPaymentNotice('Cash on delivery selected. You can place the order without prepayment.')
-      setCurrentStep(3)
+      setPaymentNotice('')
+      setCurrentStep(2)
       return
     }
     if (latestIntent?.provider === 'paybill' || order.payment_method === 'mpesa_paybill') {
@@ -150,7 +172,7 @@ function CheckoutPage() {
       setMpesaFlow('stk')
     }
 
-    if (latestIntent?.status === 'succeeded' || order.payment_status === 'paid') {
+    if (isIntentSuccessful(latestIntent) || isOrderPaymentPaid(order)) {
       setPaymentStatus('confirmed')
       setPaymentNotice('Payment made successfully.')
       setCurrentStep(3)
@@ -170,7 +192,7 @@ function CheckoutPage() {
     }
     if (latestIntent?.status === 'failed' || order.payment_status === 'failed') {
       setPaymentStatus('failed')
-      setPaymentNotice('Payment failed. Try again.')
+      setPaymentNotice(paymentIntentErrorMessage(latestIntent))
       setCurrentStep(3)
       return
     }
@@ -207,7 +229,6 @@ function CheckoutPage() {
         setCity(order.shipping_city ?? '')
         setCounty(order.shipping_county ?? '')
         if (order.payment_method === 'card') setPaymentMethod('card')
-        else if (order.payment_method === 'cash_on_delivery') setPaymentMethod('cash')
         else setPaymentMethod('mpesa')
 
         const latestIntent = order.payment_intents?.[0] ?? null
@@ -271,15 +292,6 @@ function CheckoutPage() {
   useEffect(() => {
     const hasCardCallback = !!searchParams.get('tx_ref') && !!searchParams.get('transaction_id')
     if (hasCardCallback) return
-    if (paymentMethod === 'cash') {
-      setPaymentStatus('idle')
-      setPaymentNotice(
-        deliveryMethod === 'store_pickup'
-          ? 'Cash selected. Payment will be collected when you pick up your order.'
-          : 'Cash on delivery selected. Payment will be collected at delivery.',
-      )
-      return
-    }
     setPaymentStatus('idle')
     setPaymentNotice('')
     setValidationError('')
@@ -393,33 +405,61 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (!paymentIntent || paymentIntent.provider !== 'mpesa' || paymentStatus !== 'waiting') return
+    let active = true
     const intervalId = window.setInterval(() => {
-      void syncPaymentIntent(paymentIntent.id)
-        .then((intent) => {
-          setPaymentIntent(intent)
-          if (intent.status === 'succeeded') {
+      void (async () => {
+        let order = draftOrder?.id ? await fetchOrder(draftOrder.id) : null
+        if (!active) return
+        let intent = order?.payment_intents?.[0] ?? paymentIntent
+        if (order) {
+          setDraftOrder(order)
+          if (intent) setPaymentIntent(intent)
+          if (isOrderPaymentPaid(order) || isIntentSuccessful(intent)) {
+            applyRestoredPaymentState(order, intent ?? null)
+            window.clearInterval(intervalId)
+            return
+          }
+        }
+        intent = await syncPaymentIntent(paymentIntent.id)
+        if (!active) return
+        setPaymentIntent(intent)
+        if (intent.status === 'succeeded') {
+          order = draftOrder?.id ? await fetchOrder(draftOrder.id) : null
+          if (!active) return
+          if (order) {
+            setDraftOrder(order)
+            applyRestoredPaymentState(order, order.payment_intents?.[0] ?? intent)
+          } else {
             setPaymentStatus('confirmed')
             setPaymentNotice('Payment made successfully.')
             setValidationError('')
-            window.clearInterval(intervalId)
-          } else if (intent.status === 'cancelled') {
-            setPaymentStatus('cancelled')
-            setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
-            setValidationError('')
-            window.clearInterval(intervalId)
-          } else if (intent.status === 'failed') {
-            setPaymentStatus('failed')
-            setPaymentNotice('Payment failed. Try again.')
-            setValidationError('')
-            window.clearInterval(intervalId)
-          } else {
-            setPaymentNotice('Waiting for payment confirmation.')
           }
-        })
-        .catch(() => {})
+          window.clearInterval(intervalId)
+          return
+        }
+        if (intent.status === 'cancelled') {
+          setPaymentStatus('cancelled')
+          setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
+          setValidationError('')
+          window.clearInterval(intervalId)
+          return
+        }
+        if (intent.status === 'failed') {
+          const message = paymentIntentErrorMessage(intent)
+          setPaymentStatus('failed')
+          setPaymentNotice(message)
+          setValidationError(message)
+          window.clearInterval(intervalId)
+          return
+        }
+        setPaymentNotice('Waiting for payment confirmation. If you have paid, use Confirm payment made.')
+      })().catch(() => {})
     }, 2500)
-    return () => window.clearInterval(intervalId)
-  }, [paymentIntent, paymentStatus])
+    return () => {
+      active = false
+      window.clearInterval(intervalId)
+    }
+  }, [draftOrder?.id, paymentIntent?.id, paymentStatus])
 
   useEffect(() => {
     if (!draftOrder || paymentMethod !== 'mpesa' || mpesaFlow !== 'paybill' || paymentStatus !== 'waiting') return
@@ -506,10 +546,41 @@ function CheckoutPage() {
         : paymentStatus === 'waiting'
           ? 'Waiting for payment confirmation.'
           : 'Payment not started'
+  const paymentRetryRemainingSeconds = paymentRetryAvailableAt
+    ? Math.max(0, Math.ceil((paymentRetryAvailableAt - nowMs) / 1000))
+    : 0
+  const manualConfirmRemainingSeconds = manualConfirmAvailableAt
+    ? Math.max(0, Math.ceil((manualConfirmAvailableAt - nowMs) / 1000))
+    : 0
+  const isPaymentRetryBlocked = paymentRetryRemainingSeconds > 0
+  const canManuallyConfirmPayment = paymentStatus === 'waiting' && manualConfirmAvailableAt !== null && manualConfirmRemainingSeconds === 0
+  const visiblePaymentNotice = isPaymentRetryBlocked
+    ? `Payment request was throttled. Try again in ${formatRetryTime(paymentRetryRemainingSeconds)}.`
+    : paymentNotice
 
-  const selectedMethodTone = paymentMethod === 'card' ? 'card' : paymentMethod === 'cash' ? 'cash' : 'mpesa'
+  const selectedMethodTone = paymentMethod === 'card' ? 'card' : 'mpesa'
 
   const fmt = (price: number) => `KSh ${price.toLocaleString()}`
+
+  useEffect(() => {
+    if (!paymentRetryAvailableAt && paymentStatus !== 'waiting') return
+    setNowMs(Date.now())
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [manualConfirmAvailableAt, paymentRetryAvailableAt, paymentStatus])
+
+  useEffect(() => {
+    if (paymentStatus === 'waiting') {
+      setManualConfirmAvailableAt((current) => current ?? Date.now() + 60000)
+      return
+    }
+    setManualConfirmAvailableAt(null)
+  }, [paymentStatus])
+
+  useEffect(() => {
+    if (!paymentRetryAvailableAt || paymentRetryRemainingSeconds > 0) return
+    setPaymentRetryAvailableAt(null)
+  }, [paymentRetryAvailableAt, paymentRetryRemainingSeconds])
 
   useEffect(() => {
     if (!county) return
@@ -543,6 +614,87 @@ function CheckoutPage() {
     return true
   }
 
+  async function checkPaymentConfirmation({ silent = false }: { silent?: boolean } = {}) {
+    let order = draftOrder
+    let intent = paymentIntent
+
+    if (!silent) {
+      setValidationError('')
+      setPaymentNotice('Checking payment confirmation...')
+    }
+
+    if (order?.id) {
+      order = await fetchOrder(order.id)
+      setDraftOrder(order)
+      intent = order.payment_intents?.[0] ?? intent
+      if (intent) setPaymentIntent(intent)
+      if (isOrderPaymentPaid(order) || isIntentSuccessful(intent)) {
+        applyRestoredPaymentState(order, intent ?? null)
+        setValidationError('')
+        return true
+      }
+      if (intent?.status === 'failed') {
+        const message = paymentIntentErrorMessage(intent)
+        setPaymentStatus('failed')
+        setPaymentNotice(message)
+        setValidationError(message)
+        return true
+      }
+      if (intent?.status === 'cancelled') {
+        setPaymentStatus('cancelled')
+        setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
+        setValidationError('')
+        return true
+      }
+    }
+
+    if (intent?.id) {
+      intent = await syncPaymentIntent(intent.id)
+      setPaymentIntent(intent)
+      if (intent.status === 'succeeded') {
+        if (order?.id) {
+          order = await fetchOrder(order.id)
+          setDraftOrder(order)
+          applyRestoredPaymentState(order, order.payment_intents?.[0] ?? intent)
+        } else {
+          setPaymentStatus('confirmed')
+          setPaymentNotice('Payment made successfully.')
+          setValidationError('')
+        }
+        return true
+      }
+      if (intent.status === 'failed') {
+        const message = paymentIntentErrorMessage(intent)
+        setPaymentStatus('failed')
+        setPaymentNotice(message)
+        setValidationError(message)
+        return true
+      }
+      if (intent.status === 'cancelled') {
+        setPaymentStatus('cancelled')
+        setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
+        setValidationError('')
+        return true
+      }
+    }
+
+    if (order?.id) {
+      order = await fetchOrder(order.id)
+      setDraftOrder(order)
+      intent = order.payment_intents?.[0] ?? intent
+      if (intent) setPaymentIntent(intent)
+      if (isOrderPaymentPaid(order) || isIntentSuccessful(intent)) {
+        applyRestoredPaymentState(order, intent ?? null)
+        setValidationError('')
+        return true
+      }
+    }
+
+    setPaymentStatus('waiting')
+    setPaymentNotice('Waiting for payment confirmation. If you have paid, use Confirm payment made.')
+    return false
+  }
+
   const handleCancelPayment = async () => {
     if (!paymentIntent || isSubmitting) return
     setIsSubmitting(true)
@@ -562,6 +714,26 @@ function CheckoutPage() {
       const message = (error as ApiErr)?.response?.data?.error?.message
         ?? (error as ApiErr)?.response?.data?.detail
         ?? 'Unable to cancel the payment right now.'
+      setValidationError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleConfirmPaymentMade = async () => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      const confirmed = await checkPaymentConfirmation()
+      if (!confirmed) {
+        setValidationError('Payment is still being confirmed. Please wait a moment and try again.')
+      }
+    } catch (error) {
+      type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string | string[] } } }
+      const detail = (error as ApiErr)?.response?.data?.error?.message
+        ?? (error as ApiErr)?.response?.data?.detail
+      const message = Array.isArray(detail) ? detail[0] : detail ?? 'Unable to confirm payment right now.'
+      setPaymentNotice(message)
       setValidationError(message)
     } finally {
       setIsSubmitting(false)
@@ -631,10 +803,11 @@ function CheckoutPage() {
     setCurrentStep(2)
   }
 
-  const handlePaymentMethodChange = (method: 'mpesa' | 'card' | 'cash') => {
+  const handlePaymentMethodChange = (method: 'mpesa' | 'card') => {
     setPaymentMethod(method)
     setPaymentNotice('')
     setValidationError('')
+    setPaymentRetryAvailableAt(null)
   }
 
   const buildCheckoutPayload = () => ({
@@ -654,9 +827,7 @@ function CheckoutPage() {
         ? (mpesaFlow === 'paybill' ? 'mpesa_paybill' : 'mpesa_stk')
         : paymentMethod === 'card'
         ? 'card'
-        : paymentMethod === 'cash'
-          ? 'cash_on_delivery'
-          : 'mpesa_stk',
+        : 'mpesa_stk',
     shipping_method_id: selectedShippingMethod?.id ?? null,
     delivery_method: deliveryMethod,
   } as const)
@@ -701,8 +872,15 @@ function CheckoutPage() {
 
   const handleInitiatePayment = async () => {
     if (isPaymentLocked) return false
-    if (paymentMethod === 'cash') return false
     if (paymentStatus === 'waiting' || isSubmitting) return false
+    if (isPaymentRetryBlocked) {
+      const waitText = formatRetryTime(paymentRetryRemainingSeconds)
+      const message = `Payment request was throttled. Try again in ${waitText}.`
+      setPaymentStatus('failed')
+      setPaymentNotice(message)
+      setValidationError(message)
+      return false
+    }
     if (!validateStepOne()) return false
     if (paymentMethod === 'mpesa') {
       if (mpesaFlow === 'stk') {
@@ -735,7 +913,7 @@ function CheckoutPage() {
             setPaymentNotice('Payment made successfully.')
             setPaymentStatus('confirmed')
           } else if (intent.status === 'failed' || intent.status === 'cancelled') {
-            setPaymentNotice('Payment failed. Try again.')
+            setPaymentNotice(paymentIntentErrorMessage(intent))
             setPaymentStatus('failed')
           } else {
             setPaymentNotice('Waiting for payment confirmation.')
@@ -775,6 +953,7 @@ function CheckoutPage() {
       const message = (error as ApiErr)?.response?.data?.error?.message
         ?? (error as ApiErr)?.response?.data?.detail
         ?? 'Payment failed. Try again.'
+      const throttleSeconds = parseThrottleSeconds(message)
       const paidOrderMessage = 'This order is no longer awaiting payment.'
       if (message.includes(paidOrderMessage) && draftOrder) {
         try {
@@ -787,8 +966,13 @@ function CheckoutPage() {
           // fall through to the generic failure state below if refresh fails
         }
       }
+      if (throttleSeconds) {
+        setPaymentRetryAvailableAt(Date.now() + throttleSeconds * 1000)
+      } else {
+        setPaymentRetryAvailableAt(null)
+      }
       setPaymentStatus('failed')
-      setPaymentNotice('Payment failed. Try again.')
+      setPaymentNotice(message)
       setValidationError(message)
       return false
     } finally {
@@ -1141,16 +1325,6 @@ function CheckoutPage() {
                   </label>
 
                   {/* Card payment is temporarily hidden from the checkout form. */}
-
-                  <label className={`co-pm ${paymentMethod === 'cash' ? 'co-pm--selected co-pm--selected-cash' : ''}`}>
-                    <input type="radio" name="payment" checked={paymentMethod === 'cash'} onChange={() => handlePaymentMethodChange('cash')} />
-                    <div className="co-pm__icon co-pm__icon--cash"><CashIcon /></div>
-                    <div className="co-pm__text">
-                      <strong>Cash on Delivery</strong>
-                      <span>Pay when you receive</span>
-                    </div>
-                    <div className="co-pm__radio" />
-                  </label>
                 </div>
 
                 {paymentMethod === 'mpesa' && (
@@ -1250,24 +1424,21 @@ function CheckoutPage() {
                   </div>
                 )}
 
-                {paymentNotice && <p className={`co-payment-notice co-payment-notice--${paymentNoticeTone}`}>{paymentNotice}</p>}
+                {visiblePaymentNotice && <p className={`co-payment-notice co-payment-notice--${paymentNoticeTone}`}>{visiblePaymentNotice}</p>}
                 {validationError && <p className="co-error">{validationError}</p>}
 
                 <div className="co-actions">
                   <button onClick={() => setCurrentStep(1)} className="btn btn--outline" type="button" disabled={isPaymentLocked}>Back</button>
                   {paymentMethod === 'mpesa' && mpesaFlow === 'stk' && (
-                    <button onClick={handleStkFromPaymentStep} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting || isPaymentLocked}>{isSubmitting ? 'Starting…' : 'Initiate STK Push'}</button>
+                    <button onClick={handleStkFromPaymentStep} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting || isPaymentLocked || isPaymentRetryBlocked}>{isSubmitting ? 'Starting…' : 'Initiate STK Push'}</button>
                   )}
                   {paymentMethod === 'mpesa' && mpesaFlow === 'paybill' && (
-                    <button onClick={handlePaybillContinueToReview} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting || isPaymentLocked}>
+                    <button onClick={handlePaybillContinueToReview} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting || isPaymentLocked || isPaymentRetryBlocked}>
                       {isSubmitting ? 'Checking…' : 'Continue to Review'}
                     </button>
                   )}
                   {paymentMethod === 'card' && (
                     <button onClick={handleCardContinueToConfirm} className="btn btn--primary btn--lg" type="button" disabled={isSubmitting || isPaymentLocked}>{isSubmitting ? 'Redirecting…' : 'Continue to Secure Card Payment'}</button>
-                  )}
-                  {paymentMethod === 'cash' && (
-                    <button onClick={() => setCurrentStep(3)} className="btn btn--primary btn--lg" type="button">Proceed to Review</button>
                   )}
                 </div>
               </div>
@@ -1306,7 +1477,7 @@ function CheckoutPage() {
                       Payment
                     </h3>
                     <p className="co-review-block__text">
-                      {paymentMethod === 'mpesa' ? `M-Pesa ${mpesaFlow === 'paybill' ? 'Paybill' : 'STK Push'}` : paymentMethod === 'card' ? 'Credit/Debit Card' : 'Cash on Delivery'}
+                      {paymentMethod === 'mpesa' ? `M-Pesa ${mpesaFlow === 'paybill' ? 'Paybill' : 'STK Push'}` : 'Credit/Debit Card'}
                     </p>
                     {paymentMethod === 'mpesa' && mpesaFlow === 'stk' && (
                       <p className="co-review-block__meta">
@@ -1349,7 +1520,7 @@ function CheckoutPage() {
                   </div>
                 )}
 
-                {paymentNotice && <p className={`co-payment-notice co-payment-notice--${paymentNoticeTone}`}>{paymentNotice}</p>}
+                {visiblePaymentNotice && <p className={`co-payment-notice co-payment-notice--${paymentNoticeTone}`}>{visiblePaymentNotice}</p>}
 
                 {paymentMethod === 'mpesa' && mpesaFlow === 'paybill' && (
                   <div className={`co-paybill-box co-paybill-box--${selectedMethodTone}`} aria-live="polite">
@@ -1414,20 +1585,30 @@ function CheckoutPage() {
                       {isSubmitting ? 'Cancelling…' : 'Cancel Payment'}
                     </button>
                   )}
+                  {paymentStatus === 'waiting' && !canManuallyConfirmPayment && !isPaymentLocked && (
+                    <p className="co-actions__hint">
+                      Manual confirmation appears in {formatRetryTime(manualConfirmRemainingSeconds)} if automatic confirmation has not arrived.
+                    </p>
+                  )}
+                  {paymentStatus === 'waiting' && canManuallyConfirmPayment && !isPaymentLocked && (
+                    <button className="btn btn--outline co-actions__confirm" type="button" onClick={() => void handleConfirmPaymentMade()} disabled={isSubmitting}>
+                      {isSubmitting ? 'Checking…' : 'Confirm payment made'}
+                    </button>
+                  )}
                   {((paymentMethod === 'card') || (paymentMethod === 'mpesa' && mpesaFlow === 'stk')) && (paymentStatus === 'idle' || paymentStatus === 'failed') && !isPaymentLocked && (
-                    <button className="btn btn--outline btn--lg" type="button" onClick={() => void handleInitiatePayment()} disabled={isSubmitting}>
+                    <button className="btn btn--outline btn--lg" type="button" onClick={() => void handleInitiatePayment()} disabled={isSubmitting || (paymentMethod === 'mpesa' && isPaymentRetryBlocked)}>
                       {paymentMethod === 'card'
                         ? (isSubmitting ? 'Redirecting…' : 'Continue to Secure Card Payment')
                         : (isSubmitting ? 'Starting…' : 'Initiate STK Push')}
                     </button>
                   )}
                   <button
-                    className="btn btn--primary btn--lg"
+                    className="btn btn--primary co-actions__place"
                     type="button"
                     onClick={() => void handlePlaceOrder()}
                     disabled={isSubmitting || cartItems.length === 0 || availabilityErrors.length > 0 || ((paymentMethod === 'mpesa' || paymentMethod === 'card') && paymentStatus !== 'confirmed')}
                   >
-                    {isSubmitting ? 'Processing…' : paymentMethod === 'cash' ? 'Place Order' : 'Complete & Place Order'}
+                    {isSubmitting ? 'Processing…' : 'Complete & Place Order'}
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </button>
                 </div>

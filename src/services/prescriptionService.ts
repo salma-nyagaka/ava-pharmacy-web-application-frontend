@@ -62,6 +62,7 @@ type ApiPrescription = {
   files: ApiPrescriptionFile[]
   items: ApiPrescriptionItem[]
   notes: string
+  pharmacist_notes?: string
   clarification_message?: string
   clarification_messages?: ApiClarificationMessage[]
   audit_logs: ApiPrescriptionAudit[]
@@ -132,7 +133,21 @@ function currentUserRole() {
   }
 }
 
-function listEndpoint() {
+function currentUserName() {
+  try {
+    const raw = localStorage.getItem('ava_user')
+    if (!raw) return ''
+    const parsed = JSON.parse(raw) as { name?: string }
+    return (parsed.name ?? '').trim().toLowerCase()
+  } catch {
+    return ''
+  }
+}
+
+type PrescriptionListScope = 'role' | 'patient'
+
+function listEndpoint(scope: PrescriptionListScope = 'role') {
+  if (scope === 'patient') return '/prescriptions/'
   const role = currentUserRole()
   return role === 'admin' || role === 'pharmacist'
     ? '/admin/prescriptions/'
@@ -165,6 +180,7 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
       qty: item.quantity ?? 0,
     })),
     notes: record.notes || '',
+    pharmacistNotes: record.pharmacist_notes || '',
     clarificationMessage: record.clarification_message || '',
     clarificationMessages: (record.clarification_messages || []).map((entry) => ({
       id: entry.id,
@@ -181,10 +197,10 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
   }
 }
 
-async function listPrescriptions(): Promise<PrescriptionRecord[]> {
+async function listPrescriptions(scope: PrescriptionListScope = 'role'): Promise<PrescriptionRecord[]> {
   if (!isAuthenticated()) return []
   try {
-    const res = await apiClient.get(listEndpoint())
+    const res = await apiClient.get(listEndpoint(scope))
     const payload = res.data?.data ?? res.data ?? []
     const items = Array.isArray(payload)
       ? payload
@@ -194,7 +210,11 @@ async function listPrescriptions(): Promise<PrescriptionRecord[]> {
     return items.map(mapPrescription)
   } catch (error) {
     if (!shouldUseLocalFallback(error)) throw error
-    return loadPrescriptionRecords()
+    const fallbackRecords = loadPrescriptionRecords()
+    if (scope !== 'patient') return fallbackRecords
+    const accountName = currentUserName()
+    if (!accountName) return []
+    return fallbackRecords.filter((record) => record.patient.trim().toLowerCase() === accountName)
   }
 }
 
@@ -208,8 +228,8 @@ async function resolvePrescription(reference: string): Promise<PrescriptionRecor
 }
 
 export const prescriptionService = {
-  list: async () => {
-    const data = await listPrescriptions()
+  list: async (options: { scope?: PrescriptionListScope } = {}) => {
+    const data = await listPrescriptions(options.scope ?? 'role')
     return { data }
   },
   saveAll: async (records: PrescriptionRecord[]) => {
@@ -337,8 +357,8 @@ export const prescriptionService = {
     await apiClient.post(`/pharmacist/prescriptions/${backendId}/review/`, payload)
     return prescriptionService.list()
   },
-  searchCatalogVariants: async (query: string): Promise<PharmacistCatalogVariant[]> => {
-    const res = await apiClient.get('/pharmacist/catalog/variants/', { params: { q: query, limit: 12 } })
+  searchCatalogVariants: async (query: string, limit = 500): Promise<PharmacistCatalogVariant[]> => {
+    const res = await apiClient.get('/pharmacist/catalog/variants/', { params: { q: query, limit } })
     const payload = res.data?.data ?? res.data ?? {}
     return Array.isArray(payload?.results) ? payload.results : []
   },
@@ -350,6 +370,7 @@ export const prescriptionService = {
         throw new Error('LOCAL_FALLBACK')
       }
       const res = await apiClient.post(`/prescriptions/${prescription.backendId}/items/${itemId}/add-to-cart/`, payload)
+      window.dispatchEvent(new Event('ava-cart-updated'))
       return res.data?.data ?? res.data
     } catch (error) {
       if (!shouldUseLocalFallback(error)) throw error

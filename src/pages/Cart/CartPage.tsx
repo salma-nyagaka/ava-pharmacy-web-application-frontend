@@ -4,7 +4,9 @@ import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallb
 import { useAuth } from '../../context/AuthContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { CartItem } from '../../data/cart'
+import { PrescriptionRecord } from '../../data/prescriptions'
 import { cartService } from '../../services/cartService'
+import { prescriptionService } from '../../services/prescriptionService'
 import '../../styles/pages/CartPage.css'
 
 function CartPage() {
@@ -12,12 +14,25 @@ function CartPage() {
   const { settings } = useSiteSettings()
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [movedId, setMovedId] = useState<number | null>(null)
+  const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
+  const [addingPrescriptionItemId, setAddingPrescriptionItemId] = useState<number | null>(null)
+  const [prescriptionCartMessage, setPrescriptionCartMessage] = useState('')
 
   useEffect(() => {
     const refresh = () => { void cartService.list().then((r) => setCartItems(r.data)) }
     refresh()
     return cartService.subscribe(refresh)
   }, [])
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setPrescriptions([])
+      return
+    }
+    void prescriptionService.list({ scope: 'patient' }).then((response) => {
+      setPrescriptions(response.data)
+    }).catch(() => setPrescriptions([]))
+  }, [isLoggedIn])
 
   const subtotal = useMemo(() => cartItems.reduce((s, i) => s + i.price * i.quantity, 0), [cartItems])
   const delivery = subtotal >= settings.freeDeliveryThreshold || cartItems.length === 0 ? 0 : settings.baseDeliveryFee
@@ -28,6 +43,15 @@ function CartPage() {
   const amountToFree = Math.max(0, settings.freeDeliveryThreshold - subtotal)
   const itemCount = cartItems.reduce((s, i) => s + i.quantity, 0)
   const prescriptionItemCount = cartItems.filter((item) => !!item.prescriptionId).length
+  const approvedPrescriptionItems = useMemo(() => {
+    const cartKeys = new Set(cartItems.map((item) => `${item.prescriptionId || ''}:${item.prescriptionItemId || ''}:${item.variantId || item.productId || item.id}`))
+    return prescriptions
+      .filter((rx) => rx.status === 'Approved')
+      .flatMap((rx) => rx.items
+        .filter((item) => item.backendId && (item.variantId || item.productId))
+        .filter((item) => !cartKeys.has(`${rx.id}:${item.backendId || ''}:${item.variantId || item.productId}`))
+        .map((item) => ({ rx, item })))
+  }, [cartItems, prescriptions])
 
   const fmt = (n: number) => `KSh ${n.toLocaleString()}`
 
@@ -41,6 +65,23 @@ function CartPage() {
     setMovedId(item.id)
     void cartService.moveToWishlist(item).then((r) => setCartItems(r.data))
     window.setTimeout(() => setMovedId(null), 1500)
+  }
+
+  const addPrescriptionItem = async (rx: PrescriptionRecord, itemId: number, quantity: number) => {
+    if (!rx.backendId) return
+    setAddingPrescriptionItemId(itemId)
+    setPrescriptionCartMessage('')
+    try {
+      await prescriptionService.addApprovedItemToCart(rx.id, itemId, quantity)
+      const cart = await cartService.list()
+      setCartItems(cart.data)
+      setPrescriptionCartMessage('Prescription item added to cart.')
+    } catch (error) {
+      setPrescriptionCartMessage(error instanceof Error ? error.message : 'Unable to add prescription item to cart.')
+    } finally {
+      setAddingPrescriptionItemId(null)
+      window.setTimeout(() => setPrescriptionCartMessage(''), 3500)
+    }
   }
 
   return (
@@ -66,7 +107,7 @@ function CartPage() {
           )}
         </div>
 
-        {cartItems.length === 0 ? (
+        {cartItems.length === 0 && approvedPrescriptionItems.length === 0 ? (
           <div className="cart-empty">
             <div className="cart-empty__icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -84,6 +125,42 @@ function CartPage() {
         ) : (
           <div className="cart-layout">
             <div className="cart-items">
+              {approvedPrescriptionItems.length > 0 && (
+                <div className="cart-prescribed">
+                  <div className="cart-prescribed__head">
+                    <div>
+                      <p className="cart-prescribed__eyebrow">Approved prescriptions</p>
+                      <h2>Prescribed products ready to add</h2>
+                    </div>
+                    <span>{approvedPrescriptionItems.length} item{approvedPrescriptionItems.length === 1 ? '' : 's'}</span>
+                  </div>
+                  {prescriptionCartMessage && <p className="cart-prescribed__message">{prescriptionCartMessage}</p>}
+                  <ul className="cart-prescribed__list">
+                    {approvedPrescriptionItems.map(({ rx, item }) => (
+                      <li key={`${rx.id}-${item.backendId}`} className="cart-prescribed__item">
+                        <div>
+                          <p className="cart-prescribed__name">{item.productName || item.name}</p>
+                          <p className="cart-prescribed__meta">
+                            {rx.id}
+                            {item.variantName ? ` · ${item.variantName}` : ''}
+                            {item.variantSku ? ` · SKU ${item.variantSku}` : ''}
+                            {` · Qty ${item.qty}`}
+                          </p>
+                        </div>
+                        <button
+                          className="btn btn--primary btn--sm"
+                          type="button"
+                          disabled={!rx.backendId || addingPrescriptionItemId === item.backendId}
+                          onClick={() => item.backendId && void addPrescriptionItem(rx, item.backendId, item.qty)}
+                        >
+                          {addingPrescriptionItemId === item.backendId ? 'Adding...' : 'Add to cart'}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {prescriptionItemCount > 0 && (
                 <div className="cart-rx-banner">
                   <div className="cart-rx-banner__icon">
@@ -99,11 +176,13 @@ function CartPage() {
                   </div>
                 </div>
               )}
-              <div className="cart-items__head">
-                <span>Product</span>
-                <span>Qty</span>
-                <span>Total</span>
-              </div>
+              {cartItems.length > 0 && (
+                <div className="cart-items__head">
+                  <span>Product</span>
+                  <span>Qty</span>
+                  <span>Total</span>
+                </div>
+              )}
 
               {cartItems.map((item) => (
                 <div key={`${item.serverItemId ?? item.id}-${item.prescriptionId ?? 'direct'}`} className="cart-item">
@@ -188,11 +267,15 @@ function CartPage() {
                 </div>
               </div>
 
-              {isLoggedIn ? (
+              {isLoggedIn && cartItems.length > 0 ? (
                 <Link to="/checkout" className="btn btn--primary btn--lg cart-summary__cta">
                   Proceed to Checkout
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </Link>
+              ) : isLoggedIn ? (
+                <button className="btn btn--primary btn--lg cart-summary__cta" type="button" disabled>
+                  Add an item to continue
+                </button>
               ) : (
                 <div className="cart-auth-gate">
                   <p className="cart-auth-gate__title">Sign in to continue to checkout</p>

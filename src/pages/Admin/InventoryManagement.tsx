@@ -36,6 +36,7 @@ type VariantDraft = {
 type NewStockFieldErrorKey =
   | 'product'
   | 'name'
+  | 'sku'
   | 'barcode'
   | 'strength'
   | 'pos_product_id'
@@ -313,6 +314,7 @@ function InventoryManagement() {
   const [showNewStockModal, setShowNewStockModal] = useState(false)
   const [newStockProductId, setNewStockProductId] = useState<number | ''>('')
   const [newVariantName, setNewVariantName] = useState('')
+  const [newVariantSku, setNewVariantSku] = useState('')
   const [newVariantBarcode, setNewVariantBarcode] = useState('')
   const [newVariantStrength, setNewVariantStrength] = useState('')
   const [newVariantDosageAmount, setNewVariantDosageAmount] = useState('')
@@ -420,6 +422,7 @@ function InventoryManagement() {
 
   const resetNewStockForm = () => {
     setNewVariantName('')
+    setNewVariantSku('')
     setNewVariantBarcode('')
     setNewVariantStrength('')
     setNewVariantDosageAmount('')
@@ -442,7 +445,6 @@ function InventoryManagement() {
       const matchSearch = query === ''
         || item.product_name.toLowerCase().includes(query)
         || item.name.toLowerCase().includes(query)
-        || item.product_sku.toLowerCase().includes(query)
         || item.sku.toLowerCase().includes(query)
         || (item.barcode ?? '').toLowerCase().includes(query)
         || (item.pos_product_id ?? '').toLowerCase().includes(query)
@@ -607,6 +609,9 @@ function InventoryManagement() {
 
       const payload = new FormData()
       payload.append('name', newVariantName.trim())
+      if (newVariantSku.trim()) {
+        payload.append('sku', newVariantSku.trim())
+      }
       payload.append('barcode', newVariantBarcode.trim())
       payload.append('pos_product_id', newVariantPosProductId)
       payload.append('strength', newVariantStrength.trim())
@@ -627,6 +632,11 @@ function InventoryManagement() {
       if (refreshedVariant && adjustItem?.product_id === selectedProduct.id) {
         populateAdjustForm(refreshedVariant)
       }
+      setSearchTerm('')
+      setSelectedStatus('all')
+      setSortField('sellable_quantity')
+      setSortDirection('desc')
+      setCurrentPage(1)
       closeNewStockModal()
     } catch (err: unknown) {
       const apiDetails = getApiFieldDetails(err)
@@ -834,9 +844,7 @@ function InventoryManagement() {
           <div className="inventory-focus-banner__copy">
             <span className="inventory-focus-banner__label">Focused product</span>
             <strong>{focusedProduct.product_name}</strong>
-            <span className="inventory-focus-banner__meta">
-              Showing variants for {focusedProduct.product_sku}
-            </span>
+            <span className="inventory-focus-banner__meta">Showing variants for this product</span>
           </div>
           <span className={`inventory-model-chip${isVariantManaged(focusedProduct) ? ' inventory-model-chip--variant' : ''}`}>
             Variant row
@@ -994,7 +1002,6 @@ function InventoryManagement() {
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                           <span>{item.product_name}</span>
-                          <span className="cm-name-cell__id">{item.product_sku}</span>
                         </div>
                       </td>
                       <td>
@@ -1098,7 +1105,7 @@ function InventoryManagement() {
                       <option value="">Select active parent product</option>
                       {parentProducts.map((product) => (
                         <option key={product.id} value={product.id}>
-                          {product.name} · {product.sku}
+                          {product.name}
                         </option>
                       ))}
                     </select>
@@ -1116,6 +1123,19 @@ function InventoryManagement() {
                       placeholder="e.g. Tablets, Cough Syrup, Capsules"
                     />
                     {newStockFieldErrors.name && <span className="adjust-field__error">{newStockFieldErrors.name}</span>}
+                  </div>
+                  <div className="adjust-field">
+                    <label>SKU <span className="adjust-optional">optional</span></label>
+                    <input
+                      type="text"
+                      value={newVariantSku}
+                      onChange={(e) => {
+                        setNewVariantSku(e.target.value)
+                        clearNewStockFieldError('sku')
+                      }}
+                      placeholder="Leave blank to auto-generate"
+                    />
+                    {newStockFieldErrors.sku && <span className="adjust-field__error">{newStockFieldErrors.sku}</span>}
                   </div>
                   <div className="adjust-field">
                     <label>Barcode <span className="adjust-required">*</span></label>

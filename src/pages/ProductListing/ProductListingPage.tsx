@@ -144,6 +144,8 @@ function ProductListingPage() {
     }
     void favouritesService.toggle({
       id: product.id,
+      productId: product.productId,
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,
@@ -256,6 +258,8 @@ function ProductListingPage() {
     }
     void cartService.add({
       id: product.id,
+      productId: product.productId,
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,

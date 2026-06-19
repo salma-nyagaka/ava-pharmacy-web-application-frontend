@@ -42,6 +42,7 @@ export interface PrescriptionRecord {
   files: string[]
   items: PrescriptionItem[]
   notes: string
+  pharmacistNotes?: string
   clarificationMessage: string
   clarificationMessages: PrescriptionClarificationMessage[]
   audit: PrescriptionAuditEntry[]

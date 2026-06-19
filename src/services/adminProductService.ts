@@ -138,7 +138,6 @@ export interface ApiProductPromotion {
 export interface ApiProduct {
   id: number
   name: string
-  sku: string
   pos_product_id?: string | null
   slug: string
   strength: string
@@ -215,7 +214,7 @@ export interface ApiProductVariant {
 }
 
 export interface ProductVariantPayload {
-  sku: string
+  sku?: string
   barcode?: string
   pos_product_id?: string
   name: string
@@ -245,7 +244,6 @@ export interface ProductVariantPayload {
 export interface ApiInventoryProduct extends ApiProductVariant {
   product_id: number
   product_name: string
-  product_sku: string
   product_slug: string
   brand_name?: string | null
   brand_slug?: string | null
