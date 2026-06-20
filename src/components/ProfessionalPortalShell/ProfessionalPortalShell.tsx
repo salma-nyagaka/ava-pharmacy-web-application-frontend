@@ -126,13 +126,14 @@ function ProfessionalPortalShell({
               aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               onClick={() => setIsSidebarCollapsed((prev) => !prev)}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
                 {isCompact || isSidebarCollapsed ? (
-                  <path d="M4 12h16M4 6h16M4 18h16" />
+                  <path d="M4 6h16M4 12h16M4 18h16" />
                 ) : (
                   <>
-                    <path d="M15 18 9 12l6-6" />
-                    <path d="M20 5H4v14h16" opacity="0.45" />
+                    <rect x="3.5" y="5" width="17" height="14" rx="2.5" />
+                    <line x1="9.5" y1="5" x2="9.5" y2="19" />
+                    <path d="M15.5 10 13 12l2.5 2" />
                   </>
                 )}
               </svg>
