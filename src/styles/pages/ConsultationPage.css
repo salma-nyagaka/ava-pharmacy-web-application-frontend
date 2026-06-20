@@ -1139,7 +1139,7 @@
 
 /* ── Form card ────────────────────────────── */
 .dc-form-card {
-  background: var(--color-background);
+  background: var(--color-background-light);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 1rem;
@@ -1414,7 +1414,7 @@
   padding: 0.75rem;
   border: 1px solid #dbe4ef;
   border-radius: 10px;
-  background: #fff;
+  background: #f8fafc;
   text-align: left;
   cursor: pointer;
   font-family: inherit;
@@ -1585,7 +1585,7 @@
 }
 
 .dc-sidebar__card {
-  background: var(--color-background);
+  background: var(--color-background-light);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 0.85rem;
@@ -1614,7 +1614,7 @@
 
 /* Fee card */
 .dc-care-summary {
-  background: var(--color-background);
+  background: var(--color-background-light);
 }
 
 .dc-care-summary__top {
@@ -1791,15 +1791,15 @@
   padding: 0.65rem;
   border: 1px solid #e5e7eb;
   border-radius: 11px;
-  background: #fff;
+  background: #f8fafc;
   text-align: left;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .dc-doctor-item:hover {
-  border-color: #bfdbfe;
-  background: #f8fbff;
+  border-color: rgba(232, 23, 80, 0.4);
+  background: rgba(232, 23, 80, 0.06);
 }
 
 .dc-doctor-item--selected {
@@ -2564,7 +2564,7 @@
 .dc-chat-panel__card {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-background);
+  background: var(--color-background-light);
   padding: 0.8rem;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
@@ -2573,7 +2573,7 @@
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  background: var(--color-background);
+  background: var(--color-background-light);
 }
 
 .dc-chat-panel__avatar {
@@ -2719,6 +2719,7 @@
 }
 
 .dc-prescription-status__link {
+  border: 0;
   min-height: 36px;
   margin-top: 0.85rem;
   display: inline-flex;
@@ -2731,6 +2732,259 @@
   font-size: 0.82rem;
   font-weight: 850;
   text-decoration: none;
+  cursor: pointer;
+}
+
+.dc-view-rx-btn {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.dc-card-rx-alert {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.dc-rx-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.dc-rx-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.dc-rx-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  max-height: min(90vh, 680px);
+  overflow: auto;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid #dbe4ef;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+}
+
+.dc-rx-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1rem 0.8rem;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.dc-rx-modal__eyebrow {
+  margin: 0 0 0.18rem;
+  color: #e11d48;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dc-rx-modal__header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.25rem;
+  font-weight: 850;
+}
+
+.dc-rx-modal__close {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #dbe4ef;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dc-rx-modal__notice {
+  margin: 1rem;
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 0.75rem 0.85rem;
+}
+
+.dc-rx-modal__notice strong {
+  font-size: 0.86rem;
+}
+
+.dc-rx-modal__notice span {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #315eaf;
+}
+
+.dc-rx-modal__details {
+  margin: 0;
+  padding: 0 1rem 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.dc-rx-modal__details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+}
+
+.dc-rx-modal__details dt {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dc-rx-modal__details dd {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.dc-rx-modal__section {
+  padding: 0 1rem 1rem;
+}
+
+.dc-rx-modal__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.dc-rx-modal__section-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.dc-rx-modal__section-head span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.dc-rx-modal__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.dc-rx-modal__item {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.7rem;
+}
+
+.dc-rx-modal__item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.dc-rx-modal__item-top div {
+  min-width: 0;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.dc-rx-modal__item-top strong {
+  color: #0f172a;
+  font-size: 0.86rem;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.dc-rx-modal__item-top span {
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.dc-rx-modal__item-top em {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #e0ecff;
+  color: #1d4ed8;
+  padding: 0.22rem 0.48rem;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.dc-rx-modal__item-meta {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.dc-rx-modal__item-meta span {
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  padding: 0.22rem 0.48rem;
+  font-size: 0.72rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.dc-rx-modal__item p,
+.dc-rx-modal__section--notes p {
+  margin: 0.55rem 0 0;
+  color: #475569;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.dc-rx-modal__section--notes p {
+  margin-top: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.7rem;
+}
+
+.dc-rx-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid #eef2f7;
 }
 
 .dc-chat-panel__tips {
@@ -3094,18 +3348,19 @@
   margin: 0 0 0.85rem;
 }
 
-/* Focus ring - teal for ped form fields inside ped form section */
+/* Focus ring - brand for ped form fields inside ped form section */
 #ped-form .dc-field input:focus,
 #ped-form .dc-field select:focus,
 #ped-form .dc-field textarea:focus {
-  border-color: #0d9488;
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(232, 23, 80, 0.12);
 }
 
 /* Doctor consultation UX polish */
 .dc-hub-page .ac-header {
-  border-color: var(--color-border);
-  background: var(--color-background);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .dc-hub-page .ac-header__eyebrow {
@@ -3127,40 +3382,65 @@
 
 .dc-hub-page .ac-tab {
   border-color: var(--color-border);
-  background: var(--color-background);
+  background: var(--color-background-light);
   color: var(--color-ink-muted);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.dc-hub-page .ac-tab:hover:not(.ac-tab--active) {
+  background: rgba(232, 23, 80, 0.06);
+  border-color: rgba(232, 23, 80, 0.4);
+  color: var(--color-primary);
 }
 
 .dc-hub-page .ac-tab--active {
-  background: rgba(232, 23, 80, 0.1);
-  border-color: rgba(232, 23, 80, 0.4);
-  color: var(--color-primary);
-  box-shadow: none;
+  background: var(--color-background);
+  border-color: var(--color-ink-faint);
+  color: var(--color-ink);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .dc-hub-page .ac-tab__count {
-  background: rgba(232, 23, 80, 0.12);
-  color: var(--color-primary);
+  background: var(--color-surface-tint);
+  color: var(--color-ink-soft);
+}
+
+.dc-hub-page .ac-tab--active .ac-tab__count {
+  background: var(--color-ink);
+  color: var(--color-white);
 }
 
 .dc-hub-page .ac-status-tab--active {
   background: var(--color-background);
-  color: var(--color-primary);
+  color: var(--color-ink);
+  border-color: var(--color-ink-faint);
 }
 
 .dc-hub-page .ac-cta-card {
   border-color: var(--color-border);
-  background: var(--color-background);
+  background: var(--color-background-light);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
-.dc-hub-page .ac-cta-card--labs .ac-cta-card__icon {
-  background: rgba(232, 23, 80, 0.08);
+.dc-hub-page .ac-cta-card:hover {
+  background: rgba(232, 23, 80, 0.05);
+  border-color: rgba(232, 23, 80, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(232, 23, 80, 0.1);
+}
+
+.dc-hub-page .ac-cta-card:hover .ac-cta-card__icon {
+  background: rgba(232, 23, 80, 0.1);
   color: var(--color-primary);
 }
 
-.dc-hub-page .ac-cta-card--rx .ac-cta-card__icon {
-  background: rgba(232, 23, 80, 0.08);
-  color: var(--color-primary);
+.dc-hub-page .ac-cta-card--labs .ac-cta-card__icon,
+.dc-hub-page .ac-cta-card--rx .ac-cta-card__icon,
+.dc-hub-page .ac-cta-card--doctor .ac-cta-card__icon,
+.dc-hub-page .ac-cta-card--paeds .ac-cta-card__icon {
+  background: var(--color-surface-tint);
+  color: var(--color-ink-soft);
+  transition: background 0.15s, color 0.15s;
 }
 
 .dc-hub-page .ac-cta-card h3 {
@@ -3173,11 +3453,11 @@
 
 .dc-hub-page .ac-empty {
   border-color: var(--color-border);
-  background: var(--color-background);
+  background: var(--color-background-light);
 }
 
 .dc-page .page-hero--doctor {
-  background: linear-gradient(135deg, var(--color-background-alt) 0%, var(--color-background) 100%);
+  background: transparent;
 }
 
 .dc-section-kicker {
@@ -3219,7 +3499,7 @@
 
 .dc-payment-card {
   border-color: var(--color-border);
-  background: var(--color-background);
+  background: var(--color-background-light);
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
 }
 

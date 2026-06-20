@@ -284,13 +284,13 @@ function PediatricianConsultation() {
   if (viewState === 'waiting' && currentConsultation) {
     return (
       <div className="dc-page">
-        <div className="dc-waiting dc-waiting--teal">
+        <div className="dc-waiting">
           <div className="dc-waiting__card">
             <div className="dc-waiting__avatar-wrap">
-              <div className="dc-waiting__pulse-ring dc-waiting__pulse-ring--teal" />
-              <div className="dc-waiting__avatar dc-waiting__avatar--teal">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
+              <div className="dc-waiting__pulse-ring" />
+              <div className="dc-waiting__avatar">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
             </div>
-            <span className="dc-waiting__status-badge dc-waiting__status-badge--teal">Request received</span>
+            <span className="dc-waiting__status-badge">Request received</span>
             <p className="dc-waiting__doctor-name">{currentConsultation.doctorName || assignedPediatrician?.name || 'Assigned pediatrician'}</p>
             <p className="dc-waiting__doctor-spec">Consultation for {currentConsultation.childName || formData.childName || 'your child'}</p>
 
@@ -306,20 +306,20 @@ function PediatricianConsultation() {
               </div>
             </div>
 
-            <div className="dc-waiting__connecting dc-waiting__connecting--teal">
+            <div className="dc-waiting__connecting">
               <span /><span /><span />
             </div>
             <p className="dc-waiting__tip">We are waiting for the pediatrician to join. This page refreshes automatically.</p>
             {currentConsultation.consentStatus !== 'granted' && (
               <div className="dc-complete__actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn--primary ped-btn--primary" onClick={() => { void handleGrantConsent() }} disabled={isGrantingConsent}>
+                <button type="button" className="btn btn--primary" onClick={() => { void handleGrantConsent() }} disabled={isGrantingConsent}>
                   {isGrantingConsent ? 'Granting consent…' : 'Grant guardian consent'}
                 </button>
               </div>
             )}
             {submitError && <p className="dc-field-error" style={{ marginTop: '1rem' }}>{submitError}</p>}
             <div className="dc-complete__actions" style={{ marginTop: '1.5rem' }}>
-              <button type="button" className="btn btn--primary ped-btn--primary" onClick={() => { void handleRefreshConsultation() }}>
+              <button type="button" className="btn btn--primary" onClick={() => { void handleRefreshConsultation() }}>
                 Refresh status
               </button>
               <Link to="/account/consultations" className="btn btn--outline">View all consultations</Link>
@@ -333,14 +333,14 @@ function PediatricianConsultation() {
   if (viewState === 'chatting' && currentConsultation) {
     return (
       <div className="dc-page">
-        <div className="dc-chat dc-chat--teal">
+        <div className="dc-chat">
           <div className="dc-chat__header">
             <div className="dc-chat__doc-info">
-              <div className="dc-chat__doc-avatar dc-chat__doc-avatar--teal">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
+              <div className="dc-chat__doc-avatar">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
               <div>
                 <p className="dc-chat__doc-name">{currentConsultation.doctorName || assignedPediatrician?.name || 'Assigned pediatrician'}</p>
                 <p className="dc-chat__doc-spec">
-                  <span className="dc-chat__online-dot dc-chat__online-dot--teal" />
+                  <span className="dc-chat__online-dot" />
                   Pediatrics · Consulting for {currentConsultation.childName || 'your child'}
                 </p>
               </div>
@@ -353,8 +353,8 @@ function PediatricianConsultation() {
           <div className="dc-chat__messages">
             {currentConsultation.messages.length === 0 && (
               <div className="dc-msg dc-msg--doctor">
-                <div className="dc-msg__avatar dc-msg__avatar--teal">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
-                <div className="dc-msg__bubble dc-msg__bubble--ped">
+                <div className="dc-msg__avatar">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
+                <div className="dc-msg__bubble">
                   <p>Your pediatric consultation has started. You can send your first message now.</p>
                   <span className="dc-msg__time">{formatDateTime(currentConsultation.updatedAt)}</span>
                 </div>
@@ -365,9 +365,9 @@ function PediatricianConsultation() {
               return (
                 <div key={message.id} className={`dc-msg dc-msg--${isPatient ? 'patient' : 'doctor'}`}>
                   {!isPatient && (
-                    <div className="dc-msg__avatar dc-msg__avatar--teal">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
+                    <div className="dc-msg__avatar">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
                   )}
-                  <div className="dc-msg__bubble dc-msg__bubble--ped">
+                  <div className="dc-msg__bubble">
                     <p>{message.message}</p>
                     <span className="dc-msg__time">{formatDateTime(message.sentAt)}</span>
                   </div>
@@ -390,7 +390,7 @@ function PediatricianConsultation() {
                 }
               }}
             />
-            <button className="btn btn--primary dc-send-btn dc-send-btn--teal" type="button" onClick={() => { void handleSendMessage() }} disabled={!messageInput.trim() || isSendingMessage}>
+            <button className="btn btn--primary dc-send-btn" type="button" onClick={() => { void handleSendMessage() }} disabled={!messageInput.trim() || isSendingMessage}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
           </div>
@@ -404,7 +404,7 @@ function PediatricianConsultation() {
               <p>This will mark the pediatric consultation as completed.</p>
               <div className="dc-confirm__actions">
                 <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowEndConfirm(false)}>Continue</button>
-                <button className="btn btn--primary btn--sm ped-btn--primary" type="button" onClick={() => { void handleEndConsultation() }} disabled={isEndingConsultation}>
+                <button className="btn btn--primary btn--sm" type="button" onClick={() => { void handleEndConsultation() }} disabled={isEndingConsultation}>
                   {isEndingConsultation ? 'Ending…' : 'End & finish'}
                 </button>
               </div>
@@ -422,7 +422,7 @@ function PediatricianConsultation() {
     return (
       <div className="dc-page">
         <div className="dc-complete">
-          <div className="dc-complete__icon dc-complete__icon--teal">
+          <div className="dc-complete__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <h2>{isCancelled ? 'Consultation closed' : 'Consultation complete'}</h2>
@@ -439,7 +439,7 @@ function PediatricianConsultation() {
             {!isCancelled && <div className="dc-complete__row"><span>Estimated fee</span><strong>KSh {consultationFee.toLocaleString()}</strong></div>}
           </div>
           <div className="dc-complete__actions">
-            <Link to="/account/consultations" className="btn btn--primary ped-btn--primary">View consultation history</Link>
+            <Link to="/account/consultations" className="btn btn--primary">View consultation history</Link>
             <Link to="/products" className="btn btn--outline">Browse Medicines</Link>
           </div>
         </div>
@@ -451,7 +451,7 @@ function PediatricianConsultation() {
     <div className="dc-page">
       <a href="#ped-form" className="skip-to-content">Skip to form</a>
 
-      <section className="page-hero page-hero--ped">
+      <section className="page-hero page-hero--doctor">
         <div className="container">
           <nav className="svc-hero__breadcrumbs">
             <Link to="/">Home</Link>
@@ -463,8 +463,8 @@ function PediatricianConsultation() {
           <h1 className="svc-hero__title">Pediatric Consultation</h1>
           <p className="svc-hero__sub">Expert care for your child from certified pediatricians. Start a secure chat consultation.</p>
           <div className="page-hero__pills">
-            <span className="page-hero__pill page-hero__pill--teal">Child Specialists</span>
-            <span className="page-hero__pill page-hero__pill--teal">Ages 0-18</span>
+            <span className="page-hero__pill">Child specialists</span>
+            <span className="page-hero__pill">Ages 0–18</span>
           </div>
         </div>
       </section>
@@ -472,123 +472,146 @@ function PediatricianConsultation() {
       <div className="container">
         <div className="dc-body" id="ped-form">
           <div className="dc-form-card">
-            <h2 className="dc-form-card__title">Start pediatric consultation</h2>
-            <p className="dc-form-card__sub">Fill in your child&apos;s details and we will route you to an available pediatrician.</p>
+            <div className="dc-form-card__header">
+              <div>
+                <p className="dc-section-kicker">Secure pediatric chat</p>
+                <h2 className="dc-form-card__title">Start pediatric consultation</h2>
+                <p className="dc-form-card__sub">Fill in your child&apos;s details and we will route you to an available pediatrician.</p>
+              </div>
+              <span className="dc-form-card__badge">Guardian consent</span>
+            </div>
 
             {loadError && <p className="dc-field-error" style={{ marginBottom: '1rem' }}>{loadError}</p>}
             {submitError && <p className="dc-field-error" style={{ marginBottom: '1rem' }}>{submitError}</p>}
 
             <form onSubmit={handleSubmit} noValidate>
-              <p className="ped-section-label">Parent / Guardian</p>
-              <div className="dc-form-row">
-                <div className="dc-field">
-                  <label htmlFor="ped-parent">Full name</label>
-                  <input id="ped-parent" type="text" value={formData.parentName} onChange={(event) => setField('parentName', event.target.value)} aria-invalid={!!formErrors.parentName} placeholder="Jane Mwangi" />
-                  {formErrors.parentName && <span className="dc-field-error">{formErrors.parentName}</span>}
+              <div className="dc-form-section">
+                <div className="dc-form-section__heading">
+                  <span>1</span>
+                  <div>
+                    <h3>Guardian contact details</h3>
+                    <p>Used for consultation updates and follow-up notes.</p>
+                  </div>
                 </div>
-                <div className="dc-field">
-                  <label htmlFor="ped-email">Email address</label>
-                  <input id="ped-email" type="email" value={formData.email} onChange={(event) => setField('email', event.target.value)} aria-invalid={!!formErrors.email} placeholder="you@example.com" />
-                  {formErrors.email && <span className="dc-field-error">{formErrors.email}</span>}
+                <div className="dc-form-row">
+                  <div className="dc-field">
+                    <label htmlFor="ped-parent">Full name</label>
+                    <input id="ped-parent" type="text" value={formData.parentName} onChange={(event) => setField('parentName', event.target.value)} aria-invalid={!!formErrors.parentName} placeholder="Jane Mwangi" />
+                    {formErrors.parentName && <span className="dc-field-error">{formErrors.parentName}</span>}
+                  </div>
+                  <div className="dc-field">
+                    <label htmlFor="ped-email">Email address</label>
+                    <input id="ped-email" type="email" value={formData.email} onChange={(event) => setField('email', event.target.value)} aria-invalid={!!formErrors.email} placeholder="you@example.com" />
+                    {formErrors.email && <span className="dc-field-error">{formErrors.email}</span>}
+                  </div>
                 </div>
-              </div>
-
-              <div className="dc-form-row" style={{ marginBottom: '1.75rem' }}>
-                <div className="dc-field">
-                  <label htmlFor="ped-phone">Phone number</label>
-                  <input id="ped-phone" type="tel" value={formData.phone} onChange={(event) => setField('phone', event.target.value)} aria-invalid={!!formErrors.phone} placeholder="+254 700 000 000" />
-                  {formErrors.phone && <span className="dc-field-error">{formErrors.phone}</span>}
-                </div>
-                <div className="dc-field" />
-              </div>
-
-              <p className="ped-section-label">Child Information</p>
-              <div className="dc-form-row" style={{ marginBottom: '1.25rem' }}>
-                <div className="dc-field">
-                  <label htmlFor="ped-child-name">Child's name</label>
-                  <input id="ped-child-name" type="text" value={formData.childName} onChange={(event) => setField('childName', event.target.value)} aria-invalid={!!formErrors.childName} placeholder="e.g. Emily" />
-                  {formErrors.childName && <span className="dc-field-error">{formErrors.childName}</span>}
-                </div>
-                <div className="dc-field">
-                  <label htmlFor="ped-child-age">Age in years (0-18)</label>
-                  <input id="ped-child-age" type="number" min="0" max="18" value={formData.childAge} onChange={(event) => setField('childAge', event.target.value)} aria-invalid={!!formErrors.childAge} placeholder="e.g. 5" />
-                  {formErrors.childAge && <span className="dc-field-error">{formErrors.childAge}</span>}
+                <div className="dc-form-row">
+                  <div className="dc-field">
+                    <label htmlFor="ped-phone">Phone number</label>
+                    <input id="ped-phone" type="tel" value={formData.phone} onChange={(event) => setField('phone', event.target.value)} aria-invalid={!!formErrors.phone} placeholder="+254 700 000 000" />
+                    {formErrors.phone && <span className="dc-field-error">{formErrors.phone}</span>}
+                  </div>
+                  <div className="dc-field" />
                 </div>
               </div>
 
-              <div className="dc-field" style={{ marginBottom: '1.25rem' }}>
-                <label htmlFor="ped-symptoms">
-                  Describe symptoms
-                  <span className="dc-field-char">{formData.symptoms.length}/500</span>
-                </label>
-                <textarea
-                  id="ped-symptoms"
-                  rows={4}
-                  maxLength={500}
-                  placeholder="Describe your child's symptoms, how long they have had them, and any relevant history or allergies..."
-                  value={formData.symptoms}
-                  onChange={(event) => setField('symptoms', event.target.value)}
-                  aria-invalid={!!formErrors.symptoms}
-                />
-                {formErrors.symptoms && <span className="dc-field-error">{formErrors.symptoms}</span>}
+              <div className="dc-form-section">
+                <div className="dc-form-section__heading">
+                  <span>2</span>
+                  <div>
+                    <h3>Child information</h3>
+                    <p>Tell us about the child who needs care.</p>
+                  </div>
+                </div>
+                <div className="dc-form-row">
+                  <div className="dc-field">
+                    <label htmlFor="ped-child-name">Child's name</label>
+                    <input id="ped-child-name" type="text" value={formData.childName} onChange={(event) => setField('childName', event.target.value)} aria-invalid={!!formErrors.childName} placeholder="e.g. Emily" />
+                    {formErrors.childName && <span className="dc-field-error">{formErrors.childName}</span>}
+                  </div>
+                  <div className="dc-field">
+                    <label htmlFor="ped-child-age">Age in years (0-18)</label>
+                    <input id="ped-child-age" type="number" min="0" max="18" value={formData.childAge} onChange={(event) => setField('childAge', event.target.value)} aria-invalid={!!formErrors.childAge} placeholder="e.g. 5" />
+                    {formErrors.childAge && <span className="dc-field-error">{formErrors.childAge}</span>}
+                  </div>
+                </div>
               </div>
 
-              <div className="dc-field" style={{ marginBottom: '1.75rem' }}>
-                <label htmlFor="ped-vaccine">
-                  Vaccine history
-                  <span className="dc-field-optional">optional</span>
-                </label>
-                <textarea id="ped-vaccine" rows={2} placeholder="Recent vaccinations or any pending ones..." value={formData.vaccineHistory} onChange={(event) => setField('vaccineHistory', event.target.value)} />
-              </div>
-
-              <div className="dc-field" style={{ marginBottom: '1.25rem' }}>
-                <label className="ped-consent-label">
-                  <input
-                    type="checkbox"
-                    checked={consentChecked}
-                    onChange={(e) => setConsentChecked(e.target.checked)}
-                    style={{ marginRight: '0.5rem', accentColor: '#0f766e' }}
+              <div className="dc-form-section">
+                <div className="dc-form-section__heading">
+                  <span>3</span>
+                  <div>
+                    <h3>Symptoms &amp; consent</h3>
+                    <p>Add enough detail for the pediatrician, then give guardian consent.</p>
+                  </div>
+                </div>
+                <div className="dc-field">
+                  <label htmlFor="ped-symptoms">
+                    Describe symptoms
+                    <span className="dc-field-char">{formData.symptoms.length}/500</span>
+                  </label>
+                  <textarea
+                    id="ped-symptoms"
+                    rows={4}
+                    maxLength={500}
+                    placeholder="Describe your child's symptoms, how long they have had them, and any relevant history or allergies..."
+                    value={formData.symptoms}
+                    onChange={(event) => setField('symptoms', event.target.value)}
+                    aria-invalid={!!formErrors.symptoms}
                   />
-                  I, as parent/guardian, give consent for this telemedicine consultation on behalf of my child.
-                </label>
-                {formErrors.consent && <span className="dc-field-error">{formErrors.consent}</span>}
+                  {formErrors.symptoms && <span className="dc-field-error">{formErrors.symptoms}</span>}
+                </div>
+
+                <div className="dc-field">
+                  <label htmlFor="ped-vaccine">
+                    Vaccine history
+                    <span className="dc-field-optional">optional</span>
+                  </label>
+                  <textarea id="ped-vaccine" rows={2} placeholder="Recent vaccinations or any pending ones..." value={formData.vaccineHistory} onChange={(event) => setField('vaccineHistory', event.target.value)} />
+                </div>
+
+                <div className="dc-field dc-field--compact">
+                  <label className="ped-consent-label">
+                    <input
+                      type="checkbox"
+                      checked={consentChecked}
+                      onChange={(e) => setConsentChecked(e.target.checked)}
+                      style={{ marginRight: '0.5rem', accentColor: '#e81750' }}
+                    />
+                    I, as parent/guardian, give consent for this telemedicine consultation on behalf of my child.
+                  </label>
+                  {formErrors.consent && <span className="dc-field-error">{formErrors.consent}</span>}
+                </div>
               </div>
 
-              <button type="submit" className="btn btn--primary dc-submit-btn ped-submit-btn" disabled={isSubmitting || !consentChecked}>
+              <button type="submit" className="btn btn--primary dc-submit-btn" disabled={isSubmitting || !consentChecked}>
                 {isSubmitting ? 'Starting consultation…' : 'Start chat consultation →'}
               </button>
             </form>
-
-            <div className="dc-steps">
-              {[
-                { n: '1', label: 'Fill details', desc: 'Enter guardian and child information' },
-                { n: '2', label: 'Consent', desc: 'Guardian consent is captured for the consult' },
-                { n: '3', label: 'Chat', desc: 'Secure real-time consultation' },
-                { n: '4', label: 'Prescription', desc: 'Issued digitally when needed' },
-              ].map((step) => (
-                <div key={step.n} className="dc-step">
-                  <div className="dc-step__dot ped-step__dot">{step.n}</div>
-                  <div>
-                    <p className="dc-step__label">{step.label}</p>
-                    <p className="dc-step__desc">{step.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
-          <aside className="dc-sidebar">
-            <div className="dc-sidebar__card dc-fee-card">
-              <p className="dc-fee-card__label">Consultation fee</p>
-              <p className="dc-fee-card__amount ped-fee-amount">KSh {(selectedPediatrician?.consultFee ?? 0).toLocaleString()}</p>
-              <p className="dc-fee-card__note">Charged by the assigned pediatrician · No upfront charge on this page</p>
+          <aside className="dc-sidebar" aria-label="Pediatric consultation support panel">
+            <div className="dc-sidebar__card dc-fee-card dc-care-summary">
+              <div className="dc-care-summary__top">
+                <div>
+                  <p className="dc-fee-card__label">Consultation fee</p>
+                  <p className="dc-fee-card__amount">KSh {(selectedPediatrician?.consultFee ?? 0).toLocaleString()}</p>
+                </div>
+                <span>Assigned pediatrician</span>
+              </div>
+              <p className="dc-fee-card__note">No upfront charge on this page. The fee is billed by the assigned pediatrician once the consultation starts.</p>
               <div className="dc-fee-card__includes">
-                <p className="dc-fee-card__includes-title">Includes:</p>
-                <ul>
-                  <li>Secure pediatric chat session</li>
-                  <li>Digital prescription when clinically necessary</li>
-                  <li>Child consultation history in your account</li>
-                </ul>
+                <p className="dc-fee-card__includes-title">Includes</p>
+                <div className="dc-include-grid">
+                  <span>Secure chat</span>
+                  <span>Guardian consent</span>
+                  <span>Digital Rx</span>
+                  <span>Saved history</span>
+                </div>
+              </div>
+              <div className="dc-fee-card__routing">
+                <span>Routed to</span>
+                <strong>Pediatric care</strong>
               </div>
             </div>
 
@@ -602,11 +625,10 @@ function PediatricianConsultation() {
                     <button
                       key={provider.id}
                       type="button"
-                      className="dc-doctor-item"
+                      className={`dc-doctor-item${isSelected ? ' dc-doctor-item--selected' : ''}`}
                       onClick={() => setSelectedPediatricianId(provider.id)}
-                      style={isSelected ? { borderColor: '#0f766e', background: 'rgba(13, 148, 136, 0.08)' } : undefined}
                     >
-                      <div className="dc-doctor-item__avatar ped-doctor-avatar">{getInitials(provider.name)}</div>
+                      <div className="dc-doctor-item__avatar">{getInitials(provider.name)}</div>
                       <div className="dc-doctor-item__info">
                         <p className="dc-doctor-item__name">{provider.name}</p>
                         <p className="dc-doctor-item__spec">{provider.specialty} · Online</p>
@@ -615,21 +637,6 @@ function PediatricianConsultation() {
                     </button>
                   )
                 })}
-              </div>
-            </div>
-
-            <div className="dc-sidebar__card dc-trust-card">
-              <div className="dc-trust-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" width="18" height="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>Certified pediatric specialists</span>
-              </div>
-              <div className="dc-trust-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span>Guardian consent captured in the flow</span>
-              </div>
-              <div className="dc-trust-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                <span>Child consultation history saved to your account</span>
               </div>
             </div>
 

@@ -144,9 +144,9 @@
 /* ── Page hero color variants (per service) ── */
 
 /* Doctor Consultation - blue */
-.page-hero--doctor {
-  background: linear-gradient(135deg, #eef5fa 0%, #f7f9fc 100%);
-  border-bottom: 1px solid var(--color-border);
+.page-hero.page-hero--doctor {
+  background: transparent;
+  border-bottom: none;
 }
 .page-hero--doctor .svc-hero__breadcrumbs       { color: var(--color-ink-muted); }
 .page-hero--doctor .svc-hero__breadcrumbs a     { color: var(--color-ink-muted); }

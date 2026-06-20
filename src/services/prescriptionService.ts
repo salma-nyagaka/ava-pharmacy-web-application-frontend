@@ -164,6 +164,17 @@ function listEndpoint(scope: PrescriptionListScope = 'role') {
     : '/prescriptions/'
 }
 
+function formatSubmittedDate(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+}
+
 function mapPrescription(record: ApiPrescription): PrescriptionRecord {
   return {
     backendId: record.id,
@@ -174,7 +185,8 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
     clinicianType: record.clinician_type || '',
     status: STATUS_FROM_API[record.status] ?? 'Pending',
     dispatchStatus: DISPATCH_FROM_API[record.dispatch_status] ?? 'Not started',
-    submitted: record.submitted_at ? new Date(record.submitted_at).toISOString().slice(0, 10) : '',
+    submitted: formatSubmittedDate(record.submitted_at),
+    submittedAt: record.submitted_at || '',
     doctor: record.doctor_name || 'Doctor not specified',
     files: (record.files || []).map((file) => file.file || file.filename).filter(Boolean),
     items: (record.items || []).map((item) => ({

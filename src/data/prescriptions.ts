@@ -41,6 +41,7 @@ export interface PrescriptionRecord {
   status: PrescriptionStatus
   dispatchStatus: DispatchStatus
   submitted: string
+  submittedAt?: string
   doctor: string
   files: string[]
   items: PrescriptionItem[]

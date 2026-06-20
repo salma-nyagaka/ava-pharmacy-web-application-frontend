@@ -7,6 +7,7 @@ import {
   ClinicianSummary,
   CreateConsultationPayload,
   ConsultationPaymentIntent,
+  ConsultationPrescriptionSummary,
   ConsultationRecord,
   createConsultationPaymentIntent,
   endConsultation,
@@ -98,6 +99,20 @@ function formatDateTime(value?: string | null) {
   })
 }
 
+function formatPrescriptionItemSchedule(item: ConsultationPrescriptionSummary['items'][number]) {
+  const seen = new Set<string>()
+  return [item.dose, item.frequency, item.duration]
+    .map((part) => part.trim())
+    .filter((part) => {
+      if (!part) return false
+      const key = part.toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .join(' · ')
+}
+
 function apiErrorMessage(error: unknown, fallback: string): string {
   const data = (error as { response?: { data?: { error?: { message?: string }; detail?: string | string[]; message?: string } } })?.response?.data
   const detail = data?.error?.message ?? data?.message ?? data?.detail
@@ -148,6 +163,10 @@ function DoctorConsultation() {
   const [isEndingConsultation, setIsEndingConsultation] = useState(false)
   const [messageInput, setMessageInput] = useState('')
   const [showEndConfirm, setShowEndConfirm] = useState(false)
+  const [activePrescriptionModal, setActivePrescriptionModal] = useState<{
+    consultation: ConsultationRecord
+    prescription: ConsultationPrescriptionSummary
+  } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const finalizingPaymentIntentRef = useRef<number | null>(null)
 
@@ -569,7 +588,120 @@ function DoctorConsultation() {
     sendTyping()
   }
 
+  const openPrescriptionModal = (consultation: ConsultationRecord, prescription: ConsultationPrescriptionSummary) => {
+    setActivePrescriptionModal({ consultation, prescription })
+  }
+
+  const renderPrescriptionModal = () => {
+    if (!activePrescriptionModal) return null
+    const { consultation, prescription } = activePrescriptionModal
+    const modalStatus = prescription.status === 'sent' ? 'Under pharmacist review' : prescription.status
+    const prescriptionItems = prescription.items ?? []
+    const doctorNotes = prescription.notes.trim()
+    const itemTotal = prescriptionItems.length || prescription.itemsCount
+    const itemCountLabel = `${itemTotal} item${itemTotal === 1 ? '' : 's'}`
+
+    return (
+      <div className="dc-rx-modal" role="dialog" aria-modal="true" aria-labelledby="dc-rx-modal-title">
+        <div className="dc-rx-modal__backdrop" onClick={() => setActivePrescriptionModal(null)} />
+        <div className="dc-rx-modal__panel">
+          <div className="dc-rx-modal__header">
+            <div>
+              <p className="dc-rx-modal__eyebrow">Prescription</p>
+              <h2 id="dc-rx-modal-title">{prescription.reference}</h2>
+            </div>
+            <button type="button" className="dc-rx-modal__close" onClick={() => setActivePrescriptionModal(null)} aria-label="Close prescription details">
+              ×
+            </button>
+          </div>
+
+          <div className="dc-rx-modal__notice">
+            <strong>Pharmacist review in progress</strong>
+            <span>Your doctor has issued this prescription. A pharmacist will review it before checkout and payment.</span>
+          </div>
+
+          <dl className="dc-rx-modal__details">
+            <div>
+              <dt>Consultation</dt>
+              <dd>{consultation.reference}</dd>
+            </div>
+            <div>
+              <dt>Doctor</dt>
+              <dd>{consultation.doctorName || 'Assigned doctor'}</dd>
+            </div>
+            <div>
+              <dt>Items</dt>
+              <dd>{itemTotal}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>{modalStatus}</dd>
+            </div>
+            <div>
+              <dt>Issued</dt>
+              <dd>{formatDateTime(prescription.sentAt || prescription.createdAt)}</dd>
+            </div>
+          </dl>
+
+          {prescriptionItems.length > 0 && (
+            <section className="dc-rx-modal__section" aria-label="Medication details">
+              <div className="dc-rx-modal__section-head">
+                <h3>Medication details</h3>
+                <span>{itemCountLabel}</span>
+              </div>
+              <ul className="dc-rx-modal__items">
+                {prescriptionItems.map((item, index) => {
+                  const medicineName = item.drugName || item.catalogName || 'Medication'
+                  const schedule = formatPrescriptionItemSchedule(item)
+                  const catalogLabel = item.catalogName && item.catalogName !== medicineName ? item.catalogName : ''
+
+                  return (
+                    <li key={`${medicineName}-${index}`} className="dc-rx-modal__item">
+                      <div className="dc-rx-modal__item-top">
+                        <div>
+                          <strong>{medicineName}</strong>
+                          {catalogLabel && <span>{catalogLabel}</span>}
+                        </div>
+                        <em>Qty {item.quantity}</em>
+                      </div>
+                      {(schedule || item.sku) && (
+                        <div className="dc-rx-modal__item-meta">
+                          {schedule && <span>{schedule}</span>}
+                          {item.sku && <span>{item.sku}</span>}
+                        </div>
+                      )}
+                      {item.notes && <p>{item.notes}</p>}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
+
+          {doctorNotes && (
+            <section className="dc-rx-modal__section dc-rx-modal__section--notes" aria-label="Doctor notes">
+              <div className="dc-rx-modal__section-head">
+                <h3>Doctor notes</h3>
+              </div>
+              <p>{doctorNotes}</p>
+            </section>
+          )}
+
+          <div className="dc-rx-modal__actions">
+            <Link to="/prescriptions" className="btn btn--primary btn--sm" onClick={() => setActivePrescriptionModal(null)}>
+              Open prescriptions
+            </Link>
+            <button type="button" className="btn btn--outline btn--sm" onClick={() => setActivePrescriptionModal(null)}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const renderConsultationWorkspace = () => (
+    <>
     <div className="dc-page ac-page dc-hub-page">
       <div className="container">
         <div className="ac-header">
@@ -659,6 +791,7 @@ function DoctorConsultation() {
               const type = getTypeConfig(consultation)
               const isExpanded = expandedId === consultation.id
               const activityDate = consultation.scheduledAt || consultation.lastMessageAt || consultation.createdAt
+              const latestCardPrescription = consultation.prescriptions?.[0] ?? null
 
               return (
                 <li key={consultation.id} className="ac-card">
@@ -732,6 +865,18 @@ function DoctorConsultation() {
                         </div>
                       )}
 
+                      {latestCardPrescription && (
+                        <div className="ac-card__followup dc-card-rx-alert">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <path d="M14 2v6h6"/>
+                            <path d="M12 18v-6"/>
+                            <path d="M9 15h6"/>
+                          </svg>
+                          Prescription <strong>{latestCardPrescription.reference}</strong> is under pharmacist review.
+                        </div>
+                      )}
+
                       <div className="ac-card__actions">
                         {!consultation.isPediatric && (consultation.status === 'waiting' || consultation.status === 'in_progress') && (
                           <button type="button" className="btn btn--primary btn--sm" onClick={() => { void openDoctorConsultation(consultation) }}>
@@ -753,10 +898,14 @@ function DoctorConsultation() {
                             Book paediatric follow-up
                           </Link>
                         )}
-                        {consultation.status === 'completed' && (
-                          <Link to="/prescriptions" className="btn btn--outline btn--sm">
-                            Upload prescription
-                          </Link>
+                        {latestCardPrescription && (
+                          <button
+                            type="button"
+                            className="btn btn--outline btn--sm dc-view-rx-btn"
+                            onClick={() => openPrescriptionModal(consultation, latestCardPrescription)}
+                          >
+                            View prescription
+                          </button>
                         )}
                       </div>
                     </div>
@@ -803,8 +952,10 @@ function DoctorConsultation() {
             </Link>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+      {renderPrescriptionModal()}
+    </>
   )
 
   if (isLoading) {
@@ -817,6 +968,7 @@ function DoctorConsultation() {
 
   if (viewState === 'waiting' && currentConsultation) {
     return (
+      <>
       <div className="dc-page">
         <div className="dc-waiting">
           <div className="dc-waiting__shell">
@@ -892,6 +1044,8 @@ function DoctorConsultation() {
           </div>
         </div>
       </div>
+      {renderPrescriptionModal()}
+      </>
     )
   }
 
@@ -1051,9 +1205,13 @@ function DoctorConsultation() {
                       <span>Status</span>
                       <strong>{latestPrescription.status}</strong>
                     </div>
-                    <Link to="/prescriptions/history" className="dc-prescription-status__link">
+                    <button
+                      type="button"
+                      className="dc-prescription-status__link"
+                      onClick={() => openPrescriptionModal(currentConsultation, latestPrescription)}
+                    >
                       View prescription
-                    </Link>
+                    </button>
                   </>
                 ) : (
                   <p className="dc-prescription-status__copy">

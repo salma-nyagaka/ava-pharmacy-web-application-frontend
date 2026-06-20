@@ -297,14 +297,9 @@ function AccountConsultationsPage() {
                           </Link>
                         )}
                         {consultation.status === 'completed' && (
-                          <>
-                            <Link to={route} className="btn btn--primary btn--sm">
-                              Book follow-up
-                            </Link>
-                            <Link to="/prescriptions" className="btn btn--outline btn--sm">
-                              Upload prescription
-                            </Link>
-                          </>
+                          <Link to={route} className="btn btn--primary btn--sm">
+                            Book follow-up
+                          </Link>
                         )}
                         {consultation.status === 'cancelled' && (
                           <Link to={route} className="btn btn--primary btn--sm">

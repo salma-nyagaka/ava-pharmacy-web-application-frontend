@@ -25,11 +25,24 @@ export interface ConsultationMessage {
   sentAt: string
 }
 
+export interface ConsultationPrescriptionItemSummary {
+  drugName: string
+  dose: string
+  frequency: string
+  duration: string
+  quantity: number
+  notes: string
+  catalogName: string
+  sku: string
+}
+
 export interface ConsultationPrescriptionSummary {
   id: number
   reference: string
   status: 'draft' | 'sent' | 'dispensed'
   itemsCount: number
+  items: ConsultationPrescriptionItemSummary[]
+  notes: string
   sentAt: string | null
   createdAt: string
 }
@@ -401,12 +414,31 @@ function mapMessage(raw: Record<string, unknown>): ConsultationMessage {
   }
 }
 
+function mapConsultationPrescriptionItem(raw: Record<string, unknown>): ConsultationPrescriptionItemSummary {
+  const quantity = normalizeNumber(raw.quantity)
+  return {
+    drugName: String(raw.drug_name ?? raw.name ?? raw.catalog_name ?? ''),
+    dose: String(raw.dose ?? raw.dosage ?? ''),
+    frequency: String(raw.frequency ?? ''),
+    duration: String(raw.duration ?? ''),
+    quantity: quantity > 0 ? quantity : 1,
+    notes: String(raw.notes ?? raw.note ?? ''),
+    catalogName: String(raw.catalog_name ?? ''),
+    sku: String(raw.sku ?? ''),
+  }
+}
+
 function mapConsultationPrescription(raw: Record<string, unknown>): ConsultationPrescriptionSummary {
+  const items = Array.isArray(raw.items)
+    ? raw.items.map((item) => mapConsultationPrescriptionItem(item as Record<string, unknown>))
+    : []
   return {
     id: Number(raw.id ?? 0),
     reference: String(raw.reference ?? ''),
     status: String(raw.status ?? 'draft') as ConsultationPrescriptionSummary['status'],
-    itemsCount: normalizeNumber(raw.items_count),
+    itemsCount: normalizeNumber(raw.items_count) || items.length,
+    items,
+    notes: String(raw.notes ?? ''),
     sentAt: raw.sent_at ? String(raw.sent_at) : null,
     createdAt: String(raw.created_at ?? ''),
   }

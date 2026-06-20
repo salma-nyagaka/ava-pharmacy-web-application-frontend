@@ -2,34 +2,19 @@
   min-height: calc(100vh - 80px);
 }
 
-.rup-hub-page .ac-header__eyebrow,
-.rup-hub-page .ac-tab--active {
-  color: #0f766e;
-}
-
-.rup-hub-page .ac-tab--active {
-  background: rgba(15, 118, 110, 0.1);
-  border-color: rgba(15, 118, 110, 0.4);
-}
-
-.rup-hub-page .ac-status-tab--active {
-  color: #be185d;
-  background: rgba(236, 72, 153, 0.08);
-}
-
 .rup-rx-avatar {
-  background: rgba(236, 72, 153, 0.1);
-  color: #be185d;
+  background: var(--color-surface-tint);
+  color: var(--color-ink-soft);
 }
 
 .rup-source-badge {
-  background: rgba(15, 118, 110, 0.1);
-  color: #0f766e;
+  background: var(--color-surface-tint);
+  color: var(--color-ink-soft);
 }
 
 .rup-clarification-note {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.08);
+  color: var(--color-ink-soft);
+  background: var(--color-surface-tint);
 }
 
 .rup-clarification-note span {
@@ -624,11 +609,11 @@
 }
 
 .rup-form-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
-  padding: 1.25rem;
+  background: var(--color-background-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px rgba(15, 23, 42, 0.04);
+  padding: 1rem;
 }
 
 .rup-form-card__header {
@@ -636,36 +621,36 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding-bottom: 0.85rem;
-  margin-bottom: 0.85rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 0.2rem 0.2rem 0.7rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .rup-form-card__eyebrow {
-  margin: 0 0 0.25rem;
-  color: #64748b;
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  margin: 0 0 0.3rem;
+  color: var(--color-primary);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .rup-form-title {
   margin: 0;
-  color: #0f172a;
-  font-size: 1.05rem;
+  color: var(--color-ink);
+  font-size: 1.25rem;
   font-weight: 800;
 }
 
 .rup-form-card__pill {
   display: inline-flex;
   align-items: center;
-  min-height: 26px;
-  padding: 0.28rem 0.6rem;
+  min-height: 28px;
+  padding: 0 0.6rem;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 0.68rem;
+  background: rgba(232, 23, 80, 0.1);
+  color: var(--color-primary);
+  font-size: 0.72rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -676,14 +661,14 @@
   margin-bottom: 1rem;
   padding: 0.75rem 0.9rem;
   border-radius: 10px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
+  background: var(--color-surface-tint);
+  border: 1px solid var(--color-border);
+  color: var(--color-ink-soft);
 }
 
 .rup-request-context p {
   margin: 0;
-  color: #334155;
+  color: var(--color-ink-soft);
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -699,17 +684,17 @@
   padding: 1rem;
   text-align: center;
   cursor: pointer;
-  border: 1.5px dashed #cbd5e1;
+  border: 1.5px dashed var(--color-border);
   border-radius: 12px;
-  background: #f8fafc;
+  background: var(--color-background);
   transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
 .rup-dropzone:hover,
 .rup-dropzone--active {
-  border-color: #2563eb;
-  background: #eff6ff;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+  border-color: rgba(232, 23, 80, 0.5);
+  background: rgba(232, 23, 80, 0.05);
+  box-shadow: 0 0 0 4px rgba(232, 23, 80, 0.1);
 }
 
 .rup-dropzone--has-files {
@@ -733,8 +718,15 @@
   height: 34px;
   margin-bottom: 0.55rem;
   border-radius: 10px;
-  background: #dbeafe;
-  color: #2563eb;
+  background: var(--color-surface-tint);
+  color: var(--color-ink-soft);
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.rup-dropzone:hover .rup-dropzone__icon,
+.rup-dropzone--active .rup-dropzone__icon {
+  background: rgba(232, 23, 80, 0.1);
+  color: var(--color-primary);
 }
 
 .rup-dropzone__icon svg {
@@ -744,21 +736,21 @@
 
 .rup-dropzone__label {
   margin: 0 0 0.2rem;
-  color: #0f172a;
+  color: var(--color-ink);
   font-size: 0.82rem;
   font-weight: 800;
 }
 
 .rup-dropzone__title {
   margin: 0 0 0.25rem;
-  color: #334155;
+  color: var(--color-ink-soft);
   font-size: 0.82rem;
   font-weight: 700;
 }
 
 .rup-dropzone__hint {
   margin: 0;
-  color: #64748b;
+  color: var(--color-ink-muted);
   font-size: 0.7rem;
 }
 
@@ -768,7 +760,7 @@
   margin-top: 0.8rem;
   overflow: hidden;
   border-radius: 999px;
-  background: #dbeafe;
+  background: var(--color-surface-tint);
 }
 
 .rup-upload-progress span {
@@ -776,7 +768,7 @@
   width: 45%;
   height: 100%;
   border-radius: inherit;
-  background: #2563eb;
+  background: var(--color-primary);
   animation: rup-progress 1s ease-in-out infinite;
 }
 
@@ -805,7 +797,7 @@
 .rup-file-item__icon {
   width: 16px;
   height: 16px;
-  color: #2563eb;
+  color: var(--color-primary);
 }
 
 .rup-file-item__name {
@@ -857,13 +849,13 @@
 }
 
 .rup-field label {
-  color: #334155;
+  color: var(--color-ink-soft);
   font-size: 0.76rem;
   font-weight: 800;
 }
 
 .rup-field__optional {
-  color: #64748b;
+  color: var(--color-ink-muted);
   font-size: 0.72rem;
   font-weight: 600;
 }
@@ -873,12 +865,12 @@
   width: 100%;
   min-height: 40px;
   padding: 0.55rem 0.7rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 9px;
-  color: #0f172a;
+  color: var(--color-ink);
   font: inherit;
   font-size: 0.82rem;
-  background: #fff;
+  background: var(--color-background);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -890,8 +882,8 @@
 .rup-field input:focus,
 .rup-field textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(232, 23, 80, 0.12);
 }
 
 .rup-error {
@@ -912,17 +904,17 @@
   width: 100%;
   min-height: 44px;
   margin-bottom: 1rem;
-  border-color: #2563eb !important;
-  background: #2563eb !important;
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary) !important;
   color: #fff !important;
   font-size: 0.88rem;
   font-weight: 800;
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 12px 26px rgba(232, 23, 80, 0.18);
 }
 
 .rup-submit-btn:hover:not(:disabled) {
-  background: #1d4ed8 !important;
-  border-color: #1d4ed8 !important;
+  background: var(--color-primary-dark) !important;
+  border-color: var(--color-primary-dark) !important;
   transform: translateY(-1px);
 }
 
@@ -934,14 +926,14 @@
 
 .rup-tips {
   margin: 0 0 1rem;
-  border: 1px solid #bbf7d0;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #f0fdf4;
+  background: var(--color-background-light);
 }
 
 .rup-tips summary {
   padding: 0.8rem 0.95rem;
-  color: #166534;
+  color: var(--color-ink);
   cursor: pointer;
   font-size: 0.88rem;
   font-weight: 800;
@@ -954,7 +946,7 @@
 
 .rup-tips li {
   margin-bottom: 0.28rem;
-  color: #166534;
+  color: var(--color-ink-soft);
   font-size: 0.82rem;
 }
 
@@ -963,7 +955,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.7rem;
   padding-top: 1rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--color-border-light);
 }
 
 .rup-trust-strip__item {
@@ -972,10 +964,10 @@
   gap: 0.55rem;
   min-height: 48px;
   padding: 0.7rem 0.75rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--color-background);
+  color: var(--color-ink);
 }
 
 .rup-trust-strip__item span {
@@ -985,8 +977,8 @@
   width: 26px;
   height: 26px;
   border-radius: 8px;
-  background: #ccfbf1;
-  color: #0f766e;
+  background: var(--color-surface-tint);
+  color: var(--color-primary);
   font-size: 0.9rem;
   flex: 0 0 auto;
 }

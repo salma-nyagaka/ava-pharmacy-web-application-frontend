@@ -24,12 +24,17 @@ const isPdfFile = (f: string) =>
   f.startsWith('data:application/pdf') || /\.pdf$/i.test(f)
 
 function TimeElapsed({ since }: { since: string | undefined }) {
-  const hours = since ? Math.floor((Date.now() - new Date(since).getTime()) / 3600000) : 0
-  const mins = since ? Math.floor((Date.now() - new Date(since).getTime()) / 60000) % 60 : 0
+  const submittedAt = since ? new Date(since).getTime() : Number.NaN
+  if (!Number.isFinite(submittedAt)) return null
+
+  const elapsedMs = Math.max(0, Date.now() - submittedAt)
+  const totalMins = Math.floor(elapsedMs / 60000)
+  const hours = Math.floor(totalMins / 60)
+  const mins = totalMins % 60
   const isOverdue = hours >= 2
   return (
     <span className={`pharm-age ${isOverdue ? 'pharm-age--overdue' : ''}`}>
-      {hours > 0 ? `${hours}h ${mins}m` : `${mins}m`} ago
+      {totalMins < 1 ? 'just now' : `${hours > 0 ? `${hours}h ${mins}m` : `${mins}m`} ago`}
     </span>
   )
 }
@@ -76,6 +81,19 @@ function formatOrderDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '—'
 }
 
+function formatSubmittedDateTime(value?: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('en-KE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function formatCurrency(value?: string | null) {
   const amount = Number(value ?? 0)
   return `KSh ${Number.isFinite(amount) ? amount.toLocaleString() : '0'}`
@@ -116,7 +134,7 @@ function buildClarificationThread(rx: PrescriptionRecord): PrescriptionClarifica
       senderName: rx.pharmacist,
       senderDisplay: rx.pharmacist || 'Pharmacist',
       message: rx.clarificationMessage,
-      createdAt: rx.submitted,
+      createdAt: rx.submittedAt || rx.submitted,
     })
   }
 
@@ -726,8 +744,8 @@ function PharmacistDashboardPage() {
                         <td><span className="admin-status admin-status--info">{rx.dispatchStatus}</span></td>
                         <td className="px-date">
                           <div className="pharm-cell-stack">
-                            <span>{rx.submitted}</span>
-                            {rx.status === 'Pending' && <TimeElapsed since={rx.submitted} />}
+                            <span>{formatSubmittedDateTime(rx.submittedAt || rx.submitted)}</span>
+                            {rx.status === 'Pending' && <TimeElapsed since={rx.submittedAt || rx.submitted} />}
                           </div>
                         </td>
                         <td>
@@ -976,7 +994,7 @@ function PharmacistDashboardPage() {
                 )}
               </div>
               <div className="px-modal__header-right">
-                <span className="px-modal__submitted">Submitted {activeRx.submitted}</span>
+                <span className="px-modal__submitted">Submitted {formatSubmittedDateTime(activeRx.submittedAt || activeRx.submitted)}</span>
                 <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
               </div>
             </div>
