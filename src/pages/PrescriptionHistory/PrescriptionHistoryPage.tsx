@@ -59,6 +59,8 @@ function PrescriptionHistoryPage() {
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [message, setMessage] = useState('')
   const [isAddingItemId, setIsAddingItemId] = useState<number | null>(null)
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
@@ -69,7 +71,23 @@ function PrescriptionHistoryPage() {
   const [resubmittingId, setResubmittingId] = useState<number | null>(null)
 
   useEffect(() => {
-    void prescriptionService.list({ scope: 'patient' }).then((response) => setPrescriptions(response.data))
+    let isMounted = true
+    setIsLoading(true)
+    setLoadError('')
+    void prescriptionService
+      .list({ scope: 'patient' })
+      .then((response) => {
+        if (isMounted) setPrescriptions(response.data)
+      })
+      .catch(() => {
+        if (isMounted) setLoadError('Unable to load your prescriptions right now.')
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   useEffect(() => {
@@ -317,7 +335,7 @@ function PrescriptionHistoryPage() {
     <div className="rx-page">
       <div className="rx-header">
         <div>
-          <h2 className="rx-header__title">Prescription history</h2>
+          <h1 className="rx-header__title">Prescription history</h1>
           <p className="rx-header__sub">Track approvals, clarification requests, and pharmacist feedback for your prescriptions.</p>
         </div>
         <span className="rx-header__badge">Prescriptions</span>
@@ -350,6 +368,21 @@ function PrescriptionHistoryPage() {
             </tr>
           </thead>
           <tbody>
+            {isLoading && (
+              <tr>
+                <td colSpan={7} className="rx-empty-state">Loading your prescriptions…</td>
+              </tr>
+            )}
+            {!isLoading && loadError && (
+              <tr>
+                <td colSpan={7} className="rx-empty-state">{loadError}</td>
+              </tr>
+            )}
+            {!isLoading && !loadError && pagedPrescriptions.length === 0 && (
+              <tr>
+                <td colSpan={7} className="rx-empty-state">No prescriptions found.</td>
+              </tr>
+            )}
             {pagedPrescriptions.map((rx) => (
               <Fragment key={rx.id}>
                 <tr

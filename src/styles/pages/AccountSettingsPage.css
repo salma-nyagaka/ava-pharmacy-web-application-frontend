@@ -8,7 +8,7 @@
 .ase-banner {
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.07);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
   display: flex;
@@ -43,7 +43,7 @@
   height: 24px;
   border-radius: 50%;
   background: #fff;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -56,19 +56,19 @@
 .ase-avatar__change svg {
   width: 11px;
   height: 11px;
-  color: #64748b;
+  color: var(--color-ink-muted);
 }
 
 .ase-banner__name {
   font-size: 1rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--color-text-primary);
   margin: 0 0 0.1rem;
 }
 
 .ase-banner__email {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--color-ink-muted);
   margin: 0 0 0.5rem;
 }
 
@@ -85,12 +85,12 @@
 /* ── Tabs ── */
 .ase-tabs {
   display: flex;
-  gap: 0.4rem;
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.07);
-  border-radius: 16px;
-  padding: 0.35rem;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  gap: 0.3rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0.3rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .ase-tab {
@@ -99,15 +99,15 @@
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  padding: 0.6rem 0.5rem;
+  padding: 0.55rem 0.5rem;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 0.82rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--color-ink-muted);
   background: transparent;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .ase-tab svg {
@@ -117,20 +117,20 @@
 }
 
 .ase-tab--active {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
 .ase-tab:hover:not(.ase-tab--active) {
-  background: #f8fafc;
-  color: #374151;
+  background: var(--color-surface-tint);
+  color: var(--color-text-primary);
 }
 
 /* ── Card ── */
 .ase-card {
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.07);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
 }
@@ -142,7 +142,7 @@
   gap: 0.85rem;
   margin-bottom: 1.5rem;
   padding-bottom: 1.25rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .ase-section-head__icon {
@@ -167,13 +167,13 @@
 .ase-section-head__title {
   font-size: 0.95rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--color-text-primary);
   margin: 0 0 0.15rem;
 }
 
 .ase-section-head__sub {
   font-size: 0.78rem;
-  color: #94a3b8;
+  color: var(--color-ink-faint);
   margin: 0;
 }
 
@@ -208,8 +208,8 @@
   border: 1.5px solid rgba(15, 23, 42, 0.12);
   border-radius: 11px;
   font-size: 0.875rem;
-  color: #0f172a;
-  background: #f8fafc;
+  color: var(--color-text-primary);
+  background: var(--color-surface-tint);
   outline: none;
   transition: border-color 0.15s, background 0.15s;
   width: 100%;
@@ -219,8 +219,8 @@
 .ase-form__group select {
   appearance: none;
   background-image:
-    linear-gradient(45deg, transparent 50%, #64748b 50%),
-    linear-gradient(135deg, #64748b 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, var(--color-ink-muted) 50%),
+    linear-gradient(135deg, var(--color-ink-muted) 50%, transparent 50%);
   background-position:
     calc(100% - 18px) 50%,
     calc(100% - 13px) 50%;
@@ -237,7 +237,7 @@
 
 .ase-hint {
   font-size: 0.73rem;
-  color: #94a3b8;
+  color: var(--color-ink-faint);
   margin: 0;
   line-height: 1.4;
 }
@@ -257,8 +257,8 @@
   border: 1.5px solid rgba(15, 23, 42, 0.12);
   border-radius: 11px;
   font-size: 0.875rem;
-  color: #0f172a;
-  background: #f8fafc;
+  color: var(--color-text-primary);
+  background: var(--color-surface-tint);
   outline: none;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -276,13 +276,13 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #94a3b8;
+  color: var(--color-ink-faint);
   display: flex;
   align-items: center;
   padding: 0;
 }
 
-.ase-eye:hover { color: #475569; }
+.ase-eye:hover { color: var(--color-ink-soft); }
 
 .ase-eye svg {
   width: 16px;
@@ -307,7 +307,7 @@
   flex: 1;
   height: 4px;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: var(--color-border);
   transition: background 0.25s;
 }
 
@@ -385,7 +385,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #94a3b8;
+  color: var(--color-ink-faint);
   margin: 0 0 0.5rem;
 }
 
@@ -394,7 +394,7 @@
 .ase-toggles {
   display: flex;
   flex-direction: column;
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--color-border-light);
   border-radius: 14px;
   overflow: hidden;
 }
@@ -405,7 +405,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.9rem 1rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--color-border-light);
   background: #fff;
 }
 
@@ -426,7 +426,7 @@
 .ase-toggle-row__label {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--color-text-primary);
   margin: 0 0 0.15rem;
   display: flex;
   align-items: center;
@@ -436,8 +436,8 @@
 .ase-toggle-row__required {
   font-size: 0.65rem;
   font-weight: 700;
-  color: #64748b;
-  background: #f1f5f9;
+  color: var(--color-ink-muted);
+  background: var(--color-border-light);
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
   text-transform: uppercase;
@@ -446,7 +446,7 @@
 
 .ase-toggle-row__desc {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--color-ink-faint);
   margin: 0;
   line-height: 1.4;
 }
@@ -470,7 +470,7 @@
   display: block;
   width: 44px;
   height: 24px;
-  background: #cbd5e1;
+  background: var(--color-ink-faint);
   border-radius: 999px;
   transition: background 0.2s;
   position: relative;

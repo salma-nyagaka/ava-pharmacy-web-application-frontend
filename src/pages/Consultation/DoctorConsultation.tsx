@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
@@ -142,12 +142,14 @@ function DoctorConsultation() {
   const [mpesaFlow, setMpesaFlow] = useState<MpesaFlow>('stk')
   const [paymentStatus, setPaymentStatus] = useState<ConsultationPaymentStatus>('idle')
   const [paymentNotice, setPaymentNotice] = useState('')
+  const [showManualPaymentCheck, setShowManualPaymentCheck] = useState(false)
   const [mpesaPhone, setMpesaPhone] = useState(user?.phone ?? '')
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isEndingConsultation, setIsEndingConsultation] = useState(false)
   const [messageInput, setMessageInput] = useState('')
   const [showEndConfirm, setShowEndConfirm] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const finalizingPaymentIntentRef = useRef<number | null>(null)
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -217,14 +219,14 @@ function DoctorConsultation() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [currentConsultation?.messages.length])
 
-  const filteredDoctors = useMemo(() => {
-    if (!formData.specialty) return doctors
-    return doctors.filter((doctor) => doctor.specialty === formData.specialty)
-  }, [doctors, formData.specialty])
-
   const token = typeof window !== 'undefined' ? (localStorage.getItem('ava_access_token') ?? null) : null
+  const socketConsultationId = currentConsultation
+    && isChatOpen
+    && (currentConsultation.status === 'in_progress' || currentConsultation.messages.length > 0)
+    ? currentConsultation.id
+    : null
   const { messages: wsMessages, isConnected: wsConnected, typingUsers, sendMessage: wsSend, sendTyping } = useConsultationSocket(
-    currentConsultation?.id ?? null,
+    socketConsultationId,
     token,
   )
 
@@ -253,10 +255,9 @@ function DoctorConsultation() {
     }
     return null
   }, [currentConsultation?.doctor, doctors])
-  const routingDoctorsCount = filteredDoctors.length
   const paymentPlaceholderAmount = CONSULTATION_PAYMENT_PLACEHOLDER
   const queueLabel = formData.urgency === 'Urgent' ? 'Priority queue' : 'Standard queue'
-  const routingLabel = formData.specialty || 'Any available doctor'
+  const routingLabel = formData.specialty || 'General consultation'
   const hubFiltered = useMemo(() => {
     const byType = activeHubTab === 'All'
       ? consultations
@@ -343,20 +344,18 @@ function DoctorConsultation() {
     if (!validateForm()) return
 
     setSubmitError('')
-    const issue = formData.specialty.trim()
-      ? `${formData.symptoms.trim()}\n\nPreferred specialty: ${formData.specialty.trim()}`
-      : formData.symptoms.trim()
-
     setPendingPayload({
       doctor: null,
       patient_name: formData.name.trim(),
       patient_email: formData.email.trim(),
       patient_phone: formData.phone.trim(),
-      issue,
+      issue: formData.symptoms.trim(),
+      requested_specialty: formData.specialty.trim(),
       priority: formData.urgency === 'Urgent' ? 'priority' : 'routine',
     })
     setMpesaFlow('stk')
     setPaymentIntent(null)
+    setShowManualPaymentCheck(false)
     setPaymentStatus('review')
     setPaymentNotice('Choose STK Push or Paybill. The consultation will only start after payment is successful.')
     window.requestAnimationFrame(() => {
@@ -379,6 +378,7 @@ function DoctorConsultation() {
 
     setIsSubmitting(true)
     setSubmitError('')
+    setShowManualPaymentCheck(false)
     setPaymentStatus('processing')
     setPaymentNotice(mpesaFlow === 'stk' ? 'Sending STK Push request...' : 'Creating Paybill payment reference...')
     try {
@@ -400,8 +400,8 @@ function DoctorConsultation() {
       setPaymentStatus('waiting')
       setPaymentNotice(
         mpesaFlow === 'stk'
-          ? (intent.clientSecret || `STK Push sent to ${intent.phoneNumber || mpesaPhone}. Complete the payment on your phone, then check status.`)
-          : 'Use the Paybill details shown, then click Confirm payment. Chat opens only after Safaricom confirms the payment.',
+          ? `STK Push sent to ${intent.phoneNumber || mpesaPhone}. Waiting for M-Pesa confirmation...`
+          : 'Use the Paybill details shown. We will confirm the payment automatically once Safaricom sends the payment update.',
       )
     } catch (error) {
       const message = apiErrorMessage(error, 'Unable to start M-Pesa payment. Please try again.')
@@ -413,20 +413,34 @@ function DoctorConsultation() {
     }
   }
 
-  const handleFinalizePaidIntent = async (intent: ConsultationPaymentIntent) => {
+  const handleFinalizePaidIntent = useCallback(async (intent: ConsultationPaymentIntent) => {
     if (intent.status !== 'succeeded') {
-      setPaymentNotice('Payment is not confirmed yet. Complete M-Pesa payment, then check status again.')
+      setPaymentNotice('Payment confirmation has not reached us yet. Keep this page open while we continue checking.')
       return
     }
-    const created = await finalizePaidConsultation(intent.id)
-    setCurrentConsultation(created)
-    setConsultations((prev) => sortConsultations([created, ...prev.filter((item) => item.id !== created.id)]))
+    if (finalizingPaymentIntentRef.current === intent.id) return
+    finalizingPaymentIntentRef.current = intent.id
     setPaymentStatus('confirmed')
-    setPendingPayload(null)
-    setPaymentIntent({ ...intent, consultation: created.id })
-    setIsChatOpen(true)
-    setShowStartForm(false)
-  }
+    setPaymentNotice('Payment confirmed. Starting your consultation...')
+    try {
+      const created = await finalizePaidConsultation(intent.id)
+      setCurrentConsultation(created)
+      setConsultations((prev) => sortConsultations([created, ...prev.filter((item) => item.id !== created.id)]))
+      setPaymentStatus('confirmed')
+      setPendingPayload(null)
+      setPaymentIntent({ ...intent, consultation: created.id })
+      setShowManualPaymentCheck(false)
+      setIsChatOpen(true)
+      setShowStartForm(false)
+    } catch (error) {
+      finalizingPaymentIntentRef.current = null
+      const message = apiErrorMessage(error, 'Payment was confirmed, but we could not start the consultation automatically. Please check again.')
+      setPaymentStatus('waiting')
+      setShowManualPaymentCheck(true)
+      setPaymentNotice(message)
+      setSubmitError(message)
+    }
+  }, [])
 
   const handleConfirmConsultationPayment = async () => {
     if (!paymentIntent) {
@@ -435,6 +449,7 @@ function DoctorConsultation() {
     }
     setIsSubmitting(true)
     setSubmitError('')
+    setShowManualPaymentCheck(false)
     setPaymentStatus('processing')
     setPaymentNotice('Checking M-Pesa payment status...')
 
@@ -448,10 +463,10 @@ function DoctorConsultation() {
         setPaymentNotice(intent.lastError || 'M-Pesa payment was not successful. Please try again.')
       } else {
         setPaymentStatus('waiting')
-        setPaymentNotice('Payment is not confirmed yet. Complete the M-Pesa payment, then check status again.')
+        setPaymentNotice(intent.lastError || 'Payment confirmation has not reached us yet. We are still checking automatically.')
       }
     } catch (error) {
-      const message = apiErrorMessage(error, 'Payment is not confirmed yet. Please check again after completing M-Pesa payment.')
+      const message = apiErrorMessage(error, 'Payment confirmation has not reached us yet. Keep this page open while we continue checking.')
       setPaymentStatus('waiting')
       setPaymentNotice(message)
       setSubmitError(message)
@@ -468,7 +483,7 @@ function DoctorConsultation() {
         setPaymentIntent(intent)
         if (intent.status === 'succeeded') {
           window.clearInterval(timer)
-          setPaymentStatus('processing')
+          setPaymentStatus('confirmed')
           setPaymentNotice('Payment confirmed. Starting your consultation...')
           await handleFinalizePaidIntent(intent)
         } else if (intent.status === 'failed' || intent.status === 'cancelled') {
@@ -481,7 +496,18 @@ function DoctorConsultation() {
       }
     }, 5000)
     return () => window.clearInterval(timer)
-  }, [paymentIntent?.id, paymentStatus])
+  }, [handleFinalizePaidIntent, paymentIntent?.id, paymentStatus])
+
+  useEffect(() => {
+    if (paymentStatus !== 'waiting') {
+      setShowManualPaymentCheck(false)
+      return undefined
+    }
+    const timer = window.setTimeout(() => {
+      setShowManualPaymentCheck(true)
+    }, 60000)
+    return () => window.clearTimeout(timer)
+  }, [paymentStatus, paymentIntent?.id])
 
   const handleRefreshConsultation = async () => {
     if (!currentConsultation) return
@@ -651,7 +677,7 @@ function DoctorConsultation() {
                       </div>
                       <div className="ac-card__meta">
                         <div className="ac-card__top-row">
-                          <span className="ac-card__doctor">{consultation.doctorName || 'Clinician assigned'}</span>
+                          <span className="ac-card__doctor">{consultation.doctorName || 'Waiting for doctor'}</span>
                           <span className="ac-card__type-badge" style={{ background: type.bg, color: type.color }}>
                             {type.label}
                           </span>
@@ -793,43 +819,75 @@ function DoctorConsultation() {
     return (
       <div className="dc-page">
         <div className="dc-waiting">
-          <button type="button" className="dc-state-back" onClick={backToConsultationHub}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-            Back to consultations
-          </button>
-          <div className="dc-waiting__card">
-            <div className="dc-waiting__avatar-wrap">
-              <div className="dc-waiting__pulse-ring" />
-              <div className="dc-waiting__avatar">{getInitials(currentConsultation.doctorName || assignedDoctor?.name || 'DR')}</div>
-            </div>
-            <span className="dc-waiting__status-badge">Request received</span>
-            <p className="dc-waiting__doctor-name">{currentConsultation.doctorName || assignedDoctor?.name || 'Assigned doctor'}</p>
-            <p className="dc-waiting__doctor-spec">{currentConsultation.doctorSpecialty || assignedDoctor?.specialty || 'Doctor consultation'}</p>
-
-            <div className="dc-waiting__meta">
-              <div className="dc-waiting__meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span>Started {formatDateTime(currentConsultation.createdAt)}</span>
-              </div>
-              <div className="dc-waiting__meta-sep">·</div>
-              <div className="dc-waiting__meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                <span>{doctors.length} doctors available</span>
-              </div>
-            </div>
-
-            <div className="dc-waiting__connecting">
-              <span /><span /><span />
-            </div>
-            <p className="dc-waiting__tip">We are waiting for the clinician to join this chat. This page refreshes automatically.</p>
-            {submitError && <p className="dc-field-error" style={{ marginTop: '1rem' }}>{submitError}</p>}
-            <div className="dc-complete__actions" style={{ marginTop: '1.5rem' }}>
-              <button type="button" className="btn btn--primary" onClick={() => { void handleRefreshConsultation() }}>
-                Refresh status
+          <div className="dc-waiting__shell">
+            <section className="dc-waiting__summary" aria-label="Consultation status">
+              <button type="button" className="dc-state-back" onClick={backToConsultationHub}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                Back
               </button>
-              <button type="button" className="btn btn--outline" onClick={backToConsultationHub}>
-                View all consultations
-              </button>
+              <span className="dc-waiting__eyebrow">Doctor consultation</span>
+              <h1>Waiting for doctor</h1>
+              <p className="dc-waiting__lead">Your request is in the doctor queue. Keep this page open and the chat will appear when the clinician joins.</p>
+              <div className="dc-waiting__reference">
+                <span>Reference</span>
+                <strong>{currentConsultation.reference}</strong>
+              </div>
+              <div className="dc-waiting__steps" aria-label="Progress">
+                <div className="dc-waiting__step dc-waiting__step--done">
+                  <span>1</span>
+                  <p>Request received</p>
+                </div>
+                <div className="dc-waiting__step dc-waiting__step--active">
+                  <span>2</span>
+                  <p>Doctor joining</p>
+                </div>
+                <div className="dc-waiting__step">
+                  <span>3</span>
+                  <p>Chat starts</p>
+                </div>
+              </div>
+            </section>
+
+            <div className="dc-waiting__card">
+              <div className="dc-waiting__card-top">
+                <div className="dc-waiting__avatar-wrap">
+                  <div className="dc-waiting__pulse-ring" />
+                  <div className="dc-waiting__avatar">{getInitials(currentConsultation.doctorName || assignedDoctor?.name || 'DR')}</div>
+                </div>
+                <div>
+                  <span className="dc-waiting__status-badge">Request received</span>
+                  <p className="dc-waiting__doctor-name">{currentConsultation.doctorName || assignedDoctor?.name || 'Waiting for doctor'}</p>
+                  <p className="dc-waiting__doctor-spec">{currentConsultation.doctorSpecialty || assignedDoctor?.specialty || currentConsultation.requestedSpecialty || 'General consultation'}</p>
+                </div>
+              </div>
+
+              <div className="dc-waiting__meta">
+                <div className="dc-waiting__meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>{formatDateTime(currentConsultation.createdAt)}</span>
+                </div>
+                <div className="dc-waiting__meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  <span>Doctor queue</span>
+                </div>
+              </div>
+
+              <div className="dc-waiting__status-line">
+                <div className="dc-waiting__connecting">
+                  <span /><span /><span />
+                </div>
+                <p>Refreshing automatically</p>
+              </div>
+              <p className="dc-waiting__tip">You can leave and return from your consultation history if needed.</p>
+              {submitError && <p className="dc-field-error dc-waiting__error">{submitError}</p>}
+              <div className="dc-waiting__actions">
+                <button type="button" className="btn btn--primary btn--sm" onClick={() => { void handleRefreshConsultation() }}>
+                  Refresh
+                </button>
+                <button type="button" className="btn btn--outline btn--sm" onClick={backToConsultationHub}>
+                  View all
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -956,10 +1014,6 @@ function DoctorConsultation() {
                     <strong>KSh {consultationFee.toLocaleString()}</strong>
                   </div>
                 )}
-              </div>
-
-              <div className="dc-chat-panel__card">
-                <p className="dc-chat-panel__title">Original concern</p>
                 <p className="dc-chat-panel__issue">{currentConsultation.issue || 'No symptom summary recorded.'}</p>
               </div>
 
@@ -976,12 +1030,15 @@ function DoctorConsultation() {
                   <div>
                     <p className="dc-chat-panel__title">Prescription</p>
                     <p className="dc-prescription-status__state">
-                      {latestPrescription ? 'Issued by your doctor' : 'Not issued yet'}
+                      {latestPrescription ? 'Issued and under pharmacist review' : 'Not issued yet'}
                     </p>
                   </div>
                 </div>
                 {latestPrescription ? (
                   <>
+                    <p className="dc-prescription-status__alert">
+                      Your doctor has issued a prescription. A pharmacist is reviewing it for processing. Once approved, you can proceed with payment.
+                    </p>
                     <div className="dc-chat-detail">
                       <span>Reference</span>
                       <strong>{latestPrescription.reference}</strong>
@@ -1003,15 +1060,6 @@ function DoctorConsultation() {
                     If medicine is needed, your doctor will issue an e-prescription here. It will then move to pharmacist review.
                   </p>
                 )}
-              </div>
-
-              <div className="dc-chat-panel__card dc-chat-panel__tips">
-                <p className="dc-chat-panel__title">Helpful to send</p>
-                <ul>
-                  <li>When symptoms started</li>
-                  <li>Current medicines or allergies</li>
-                  <li>Any worsening or urgent signs</li>
-                </ul>
               </div>
 
               <a href={`tel:${formatPhoneHref(settings.supportPhone)}`} className="dc-emergency-btn">
@@ -1113,7 +1161,7 @@ function DoctorConsultation() {
                   <span>2</span>
                   <div>
                     <h3>Care preference</h3>
-                    <p>Choose a specialty or leave it open for the fastest available doctor.</p>
+                    <p>Choose a specialty or leave it as a general consultation.</p>
                   </div>
                 </div>
               <div className="dc-form-row">
@@ -1125,7 +1173,7 @@ function DoctorConsultation() {
                 <div className="dc-field">
                   <label htmlFor="dc-specialty">Specialty <span className="dc-field-optional">optional</span></label>
                   <select id="dc-specialty" value={formData.specialty} onChange={(event) => setField('specialty', event.target.value)}>
-                    <option value="">Any available doctor</option>
+                    <option value="">General consultation</option>
                     {SPECIALTIES.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}
                   </select>
                   {formErrors.specialty && <span className="dc-field-error">{formErrors.specialty}</span>}
@@ -1200,6 +1248,7 @@ function DoctorConsultation() {
                       setMpesaFlow('stk')
                       setPaymentStatus('review')
                       setPaymentIntent(null)
+                      setShowManualPaymentCheck(false)
                       setPaymentNotice('Send an STK Push and complete payment on your phone.')
                     }}
                     disabled={isSubmitting}
@@ -1214,7 +1263,8 @@ function DoctorConsultation() {
                       setMpesaFlow('paybill')
                       setPaymentStatus('review')
                       setPaymentIntent(null)
-                      setPaymentNotice('Create Paybill details, pay via M-Pesa, then use Confirm payment to continue.')
+                      setShowManualPaymentCheck(false)
+                      setPaymentNotice('Create Paybill details and pay via M-Pesa. We will confirm it automatically.')
                     }}
                     disabled={isSubmitting}
                   >
@@ -1251,13 +1301,13 @@ function DoctorConsultation() {
                       <strong>KSh {(paymentIntent?.amount || paymentPlaceholderAmount).toLocaleString()}</strong>
                     </div>
                     <p className="dc-paybill-box__hint">
-                      After paying through M-Pesa, click Confirm payment. The chat opens only after payment is verified.
+                      After paying through M-Pesa, keep this page open. We will open the chat once the payment is verified.
                     </p>
                   </div>
                 )}
 
                 <div className={`dc-payment-notice dc-payment-notice--${paymentStatus}`}>
-                  {paymentStatus === 'processing' && <span className="dc-payment-spinner" />}
+                  {(paymentStatus === 'processing' || paymentStatus === 'waiting') && <span className="dc-payment-spinner" />}
                   <p>{paymentNotice}</p>
                 </div>
 
@@ -1270,6 +1320,7 @@ function DoctorConsultation() {
                       setPaymentNotice('')
                       setPendingPayload(null)
                       setPaymentIntent(null)
+                      setShowManualPaymentCheck(false)
                     }}
                     disabled={isSubmitting}
                   >
@@ -1285,7 +1336,7 @@ function DoctorConsultation() {
                       {mpesaFlow === 'stk' ? `Send STK Push for KSh ${paymentPlaceholderAmount.toLocaleString()}` : 'Create Paybill payment reference'}
                     </button>
                   )}
-                  {paymentStatus === 'waiting' && (
+                  {paymentStatus === 'waiting' && showManualPaymentCheck && (
                     <button
                       type="button"
                       className="btn btn--primary btn--sm"
@@ -1299,22 +1350,6 @@ function DoctorConsultation() {
               </div>
             )}
 
-            <div className="dc-steps">
-              {[
-                { n: '1', label: 'Fill details', desc: 'Provide your symptoms and contact details' },
-                { n: '2', label: 'Pay fee', desc: 'Confirm the consultation payment before queueing' },
-                { n: '3', label: 'Chat', desc: 'Secure real-time consultation' },
-                { n: '4', label: 'Prescription', desc: 'Issued digitally when needed' },
-              ].map((step) => (
-                <div key={step.n} className="dc-step">
-                  <div className="dc-step__dot">{step.n}</div>
-                  <div>
-                    <p className="dc-step__label">{step.label}</p>
-                    <p className="dc-step__desc">{step.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
           <aside className="dc-sidebar" aria-label="Consultation support panel">
@@ -1326,47 +1361,19 @@ function DoctorConsultation() {
                 </div>
                 <span>{queueLabel}</span>
               </div>
-              <p className="dc-fee-card__note">This fee is paid before your request joins the doctor queue. Medicines, lab tests, and delivery are billed separately.</p>
+              <p className="dc-fee-card__note">Paid before your request joins the doctor queue. Medicines, lab tests, and delivery are billed separately.</p>
               <div className="dc-fee-card__includes">
-                <p className="dc-fee-card__includes-title">Includes:</p>
+                <p className="dc-fee-card__includes-title">Includes</p>
                 <div className="dc-include-grid">
                   <span>Secure chat</span>
                   <span>Clinical notes</span>
-                  <span>Digital prescription</span>
+                  <span>Digital Rx</span>
                   <span>Saved history</span>
                 </div>
               </div>
-            </div>
-
-            <div className="dc-sidebar__card dc-routing-card">
-              <div className="dc-sidebar__title-row">
-                <p className="dc-sidebar__card-title">Care routing</p>
-                <span>{routingDoctorsCount} available</span>
-              </div>
-              <p className="dc-routing-card__copy">
-                Choose a specialty or leave it open. After payment, we assign your request to an available verified doctor.
-              </p>
-              <div className="dc-routing-card__summary">
-                <div>
-                  <span>Routing preference</span>
-                  <strong>{routingLabel}</strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="dc-sidebar__card dc-trust-card">
-              <p className="dc-sidebar__card-title">Before you start</p>
-              <div className="dc-trust-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span>End-to-end encrypted chat</span>
-              </div>
-              <div className="dc-trust-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                <span>Licensed clinicians only</span>
-              </div>
-              <div className="dc-trust-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" width="18" height="18"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>Your consultation is saved to your account</span>
+              <div className="dc-fee-card__routing">
+                <span>Routed to</span>
+                <strong>{routingLabel}</strong>
               </div>
             </div>
 

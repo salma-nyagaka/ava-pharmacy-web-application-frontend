@@ -158,7 +158,8 @@ type PrescriptionListScope = 'role' | 'patient'
 function listEndpoint(scope: PrescriptionListScope = 'role') {
   if (scope === 'patient') return '/prescriptions/'
   const role = currentUserRole()
-  return role === 'admin' || role === 'pharmacist'
+  if (role === 'pharmacist') return '/pharmacist/prescriptions/'
+  return role === 'admin'
     ? '/admin/prescriptions/'
     : '/prescriptions/'
 }

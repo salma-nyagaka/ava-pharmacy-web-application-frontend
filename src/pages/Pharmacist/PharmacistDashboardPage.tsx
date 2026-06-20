@@ -209,9 +209,15 @@ function PharmacistDashboardPage() {
   const [orderSaving, setOrderSaving] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<{ order: AdminOrder; nextStatus: string } | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const latestPrescriptionRef = useRef<string | null>(null)
 
   const refreshPrescriptions = useCallback(async () => {
     const response = await prescriptionService.list()
+    const latestId = response.data[0]?.id ?? null
+    if (latestPrescriptionRef.current && latestId && latestPrescriptionRef.current !== latestId) {
+      setCurrentPage(1)
+    }
+    latestPrescriptionRef.current = latestId
     setPrescriptions(response.data)
   }, [])
 
@@ -699,6 +705,9 @@ function PharmacistDashboardPage() {
                         <td>
                           <div className="pharm-cell-stack">
                             <span className="px-rx-id">{rx.id}</span>
+                            <span className={`pharm-source-badge pharm-source-badge--${rx.source === 'e_prescription' ? 'e-prescription' : 'upload'}`}>
+                              {rx.source === 'e_prescription' ? 'E-prescription' : 'Uploaded'}
+                            </span>
                             <span className="pharm-cell-muted">
                               {rx.items.length} item{rx.items.length === 1 ? '' : 's'}
                             </span>

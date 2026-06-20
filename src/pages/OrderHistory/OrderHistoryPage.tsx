@@ -1,11 +1,23 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { STATUS_CFG, type Order, type OrderStatus } from '../../data/ordersData'
 import { useOrders } from '../../hooks/useOrders'
 import { submitProductReview } from '../../services/productService'
+import { cartService } from '../../services/cartService'
 import '../../styles/pages/OrderHistoryPage.css'
 
 const FILTER_TABS: Array<'All' | OrderStatus> = ['All', 'Pending', 'Confirmed', 'Processing', 'In Transit', 'Delivered', 'Cancelled', 'Refunded']
+
+const PAGE_SIZE = 6
+
+type SortKey = 'newest' | 'oldest' | 'highest' | 'lowest'
+
+const SORT_LABELS: Record<SortKey, string> = {
+  newest: 'Newest first',
+  oldest: 'Oldest first',
+  highest: 'Highest total',
+  lowest: 'Lowest total',
+}
 
 function downloadReceipt(order: Order) {
   const formatPrice = (n: number) => `KSh ${n.toLocaleString()}`
@@ -109,13 +121,56 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  const overlayRef = useRef<HTMLDivElement | null>(null)
+  const modalRef = useRef<HTMLDivElement | null>(null)
+  const previouslyFocused = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    previouslyFocused.current = document.activeElement as HTMLElement | null
+    const focusables = modalRef.current?.querySelectorAll<HTMLElement>(
+      'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])',
+    )
+    focusables?.[0]?.focus()
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab' || !modalRef.current) return
+      const items = Array.from(
+        modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute('disabled'))
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement as HTMLElement | null
+      if (event.shiftKey && active === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('keydown', handleKey)
+      previouslyFocused.current?.focus?.()
+    }
+  }, [onClose])
+
   const starLabels = ['', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent!']
   const starColors = ['', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e', '#16a34a']
 
   if (submitted) {
     return (
-      <div className="rm-overlay" onClick={onClose}>
-        <div className="rm-modal rm-modal--success" onClick={(e) => e.stopPropagation()}>
+      <div className="rm-overlay" ref={overlayRef} onClick={onClose} role="dialog" aria-modal="true" aria-label="Review submitted">
+        <div className="rm-modal rm-modal--success" ref={modalRef} onClick={(e) => e.stopPropagation()}>
           <div className="rm-success-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
@@ -130,8 +185,8 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
   }
 
   return (
-    <div className="rm-overlay" onClick={onClose}>
-      <div className="rm-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="rm-overlay" ref={overlayRef} onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="rm-modal-title">
+      <div className="rm-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
         <div className="rm-modal__header">
           <div className="rm-modal__header-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -139,7 +194,7 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
             </svg>
           </div>
           <div>
-            <h2 className="rm-modal__title">Write a Review</h2>
+            <h2 className="rm-modal__title" id="rm-modal-title">Write a Review</h2>
             <p className="rm-modal__sub">Order {order.id} · {order.date}</p>
           </div>
           <button className="rm-close" type="button" onClick={onClose} aria-label="Close">
@@ -234,62 +289,145 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
 }
 
 function OrderHistoryPage() {
+  const navigate = useNavigate()
   const [activeFilter, setActiveFilter] = useState<'All' | OrderStatus>('All')
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortKey>('newest')
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [reorderingId, setReorderingId] = useState<number | null>(null)
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null)
   const { orders, loading, error } = useOrders()
 
   const formatPrice = (n: number) => `KSh ${n.toLocaleString()}`
 
-  const filtered = orders.filter((order) => {
-    const matchFilter = activeFilter === 'All' || order.status === activeFilter
+  const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return matchFilter
-    const matchSearch = order.id.toLowerCase().includes(query) || order.products.some((product) => product.toLowerCase().includes(query))
-    return matchFilter && matchSearch
-  })
+    return orders.filter((order) => {
+      const matchFilter = activeFilter === 'All' || order.status === activeFilter
+      if (!query) return matchFilter
+      const matchSearch = order.id.toLowerCase().includes(query) || order.products.some((product) => product.toLowerCase().includes(query))
+      return matchFilter && matchSearch
+    })
+  }, [activeFilter, orders, search])
+
+  const sorted = useMemo(() => {
+    const copy = [...filtered]
+    copy.sort((a, b) => {
+      if (sort === 'highest') return b.total - a.total
+      if (sort === 'lowest') return a.total - b.total
+      const aTime = new Date(a.placedAt).getTime()
+      const bTime = new Date(b.placedAt).getTime()
+      return sort === 'oldest' ? aTime - bTime : bTime - aTime
+    })
+    return copy
+  }, [filtered, sort])
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [activeFilter, search, sort])
+
+  const visible = sorted.slice(0, visibleCount)
+
+  const handleReorder = async (order: Order) => {
+    const reorderable = order.productItems.filter((item) => item.productId)
+    if (reorderable.length === 0) return
+    setReorderingId(order.apiId)
+    try {
+      for (const item of reorderable) {
+        await cartService.add({ id: item.productId as number, name: item.name, brand: 'Reorder', price: item.price }, item.qty)
+      }
+      navigate('/cart')
+    } catch {
+      // silent — user can retry from the order detail page
+    } finally {
+      setReorderingId(null)
+    }
+  }
+
+  const stats = useMemo(() => ({
+    total: orders.length,
+    active: orders.filter((o) => ['Pending', 'Confirmed', 'Processing', 'In Transit'].includes(o.status)).length,
+    delivered: orders.filter((o) => o.status === 'Delivered').length,
+  }), [orders])
 
   return (
     <div className="ohp">
+      <nav className="ohp-breadcrumb" aria-label="Breadcrumb">
+        <Link to="/">Home</Link>
+        <span aria-hidden="true">›</span>
+        <Link to="/account">Account</Link>
+        <span aria-hidden="true">›</span>
+        <span aria-current="page">My Orders</span>
+      </nav>
+
       <div className="ohp-header">
         <div>
-          <h2 className="ohp-header__title">My Orders</h2>
-          <p className="ohp-header__sub">{orders.length} orders in total</p>
+          <h1 className="ohp-header__title">My Orders</h1>
+          <p className="ohp-header__sub">Track, reorder, and review everything you've bought.</p>
         </div>
         <div className="ohp-search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
-          <input type="text" placeholder="Search orders…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          {search && <button className="ohp-search__clear" onClick={() => setSearch('')} type="button">✕</button>}
+          <input type="text" placeholder="Search orders…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search orders" />
+          {search && <button className="ohp-search__clear" onClick={() => setSearch('')} type="button" aria-label="Clear search">✕</button>}
         </div>
       </div>
 
-      <div className="ohp-tabs">
-        {FILTER_TABS.map((tab) => (
-          <button
-            key={tab}
-            className={`ohp-tab ${activeFilter === tab ? 'ohp-tab--active' : ''}`}
-            type="button"
-            onClick={() => setActiveFilter(tab)}
-          >
-            {tab}
-            <span className="ohp-tab__count">
-              {tab === 'All' ? orders.length : orders.filter((order) => order.status === tab).length}
-            </span>
-          </button>
-        ))}
+      <div className="ohp-stats">
+        <div className="ohp-stats__item"><span>Total</span><strong>{stats.total}</strong></div>
+        <div className="ohp-stats__item"><span>Active</span><strong>{stats.active}</strong></div>
+        <div className="ohp-stats__item"><span>Delivered</span><strong>{stats.delivered}</strong></div>
+      </div>
+
+      <div className="ohp-tabs" role="tablist" aria-label="Filter orders by status">
+        {FILTER_TABS.map((tab) => {
+          const count = tab === 'All' ? orders.length : orders.filter((order) => order.status === tab).length
+          return (
+            <button
+              key={tab}
+              role="tab"
+              aria-selected={activeFilter === tab}
+              className={`ohp-tab ${activeFilter === tab ? 'ohp-tab--active' : ''}`}
+              type="button"
+              onClick={() => setActiveFilter(tab)}
+            >
+              {tab}
+              <span className="ohp-tab__count">{count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="ohp-toolbar">
+        <label className="ohp-sort" htmlFor="ohp-sort">
+          <span>Sort by</span>
+          <select id="ohp-sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+            {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+              <option key={key} value={key}>{SORT_LABELS[key]}</option>
+            ))}
+          </select>
+        </label>
+        <p className="ohp-toolbar__count">{sorted.length} order{sorted.length !== 1 ? 's' : ''}</p>
       </div>
 
       <div className="ohp-card">
         {loading ? (
-          <div className="ohp-loading">
-            <div className="ohp-loading__spinner" />
-            Loading your orders…
-          </div>
+          <ul className="ohp-list" aria-hidden="true">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <li key={index} className="ohp-row ohp-row--skeleton">
+                <div className="ohp-skeleton__icon" />
+                <div className="ohp-skeleton__lines">
+                  <div className="ohp-skeleton__line ohp-skeleton__line--w40" />
+                  <div className="ohp-skeleton__line ohp-skeleton__line--w60" />
+                </div>
+                <div className="ohp-skeleton__spacer" />
+              </li>
+            ))}
+          </ul>
         ) : error ? (
           <p className="ohp-error">{error}</p>
-        ) : filtered.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div className="ohp-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
@@ -304,56 +442,79 @@ function OrderHistoryPage() {
             )}
           </div>
         ) : (
-          <ul className="ohp-list">
-            {filtered.map((order) => {
-              const cfg = STATUS_CFG[order.status]
-              return (
-                <li key={order.apiId} className="ohp-row">
-                  <div className="ohp-row__left">
-                    <div className="ohp-row__icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-                        <rect x="9" y="3" width="6" height="4" rx="1"/>
-                        <path d="M9 12h6M9 16h4"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="ohp-row__id">{order.id}</p>
-                      <p className="ohp-row__meta">{order.date} · {order.items} item{order.items > 1 ? 's' : ''}</p>
-                    </div>
-                  </div>
+          <>
+            <ul className="ohp-list">
+              {visible.map((order) => {
+                const cfg = STATUS_CFG[order.status]
+                const isActive = ['Pending', 'Confirmed', 'Processing', 'In Transit'].includes(order.status)
+                return (
+                  <li key={order.apiId} className="ohp-row">
+                    <Link to={`/account/orders/${order.apiId}`} className="ohp-row__left" aria-label={`View order ${order.id}`}>
+                      <div className="ohp-row__icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                          <rect x="9" y="3" width="6" height="4" rx="1"/>
+                          <path d="M9 12h6M9 16h4"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="ohp-row__id">{order.id}</p>
+                        <p className="ohp-row__meta">{order.date} · {order.items} item{order.items > 1 ? 's' : ''}</p>
+                      </div>
+                    </Link>
 
-                  <div className="ohp-row__right">
-                    <span className="ohp-row__status" style={{ color: cfg.color, background: cfg.bg }}>
-                      {order.status}
-                    </span>
-                    <span className="ohp-row__total">{formatPrice(order.total)}</span>
-                    <div className="ohp-row__actions">
-                      <Link to={`/account/orders/${order.apiId}`} className="ohp-row__view">View</Link>
-                      {canShowReceipt(order) && (
-                        <button className="ohp-row__receipt" type="button" onClick={() => downloadReceipt(order)} title="Download receipt">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="7 10 12 15 17 10"/>
-                            <line x1="12" y1="15" x2="12" y2="3"/>
-                          </svg>
-                          Receipt
-                        </button>
-                      )}
-                      {order.status === 'Delivered' && (
-                        <button className="ohp-row__review" type="button" onClick={() => setReviewOrder(order)}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                          </svg>
-                          Review
-                        </button>
-                      )}
+                    <div className="ohp-row__right">
+                      <span className="ohp-row__status" style={{ color: cfg.color, background: cfg.bg }}>
+                        {order.status}
+                      </span>
+                      <span className="ohp-row__total">{formatPrice(order.total)}</span>
+                      <div className="ohp-row__actions">
+                        {isActive && (
+                          <Link to={`/account/orders/${order.apiId}`} className="ohp-row__view">Track</Link>
+                        )}
+                        {canShowReceipt(order) && (
+                          <button className="ohp-row__receipt" type="button" onClick={() => downloadReceipt(order)} title="Download receipt">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                              <polyline points="7 10 12 15 17 10"/>
+                              <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Receipt
+                          </button>
+                        )}
+                        {order.status === 'Delivered' && (
+                          <button
+                            className="ohp-row__review"
+                            type="button"
+                            onClick={() => void handleReorder(order)}
+                            disabled={reorderingId === order.apiId}
+                          >
+                            {reorderingId === order.apiId ? 'Adding…' : 'Reorder'}
+                          </button>
+                        )}
+                        {order.status === 'Delivered' && (
+                          <button className="ohp-row__review" type="button" onClick={() => setReviewOrder(order)}>
+                            Review
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+                  </li>
+                )
+              })}
+            </ul>
+            {visibleCount < sorted.length && (
+              <div className="ohp-loadmore">
+                <button
+                  className="btn btn--outline btn--sm"
+                  type="button"
+                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                >
+                  Load more ({sorted.length - visibleCount} remaining)
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         <div className="ohp-footer">

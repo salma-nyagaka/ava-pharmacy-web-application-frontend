@@ -120,7 +120,6 @@ function AccountConsultationsPage() {
 
   return (
     <div className="ac-page">
-      <div className="container">
         <div className="ac-header">
           <div>
             <p className="ac-header__eyebrow">My Account</p>
@@ -354,7 +353,6 @@ function AccountConsultationsPage() {
             </Link>
           </div>
         </div>
-      </div>
     </div>
   )
 }

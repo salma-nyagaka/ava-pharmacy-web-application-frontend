@@ -1105,13 +1105,33 @@ function PediatricianDashboardPage() {
     loadPrescriptionCatalog()
   }
 
+  const isStartedPrescriptionItem = (item: DoctorPrescriptionItem) =>
+    Boolean(item.name.trim() || item.variantId || item.dosage.trim() || item.sku)
+
+  const isCompletePrescriptionItem = (item: DoctorPrescriptionItem) =>
+    Boolean(
+      item.name.trim() &&
+      item.variantId &&
+      item.dosage.trim() &&
+      Number.isFinite(Number(item.quantity)) &&
+      Number(item.quantity) >= 1,
+    )
+
+  const rxHasMedication =
+    rxItems.some(isCompletePrescriptionItem) &&
+    !rxItems.some((item) => isStartedPrescriptionItem(item) && !isCompletePrescriptionItem(item))
+
   const handleCreatePrescription = async () => {
     if (!rxPatient.trim() || !rxConsultationId) {
       setWorkspaceError('Select a child consultation before issuing a pediatric prescription.')
       return
     }
-    const filteredItems = rxItems.filter((i) => i.name.trim())
+    const filteredItems = rxItems.filter(isStartedPrescriptionItem)
     if (filteredItems.length === 0) return
+    if (filteredItems.some((item) => !isCompletePrescriptionItem(item))) {
+      setWorkspaceError('Select a medicine, dosage, and quantity for each prescription item.')
+      return
+    }
     try {
       setWorkspaceError('')
       const created = await createClinicianPrescription({
@@ -2387,12 +2407,12 @@ function PediatricianDashboardPage() {
                         )}
                       </div>
                       <div className="dd-rx-dose-cell">
-                        <label>Dosage</label>
-                        <input type="text" placeholder="e.g. 5ml 3x/day" value={item.dosage} onChange={(e) => updateRxItem(idx, { dosage: e.target.value })} />
+                        <label>Dosage <span className="dd-rx-required">*</span></label>
+                        <input type="text" required placeholder="e.g. 5ml 3x/day" value={item.dosage} onChange={(e) => updateRxItem(idx, { dosage: e.target.value })} />
                       </div>
                       <div className="dd-rx-qty-cell">
-                        <label>Qty</label>
-                        <input type="number" min={1} placeholder="Qty" value={item.quantity} onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })} />
+                        <label>Qty <span className="dd-rx-required">*</span></label>
+                        <input type="number" min={1} required placeholder="Qty" value={item.quantity} onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })} />
                       </div>
                     </div>
                   ))}
@@ -2408,7 +2428,7 @@ function PediatricianDashboardPage() {
                   className="dd-sp-btn dd-sp-btn--primary"
                   type="button"
                   onClick={handleCreatePrescription}
-                  disabled={!rxConsultationId || !rxPatient.trim() || !rxItems.some((item) => item.name.trim())}
+                  disabled={!rxConsultationId || !rxPatient.trim() || !rxHasMedication}
                 >
                   Issue &amp; notify guardian
                 </button>

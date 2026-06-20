@@ -177,6 +177,20 @@ export const adminDoctorService = {
     return { ...unwrapItem<AdminDoctorApi>(payload), type: professionalType === 'Pediatrician' ? 'pediatrician' : 'doctor' }
   },
 
+  async updateDoctor(id: number | string, payload: Pick<AdminDoctorApi, 'consult_fee' | 'commission'>, professionalType: AdminProfessionalType = 'Doctor') {
+    const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
+    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(payload),
+    })
+    const responsePayload = await handleResponse<AdminDoctorApi | { data?: AdminDoctorApi }>(response)
+    return { ...unwrapItem<AdminDoctorApi>(responsePayload), type: professionalType === 'Pediatrician' ? 'pediatrician' : 'doctor' }
+  },
+
   async actionDoctor(id: number | string, payload: { action: DoctorAction; note?: string }, professionalType: AdminProfessionalType = 'Doctor') {
     const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
     const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/action/`, {

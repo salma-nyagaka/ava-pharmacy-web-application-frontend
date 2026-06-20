@@ -180,6 +180,10 @@ function DoctorManagement() {
 
   // Manage
   const [manageDoctor, setManageDoctor] = useState<DoctorProfile | null>(null)
+  const [manageFee, setManageFee] = useState('')
+  const [manageCommission, setManageCommission] = useState('')
+  const [manageSaving, setManageSaving] = useState(false)
+  const [manageError, setManageError] = useState('')
   const [provisioningId, setProvisioningId] = useState<string | null>(null)
   const [provisionError, setProvisionError] = useState('')
   const [provisionSuccess, setProvisionSuccess] = useState('')
@@ -354,9 +358,42 @@ function DoctorManagement() {
   // ── Manage ────────────────────────────────────────────
   const openManageModal = (doctor: DoctorProfile) => {
     setManageDoctor(doctor)
+    setManageFee(String(doctor.consultFee || ''))
+    setManageCommission(String(doctor.commission || ''))
+    setManageError('')
     setProvisionError('')
     setProvisionSuccess('')
     loadDoctorDetail(doctor.id)
+  }
+
+  const handleSaveCommercials = async () => {
+    if (!manageDoctor) return
+    const consultFee = Number(manageFee)
+    const commission = Number(manageCommission)
+    if (!Number.isFinite(consultFee) || consultFee < 0 || !Number.isFinite(commission) || commission < 0 || commission > 100) {
+      setManageError('Enter a valid consultation fee and commission percentage.')
+      return
+    }
+    setManageSaving(true)
+    setManageError('')
+    try {
+      const updated = mapDoctor(await adminDoctorService.updateDoctor(
+        manageDoctor.id,
+        { consult_fee: consultFee, commission },
+        manageDoctor.type,
+      ))
+      setManageDoctor(updated)
+      setDoctors((prev) => prev.map((doctor) => doctor.id === updated.id ? { ...doctor, ...updated } : doctor))
+      setDetailCache((prev) => ({ ...prev, [updated.id]: updated }))
+      setProvisionSuccess('Fee and commission saved.')
+    } catch (error) {
+      const message = error instanceof AdminDoctorError || error instanceof Error
+        ? error.message
+        : 'Unable to save fee and commission.'
+      setManageError(message)
+    } finally {
+      setManageSaving(false)
+    }
   }
 
   const handleProvisionAccount = async () => {
@@ -789,6 +826,38 @@ function DoctorManagement() {
                 </div>
               )}
 
+              <p className="dm-section-label" style={{ marginTop: '1rem' }}>Fees & earnings</p>
+              <div className="dm-detail-grid">
+                <div className="form-group">
+                  <label>Consultation fee</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={manageFee}
+                    onChange={(event) => setManageFee(event.target.value)}
+                    placeholder="1500"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Ava commission %</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={manageCommission}
+                    onChange={(event) => setManageCommission(event.target.value)}
+                    placeholder="6.67"
+                  />
+                </div>
+              </div>
+              {Number.isFinite(Number(manageFee)) && Number.isFinite(Number(manageCommission)) && (
+                <p className="dm-hint" style={{ marginTop: '0.5rem' }}>
+                  Clinician earns KSh {Math.max(0, Number(manageFee) - (Number(manageFee) * Number(manageCommission) / 100)).toLocaleString()} per paid consultation.
+                </p>
+              )}
+              {manageError && <p className="dm-field-error">{manageError}</p>}
+
               <p className="dm-section-label" style={{ marginTop: '1rem' }}>Documents</p>
               {renderDocumentList(manageDoctorDetails.documents)}
               {detailLoadingId === manageDoctorDetails.id && (
@@ -798,6 +867,9 @@ function DoctorManagement() {
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setManageDoctor(null)}>Close</button>
+              <button className="btn btn--outline btn--sm" type="button" onClick={handleSaveCommercials} disabled={manageSaving}>
+                {manageSaving ? 'Saving...' : 'Save fee'}
+              </button>
               {manageDoctorDetails.status === 'Active' && (
                 <button className="btn btn--primary btn--sm" type="button" onClick={handleProvisionAccount} disabled={provisioningId === manageDoctorDetails.id}>
                   {provisioningId === manageDoctorDetails.id ? 'Provisioning…' : 'Provision account'}

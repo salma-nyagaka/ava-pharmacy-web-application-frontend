@@ -7,7 +7,7 @@
   text-align: center;
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.07);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
 }
 
@@ -31,13 +31,13 @@
 .afp-empty__title {
   font-size: 1.1rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--color-text-primary);
   margin: 0 0 0.4rem;
 }
 
 .afp-empty__sub {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: var(--color-ink-faint);
   margin: 0 0 1.5rem;
 }
 
@@ -63,21 +63,21 @@
   justify-content: space-between;
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.07);
-  border-radius: 20px;
-  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-xl);
+  padding: 1rem 1.25rem;
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
 }
 
 .afp-header__title {
   font-size: 1.05rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--color-text-primary);
   margin: 0 0 0.1rem;
 }
 
 .afp-header__sub {
   font-size: 0.78rem;
-  color: #94a3b8;
+  color: var(--color-ink-faint);
   margin: 0;
 }
 

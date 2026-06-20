@@ -198,6 +198,27 @@
   line-height: 1.4;
 }
 
+.pharm-source-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.16rem 0.48rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.pharm-source-badge--e-prescription {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.pharm-source-badge--upload {
+  background: #f0fdf4;
+  color: #047857;
+}
+
 .pharm-table__primary {
   font-size: 0.86rem;
   color: #0f172a;
@@ -1408,6 +1429,11 @@
 .portal-shell__main .pharm-order-items-preview {
   font-size: 0.68rem;
   line-height: 1.25;
+}
+
+.portal-shell__main .pharm-source-badge {
+  padding: 0.12rem 0.38rem;
+  font-size: 0.62rem;
 }
 
 .portal-shell__main .pharm-table .admin-status,

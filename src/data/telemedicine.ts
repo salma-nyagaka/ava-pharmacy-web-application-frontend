@@ -53,6 +53,8 @@ export interface Consultation {
   issue: string
   status: 'Waiting' | 'In progress' | 'Completed' | 'Cancelled'
   scheduledAt: string
+  createdAt?: string
+  createdAtRaw?: string
   channel: 'Chat'
   priority: 'Routine' | 'Priority'
   lastMessageAt: string
@@ -100,10 +102,12 @@ export interface DoctorPrescriptionItem {
 export interface DoctorPrescription {
   id: string
   backendId?: number
+  consultationId?: number | null
   doctorId: string
   patientName: string
   createdAt: string
   status: 'Draft' | 'Sent' | 'Dispensed' | 'Cancelled'
+  isPaidFor?: boolean
   notes: string
   pediatric?: boolean
   items: DoctorPrescriptionItem[]

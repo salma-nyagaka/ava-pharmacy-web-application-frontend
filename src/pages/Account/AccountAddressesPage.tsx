@@ -116,7 +116,6 @@ function AccountAddressesPage() {
 
   return (
     <div className="addr-page">
-      <div className="container">
         <div className="addr-header">
           <div>
             <p className="addr-header__eyebrow">My Account</p>
@@ -223,7 +222,6 @@ function AccountAddressesPage() {
             </button>
           )}
         </div>
-      </div>
     </div>
   )
 }

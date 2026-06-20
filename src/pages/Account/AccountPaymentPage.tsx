@@ -9,8 +9,9 @@ import {
 import '../../styles/pages/AccountPaymentPage.css'
 
 type CardType = 'visa' | 'mastercard' | 'unknown'
+type PayType = 'card' | 'mpesa'
 
-const EMPTY_FORM = { cardNumber: '', expiry: '', cvv: '', cardName: '' }
+const EMPTY_FORM = { cardNumber: '', expiry: '', cvv: '', cardName: '', phone: '' }
 
 function detectCardType(num: string): CardType {
   const clean = num.replace(/\s/g, '')
@@ -37,9 +38,17 @@ function brandClass(brand: string): CardType {
   return brand === 'visa' || brand === 'mastercard' ? brand : 'unknown'
 }
 
+function formatPhone(val: string) {
+  const digits = val.replace(/\D/g, '').slice(0, 12)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`
+}
+
 function AccountPaymentPage() {
   const [cards, setCards] = useState<SavedPaymentMethod[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [payType, setPayType] = useState<PayType>('card')
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -67,11 +76,46 @@ function AccountPaymentPage() {
 
   const cancel = () => {
     setShowForm(false)
+    setPayType('card')
     setForm(EMPTY_FORM)
     setError('')
   }
 
   const save = async () => {
+    if (payType === 'mpesa') {
+      const phoneDigits = form.phone.replace(/\s/g, '')
+      if (phoneDigits.length < 9) {
+        setError('Enter a valid Safaricom M-Pesa phone number.')
+        return
+      }
+      if (!form.cardName.trim()) {
+        setError('Account name is required.')
+        return
+      }
+
+      setIsSaving(true)
+      setError('')
+      try {
+        await createSavedPaymentMethod({
+          brand: 'mpesa',
+          last4: phoneDigits.slice(-4),
+          expiry_month: 0,
+          expiry_year: 0,
+          cardholder_name: form.cardName.trim(),
+          is_default: cards.length === 0,
+        })
+        setCards(await fetchSavedPaymentMethods())
+        setShowForm(false)
+        setPayType('card')
+        setForm(EMPTY_FORM)
+      } catch {
+        setError('Unable to save this payment method right now.')
+      } finally {
+        setIsSaving(false)
+      }
+      return
+    }
+
     const clean = form.cardNumber.replace(/\s/g, '')
     if (clean.length < 16) {
       setError('Enter a valid 16-digit card number.')
@@ -107,6 +151,7 @@ function AccountPaymentPage() {
       })
       setCards(await fetchSavedPaymentMethods())
       setShowForm(false)
+      setPayType('card')
       setForm(EMPTY_FORM)
     } catch {
       setError('Unable to save this payment method right now.')
@@ -141,12 +186,11 @@ function AccountPaymentPage() {
 
   return (
     <div className="pay-page">
-      <div className="container">
         <div className="pay-header">
           <div>
             <p className="pay-header__eyebrow">My Account</p>
             <h1 className="pay-header__title">Payment Methods</h1>
-            <p className="pay-header__sub">Securely manage the masked cards you use at checkout</p>
+            <p className="pay-header__sub">Securely manage the cards and M-Pesa accounts you use at checkout</p>
           </div>
         </div>
 
@@ -158,21 +202,25 @@ function AccountPaymentPage() {
             {cards.map((card) => (
               <div
                 key={card.id}
-                className={`pay-card pay-card--${brandClass(card.brand)}${card.is_default ? ' pay-card--default' : ''}`}
+                className={`pay-card pay-card--${card.brand === 'mpesa' ? 'mpesa' : brandClass(card.brand)}${card.is_default ? ' pay-card--default' : ''}`}
               >
                 <div className="pay-card__top">
                   <div className="pay-card__chip" />
                   {card.is_default && <span className="pay-card__default-badge">Default</span>}
                 </div>
-                <div className="pay-card__number">•••• •••• •••• {card.last4}</div>
+                <div className="pay-card__number">
+                  {card.brand === 'mpesa' ? `••• ••• ${card.last4}` : `•••• •••• •••• ${card.last4}`}
+                </div>
                 <div className="pay-card__bottom">
                   <div className="pay-card__meta">
-                    <span className="pay-card__meta-label">Cardholder</span>
+                    <span className="pay-card__meta-label">{card.brand === 'mpesa' ? 'Account' : 'Cardholder'}</span>
                     <span className="pay-card__meta-value">{card.cardholder_name}</span>
                   </div>
                   <div className="pay-card__meta">
-                    <span className="pay-card__meta-label">Expires</span>
-                    <span className="pay-card__meta-value">{formatStoredExpiry(card)}</span>
+                    <span className="pay-card__meta-label">{card.brand === 'mpesa' ? 'Number' : 'Expires'}</span>
+                    <span className="pay-card__meta-value">
+                      {card.brand === 'mpesa' ? `•••• ${card.last4}` : formatStoredExpiry(card)}
+                    </span>
                   </div>
                   <div className="pay-card__brand">
                     {card.brand === 'visa' && <span className="pay-card__visa">VISA</span>}
@@ -182,6 +230,7 @@ function AccountPaymentPage() {
                         <span className="pay-card__mc-r" />
                       </span>
                     )}
+                    {card.brand === 'mpesa' && <span className="pay-card__mpesa">M-PESA</span>}
                   </div>
                 </div>
                 <div className="pay-card__actions">
@@ -218,87 +267,151 @@ function AccountPaymentPage() {
 
           {showForm && (
             <div className="pay-form-card">
-              <h3 className="pay-form-card__title">Add New Card</h3>
+              <h3 className="pay-form-card__title">Add Payment Method</h3>
 
-              <div className={`pay-preview pay-preview--${previewType}`}>
-                <div className="pay-preview__top">
-                  <div className="pay-preview__chip" />
-                </div>
-                <div className="pay-preview__number">
-                  {form.cardNumber || '•••• •••• •••• ••••'}
-                </div>
-                <div className="pay-preview__bottom">
-                  <div>
-                    <div className="pay-preview__label">Cardholder</div>
-                    <div className="pay-preview__value">{form.cardName || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="pay-preview__label">Expires</div>
-                    <div className="pay-preview__value">{form.expiry || 'MM/YY'}</div>
-                  </div>
-                  <div className="pay-preview__brand">
-                    {previewType === 'visa' && <span className="pay-preview__visa">VISA</span>}
-                    {previewType === 'mastercard' && (
-                      <span className="pay-preview__mc">
-                        <span /><span />
-                      </span>
-                    )}
-                  </div>
-                </div>
+              <div className="pay-form-type" role="tablist" aria-label="Payment type">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={payType === 'card'}
+                  className={`pay-form-type__btn${payType === 'card' ? ' pay-form-type__btn--active' : ''}`}
+                  onClick={() => { setPayType('card'); setError('') }}
+                >
+                  Card
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={payType === 'mpesa'}
+                  className={`pay-form-type__btn${payType === 'mpesa' ? ' pay-form-type__btn--active' : ''}`}
+                  onClick={() => { setPayType('mpesa'); setError('') }}
+                >
+                  M-Pesa
+                </button>
               </div>
 
-              <div className="pay-form-group">
-                <label>Card number</label>
-                <input
-                  value={form.cardNumber}
-                  onChange={(event) => setForm((prev) => ({ ...prev, cardNumber: formatCardNumber(event.target.value) }))}
-                  placeholder="1234 5678 9012 3456"
-                  maxLength={19}
-                />
-              </div>
-              <div className="pay-form-row">
-                <div className="pay-form-group">
-                  <label>Expiry date</label>
-                  <input
-                    value={form.expiry}
-                    onChange={(event) => setForm((prev) => ({ ...prev, expiry: formatExpiry(event.target.value) }))}
-                    placeholder="MM/YY"
-                    maxLength={5}
-                  />
-                </div>
-                <div className="pay-form-group">
-                  <label>CVV</label>
-                  <input
-                    value={form.cvv}
-                    onChange={(event) => setForm((prev) => ({ ...prev, cvv: event.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                    placeholder="•••"
-                    maxLength={4}
-                    type="password"
-                  />
-                  <p className="pay-form-error" style={{ marginTop: '0.35rem', color: '#64748b' }}>
-                    CVV is used for validation only and is not stored.
-                  </p>
-                </div>
-              </div>
-              <div className="pay-form-group">
-                <label>Cardholder name</label>
-                <input
-                  value={form.cardName}
-                  onChange={(event) => setForm((prev) => ({ ...prev, cardName: event.target.value }))}
-                  placeholder="John Doe"
-                />
-              </div>
+              <p className="pay-form-notice">
+                Demo only — card details are not sent to a real payment gateway. Only the last 4 digits are stored.
+              </p>
+
+              {payType === 'card' ? (
+                <>
+                  <div className={`pay-preview pay-preview--${previewType}`}>
+                    <div className="pay-preview__top">
+                      <div className="pay-preview__chip" />
+                    </div>
+                    <div className="pay-preview__number">
+                      {form.cardNumber || '•••• •••• •••• ••••'}
+                    </div>
+                    <div className="pay-preview__bottom">
+                      <div>
+                        <div className="pay-preview__label">Cardholder</div>
+                        <div className="pay-preview__value">{form.cardName || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="pay-preview__label">Expires</div>
+                        <div className="pay-preview__value">{form.expiry || 'MM/YY'}</div>
+                      </div>
+                      <div className="pay-preview__brand">
+                        {previewType === 'visa' && <span className="pay-preview__visa">VISA</span>}
+                        {previewType === 'mastercard' && (
+                          <span className="pay-preview__mc">
+                            <span /><span />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pay-form-group">
+                    <label>Card number</label>
+                    <input
+                      value={form.cardNumber}
+                      onChange={(event) => setForm((prev) => ({ ...prev, cardNumber: formatCardNumber(event.target.value) }))}
+                      placeholder="1234 5678 9012 3456"
+                      maxLength={19}
+                    />
+                  </div>
+                  <div className="pay-form-row">
+                    <div className="pay-form-group">
+                      <label>Expiry date</label>
+                      <input
+                        value={form.expiry}
+                        onChange={(event) => setForm((prev) => ({ ...prev, expiry: formatExpiry(event.target.value) }))}
+                        placeholder="MM/YY"
+                        maxLength={5}
+                      />
+                    </div>
+                    <div className="pay-form-group">
+                      <label>CVV</label>
+                      <input
+                        value={form.cvv}
+                        onChange={(event) => setForm((prev) => ({ ...prev, cvv: event.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                        placeholder="•••"
+                        maxLength={4}
+                        type="password"
+                      />
+                      <p className="pay-form-error" style={{ marginTop: '0.35rem', color: '#64748b' }}>
+                        CVV is used for validation only and is not stored.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pay-form-group">
+                    <label>Cardholder name</label>
+                    <input
+                      value={form.cardName}
+                      onChange={(event) => setForm((prev) => ({ ...prev, cardName: event.target.value }))}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="pay-preview pay-preview--mpesa">
+                    <div className="pay-preview__top">
+                      <span className="pay-preview__mpesa">M-PESA</span>
+                    </div>
+                    <div className="pay-preview__number">
+                      {form.phone ? `••• ••• ${form.phone.replace(/\s/g, '').slice(-4)}` : '••• ••• ••••'}
+                    </div>
+                    <div className="pay-preview__bottom">
+                      <div>
+                        <div className="pay-preview__label">Account name</div>
+                        <div className="pay-preview__value">{form.cardName || '-'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pay-form-group">
+                    <label>M-Pesa phone number</label>
+                    <input
+                      value={form.phone}
+                      onChange={(event) => setForm((prev) => ({ ...prev, phone: formatPhone(event.target.value) }))}
+                      placeholder="0712 345 678"
+                      maxLength={14}
+                      inputMode="tel"
+                    />
+                  </div>
+                  <div className="pay-form-group">
+                    <label>Account name</label>
+                    <input
+                      value={form.cardName}
+                      onChange={(event) => setForm((prev) => ({ ...prev, cardName: event.target.value }))}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                </>
+              )}
               {error && <p className="pay-form-error">{error}</p>}
               <div className="pay-form-actions">
                 <button className="btn btn--primary btn--sm" type="button" onClick={() => void save()} disabled={isSaving}>
-                  {isSaving ? 'Saving…' : 'Save card'}
+                  {isSaving ? 'Saving…' : payType === 'mpesa' ? 'Save M-Pesa' : 'Save card'}
                 </button>
                 <button className="btn btn--outline btn--sm" type="button" onClick={cancel}>Cancel</button>
               </div>
             </div>
           )}
         </div>
-      </div>
     </div>
   )
 }

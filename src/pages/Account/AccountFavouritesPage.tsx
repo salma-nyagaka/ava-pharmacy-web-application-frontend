@@ -9,10 +9,18 @@ import '../../styles/pages/AccountFavouritesPage.css'
 function AccountFavouritesPage() {
   const [items, setItems] = useState<FavouriteItem[]>([])
   const [addedId, setAddedId] = useState<number | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const refresh = () => {
-      void favouritesService.list().then((response) => setItems(response.data))
+      setIsLoading(true)
+      setError('')
+      void favouritesService
+        .list()
+        .then((response) => setItems(response.data))
+        .catch(() => setError('Unable to load your saved items right now.'))
+        .finally(() => setIsLoading(false))
     }
     refresh()
     return favouritesService.subscribe(refresh)
@@ -28,6 +36,35 @@ function AccountFavouritesPage() {
     setTimeout(() => setAddedId(null), 1800)
   }
 
+  if (isLoading && items.length === 0) {
+    return (
+      <div className="afp-empty">
+        <div className="afp-empty__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </div>
+        <h1 className="afp-empty__title">Loading saved items…</h1>
+        <p className="afp-empty__sub">Please wait while we fetch your favourites.</p>
+      </div>
+    )
+  }
+
+  if (error && items.length === 0) {
+    return (
+      <div className="afp-empty">
+        <div className="afp-empty__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </div>
+        <h1 className="afp-empty__title">Unable to load saved items</h1>
+        <p className="afp-empty__sub">{error}</p>
+        <Link to="/products" className="afp-empty__cta">Browse products</Link>
+      </div>
+    )
+  }
+
   if (items.length === 0) {
     return (
       <div className="afp-empty">
@@ -36,7 +73,7 @@ function AccountFavouritesPage() {
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
           </svg>
         </div>
-        <h2 className="afp-empty__title">No saved items yet</h2>
+        <h1 className="afp-empty__title">No saved items yet</h1>
         <p className="afp-empty__sub">Save products from the catalogue, then move them into cart when you are ready.</p>
         <Link to="/products" className="afp-empty__cta">Browse products</Link>
       </div>
@@ -47,7 +84,7 @@ function AccountFavouritesPage() {
     <div className="afp">
       <div className="afp-header">
         <div>
-          <h2 className="afp-header__title">Saved Items</h2>
+          <h1 className="afp-header__title">Saved Items</h1>
           <p className="afp-header__sub">{items.length} item{items.length !== 1 ? 's' : ''} saved</p>
         </div>
         <Link to="/products" className="afp-header__browse">+ Add more</Link>

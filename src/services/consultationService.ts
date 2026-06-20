@@ -41,6 +41,7 @@ export interface ConsultationRecord {
   pediatrician: number | null
   doctorName: string
   doctorSpecialty: string
+  requestedSpecialty: string
   patient: number | null
   patientName: string
   patientEmail: string
@@ -73,6 +74,7 @@ export interface CreateConsultationPayload {
   patient_phone?: string
   patient_age?: number | null
   issue: string
+  requested_specialty?: string
   priority?: ConsultationPriority
   scheduled_at?: string | null
   is_pediatric?: boolean
@@ -211,13 +213,7 @@ function pickFallbackClinicianForRecord(record: ConsultationRecord): ClinicianSu
   const exactMatch = assignedId ? clinicians.find((clinician) => clinician.id === assignedId) : null
   if (exactMatch) return exactMatch
 
-  const specialty = normalizeText(record.doctorSpecialty)
-  if (specialty) {
-    const specialtyMatch = clinicians.find((clinician) => normalizeText(clinician.specialty) === specialty)
-    if (specialtyMatch) return specialtyMatch
-  }
-
-  return clinicians[0] ?? null
+  return null
 }
 
 function createSystemMessage(id: number, senderName: string, message: string, sentAt: string): ConsultationMessage {
@@ -340,7 +336,7 @@ function createLocalConsultation(payload: CreateConsultationPayload): Consultati
   const user = getStoredUser()
   const isPediatric = Boolean(payload.is_pediatric || payload.pediatrician)
   const clinicianId = isPediatric ? payload.pediatrician ?? null : payload.doctor ?? null
-  const clinician = findFallbackClinician(clinicianId, isPediatric) ?? mapFallbackClinicians(isPediatric ? 'Pediatrician' : 'Doctor')[0] ?? null
+  const clinician = clinicianId ? findFallbackClinician(clinicianId, isPediatric) : null
   const now = new Date().toISOString()
   const nextId = nextConsultationId(records)
 
@@ -351,6 +347,7 @@ function createLocalConsultation(payload: CreateConsultationPayload): Consultati
     pediatrician: isPediatric ? clinician?.id ?? clinicianId : null,
     doctorName: clinician?.name ?? '',
     doctorSpecialty: clinician?.specialty ?? (isPediatric ? 'Paediatrics' : 'General medicine'),
+    requestedSpecialty: payload.requested_specialty?.trim() ?? '',
     patient: user?.id ?? null,
     patientName: payload.patient_name?.trim() ?? user?.name?.trim() ?? '',
     patientEmail: payload.patient_email?.trim() ?? user?.email?.trim() ?? '',
@@ -427,6 +424,7 @@ function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
     pediatrician: raw.pediatrician == null ? null : Number(raw.pediatrician),
     doctorName: String(raw.doctor_name ?? ''),
     doctorSpecialty: String(raw.doctor_specialty ?? ''),
+    requestedSpecialty: String(raw.requested_specialty ?? ''),
     patient: raw.patient == null ? null : Number(raw.patient),
     patientName: String(raw.patient_name ?? ''),
     patientEmail: String(raw.patient_email ?? ''),
@@ -787,6 +785,7 @@ export interface ClinicianPrescription {
   consultation_id?: number | null
   patient_name: string
   status: 'draft' | 'sent' | 'dispensed'
+  is_paid_for?: boolean
   items: ClinicianPrescriptionItem[]
   digital_signature: string | null
   notes?: string

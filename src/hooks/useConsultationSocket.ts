@@ -12,6 +12,18 @@ export interface SocketMessage {
   sentAt: string
 }
 
+function normalizeSocketMessage(raw: Record<string, unknown>): SocketMessage {
+  return {
+    id: Number(raw.id ?? 0),
+    sender: raw.sender == null ? null : Number(raw.sender),
+    senderName: String(raw.senderName ?? raw.sender_name ?? ''),
+    message: String(raw.message ?? ''),
+    messageType: String(raw.messageType ?? raw.message_type ?? 'text') as SocketMessage['messageType'],
+    fileUrl: raw.fileUrl || raw.attachment_url ? String(raw.fileUrl ?? raw.attachment_url) : undefined,
+    sentAt: String(raw.sentAt ?? raw.sent_at ?? ''),
+  }
+}
+
 interface UseConsultationSocketResult {
   messages: SocketMessage[]
   isConnected: boolean
@@ -27,6 +39,7 @@ export function useConsultationSocket(
 ): UseConsultationSocketResult {
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const shouldReconnectRef = useRef(false)
   const [messages, setMessages] = useState<SocketMessage[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
@@ -38,6 +51,12 @@ export function useConsultationSocket(
 
   const connect = useCallback(() => {
     if (!consultationId || !token) return
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current)
+      reconnectTimerRef.current = null
+    }
+    if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) return
+    shouldReconnectRef.current = true
     const url = `${WS_BASE}/ws/consultations/${consultationId}/?token=${token}`
     const ws = new WebSocket(url)
     wsRef.current = ws
@@ -49,18 +68,20 @@ export function useConsultationSocket(
         const data = JSON.parse(event.data as string) as {
           type?: string
           message?: SocketMessage
+          payload?: Record<string, unknown>
           user?: string
         }
 
-        if (data.type === 'message.new' && data.message) {
-          setMessages((prev) => [...prev, data.message as SocketMessage])
-          onNewMessageRef.current?.(data.message as SocketMessage)
-        } else if (data.type === 'typing.indicator' && data.user) {
-          setTypingUsers((prev) =>
-            prev.includes(data.user as string) ? prev : [...prev, data.user as string],
-          )
+        if (data.type === 'message.new' && (data.message || data.payload)) {
+          const message = normalizeSocketMessage((data.message ?? data.payload) as Record<string, unknown>)
+          setMessages((prev) => (prev.some((item) => item.id === message.id) ? prev : [...prev, message]))
+          onNewMessageRef.current?.(message)
+        } else if (data.type === 'typing.indicator' && (data.user || data.payload)) {
+          const user = data.user ?? String(data.payload?.user_name ?? data.payload?.user ?? '')
+          if (!user) return
+          setTypingUsers((prev) => (prev.includes(user) ? prev : [...prev, user]))
           setTimeout(() => {
-            setTypingUsers((prev) => prev.filter((u) => u !== data.user))
+            setTypingUsers((prev) => prev.filter((u) => u !== user))
           }, 3000)
         } else if (data.type === 'consultation.status_changed') {
           // handled by caller via polling or refetch
@@ -71,18 +92,32 @@ export function useConsultationSocket(
     }
 
     ws.onclose = () => {
+      if (wsRef.current !== ws) return
       setIsConnected(false)
-      reconnectTimerRef.current = setTimeout(connect, 3000)
+      if (shouldReconnectRef.current && consultationId && token) {
+        reconnectTimerRef.current = setTimeout(connect, 3000)
+      }
     }
 
     ws.onerror = () => ws.close()
   }, [consultationId, token])
 
   useEffect(() => {
+    shouldReconnectRef.current = false
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current)
+      reconnectTimerRef.current = null
+    }
+    wsRef.current?.close()
+    wsRef.current = null
+    setMessages([])
     connect()
     return () => {
+      shouldReconnectRef.current = false
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
       wsRef.current?.close()
+      wsRef.current = null
+      setIsConnected(false)
     }
   }, [connect])
 

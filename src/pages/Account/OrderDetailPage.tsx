@@ -203,7 +203,7 @@ function OrderDetailPage() {
   if (isLoading) {
     return (
       <div className="od-page">
-        <div className="container od-not-found">
+        <div className="od-not-found">
           <h1>Loading order…</h1>
           <p>Please wait while we fetch your order details.</p>
         </div>
@@ -214,7 +214,7 @@ function OrderDetailPage() {
   if (!order) {
     return (
       <div className="od-page">
-        <div className="container od-not-found">
+        <div className="od-not-found">
           <div className="od-not-found__icon">📦</div>
           <h1>Order not found</h1>
           <p>{error || `We couldn't find an order with ID ${id}.`}</p>
@@ -229,7 +229,6 @@ function OrderDetailPage() {
 
   return (
     <div className="od-page">
-      <div className="container">
         <div className="od-breadcrumb">
           <Link to="/account">Account</Link>
           <span>›</span>
@@ -440,7 +439,6 @@ function OrderDetailPage() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   )
 }

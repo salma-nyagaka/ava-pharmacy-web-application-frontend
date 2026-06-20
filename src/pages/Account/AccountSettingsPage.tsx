@@ -239,7 +239,7 @@ function AccountSettingsPage() {
           </button>
         </div>
         <div className="ase-banner__info">
-          <p className="ase-banner__name">{profile?.full_name || 'Your account'}</p>
+          <h1 className="ase-banner__name">{profile?.full_name || 'Your account'}</h1>
           <p className="ase-banner__email">{profile?.email || 'Loading…'}</p>
           <span className="ase-banner__badge">{formatJoinDate(profile?.date_joined)}</span>
         </div>

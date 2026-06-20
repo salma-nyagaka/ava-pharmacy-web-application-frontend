@@ -51,7 +51,7 @@
 /* ── Service page hero (doctor/lab/prescriptions/pediatric) ── */
 .svc-hero {
   background: linear-gradient(120deg, #010e2d 0%, #031b4e 55%, #052570 100%);
-  padding: 1.5rem 0 1.25rem;
+  padding: 1.1rem 0 1rem;
   color: #fff;
   position: relative;
   overflow: hidden;
@@ -145,20 +145,20 @@
 
 /* Doctor Consultation - blue */
 .page-hero--doctor {
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-  border-bottom: 1px solid #bfdbfe;
+  background: linear-gradient(135deg, #eef5fa 0%, #f7f9fc 100%);
+  border-bottom: 1px solid var(--color-border);
 }
-.page-hero--doctor .svc-hero__breadcrumbs       { color: #64748b; }
-.page-hero--doctor .svc-hero__breadcrumbs a     { color: #64748b; }
-.page-hero--doctor .svc-hero__breadcrumbs a:hover { color: #0f172a; }
-.page-hero--doctor .svc-hero__breadcrumbs span  { color: #cbd5e1; }
-.page-hero--doctor .page-hero__title             { color: #1d4ed8; }
-.page-hero--doctor .svc-hero__title              { color: #1d4ed8; }
-.page-hero--doctor .page-hero__sub               { color: #475569; }
+.page-hero--doctor .svc-hero__breadcrumbs       { color: var(--color-ink-muted); }
+.page-hero--doctor .svc-hero__breadcrumbs a     { color: var(--color-ink-muted); }
+.page-hero--doctor .svc-hero__breadcrumbs a:hover { color: var(--color-ink); }
+.page-hero--doctor .svc-hero__breadcrumbs span  { color: var(--color-ink-faint); }
+.page-hero--doctor .page-hero__title             { color: var(--color-ink); }
+.page-hero--doctor .svc-hero__title              { color: var(--color-ink); }
+.page-hero--doctor .page-hero__sub               { color: var(--color-ink-soft); }
 .page-hero--doctor .page-hero__pill {
   background: #fff;
-  border-color: #bfdbfe;
-  color: #2563eb;
+  border-color: var(--color-border);
+  color: var(--color-primary);
 }
 .page-hero--doctor::before { display: none; }
 

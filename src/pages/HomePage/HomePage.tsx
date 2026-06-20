@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import otcImg from '../../assets/images/category-cards/over-the-counter-medicines.jpg'
-import prescriptionImg from '../../assets/images/category-cards/prescription-medicines.jpg'
-import herbalRemediesImg from '../../assets/images/category-cards/natural-herbal-remedies.jpg'
-import babyMotherImg from '../../assets/images/category-cards/baby-mother-family-care.jpg'
-import vitaminsImg from '../../assets/images/category-cards/vitamins-supplements.jpg'
-import personalCareImg from '../../assets/images/category-cards/personal-care-beauty.jpg'
-import medicalDevicesImg from '../../assets/images/category-cards/medical-devices-home-diagnostics.jpg'
+import ceraveImg from '../../assets/images/brands/cerave.png'
+import panadolImg from '../../assets/images/brands/panadol.jpeg'
+import larocheImg from '../../assets/images/brands/laroche.webp'
+import uncoverImg from '../../assets/images/brands/uncover.webp'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
@@ -19,7 +16,7 @@ import { categoryCardImages } from '../../data/categoryCardImages'
 import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import '../../styles/pages/HomePage.css'
 
-type HeroIllustration = 'consultation' | 'heart' | 'diabetes'
+type HeroDesign = 'split' | 'split-left' | 'feature'
 
 type HeroSlide = {
   id: number
@@ -28,7 +25,8 @@ type HeroSlide = {
   supporting: string
   cta: { label: string; link: string }
   image?: string
-  illustration?: HeroIllustration
+  badge?: string
+  design?: HeroDesign
   theme: { from: string; to: string; accent: string }
   trust: string[]
 }
@@ -36,134 +34,54 @@ type HeroSlide = {
 const bannerSlides: HeroSlide[] = [
   {
     id: 1,
-    eyebrow: 'Online pharmacy',
-    headline: 'Healthcare, delivered to your door',
-    supporting: 'Order genuine medicines online and get fast, same-day delivery across Kenya.',
-    cta: { label: 'Shop now', link: '/products' },
-    image: otcImg,
-    theme: { from: '#EFF6FF', to: '#F0FDFA', accent: '#2563EB' },
-    trust: ['Licensed pharmacy', 'Same-day delivery', 'M-Pesa & card'],
+    eyebrow: 'Skincare bestseller',
+    headline: 'CeraVe, loved by dermatologists',
+    supporting: 'Daily moisturisers and cleansers with essential ceramides for every skin type.',
+    cta: { label: 'Shop CeraVe', link: '/products?query=cerave' },
+    image: ceraveImg,
+    badge: 'Bestseller',
+    design: 'split',
+    theme: { from: '#EFF6FF', to: '#E0F2FE', accent: '#2563EB' },
+    trust: ['Genuine stock', 'Same-day delivery', 'M-Pesa & card'],
   },
   {
     id: 2,
-    eyebrow: 'Prescriptions',
-    headline: 'Upload your prescription in minutes',
-    supporting: 'Skip the queue — send your Rx for pharmacist review and have it delivered.',
-    cta: { label: 'Upload prescription', link: '/prescriptions' },
-    image: prescriptionImg,
-    theme: { from: '#EFF6FF', to: '#F8FAFC', accent: '#2563EB' },
-    trust: ['Secure & confidential', 'Pharmacist-reviewed', 'No queues'],
+    eyebrow: 'Pain relief essentials',
+    headline: 'Fast relief with Panadol',
+    supporting: 'Tablets and syrup for headaches, fever and cold, for adults and kids.',
+    cta: { label: 'Shop pain relief', link: '/products?query=panadol' },
+    image: panadolImg,
+    badge: 'Everyday essentials',
+    design: 'split-left',
+    theme: { from: '#ECFDF5', to: '#D1FAE5', accent: '#059669' },
+    trust: ['Pharmacist-reviewed', 'Licensed pharmacy', 'Fast checkout'],
   },
   {
     id: 3,
-    eyebrow: 'Telehealth',
-    headline: 'Talk to a licensed doctor online',
-    supporting: 'Care from the comfort of home, with follow-up prescriptions when you need them.',
-    cta: { label: 'Book consultation', link: '/doctor-consultation' },
-    illustration: 'consultation',
-    theme: { from: '#F0FDFA', to: '#EFF6FF', accent: '#0EA5A4' },
-    trust: ['Licensed clinicians', 'Available 7 days a week', 'Private & secure'],
+    eyebrow: 'Dermatological care',
+    headline: 'La Roche-Posay for sensitive skin',
+    supporting: 'Effaclar and Cicaplast ranges, recommended by dermatologists worldwide.',
+    cta: { label: 'Shop La Roche-Posay', link: '/products?query=la roche' },
+    image: larocheImg,
+    badge: 'Premium brand',
+    design: 'split',
+    theme: { from: '#F0F9FF', to: '#E0E7FF', accent: '#4F46E5' },
+    trust: ['Genuine stock', 'Same-day delivery', 'Secure checkout'],
   },
   {
     id: 4,
-    eyebrow: 'This month',
-    headline: 'Save on everyday health essentials',
-    supporting: 'Curated monthly deals across wellness, personal care and family health.',
-    cta: { label: 'View offers', link: '/offers' },
-    image: herbalRemediesImg,
-    theme: { from: '#ECFDF5', to: '#EFF6FF', accent: '#10B981' },
-    trust: ['Updated monthly', 'Genuine products', 'Member savings'],
-  },
-  {
-    id: 5,
-    eyebrow: 'Wellness',
-    headline: 'Build your daily wellness routine',
-    supporting: 'Immunity, energy and everyday supplements, lab-verified for quality.',
-    cta: { label: 'Shop supplements', link: '/products' },
-    image: vitaminsImg,
-    theme: { from: '#ECFDF5', to: '#F0FDFA', accent: '#10B981' },
-    trust: ['Lab-verified quality', 'Pharmacist advice', 'Daily wellness'],
-  },
-  {
-    id: 6,
-    eyebrow: 'Family care',
-    headline: 'Gentle care for little ones',
-    supporting: 'Trusted baby and children’s essentials from brands paediatricians recommend.',
-    cta: { label: 'Shop baby & child care', link: '/products' },
-    image: babyMotherImg,
-    theme: { from: '#F0FDFA', to: '#ECFDF5', accent: '#0EA5A4' },
-    trust: ['Paediatrician-approved', 'Gentle formulations', 'Family essentials'],
-  },
-  {
-    id: 7,
-    eyebrow: 'Care & beauty',
-    headline: 'Nourish your skin, every day',
-    supporting: 'Skincare, hygiene and self-care favourites, delivered to your door.',
-    cta: { label: 'Shop personal care', link: '/products' },
-    image: personalCareImg,
-    theme: { from: '#F0FDFA', to: '#F8FAFC', accent: '#0EA5A4' },
-    trust: ['Genuine brands', 'Dermatologist-friendly', 'Fast delivery'],
-  },
-  {
-    id: 8,
-    eyebrow: 'Diagnostics',
-    headline: 'Monitor your health at home',
-    supporting: 'Blood pressure, glucose and wellness devices, plus easy lab test booking.',
-    cta: { label: 'Shop medical devices', link: '/products' },
-    image: medicalDevicesImg,
-    theme: { from: '#EFF6FF', to: '#F1F5F9', accent: '#2563EB' },
-    trust: ['Clinically reliable', 'Home use', 'Expert support'],
-  },
-  {
-    id: 9,
-    eyebrow: 'Heart health',
-    headline: 'Care for your heart every day',
-    supporting: 'Support cardiovascular wellness with trusted heart-health essentials and advice.',
-    cta: { label: 'Shop heart health', link: '/products' },
-    illustration: 'heart',
-    theme: { from: '#EFF6FF', to: '#F8FAFC', accent: '#2563EB' },
-    trust: ['Trusted brands', 'Pharmacist advice', 'Daily support'],
-  },
-  {
-    id: 10,
-    eyebrow: 'Diabetes care',
-    headline: 'Manage diabetes with confidence',
-    supporting: 'Glucose monitoring, test strips and lifestyle support, all in one place.',
-    cta: { label: 'Shop diabetes care', link: '/products' },
-    illustration: 'diabetes',
-    theme: { from: '#ECFDF5', to: '#EFF6FF', accent: '#10B981' },
-    trust: ['Monitoring essentials', 'Genuine products', 'Expert guidance'],
+    eyebrow: 'Beauty, new in',
+    headline: 'Uncover skincare made for you',
+    supporting: 'Lightweight foundations and skincare built for melanin-rich skin tones.',
+    cta: { label: 'Discover Uncover', link: '/products?query=uncover' },
+    image: uncoverImg,
+    badge: 'New in',
+    design: 'feature',
+    theme: { from: '#FDF2F8', to: '#FCE7F3', accent: '#DB2777' },
+    trust: ['Cruelty-free', 'Genuine products', 'Member savings'],
   },
 ]
 
-function renderHeroIllustration(key: HeroIllustration) {
-  if (key === 'heart') {
-    return (
-      <svg className="hero-banner__illustration" viewBox="0 0 240 240" fill="none" aria-hidden="true">
-        <circle cx="120" cy="120" r="96" fill="var(--hb-accent)" opacity="0.08" />
-        <path d="M120 192s-58-36-78-78c-12-26 6-52 32-52 18 0 30 12 46 30 16-18 28-30 46-30 26 0 44 26 32 52-20 42-78 78-78 78z" fill="var(--hb-accent)" opacity="0.14" />
-        <path d="M64 128h26l14-26 18 52 14-26h26" stroke="var(--hb-accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-  if (key === 'diabetes') {
-    return (
-      <svg className="hero-banner__illustration" viewBox="0 0 240 240" fill="none" aria-hidden="true">
-        <circle cx="120" cy="120" r="96" fill="var(--hb-accent)" opacity="0.08" />
-        <path d="M120 44c30 44 56 74 56 104a56 56 0 0 1-112 0c0-30 26-60 56-104z" fill="var(--hb-accent)" opacity="0.16" />
-        <path d="M96 150h44M118 132v36" stroke="var(--hb-accent)" strokeWidth="6" strokeLinecap="round" />
-        <circle cx="150" cy="104" r="6" fill="var(--hb-accent)" opacity="0.6" />
-      </svg>
-    )
-  }
-  return (
-    <svg className="hero-banner__illustration" viewBox="0 0 240 240" fill="none" aria-hidden="true">
-      <circle cx="120" cy="120" r="96" fill="var(--hb-accent)" opacity="0.08" />
-      <path d="M120 44v28M120 168v28M44 120h28M168 120h28" stroke="var(--hb-accent)" strokeWidth="4" strokeLinecap="round" opacity="0.25" />
-      <path d="M88 120h22l12-30 18 60 14-30h26" stroke="var(--hb-accent)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 const FEATURED_PRODUCTS_LIMIT = 5
 const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
 const isEligibleFeaturedProduct = (product: CatalogProduct) => isAvailableProduct(product) && !product.requiresPrescription
@@ -174,6 +92,11 @@ function HomePage() {
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false)
+  const [reducedMotion, setReducedMotion] = useState(false)
+  const [searchInput, setSearchInput] = useState('')
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<number | null>(null)
   const navigate = useNavigate()
   const { categories } = useCatalog()
   const { isLoggedIn, user } = useAuth()
@@ -215,6 +138,24 @@ function HomePage() {
     if (section !== 'deals') return null
     if (product.badge?.trim()) return product.badge.trim()
     return null
+  }
+
+  const showToast = (message: string) => {
+    setToast(message)
+    if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(null), 2200)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    }
+  }, [])
+
+  const submitLandingSearch = (event: React.FormEvent) => {
+    event.preventDefault()
+    const query = searchInput.trim()
+    navigate(query ? `/products?query=${encodeURIComponent(query)}` : '/products')
   }
 
   const refreshWishlist = () => {
@@ -291,6 +232,27 @@ function HomePage() {
       .sort((a, b) => getDealSavings(b) - getDealSavings(a))
       .slice(0, 5)
   }, [catalogProducts])
+
+  const productJsonLd = useMemo(() => {
+    const items = [...spotlightOfferProducts, ...featuredProducts, ...newProducts]
+      .filter((product, index, self) => self.findIndex((p) => p.id === product.id) === index)
+      .slice(0, 12)
+      .map((product) => ({
+        '@type': 'Product',
+        name: product.name,
+        image: product.image ?? undefined,
+        brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+        offers: {
+          '@type': 'Offer',
+          price: product.price,
+          priceCurrency: 'KES',
+          availability: product.stockSource === 'out'
+            ? 'https://schema.org/OutOfStock'
+            : 'https://schema.org/InStock',
+        },
+      }))
+    return JSON.stringify({ '@context': 'https://schema.org', '@type': 'ItemList', itemListElement: items })
+  }, [spotlightOfferProducts, featuredProducts, newProducts])
   const professionalDashboard =
     user?.role === 'doctor'
       ? { label: 'Doctor dashboard', path: '/doctor/dashboard' }
@@ -337,6 +299,25 @@ function HomePage() {
     return stars
   }
 
+  const renderSkeletonCard = (key: string) => (
+    <div className="product-card product-card--skeleton" aria-hidden="true" key={key}>
+      <div className="product-card__image skeleton" />
+      <div className="product-card__content">
+        <div className="skeleton skeleton--text skeleton--text--sm" />
+        <div className="skeleton skeleton--text" />
+        <div className="skeleton skeleton--text skeleton--text--sm" />
+        <div className="product-card__spacer" />
+        <div className="skeleton skeleton--bar" />
+      </div>
+    </div>
+  )
+
+  const renderSkeletonGrid = (count: number, compact = false) => (
+    <div className={`products__grid${compact ? ' products__grid--compact' : ''}`}>
+      {Array.from({ length: count }, (_, i) => renderSkeletonCard(`sk-${i}`))}
+    </div>
+  )
+
   const updateScrollButtons = () => {
     const track = categoryTrackRef.current
     if (!track) return
@@ -358,12 +339,20 @@ function HomePage() {
   }, [visibleCategories.length])
 
   useEffect(() => {
-    if (bannerSlides.length <= 1) return undefined
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReducedMotion(mq.matches)
+    const handler = (event: MediaQueryListEvent) => setReducedMotion(event.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  useEffect(() => {
+    if (bannerSlides.length <= 1 || reducedMotion || isCarouselPaused) return undefined
     const t = window.setInterval(() => {
       setCurrentSlide(s => (s + 1) % bannerSlides.length)
     }, 6000)
     return () => window.clearInterval(t)
-  }, [bannerSlides.length])
+  }, [bannerSlides.length, reducedMotion, isCarouselPaused])
 
   const goToSlide = (index: number) => {
     setCurrentSlide(index)
@@ -413,6 +402,7 @@ function HomePage() {
       stockSource: product.stockSource === 'out' ? 'warehouse' : (product.stockSource ?? 'branch'),
     })
     setAddedId(product.id)
+    showToast(`${product.name} added to cart`)
     window.setTimeout(() => {
       setAddedId((prev) => (prev === product.id ? null : prev))
     }, 1200)
@@ -473,24 +463,110 @@ function HomePage() {
     )
   }
 
+  const renderSectionIcon = (key: 'categories' | 'offers' | 'top' | 'new') => {
+    const common = {
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 2,
+      strokeLinecap: 'round' as const,
+      strokeLinejoin: 'round' as const,
+      'aria-hidden': true,
+    }
+    if (key === 'categories') {
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+      )
+    }
+    if (key === 'offers') {
+      return (
+        <svg {...common}>
+          <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L3 13V3h10l7.59 7.59a2 2 0 0 1 0 2.82z" />
+          <path d="M7 7h.01" />
+        </svg>
+      )
+    }
+    if (key === 'top') {
+      return (
+        <svg {...common}>
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      )
+    }
+    return (
+      <svg {...common}>
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+        <circle cx="12" cy="12" r="3.2" />
+      </svg>
+    )
+  }
+
+  const renderSectionHeader = (
+    key: 'categories' | 'offers' | 'top' | 'new',
+    eyebrow: string,
+    title: string,
+    subtitle?: string,
+  ) => (
+    <div className="section__header">
+      <span className="section__eyebrow">
+        {renderSectionIcon(key)}
+        {eyebrow}
+      </span>
+      <h2 className="section__title">{title}</h2>
+      {subtitle && <p className="section__subtitle">{subtitle}</p>}
+    </div>
+  )
+
   const renderProductCard = (product: CatalogProduct, section: 'deals' | 'featured' | 'new') => {
     const displayBadge = getProductBadge(product, section)
+    const discountPercent =
+      product.originalPrice && product.originalPrice > product.price
+        ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+        : null
+    const isOut = product.stockSource === 'out'
+    const addLabel = isOut
+      ? 'Out of stock'
+      : product.requiresPrescription
+        ? 'Add Prescription'
+        : addedId === product.id
+          ? 'Added'
+          : 'Add to cart'
 
     return (
       <article key={product.id} className="product-card">
-        <Link to={`/product/${product.id}`} className="product-card__image">
-          {displayBadge && (
-            <span className={`product-card__badge ${section === 'deals' ? 'product-card__badge--sale' : ''}`}>
-              {displayBadge}
-            </span>
+        <Link
+          to={`/product/${product.id}`}
+          className="product-card__stretched"
+          tabIndex={-1}
+          aria-label={`View ${product.name}`}
+        />
+        <div className="product-card__image">
+          {discountPercent !== null ? (
+            <span className="product-card__badge product-card__badge--sale">-{discountPercent}%</span>
+          ) : displayBadge ? (
+            <span className="product-card__badge">{displayBadge}</span>
+          ) : null}
+          {product.requiresPrescription && (
+            <span className="product-card__flag product-card__flag--rx">Rx</span>
+          )}
+          {isOut && (
+            <span className="product-card__flag product-card__flag--out">Out of stock</span>
           )}
           <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
           <div className="product-card__actions">
             <button
               className={`product-card__action ${wishlist[product.id] ? 'product-card__action--active' : ''}`}
               title={wishlist[product.id] ? 'Remove from favourites' : 'Save to favourites'}
+              aria-label={wishlist[product.id] ? 'Remove from favourites' : 'Save to favourites'}
+              aria-pressed={wishlist[product.id]}
               onClick={(e) => {
                 e.preventDefault()
+                e.stopPropagation()
                 toggleWishlist(product)
               }}
             >
@@ -499,7 +575,7 @@ function HomePage() {
               </svg>
             </button>
           </div>
-        </Link>
+        </div>
         <div className="product-card__content">
           {product.brand && <span className="product-card__brand">{product.brand}</span>}
           <h3 className="product-card__name">
@@ -522,22 +598,36 @@ function HomePage() {
                 <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
               )}
             </div>
-            <div className="product-card__buttons">
-              <Link
-                to={`/product/${product.id}`}
-                className="product-card__view-details"
-              >
-                View details
-              </Link>
-              <button
-                className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`}
-                type="button"
-                title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
-                onClick={() => void handleAddToCart(product)}
-              >
-              {product.requiresPrescription ? 'Add Prescription' : addedId === product.id ? 'Added!' : 'Add to cart'}
+            <button
+              className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}${isOut ? ' product-card__add-to-cart--disabled' : ''}`}
+              type="button"
+              disabled={isOut}
+              title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
+              onClick={() => void handleAddToCart(product)}
+            >
+              {isOut ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M5.6 5.6l12.8 12.8" />
+                </svg>
+              ) : product.requiresPrescription ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M9 13h6M9 17h4" />
+                </svg>
+              ) : addedId === product.id ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="9" cy="20" r="1.4" />
+                  <circle cx="18" cy="20" r="1.4" />
+                  <path d="M2 3h2.5l2.2 12.3a2 2 0 0 0 2 1.7h8.7a2 2 0 0 0 2-1.6L22 7H5.2" />
+                </svg>
+              )}
+              <span className="product-card__add-to-cart-label">{addLabel}</span>
             </button>
-            </div>
           </div>
         </div>
       </article>
@@ -550,19 +640,30 @@ function HomePage() {
         Skip to main content
       </a>
       {/* Hero Carousel - full-width promotional banner */}
-      <section className="hero-carousel" id="main-content" aria-label="Promotional banners">
+      <section
+        className="hero-carousel"
+        id="main-content"
+        aria-roledescription="carousel"
+        aria-label="Promotional banners"
+        onMouseEnter={() => setIsCarouselPaused(true)}
+        onMouseLeave={() => setIsCarouselPaused(false)}
+        onFocus={() => setIsCarouselPaused(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsCarouselPaused(false)
+        }}
+      >
         <h1 className="hero-carousel__sr-title">
-          Ava Pharmacy — online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya
+          Ava Pharmacy: online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya
         </h1>
         <div
-          className="hero-carousel__track"
+          className={`hero-carousel__track${reducedMotion ? ' hero-carousel__track--reduced' : ''}`}
           style={{ transform: `translateX(-${currentSlide * 100}%)` }}
         >
           {bannerSlides.map((slide, index) => (
             <Link
               key={slide.id}
               to={slide.cta.link}
-              className="hero-carousel__slide hero-banner"
+              className={`hero-carousel__slide hero-banner hero-banner--${slide.design ?? 'split'}`}
               style={{ '--hb-from': slide.theme.from, '--hb-to': slide.theme.to, '--hb-accent': slide.theme.accent } as CSSProperties}
               aria-label={slide.headline}
             >
@@ -587,15 +688,14 @@ function HomePage() {
               </div>
               <div className="hero-banner__visual">
                 <span className="hero-banner__blob" aria-hidden="true" />
-                {slide.image ? (
+                {slide.badge && <span className="hero-banner__badge">{slide.badge}</span>}
+                {slide.image && (
                   <ImageWithFallback
                     src={slide.image}
                     alt={slide.headline}
-                    className="hero-banner__photo"
+                    className="hero-banner__product"
                     loading={index === 0 ? 'eager' : 'lazy'}
                   />
-                ) : (
-                  renderHeroIllustration(slide.illustration ?? 'consultation')
                 )}
               </div>
             </Link>
@@ -643,6 +743,26 @@ function HomePage() {
 
       </section>
 
+      <section className="home-search" aria-label="Search the store">
+        <div className="container">
+          <form className="home-search__form" role="search" onSubmit={submitLandingSearch}>
+            <svg className="home-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+            </svg>
+            <input
+              className="home-search__input"
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search medicines, supplements, devices…"
+              aria-label="Search products"
+            />
+            <button className="home-search__btn" type="submit">Search</button>
+          </form>
+        </div>
+      </section>
+
       {professionalDashboard && (
         <section className="hero__quick-links hero__quick-links--professional" aria-label="Professional shortcuts">
           <div className="container">
@@ -681,9 +801,7 @@ function HomePage() {
       {visibleCategories.length > 0 && (
         <section className="section categories">
           <div className="container">
-            <div className="section__header">
-              <h2 className="section__title">Shop by Category</h2>
-            </div>
+            {renderSectionHeader('categories', 'Browse', 'Shop by Category', 'Find what you need by department, from everyday medicines to wellness.')}
             <div className="categories__carousel">
               <button
                 className="carousel__btn carousel__btn--prev"
@@ -739,13 +857,9 @@ function HomePage() {
       )}
       <section className="section offers-preview home-section--offers">
         <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">Products On Offer</h2>
-          </div>
+          {renderSectionHeader('offers', 'Limited time', 'Products On Offer', 'Monthly deals on health essentials, while stocks last.')}
           {catalogLoading ? (
-            <div className="empty-state">
-              <p className="empty-state__message">Loading offers…</p>
-            </div>
+            renderSkeletonGrid(5, true)
           ) : spotlightOfferProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No live offers are available right now.</p>
@@ -767,13 +881,9 @@ function HomePage() {
       {/* Featured Products - social proof via best sellers */}
       <section className="section featured-products home-section--featured">
         <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">Top Rated Products</h2>
-          </div>
+          {renderSectionHeader('top', 'Customer favourites', 'Top Rated Products', 'Highly rated by shoppers like you.')}
           {featuredLoading && catalogLoading ? (
-            <div className="empty-state">
-              <p className="empty-state__message">Loading top rated products…</p>
-            </div>
+            renderSkeletonGrid(5)
           ) : featuredProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No top rated products available at the moment.</p>
@@ -883,13 +993,9 @@ function HomePage() {
       {/* New Products Section */}
       <section className="section new-products home-section--new">
         <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">New Products</h2>
-          </div>
+          {renderSectionHeader('new', 'Just in', 'New Products', 'Fresh stock added to our shelves.')}
           {newLoading ? (
-            <div className="empty-state">
-              <p className="empty-state__message">Loading new products…</p>
-            </div>
+            renderSkeletonGrid(5)
           ) : newProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No new products have been added yet.</p>
@@ -908,8 +1014,18 @@ function HomePage() {
         </div>
       </section>
 
-
       <SupportShortcuts />
+
+      {toast && (
+        <div className="home-toast" role="status" aria-live="polite">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          <span>{toast}</span>
+        </div>
+      )}
+
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: productJsonLd }} />
     </div>
   )
 }
