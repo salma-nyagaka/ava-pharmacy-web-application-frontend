@@ -3,48 +3,46 @@ import '../../styles/components/SupportShortcuts.css'
 
 function ChatIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 4h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 3v-3H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+      <path d="M8.5 9h7" />
+      <path d="M8.5 12h4" />
     </svg>
   )
 }
 
 function TrackIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <path d="M3 7h11v8H3z" />
-      <path d="M14 10h3l4 4v1h-7z" />
-      <circle cx="7.5" cy="18.5" r="2" />
-      <circle cx="17.5" cy="18.5" r="2" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6.5h11v8H3z" />
+      <path d="M14 9.5h3.5l3 3v2H14" />
+      <circle cx="7" cy="18" r="1.6" />
+      <circle cx="17.5" cy="18" r="1.6" />
     </svg>
   )
 }
 
 function PhoneIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.1a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 15.92z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6.5 4h3l1.2 3-1.8 1.2a11 11 0 0 0 5 5l1.2-1.8 3 1.2v3a1.5 1.5 0 0 1-1.6 1.5C12.5 20.6 4 12.1 4 5.6A1.5 1.5 0 0 1 5.5 4Z" />
     </svg>
   )
 }
 
 function PrescriptionIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-      <path d="M14 3v5h5" />
-      <path d="M9 13h6" />
-      <path d="M9 17h4" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M7 3h7l4 4v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+      <path d="M9.5 9.5l4 4m-4 0l4-4" />
     </svg>
   )
 }
 
 function HealthIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-      <path d="M12 21s-6.7-4.35-8.89-8.12C1.54 10.2 2.1 6.85 4.8 5.22a4.93 4.93 0 0 1 5.64.32L12 6.81l1.56-1.27a4.93 4.93 0 0 1 5.64-.32c2.7 1.63 3.26 4.98 1.69 7.66C18.7 16.65 12 21 12 21Z" />
-      <path d="M12 8v6" />
-      <path d="M9 11h6" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12h3l1.5-4 3 8 2.5-6 1.5 2h6" />
     </svg>
   )
 }

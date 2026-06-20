@@ -285,44 +285,82 @@ function PediatricianConsultation() {
     return (
       <div className="dc-page">
         <div className="dc-waiting">
-          <div className="dc-waiting__card">
-            <div className="dc-waiting__avatar-wrap">
-              <div className="dc-waiting__pulse-ring" />
-              <div className="dc-waiting__avatar">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
-            </div>
-            <span className="dc-waiting__status-badge">Request received</span>
-            <p className="dc-waiting__doctor-name">{currentConsultation.doctorName || assignedPediatrician?.name || 'Assigned pediatrician'}</p>
-            <p className="dc-waiting__doctor-spec">Consultation for {currentConsultation.childName || formData.childName || 'your child'}</p>
-
-            <div className="dc-waiting__meta">
-              <div className="dc-waiting__meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span>Started {formatDateTime(currentConsultation.createdAt)}</span>
+          <div className="dc-waiting__shell">
+            <section className="dc-waiting__summary" aria-label="Consultation status">
+              <Link to="/health-services" className="dc-state-back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                Back
+              </Link>
+              <span className="dc-waiting__eyebrow">Pediatric consultation</span>
+              <h1>Waiting for pediatrician</h1>
+              <p className="dc-waiting__lead">Your request is in the pediatric queue. Keep this page open and the chat will appear when the clinician joins.</p>
+              <div className="dc-waiting__reference">
+                <span>Reference</span>
+                <strong>{currentConsultation.reference}</strong>
               </div>
-              <div className="dc-waiting__meta-sep">·</div>
-              <div className="dc-waiting__meta-item">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                <span>{pediatricians.length} pediatricians available</span>
+              <div className="dc-waiting__steps" aria-label="Progress">
+                <div className="dc-waiting__step dc-waiting__step--done">
+                  <span>1</span>
+                  <p>Request received</p>
+                </div>
+                <div className="dc-waiting__step dc-waiting__step--active">
+                  <span>2</span>
+                  <p>Pediatrician joining</p>
+                </div>
+                <div className="dc-waiting__step">
+                  <span>3</span>
+                  <p>Chat starts</p>
+                </div>
               </div>
-            </div>
+            </section>
 
-            <div className="dc-waiting__connecting">
-              <span /><span /><span />
-            </div>
-            <p className="dc-waiting__tip">We are waiting for the pediatrician to join. This page refreshes automatically.</p>
-            {currentConsultation.consentStatus !== 'granted' && (
-              <div className="dc-complete__actions" style={{ marginTop: '1rem' }}>
-                <button type="button" className="btn btn--primary" onClick={() => { void handleGrantConsent() }} disabled={isGrantingConsent}>
-                  {isGrantingConsent ? 'Granting consent…' : 'Grant guardian consent'}
+            <div className="dc-waiting__card">
+              <div className="dc-waiting__card-top">
+                <div className="dc-waiting__avatar-wrap">
+                  <div className="dc-waiting__pulse-ring" />
+                  <div className="dc-waiting__avatar">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
+                </div>
+                <div>
+                  <span className="dc-waiting__status-badge">Request received</span>
+                  <p className="dc-waiting__doctor-name">{currentConsultation.doctorName || assignedPediatrician?.name || 'Waiting for pediatrician'}</p>
+                  <p className="dc-waiting__doctor-spec">Consulting for {currentConsultation.childName || formData.childName || 'your child'}</p>
+                </div>
+              </div>
+
+              <div className="dc-waiting__meta">
+                <div className="dc-waiting__meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>{formatDateTime(currentConsultation.createdAt)}</span>
+                </div>
+                <div className="dc-waiting__meta-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  <span>{pediatricians.length} pediatricians available</span>
+                </div>
+              </div>
+
+              <div className="dc-waiting__status-line">
+                <div className="dc-waiting__connecting">
+                  <span /><span /><span />
+                </div>
+                <p>Refreshing automatically</p>
+              </div>
+              <p className="dc-waiting__tip">You can leave and return from your consultation history if needed.</p>
+              {submitError && <p className="dc-field-error dc-waiting__error">{submitError}</p>}
+              {currentConsultation.consentStatus !== 'granted' && (
+                <div className="dc-waiting__actions">
+                  <button type="button" className="btn btn--primary btn--sm" onClick={() => { void handleGrantConsent() }} disabled={isGrantingConsent}>
+                    {isGrantingConsent ? 'Granting consent…' : 'Grant guardian consent'}
+                  </button>
+                </div>
+              )}
+              <div className="dc-waiting__actions">
+                <button type="button" className="btn btn--primary btn--sm" onClick={() => { void handleRefreshConsultation() }}>
+                  Refresh
                 </button>
+                <Link to="/account/consultations" className="btn btn--outline btn--sm">
+                  View all
+                </Link>
               </div>
-            )}
-            {submitError && <p className="dc-field-error" style={{ marginTop: '1rem' }}>{submitError}</p>}
-            <div className="dc-complete__actions" style={{ marginTop: '1.5rem' }}>
-              <button type="button" className="btn btn--primary" onClick={() => { void handleRefreshConsultation() }}>
-                Refresh status
-              </button>
-              <Link to="/account/consultations" className="btn btn--outline">View all consultations</Link>
             </div>
           </div>
         </div>
@@ -331,70 +369,169 @@ function PediatricianConsultation() {
   }
 
   if (viewState === 'chatting' && currentConsultation) {
+    const clinicianName = currentConsultation.doctorName || assignedPediatrician?.name || 'Assigned pediatrician'
+    const clinicianSpecialty = assignedPediatrician?.specialty || 'Pediatrics'
+    const consultationFee = assignedPediatrician?.consultFee ?? 0
+    const consentGranted = currentConsultation.consentStatus === 'granted'
+
     return (
       <div className="dc-page">
-        <div className="dc-chat">
-          <div className="dc-chat__header">
-            <div className="dc-chat__doc-info">
-              <div className="dc-chat__doc-avatar">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
-              <div>
-                <p className="dc-chat__doc-name">{currentConsultation.doctorName || assignedPediatrician?.name || 'Assigned pediatrician'}</p>
-                <p className="dc-chat__doc-spec">
-                  <span className="dc-chat__online-dot" />
-                  Pediatrics · Consulting for {currentConsultation.childName || 'your child'}
-                </p>
-              </div>
-            </div>
-            <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowEndConfirm(true)}>
-              End Consultation
-            </button>
-          </div>
-
-          <div className="dc-chat__messages">
-            {currentConsultation.messages.length === 0 && (
-              <div className="dc-msg dc-msg--doctor">
-                <div className="dc-msg__avatar">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
-                <div className="dc-msg__bubble">
-                  <p>Your pediatric consultation has started. You can send your first message now.</p>
-                  <span className="dc-msg__time">{formatDateTime(currentConsultation.updatedAt)}</span>
-                </div>
-              </div>
-            )}
-            {currentConsultation.messages.map((message) => {
-              const isPatient = message.sender === user?.id
-              return (
-                <div key={message.id} className={`dc-msg dc-msg--${isPatient ? 'patient' : 'doctor'}`}>
-                  {!isPatient && (
-                    <div className="dc-msg__avatar">{getInitials(currentConsultation.doctorName || assignedPediatrician?.name || 'PD')}</div>
-                  )}
-                  <div className="dc-msg__bubble">
-                    <p>{message.message}</p>
-                    <span className="dc-msg__time">{formatDateTime(message.sentAt)}</span>
+        <div className="container">
+          <div className="dc-active-shell">
+            <div className="dc-chat">
+              <div className="dc-chat__header">
+                <div className="dc-chat__doc-info">
+                  <div className="dc-chat__doc-avatar">{getInitials(clinicianName)}</div>
+                  <div>
+                    <p className="dc-chat__doc-name">{clinicianName}</p>
+                    <p className="dc-chat__doc-spec">
+                      <span className="dc-chat__online-dot" />
+                      {clinicianSpecialty} · Consulting for {currentConsultation.childName || 'your child'}
+                    </p>
                   </div>
                 </div>
-              )
-            })}
-            <div ref={messagesEndRef} />
-          </div>
+                <div className="dc-chat__header-actions">
+                  <Link to="/account/consultations" className="dc-chat__history-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                    Back to consultations
+                  </Link>
+                  <button className="btn btn--outline btn--sm dc-chat__end-btn" type="button" onClick={() => setShowEndConfirm(true)}>
+                    End Consultation
+                  </button>
+                </div>
+              </div>
 
-          <div className="dc-chat__input">
-            <input
-              type="text"
-              placeholder="Type your message..."
-              value={messageInput}
-              onChange={(event) => setMessageInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  void handleSendMessage()
-                }
-              }}
-            />
-            <button className="btn btn--primary dc-send-btn" type="button" onClick={() => { void handleSendMessage() }} disabled={!messageInput.trim() || isSendingMessage}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </button>
+              <div className="dc-chat__notice">
+                <span>Active consultation</span>
+                <p>Share updates, symptoms, medication use, allergies, or photos requested by your pediatrician.</p>
+              </div>
+
+              <div className="dc-chat__messages">
+                {currentConsultation.messages.length === 0 && (
+                  <div className="dc-msg dc-msg--doctor">
+                    <div className="dc-msg__avatar">{getInitials(clinicianName)}</div>
+                    <div className="dc-msg__bubble">
+                      <p>Your pediatric consultation has started. You can send your first message now.</p>
+                      <span className="dc-msg__time">{formatDateTime(currentConsultation.updatedAt)}</span>
+                    </div>
+                  </div>
+                )}
+                {currentConsultation.messages.map((message) => {
+                  const isPatient = message.sender === user?.id
+                  return (
+                    <div key={message.id} className={`dc-msg dc-msg--${isPatient ? 'patient' : 'doctor'}`}>
+                      {!isPatient && (
+                        <div className="dc-msg__avatar">{getInitials(clinicianName)}</div>
+                      )}
+                      <div className="dc-msg__bubble">
+                        <p>{message.message}</p>
+                        <span className="dc-msg__time">{formatDateTime(message.sentAt)}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="dc-chat__input">
+                <input
+                  type="text"
+                  placeholder="Type your message..."
+                  value={messageInput}
+                  onChange={(event) => setMessageInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      void handleSendMessage()
+                    }
+                  }}
+                />
+                <button className="btn btn--primary" type="button" onClick={() => { void handleSendMessage() }} disabled={!messageInput.trim() || isSendingMessage}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+              {submitError && <p className="dc-field-error dc-chat__error">{submitError}</p>}
+            </div>
+
+            <aside className="dc-chat-panel" aria-label="Consultation details">
+              <div className="dc-chat-panel__card dc-chat-panel__card--doctor">
+                <div className="dc-chat-panel__avatar">{getInitials(clinicianName)}</div>
+                <div>
+                  <p className="dc-chat-panel__eyebrow">Your pediatrician</p>
+                  <h2>{clinicianName}</h2>
+                  <span>{clinicianSpecialty}</span>
+                </div>
+              </div>
+
+              <div className="dc-chat-panel__card">
+                <p className="dc-chat-panel__title">Consultation summary</p>
+                <div className="dc-chat-detail">
+                  <span>Reference</span>
+                  <strong>{currentConsultation.reference}</strong>
+                </div>
+                <div className="dc-chat-detail">
+                  <span>Started</span>
+                  <strong>{formatDateTime(currentConsultation.createdAt)}</strong>
+                </div>
+                <div className="dc-chat-detail">
+                  <span>Child</span>
+                  <strong>{currentConsultation.childName || '—'}</strong>
+                </div>
+                <div className="dc-chat-detail">
+                  <span>Status</span>
+                  <strong>In progress</strong>
+                </div>
+                {consultationFee > 0 && (
+                  <div className="dc-chat-detail">
+                    <span>Estimated fee</span>
+                    <strong>KSh {consultationFee.toLocaleString()}</strong>
+                  </div>
+                )}
+                <p className="dc-chat-panel__issue">{formData.symptoms || 'No symptom summary recorded.'}</p>
+              </div>
+
+              <div className={`dc-chat-panel__card dc-prescription-status ${consentGranted ? 'dc-prescription-status--issued' : ''}`}>
+                <div className="dc-prescription-status__top">
+                  <div className="dc-prescription-status__icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                      <path d="M9 12l2 2 4-4"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="dc-chat-panel__title">Guardian consent</p>
+                    <p className="dc-prescription-status__state">
+                      {consentGranted ? 'Granted for this consultation' : 'Awaiting guardian consent'}
+                    </p>
+                  </div>
+                </div>
+                {consentGranted ? (
+                  <p className="dc-prescription-status__alert">
+                    Guardian consent is on record. The pediatrician may proceed with clinical guidance and, where appropriate, an e-prescription for your child.
+                  </p>
+                ) : (
+                  <>
+                    <p className="dc-prescription-status__copy">
+                      Guardian consent is required before the pediatrician can issue any prescription on your child&apos;s behalf.
+                    </p>
+                    <button
+                      type="button"
+                      className="dc-prescription-status__link"
+                      onClick={() => { void handleGrantConsent() }}
+                      disabled={isGrantingConsent}
+                    >
+                      {isGrantingConsent ? 'Granting consent…' : 'Grant consent'}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <a href={`tel:${formatPhoneHref(settings.supportPhone)}`} className="dc-emergency-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                Pediatric emergency? Call now
+              </a>
+            </aside>
           </div>
-          {submitError && <p className="dc-field-error" style={{ marginTop: '1rem' }}>{submitError}</p>}
         </div>
 
         {showEndConfirm && (
@@ -453,6 +590,10 @@ function PediatricianConsultation() {
 
       <section className="page-hero page-hero--doctor">
         <div className="container">
+          <Link to="/health-services" className="dc-back-btn dc-back-btn--hero">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Back to health services
+          </Link>
           <nav className="svc-hero__breadcrumbs">
             <Link to="/">Home</Link>
             <span>/</span>
@@ -461,10 +602,10 @@ function PediatricianConsultation() {
             <span>Pediatric Consultation</span>
           </nav>
           <h1 className="svc-hero__title">Pediatric Consultation</h1>
-          <p className="svc-hero__sub">Expert care for your child from certified pediatricians. Start a secure chat consultation.</p>
+          <p className="svc-hero__sub">Expert care for your child from certified pediatricians. Start a secure chat consultation and receive clinical guidance or a digital prescription when appropriate.</p>
           <div className="page-hero__pills">
-            <span className="page-hero__pill">Child specialists</span>
-            <span className="page-hero__pill">Ages 0–18</span>
+            <span className="page-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Licensed &amp; verified</span>
+            <span className="page-hero__pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Ages 0–18</span>
           </div>
         </div>
       </section>

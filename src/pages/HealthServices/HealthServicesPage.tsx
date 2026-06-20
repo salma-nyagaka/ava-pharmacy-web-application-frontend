@@ -36,6 +36,25 @@ const services: Service[] = [
     ),
   },
   {
+    key: 'prescription',
+    category: 'Pharmacy',
+    title: 'Prescription Review',
+    hook: 'Upload an Rx for fast review by a licensed pharmacist.',
+    turnaround: 'Reviewed in minutes',
+    price: 'Free review',
+    features: ['Licensed pharmacist check', 'Delivery or pickup'],
+    path: '/prescriptions',
+    cta: 'Upload prescription',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+    ),
+  },
+  {
     key: 'pediatric',
     category: 'Pediatrics',
     title: 'Pediatric Care',
@@ -69,25 +88,6 @@ const services: Service[] = [
         <path d="M14.5 2v14.5a4.5 4.5 0 0 1-9 0V2"/>
         <line x1="6" y1="2" x2="14.5" y2="2"/>
         <line x1="6" y1="9" x2="14.5" y2="9"/>
-      </svg>
-    ),
-  },
-  {
-    key: 'prescription',
-    category: 'Pharmacy',
-    title: 'Prescription Review',
-    hook: 'Upload an Rx for fast review by a licensed pharmacist.',
-    turnaround: 'Reviewed in minutes',
-    price: 'Free review',
-    features: ['Licensed pharmacist check', 'Delivery or pickup'],
-    path: '/prescriptions',
-    cta: 'Upload prescription',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
       </svg>
     ),
   },
@@ -127,7 +127,6 @@ const whatsappHref = (phone: string) => `https://wa.me/${formatWhatsAppHref(phon
 
 function HealthServicesPage() {
   const { settings } = useSiteSettings()
-  const [featured, ...rest] = services
 
   return (
     <div className="hs-page">
@@ -140,48 +139,9 @@ function HealthServicesPage() {
             <p className="hs-section-sub">Four ways to manage your health, reviewed by licensed professionals.</p>
           </div>
 
-          {/* Featured service */}
-          <Link
-            to={featured.path}
-            className="hs-service-card hs-service-card--feature"
-            aria-label={`${featured.cta}: ${featured.title}`}
-          >
-            <span className="hs-service-card__tag">
-              {featured.badge && <span className="hs-service-card__badge">{featured.badge}</span>}
-              <span className="hs-service-card__category">{featured.category}</span>
-            </span>
-            <div className="hs-service-card__main">
-              <span className="hs-service-card__icon">{featured.icon}</span>
-              <div className="hs-service-card__body">
-                <h3 className="hs-service-card__title">{featured.title}</h3>
-                <p className="hs-service-card__hook">{featured.hook}</p>
-                <ul className="hs-service-card__chips">
-                  {featured.features.map((feature) => (
-                    <li key={feature} className="hs-service-card__chip">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            <div className="hs-service-card__footer">
-              <span className="hs-service-card__meta">
-                <span className="hs-service-card__turnaround">{featured.turnaround}</span>
-                <span className="hs-service-card__price">{featured.price}</span>
-              </span>
-              <span className="hs-service-card__link">
-                {featured.cta}
-                <span aria-hidden="true">→</span>
-              </span>
-            </div>
-          </Link>
-
-          {/* Remaining services */}
+          {/* Services */}
           <ul className="hs-services__grid">
-            {rest.map((service) => (
+            {services.map((service) => (
               <li key={service.key}>
                 <Link
                   to={service.path}

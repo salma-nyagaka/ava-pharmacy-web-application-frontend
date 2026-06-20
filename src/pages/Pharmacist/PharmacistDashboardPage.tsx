@@ -111,6 +111,23 @@ function formatThreadTime(value: string) {
   })
 }
 
+function timestampValue(value?: string | null) {
+  if (!value) return 0
+  const timestamp = new Date(value).getTime()
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+function sortOrdersByCreatedDesc(orders: AdminOrder[]) {
+  return [...orders].sort((left, right) =>
+    timestampValue(right.created_at || right.placed_at || right.updated_at) -
+    timestampValue(left.created_at || left.placed_at || left.updated_at),
+  )
+}
+
+function prescriptionSubmittedValue(rx: PrescriptionRecord) {
+  return timestampValue(rx.submittedAt || rx.submitted)
+}
+
 function buildClarificationThread(rx: PrescriptionRecord): PrescriptionClarificationMessage[] {
   const messages = [...rx.clarificationMessages]
   const hasPharmacyMessage = messages.some((entry) => entry.senderRole === 'pharmacist' || entry.senderRole === 'admin' || entry.senderRole === 'system')
@@ -192,6 +209,19 @@ function nextOrderStatus(order: AdminOrder) {
   return null
 }
 
+function unpaidPrescriptionItems(rx: PrescriptionRecord) {
+  return rx.items.filter((item) => !item.isPaidFor)
+}
+
+function formatPrescriptionItemsPreview(rx: PrescriptionRecord) {
+  const items = unpaidPrescriptionItems(rx)
+  if (items.length === 0) return 'No unpaid item details available'
+  return items
+    .slice(0, 3)
+    .map((item) => `${item.qty}x ${item.name}`)
+    .join(' · ')
+}
+
 type WorkspaceView = 'prescriptions' | 'orders'
 
 function PharmacistDashboardPage() {
@@ -245,7 +275,8 @@ function PharmacistDashboardPage() {
     }
     setOrdersError('')
     try {
-      setOrders(await listAdminOrders({ ordering: '-created_at' }))
+      const latestOrders = await listAdminOrders({ ordering: '-created_at' })
+      setOrders(sortOrdersByCreatedDesc(latestOrders))
     } catch {
       setOrdersError('Unable to load staff order updates right now.')
     } finally {
@@ -281,11 +312,13 @@ function PharmacistDashboardPage() {
 
   useEffect(() => {
     if (activeWorkspace !== 'orders') return undefined
+    void refreshPrescriptions().catch(() => undefined)
     const timer = window.setInterval(() => {
       void refreshOrders(true)
+      void refreshPrescriptions().catch(() => undefined)
     }, 10000)
     return () => window.clearInterval(timer)
-  }, [activeWorkspace, refreshOrders])
+  }, [activeWorkspace, refreshOrders, refreshPrescriptions])
 
   useEffect(() => {
     if (!activeOrder) return undefined
@@ -502,7 +535,7 @@ function PharmacistDashboardPage() {
 
   const filteredOrderRecords = useMemo(() => {
     const query = orderSearchTerm.trim().toLowerCase()
-    return orders.filter((order) => {
+    return sortOrdersByCreatedDesc(orders).filter((order) => {
       if (selectedOrderStatus !== 'all' && order.status !== selectedOrderStatus) return false
       if (selectedOrderPaymentStatus !== 'all' && order.payment_status !== selectedOrderPaymentStatus) return false
       if (!query) return true
@@ -519,9 +552,30 @@ function PharmacistDashboardPage() {
     })
   }, [orders, orderSearchTerm, selectedOrderStatus, selectedOrderPaymentStatus])
 
+  const approvedPrescriptionsAwaitingCheckout = useMemo(() => {
+    if (selectedOrderStatus !== 'all' && selectedOrderStatus !== 'pending') return []
+    if (selectedOrderPaymentStatus !== 'all' && selectedOrderPaymentStatus !== 'pending') return []
+
+    const query = orderSearchTerm.trim().toLowerCase()
+    return prescriptions
+      .filter((rx) => rx.status === 'Approved' && unpaidPrescriptionItems(rx).length > 0)
+      .filter((rx) => {
+        if (!query) return true
+        return [
+          rx.id,
+          rx.patient,
+          rx.doctor,
+          rx.pharmacist,
+          formatPrescriptionItemsPreview(rx),
+        ].join(' ').toLowerCase().includes(query)
+      })
+      .sort((left, right) => prescriptionSubmittedValue(right) - prescriptionSubmittedValue(left))
+  }, [orderSearchTerm, prescriptions, selectedOrderPaymentStatus, selectedOrderStatus])
+
   const ORDER_PAGE_SIZE = 8
   const totalOrderPages = Math.max(1, Math.ceil(filteredOrderRecords.length / ORDER_PAGE_SIZE))
   const pagedOrderRecords = filteredOrderRecords.slice((orderCurrentPage - 1) * ORDER_PAGE_SIZE, orderCurrentPage * ORDER_PAGE_SIZE)
+  const orderFollowUpCount = orders.length + approvedPrescriptionsAwaitingCheckout.length
 
   const openOrderModal = (order: AdminOrder) => {
     setActiveOrder(order)
@@ -574,7 +628,7 @@ function PharmacistDashboardPage() {
     {
       id: 'orders',
       label: 'Order Follow-up',
-      badge: orders.length,
+      badge: orderFollowUpCount,
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -612,7 +666,11 @@ function PharmacistDashboardPage() {
         <div className="portal-shell__meta-card">
           <span className="portal-shell__meta-label">Workspace</span>
           <p className="portal-shell__meta-value">{activeWorkspace === 'prescriptions' ? 'Prescription operations' : 'Order follow-up'}</p>
-          <p className="portal-shell__meta-value">{activeWorkspace === 'prescriptions' ? `${stats.pending} awaiting action` : `${orders.length} total orders`}</p>
+          <p className="portal-shell__meta-value">
+            {activeWorkspace === 'prescriptions'
+              ? `${stats.pending} awaiting action`
+              : `${orders.length} orders${approvedPrescriptionsAwaitingCheckout.length ? ` · ${approvedPrescriptionsAwaitingCheckout.length} awaiting checkout` : ''}`}
+          </p>
         </div>
       )}
       userMeta={activeWorkspace === 'prescriptions' ? 'Prescription Operations' : 'Order Follow-up'}
@@ -781,7 +839,7 @@ function PharmacistDashboardPage() {
           <div className="admin-page__header">
             <div>
               <h1>Order Follow-up</h1>
-              <p className="px-subtitle">Display every order, filter using backend statuses, and confirm each operational change before it updates the live order.</p>
+              <p className="px-subtitle">Display every order by latest creation time, plus approved prescriptions waiting for customer checkout.</p>
             </div>
           </div>
 
@@ -791,8 +849,8 @@ function PharmacistDashboardPage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
               </div>
               <div className="cm-kpi-card__body">
-                <span className="cm-kpi-card__label">All orders</span>
-                <strong className="cm-kpi-card__value">{orders.length}</strong>
+                <span className="cm-kpi-card__label">All follow-ups</span>
+                <strong className="cm-kpi-card__value">{orderFollowUpCount}</strong>
               </div>
             </div>
             <div className="cm-kpi-card" onClick={() => setSelectedOrderStatus('pending')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
@@ -801,7 +859,9 @@ function PharmacistDashboardPage() {
               </div>
               <div className="cm-kpi-card__body">
                 <span className="cm-kpi-card__label">Pending</span>
-                <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{orderStatusCounts.pending ?? 0}</strong>
+                <strong className="cm-kpi-card__value cm-kpi-card__value--amber">
+                  {(orderStatusCounts.pending ?? 0) + approvedPrescriptionsAwaitingCheckout.length}
+                </strong>
               </div>
             </div>
             <div className="cm-kpi-card" onClick={() => setSelectedOrderStatus('processing')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
@@ -863,11 +923,84 @@ function PharmacistDashboardPage() {
           </div>
 
           <div className="pharm-dashboard-layout">
+            {approvedPrescriptionsAwaitingCheckout.length > 0 && (
+              <section className="pharm-table-panel pharm-table-panel--awaiting-checkout">
+                <div className="pharm-table-panel__header">
+                  <div>
+                    <h2>Approved prescriptions awaiting checkout</h2>
+                    <p>These prescriptions passed pharmacist review and are waiting for the customer to complete checkout and payment.</p>
+                  </div>
+                  <span className="pharm-table-panel__badge">{approvedPrescriptionsAwaitingCheckout.length} records</span>
+                </div>
+                <div className="cm-table-wrap">
+                  <table className="cm-table pharm-table pharm-table--orders">
+                    <thead>
+                      <tr>
+                        <th>Prescription</th>
+                        <th>Patient</th>
+                        <th>Items</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th className="cm-th-actions">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {approvedPrescriptionsAwaitingCheckout.map((rx) => {
+                        const unpaidItems = unpaidPrescriptionItems(rx)
+                        return (
+                          <tr key={`awaiting-${rx.id}`}>
+                            <td>
+                              <div className="pharm-cell-stack">
+                                <strong className="pharm-table__primary">{rx.id}</strong>
+                                <span className="pharm-cell-muted">{rx.source === 'e_prescription' ? 'E-prescription' : 'Uploaded prescription'}</span>
+                                <span className="pharm-cell-muted">
+                                  {unpaidItems.length} item{unpaidItems.length === 1 ? '' : 's'} awaiting checkout
+                                </span>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="pharm-cell-stack">
+                                <strong className="pharm-table__primary">{rx.patient}</strong>
+                                <span className="pharm-cell-muted">Doctor: {rx.doctor || 'Not provided'}</span>
+                                <span className="pharm-cell-muted">{rx.pharmacist === 'Unassigned' ? 'Approved by pharmacy' : `Approved by ${rx.pharmacist}`}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="pharm-cell-stack pharm-cell-stack--items">
+                                <span>{formatPrescriptionItemsPreview(rx)}</span>
+                                {unpaidItems.length > 3 && <span className="pharm-cell-muted">+{unpaidItems.length - 3} more line{unpaidItems.length - 3 === 1 ? '' : 's'}</span>}
+                              </div>
+                            </td>
+                            <td>
+                              <span className="admin-status admin-status--warning">Awaiting checkout</span>
+                            </td>
+                            <td>
+                              <div className="pharm-cell-stack">
+                                <span>{formatSubmittedDateTime(rx.submittedAt || rx.submitted)}</span>
+                                <TimeElapsed since={rx.submittedAt || rx.submitted} />
+                              </div>
+                            </td>
+                            <td>
+                              <div className="cm-row-actions pharm-row-actions">
+                                <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => setActiveRx(rx)}>
+                                  View prescription
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
             <section className="pharm-table-panel pharm-table-panel--orders">
               <div className="pharm-table-panel__header">
                 <div>
                   <h2>All orders</h2>
-                  <p>Review all orders, narrow by backend status or payment state, and use the action flow only after confirming the next status.</p>
+                  <p>Review all orders by latest creation time, narrow by backend status or payment state, and confirm each next status.</p>
                 </div>
                 <span className="pharm-table-panel__badge">{filteredOrderRecords.length} records</span>
               </div>
