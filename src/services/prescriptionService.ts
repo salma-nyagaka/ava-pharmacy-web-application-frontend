@@ -64,6 +64,7 @@ type ApiPrescription = {
   pharmacist_name?: string
   source?: 'upload' | 'e_prescription'
   clinician_type?: 'doctor' | 'pediatrician' | ''
+  clinician_prescription?: number | null
   status: string
   dispatch_status: string
   submitted_at: string
@@ -183,6 +184,7 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
     pharmacist: record.pharmacist_name || 'Unassigned',
     source: record.source || 'upload',
     clinicianType: record.clinician_type || '',
+    clinicianPrescriptionId: record.clinician_prescription ?? null,
     status: STATUS_FROM_API[record.status] ?? 'Pending',
     dispatchStatus: DISPATCH_FROM_API[record.dispatch_status] ?? 'Not started',
     submitted: formatSubmittedDate(record.submitted_at),
@@ -278,7 +280,9 @@ export const prescriptionService = {
     }
     payload.files.forEach((file) => formData.append('files', file))
     try {
-      await apiClient.post('/prescriptions/upload/', formData)
+      const response = await apiClient.post('/prescriptions/upload/', formData)
+      const created = mapPrescription(response.data?.data ?? response.data)
+      return { data: [created] }
     } catch (error) {
       if (!shouldUseLocalFallback(error)) throw error
       const records = loadPrescriptionRecords()
@@ -289,8 +293,8 @@ export const prescriptionService = {
         files: payload.files.map((file) => file.name),
       })
       savePrescriptionRecords(nextRecords)
+      return { data: nextRecords }
     }
-    return prescriptionService.list()
   },
   update: async (prescriptionId: string, updates: Partial<PrescriptionRecord>, auditAction?: string) => {
     const prescription = await resolvePrescription(prescriptionId)

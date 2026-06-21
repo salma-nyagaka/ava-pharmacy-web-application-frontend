@@ -674,10 +674,10 @@
 }
 
 .categories .section__header {
-  max-width: 44rem;
-  margin: 0 auto 1.4rem;
-  align-items: center;
-  text-align: center;
+  max-width: 52rem;
+  margin: 0 0 1.4rem;
+  align-items: flex-start;
+  text-align: left;
 }
 
 .categories__carousel {

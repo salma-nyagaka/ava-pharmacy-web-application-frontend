@@ -219,15 +219,39 @@ function mergeThreadMessage(thread: DoctorMessageThread, message: DoctorMessage,
   }
 }
 
+function preserveRicherThread(current: DoctorMessageThread | undefined, next: DoctorMessageThread): DoctorMessageThread {
+  if (!current || next.messages.length >= current.messages.length) return next
+  return {
+    ...next,
+    lastMessage: current.lastMessage,
+    lastMessageAt: current.lastMessageAt,
+    unreadCount: current.unreadCount,
+    messages: current.messages,
+  }
+}
+
+function threadMessagesMatch(current: DoctorMessageThread | null, next: DoctorMessageThread): boolean {
+  if (!current || current.messages.length !== next.messages.length) return false
+  return current.messages.every((message, index) => {
+    const candidate = next.messages[index]
+    return candidate?.id === message.id
+      && candidate.text === message.text
+      && candidate.sender === message.sender
+      && candidate.time === message.time
+  })
+}
+
 function mapBackendPediatricPrescription(rx: ClinicianPrescription, doctorId: string): DoctorPrescription {
   const consultationId = rx.consultation_id ?? rx.consultation ?? null
   return {
     id: rx.reference,
     backendId: rx.id,
+    consultationId,
     doctorId,
     patientName: rx.patient_name,
     createdAt: rx.created_at ? new Date(rx.created_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
     status: rx.status === 'sent' ? 'Sent' : rx.status === 'dispensed' ? 'Dispensed' : 'Draft',
+    isPaidFor: Boolean(rx.is_paid_for),
     notes: rx.notes || (consultationId ? `Consultation #${consultationId}` : 'No notes provided.'),
     pediatric: true,
     items: (rx.items || []).map((item) => ({
@@ -654,7 +678,9 @@ function PediatricianDashboardPage() {
   const [consultMessage, setConsultMessage] = useState('')
 
   const [prescriptionSearch, setPrescriptionSearch] = useState('')
+  const [isLoadingPrescriptions, setIsLoadingPrescriptions] = useState(false)
   const [showRxPanel, setShowRxPanel] = useState(false)
+  const [editingPrescriptionId, setEditingPrescriptionId] = useState<string | null>(null)
   const [rxPatient, setRxPatient] = useState('')
   const [rxNotes, setRxNotes] = useState('')
   const [rxConsultationId, setRxConsultationId] = useState<number | null>(null)
@@ -751,7 +777,11 @@ function PediatricianDashboardPage() {
         setSelectedConsult((prev) => (
           prev?.backendId === record.id || prev?.id === mappedConsultation.id ? mappedConsultation : prev
         ))
-        setConsultThread(() => ({ ...mappedThread, unreadCount: 0 }))
+        setConsultThread((current) => (
+          threadMessagesMatch(current, mappedThread)
+            ? current
+            : { ...mappedThread, unreadCount: 0 }
+        ))
       } catch {
         // Keep the open chat usable while the socket reconnects or a poll fails.
       }
@@ -819,14 +849,22 @@ function PediatricianDashboardPage() {
           .map((record) => mapBackendPediatricThread(record, activeDoctorId))
 
         setConsultations(nextConsultations)
-        setThreads(nextThreads)
+        setThreads((currentThreads) => nextThreads.map((nextThread) => {
+          const currentThread = currentThreads.find((thread) => (
+            thread.backendConsultationId === nextThread.backendConsultationId || thread.id === nextThread.id
+          ))
+          return preserveRicherThread(currentThread, nextThread)
+        }))
         setSelectedConsult((current) => {
           if (!current) return current
           return nextConsultations.find((item) => item.backendId === current.backendId || item.id === current.id) ?? current
         })
         setConsultThread((current) => {
           if (!current) return current
-          return nextThreads.find((item) => item.backendConsultationId === current.backendConsultationId || item.id === current.id) ?? current
+          const next = nextThreads.find((item) => (
+            item.backendConsultationId === current.backendConsultationId || item.id === current.id
+          ))
+          return next ? preserveRicherThread(current, next) : current
         })
         setConsultationRefreshError('')
       } catch {
@@ -1307,6 +1345,7 @@ function PediatricianDashboardPage() {
   }
 
   const openNewPrescriptionPanel = () => {
+    setEditingPrescriptionId(null)
     setRxPatient('')
     setRxNotes('')
     setRxConsultationId(null)
@@ -1318,16 +1357,63 @@ function PediatricianDashboardPage() {
     loadPrescriptionCatalog()
   }
 
+  const viewExistingPrescriptions = async () => {
+    setActiveTab('prescriptions')
+    if (isAdminPreview) return
+
+    setIsLoadingPrescriptions(true)
+    setWorkspaceError('')
+    try {
+      const backendPrescriptions = await fetchPediatricianPrescriptions()
+      setPrescriptions(backendPrescriptions.map((prescription) => (
+        mapBackendPediatricPrescription(prescription, activeDoctorId)
+      )))
+    } catch {
+      setWorkspaceError('Unable to refresh prescriptions right now. Previously loaded prescriptions are still shown.')
+    } finally {
+      setIsLoadingPrescriptions(false)
+    }
+  }
+
   const openPrescriptionForConsultation = (consultation: Consultation) => {
+    const consultationId = consultation.backendId ?? consultationNumericId(consultation.id)
+    const existingPrescription = pedPrescriptions.find((prescription) => (
+      prescription.consultationId === consultationId
+      && prescription.status !== 'Dispensed'
+      && !prescription.isPaidFor
+    ))
+    setEditingPrescriptionId(existingPrescription?.id ?? null)
     setRxPatient(consultation.childName || consultation.patientName)
-    setRxNotes(`Consultation ${consultation.id}: ${consultation.issue}`)
-    setRxConsultationId(consultation.backendId ?? consultationNumericId(consultation.id))
-    setRxItems([{ name: '', dosage: '', quantity: 1 }])
+    setRxNotes(existingPrescription?.notes || `Consultation ${consultation.id}: ${consultation.issue}`)
+    setRxConsultationId(consultationId)
+    setRxItems(existingPrescription?.items.length
+      ? existingPrescription.items.map((item) => ({ ...item }))
+      : [{ name: '', dosage: '', quantity: 1 }])
     setRxCatalogOptions({})
     setRxCatalogLoading({})
     setWorkspaceError('')
     setShowRxPanel(true)
     loadPrescriptionCatalog()
+  }
+
+  const openPrescriptionForEditing = (prescription: DoctorPrescription) => {
+    if (prescription.isPaidFor || prescription.status === 'Dispensed') return
+    setEditingPrescriptionId(prescription.id)
+    setRxPatient(prescription.patientName)
+    setRxNotes(prescription.notes)
+    setRxConsultationId(prescription.consultationId ?? null)
+    setRxItems(prescription.items.length ? prescription.items.map((item) => ({ ...item })) : [{ name: '', dosage: '', quantity: 1 }])
+    setRxCatalogOptions({})
+    setRxCatalogLoading({})
+    setWorkspaceError('')
+    setShowRxPanel(true)
+    loadPrescriptionCatalog()
+  }
+
+  const closePrescriptionPanel = () => {
+    setShowRxPanel(false)
+    setEditingPrescriptionId(null)
+    setRxConsultationId(null)
   }
 
   const isStartedPrescriptionItem = (item: DoctorPrescriptionItem) =>
@@ -1379,10 +1465,13 @@ function PediatricianDashboardPage() {
       })
       const sent = await sendPediatricianPrescription(created.id)
       const rx = mapBackendPediatricPrescription(sent, activeDoctorId)
-      const updated = [rx, ...prescriptions]
+      const updated = prescriptions.some((item) => item.id === rx.id)
+        ? prescriptions.map((item) => item.id === rx.id ? rx : item)
+        : [rx, ...prescriptions]
       setPrescriptions(updated)
       saveDoctorPrescriptions(updated)
       setShowRxPanel(false)
+      setEditingPrescriptionId(null)
       setRxPatient('')
       setRxNotes('')
       setRxConsultationId(null)
@@ -1408,7 +1497,13 @@ function PediatricianDashboardPage() {
       accentColor="#14B8A6"
       activeItemId={activeTab}
       navItems={navigationItems}
-      onNavChange={(itemId) => setActiveTab(itemId as PediatricTab)}
+      onNavChange={(itemId) => {
+        if (itemId === 'prescriptions') {
+          void viewExistingPrescriptions()
+          return
+        }
+        setActiveTab(itemId as PediatricTab)
+      }}
       onLogout={() => { void logout() }}
       roleLabel={isAdminPreview ? 'Admin · Pediatrician Preview' : 'Pediatrician'}
       sidebarHeaderContent={isAdminPreview ? (
@@ -1517,6 +1612,9 @@ function PediatricianDashboardPage() {
 
             <div className="pd-quick-actions">
               <button type="button" onClick={() => queueItems[0] && handleStartConsultation(queueItems[0])}>Start consultation</button>
+              <button type="button" onClick={() => { void viewExistingPrescriptions() }} disabled={isLoadingPrescriptions}>
+                {isLoadingPrescriptions ? 'Loading prescriptions…' : `View prescriptions${pedPrescriptions.length ? ` (${pedPrescriptions.length})` : ''}`}
+              </button>
               <button type="button" onClick={() => setActiveTab('profiles')}>View medical records</button>
             </div>
 
@@ -1537,7 +1635,7 @@ function PediatricianDashboardPage() {
               </div>
 
               <div className="cm-panel cm-table-wrap dd-table-wrap">
-                <table className="cm-table dd-table">
+                <table className="cm-table dd-table pd-consultation-table">
                   <thead>
                     <tr>
                       <th>Child name</th>
@@ -1596,7 +1694,7 @@ function PediatricianDashboardPage() {
                         </td>
                         <td className="dd-td-meta">{item.weightKg ? `${item.weightKg} kg` : '-'}</td>
                         <td>
-                          <div className="dd-actions-cell" onClick={(e) => e.stopPropagation()}>
+                          <div className="dd-actions-cell pd-consultation-actions" onClick={(e) => e.stopPropagation()}>
                             {item.status === 'Waiting' && (
                               <button
                                 className="dd-action-btn dd-action-btn--start"
@@ -1621,22 +1719,27 @@ function PediatricianDashboardPage() {
                                 Workspace
                               </button>
                             )}
-                            <button className="dd-action-btn" type="button" onClick={() => { setSelectedConsult(item); setConsultThread(findOrCreateThread(item)); setShowConsultChat(false) }}>
-                              Profile
+                            <button
+                              className="dd-action-btn dd-action-btn--rx"
+                              type="button"
+                              disabled={item.status === 'Cancelled'}
+                              onClick={() => openPrescriptionForConsultation(item)}
+                            >
+                              Rx
                             </button>
                             <button className="dd-action-btn" type="button" onClick={() => { setSelectedConsult(item); setConsultThread(findOrCreateThread(item)); setShowConsultChat(false) }}>
-                              Guardian
+                              Details
                             </button>
                             <button
-                              className="dd-action-btn"
+                              className="dd-action-btn pd-action-btn--complete"
                               type="button"
                               disabled={item.status === 'Completed' || item.status === 'Cancelled'}
                               onClick={() => updateConsultationStatus(item.id, 'Completed')}
                             >
-                              Done
+                              Complete
                             </button>
                             <button
-                              className="dd-action-btn"
+                              className="dd-action-btn pd-action-btn--cancel"
                               type="button"
                               disabled={item.status === 'Cancelled'}
                               onClick={() => updateConsultationStatus(item.id, 'Cancelled')}
@@ -1890,6 +1993,15 @@ function PediatricianDashboardPage() {
                       </td>
                       <td>
                         <div className="dd-actions-cell">
+                          <button
+                            className="dd-action-btn dd-action-btn--rx"
+                            type="button"
+                            disabled={rx.status === 'Dispensed' || rx.isPaidFor}
+                            title={rx.isPaidFor ? 'Paid prescriptions cannot be edited' : rx.status === 'Dispensed' ? 'Dispensed prescriptions cannot be edited' : 'Edit prescription'}
+                            onClick={() => openPrescriptionForEditing(rx)}
+                          >
+                            Edit
+                          </button>
                           <button
                             className="dd-action-btn dd-action-btn--start"
                             type="button"
@@ -2431,16 +2543,16 @@ function PediatricianDashboardPage() {
       {/* ── Create Rx side panel ── */}
       {showRxPanel && (
         <>
-          <div className="dd-overlay" onClick={() => setShowRxPanel(false)} />
+          <div className="dd-overlay" onClick={closePrescriptionPanel} />
           <aside className="dd-side-panel dd-side-panel--rx">
             <div className="dd-sp-header">
               <div>
-                <p className="dd-sp-id">New Pediatric Prescription</p>
+                <p className="dd-sp-id">{editingPrescriptionId ? 'Edit Pediatric Prescription' : 'New Pediatric Prescription'}</p>
                 <p className="dd-sp-meta">
                   {rxConsultationId ? `Linked to consultation #${rxConsultationId}` : 'Select a child consultation first'}
                 </p>
               </div>
-              <button className="dd-sp-close" type="button" onClick={() => { setShowRxPanel(false); setRxConsultationId(null) }}>×</button>
+              <button className="dd-sp-close" type="button" onClick={closePrescriptionPanel}>×</button>
             </div>
             <div className="dd-sp-body">
               <div className="dd-sp-section">
@@ -2448,6 +2560,7 @@ function PediatricianDashboardPage() {
                   <label>Child consultation</label>
                   <select
                     value={rxConsultationId ? String(rxConsultationId) : ''}
+                    disabled={Boolean(editingPrescriptionId)}
                     onChange={(e) => handlePrescriptionConsultationSelect(e.target.value)}
                   >
                     <option value="">Select a child</option>
@@ -2500,6 +2613,13 @@ function PediatricianDashboardPage() {
                           <option value="">
                             {rxCatalogListLoading ? 'Loading medicines...' : 'Select medicine from catalog'}
                           </option>
+                          {item.variantId && !(
+                            (rxCatalogOptions[idx]?.length ?? 0) > 0 ? rxCatalogOptions[idx] : rxCatalogList
+                          ).some((variant) => variant.id === item.variantId) && (
+                            <option value={item.variantId}>
+                              {item.catalogName || item.name} {item.sku ? `· ${item.sku}` : ''}
+                            </option>
+                          )}
                           {((rxCatalogOptions[idx]?.length ?? 0) > 0 ? rxCatalogOptions[idx] : rxCatalogList).map((variant) => (
                             <option key={variant.id} value={variant.id} disabled={!variant.can_prescribe}>
                               {variant.display_name} · {variant.sku} · {variant.inventory_status.replace(/_/g, ' ')} · {variant.available_quantity} available
@@ -2566,9 +2686,9 @@ function PediatricianDashboardPage() {
                   onClick={handleCreatePrescription}
                   disabled={!rxConsultationId || !rxPatient.trim() || !rxHasMedication}
                 >
-                  Issue &amp; notify guardian
+                  {editingPrescriptionId ? 'Save changes & notify guardian' : 'Issue & notify guardian'}
                 </button>
-                <button className="dd-sp-btn" type="button" onClick={() => { setShowRxPanel(false); setRxConsultationId(null) }}>Cancel</button>
+                <button className="dd-sp-btn" type="button" onClick={closePrescriptionPanel}>Cancel</button>
               </div>
             </div>
           </aside>

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { PrescriptionRecord } from '../../data/prescriptions'
 import { useAuth } from '../../context/AuthContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { formatPhoneHref } from '../../services/siteSettingsService'
+import { prescriptionService } from '../../services/prescriptionService'
 import {
   ChildPatient,
   ClinicianSummary,
   ConsultationPaymentIntent,
+  ConsultationPrescriptionSummary,
   ConsultationRecord,
   createChildPatient,
   createConsultationPaymentIntent,
@@ -159,6 +162,7 @@ function PediatricianConsultation() {
   const [pediatricians, setPediatricians] = useState<ClinicianSummary[]>([])
   const [children, setChildren] = useState<ChildPatient[]>([])
   const [consultations, setConsultations] = useState<ConsultationRecord[]>([])
+  const [customerPrescriptions, setCustomerPrescriptions] = useState<PrescriptionRecord[]>([])
   const [currentConsultation, setCurrentConsultation] = useState<ConsultationRecord | null>(null)
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [showStartForm, setShowStartForm] = useState(false)
@@ -213,6 +217,26 @@ function PediatricianConsultation() {
       phone: user?.phone ?? prev.phone,
     }))
   }, [user?.email, user?.name, user?.phone])
+
+  useEffect(() => {
+    let isMounted = true
+    const refreshPrescriptions = () => {
+      void prescriptionService.list({ scope: 'patient' }).then((response) => {
+        if (isMounted) setCustomerPrescriptions(response.data)
+      }).catch(() => undefined)
+    }
+    refreshPrescriptions()
+    const intervalId = window.setInterval(refreshPrescriptions, 10000)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshPrescriptions()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -894,6 +918,10 @@ function PediatricianConsultation() {
               const status = STATUS_CFG[consultation.status]
               const isExpanded = expandedId === consultation.id
               const activityDate = consultation.scheduledAt || consultation.lastMessageAt || consultation.createdAt
+              const latestPrescription = consultation.prescriptions?.[0] ?? null
+              const dispensingPrescription = latestPrescription
+                ? customerPrescriptions.find((prescription) => prescription.clinicianPrescriptionId === latestPrescription.id) ?? null
+                : null
 
               return (
                 <li key={consultation.id} className="ac-card">
@@ -965,6 +993,25 @@ function PediatricianConsultation() {
                         Child: <strong>{consultation.childName || 'Not provided'}</strong> · Consent {consultation.consentStatus}
                       </div>
 
+                      {latestPrescription && (
+                        <div className="ac-card__followup dc-card-rx-alert">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <path d="M14 2v6h6"/>
+                            <path d="M12 18v-6"/>
+                            <path d="M9 15h6"/>
+                          </svg>
+                          Prescription <strong>{latestPrescription.reference}</strong>{' '}
+                          {dispensingPrescription?.status === 'Approved'
+                            ? 'has been approved and is ready for checkout.'
+                            : dispensingPrescription?.status === 'Clarification'
+                              ? 'needs clarification before it can be approved.'
+                              : dispensingPrescription?.status === 'Rejected'
+                                ? 'was not approved. Review the pharmacist notes.'
+                                : 'is awaiting pharmacist approval.'}
+                        </div>
+                      )}
+
                       <div className="ac-card__actions">
                         {(consultation.status === 'waiting' || consultation.status === 'in_progress') && (
                           <button type="button" className="btn btn--primary btn--sm" onClick={() => { void openPediatricConsultation(consultation) }}>
@@ -980,6 +1027,16 @@ function PediatricianConsultation() {
                           <button type="button" className="btn btn--primary btn--sm" onClick={startNewConsultation}>
                             Book again
                           </button>
+                        )}
+                        {latestPrescription && (
+                          <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="btn btn--outline btn--sm dc-view-rx-btn">
+                            View prescription
+                          </Link>
+                        )}
+                        {latestPrescription && (
+                          <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="btn btn--primary btn--sm">
+                            Add items to cart
+                          </Link>
                         )}
                       </div>
                     </div>
@@ -1130,6 +1187,10 @@ function PediatricianConsultation() {
     const clinicianSpecialty = assignedPediatrician?.specialty || 'Pediatrics'
     const consultationFee = assignedPediatrician?.consultFee ?? 0
     const consentGranted = currentConsultation.consentStatus === 'granted'
+    const latestPrescription: ConsultationPrescriptionSummary | null = currentConsultation.prescriptions?.[0] ?? null
+    const dispensingPrescription = latestPrescription
+      ? customerPrescriptions.find((prescription) => prescription.clinicianPrescriptionId === latestPrescription.id) ?? null
+      : null
 
     return (
       <div className="dc-page">
@@ -1282,6 +1343,37 @@ function PediatricianConsultation() {
                   </>
                 )}
               </div>
+
+              {latestPrescription && (
+                <div className="dc-chat-panel__card dc-prescription-status dc-prescription-status--issued">
+                  <div className="dc-prescription-status__top">
+                    <div className="dc-prescription-status__icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <path d="M14 2v6h6"/>
+                        <path d="M12 18v-6"/>
+                        <path d="M9 15h6"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="dc-chat-panel__title">Child prescription</p>
+                      <p className="dc-prescription-status__state">
+                        {dispensingPrescription?.status === 'Approved' ? 'Approved and ready for checkout' : 'Issued and under pharmacist review'}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="dc-prescription-status__alert">
+                    {dispensingPrescription?.status === 'Approved'
+                      ? 'The pharmacist approved this prescription. Add the mapped medicines to cart and continue to payment.'
+                      : 'Once approved, you can add the prescribed medicines to cart and continue to payment.'}
+                  </p>
+                  <div className="dc-chat-detail"><span>Reference</span><strong>{latestPrescription.reference}</strong></div>
+                  <div className="dc-chat-detail"><span>Items</span><strong>{latestPrescription.itemsCount}</strong></div>
+                  <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="dc-prescription-status__link">
+                    {dispensingPrescription?.status === 'Approved' ? 'Add to cart / pay' : 'Review prescription'}
+                  </Link>
+                </div>
+              )}
 
               <a href={`tel:${formatPhoneHref(settings.supportPhone)}`} className="dc-emergency-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>

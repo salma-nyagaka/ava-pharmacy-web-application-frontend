@@ -160,6 +160,7 @@ export interface CheckoutDraftPayload {
   delivery_method?: string
   shipping_method_id?: number | null
   delivery_notes?: string
+  prescription_reference?: string
 }
 
 export async function fetchOrders(params: Record<string, unknown> = {}): Promise<{ data: Order[]; meta: Record<string, unknown> }> {

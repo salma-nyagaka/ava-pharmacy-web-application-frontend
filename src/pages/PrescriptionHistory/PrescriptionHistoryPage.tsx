@@ -63,6 +63,7 @@ function PrescriptionHistoryPage() {
   const [loadError, setLoadError] = useState('')
   const [message, setMessage] = useState('')
   const [isAddingItemId, setIsAddingItemId] = useState<number | null>(null)
+  const [isAddingPrescriptionId, setIsAddingPrescriptionId] = useState<string | null>(null)
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
@@ -87,6 +88,25 @@ function PrescriptionHistoryPage() {
       })
     return () => {
       isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+    const refresh = () => {
+      void prescriptionService.list({ scope: 'patient' }).then((response) => {
+        if (isMounted) setPrescriptions(response.data)
+      }).catch(() => undefined)
+    }
+    const intervalId = window.setInterval(refresh, 10000)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [])
 
@@ -116,8 +136,8 @@ function PrescriptionHistoryPage() {
 
   const sortedPrescriptions = useMemo(() => {
     const filtered = prescriptions.filter((rx) => {
-      if (sourceFilter === 'e_prescription') return rx.notes?.toLowerCase().includes('e-prescription') || rx.doctor?.toLowerCase().includes('clinician')
-      if (sourceFilter === 'upload') return !rx.notes?.toLowerCase().includes('e-prescription')
+      if (sourceFilter === 'e_prescription') return rx.source === 'e_prescription'
+      if (sourceFilter === 'upload') return rx.source !== 'e_prescription'
       return true
     })
     return filtered
@@ -159,6 +179,27 @@ function PrescriptionHistoryPage() {
       setMessage(error instanceof Error ? error.message : 'Unable to add approved item to cart.')
     } finally {
       setIsAddingItemId(null)
+    }
+  }
+
+  const handleAddApprovedPrescription = async (rx: PrescriptionRecord, proceedToCheckout = false) => {
+    const eligibleItems = rx.items.filter((item) => !item.isPaidFor && item.backendId && (item.productId || item.variantId))
+    if (rx.status !== 'Approved' || eligibleItems.length === 0) {
+      setMessage('This prescription has no approved unpaid medicines available for checkout.')
+      return
+    }
+
+    setIsAddingPrescriptionId(rx.id)
+    try {
+      for (const item of eligibleItems) {
+        await prescriptionService.addApprovedItemToCart(rx.id, item.backendId as number)
+      }
+      setMessage(`${eligibleItems.length} prescribed medicine${eligibleItems.length === 1 ? '' : 's'} added to cart.`)
+      if (proceedToCheckout) navigate(`/cart?prescription=${encodeURIComponent(rx.id)}`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to add the approved prescription to cart.')
+    } finally {
+      setIsAddingPrescriptionId(null)
     }
   }
 
@@ -414,6 +455,26 @@ function PrescriptionHistoryPage() {
                   <td>
                     <div className="rx-actions">
                       <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(rx)}>View</button>
+                      {hasUnpaidApprovedItems(rx) && (
+                        <>
+                          <button
+                            className="btn btn--outline btn--sm"
+                            type="button"
+                            disabled={isAddingPrescriptionId === rx.id}
+                            onClick={() => void handleAddApprovedPrescription(rx)}
+                          >
+                            {isAddingPrescriptionId === rx.id ? 'Adding…' : 'Add all to cart'}
+                          </button>
+                          <button
+                            className="btn btn--primary btn--sm"
+                            type="button"
+                            disabled={isAddingPrescriptionId === rx.id}
+                            onClick={() => void handleAddApprovedPrescription(rx, true)}
+                          >
+                            Add &amp; checkout
+                          </button>
+                        </>
+                      )}
                       {rx.status === 'Approved' && <span className="status-pill status-pill--success">Approved</span>}
                       {rx.status === 'Clarification' && <span className="status-pill status-pill--warning">Reply needed</span>}
                     </div>
@@ -612,7 +673,14 @@ function PrescriptionHistoryPage() {
             </div>
             <div className="modal__footer rx-modal__footer">
               {hasUnpaidApprovedItems(activeRx) && (
-                <button className="btn btn--outline btn--sm" type="button" onClick={() => navigate(`/cart?prescription=${encodeURIComponent(activeRx.id)}`)}>Open cart</button>
+                <>
+                  <button className="btn btn--outline btn--sm" type="button" disabled={isAddingPrescriptionId === activeRx.id} onClick={() => void handleAddApprovedPrescription(activeRx)}>
+                    {isAddingPrescriptionId === activeRx.id ? 'Adding…' : 'Add all to cart'}
+                  </button>
+                  <button className="btn btn--primary btn--sm" type="button" disabled={isAddingPrescriptionId === activeRx.id} onClick={() => void handleAddApprovedPrescription(activeRx, true)}>
+                    Add &amp; checkout
+                  </button>
+                </>
               )}
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
             </div>

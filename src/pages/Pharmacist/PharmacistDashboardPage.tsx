@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { PrescriptionClarificationMessage, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
+import { PrescriptionClarificationMessage, PrescriptionItem, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService, type PharmacistCatalogVariant } from '../../services/prescriptionService'
 import { listAdminOrders, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
@@ -209,17 +209,48 @@ function nextOrderStatus(order: AdminOrder) {
   return null
 }
 
-function unpaidPrescriptionItems(rx: PrescriptionRecord) {
-  return rx.items.filter((item) => !item.isPaidFor)
+function isPaidOrder(order: AdminOrder) {
+  return order.payment_status === 'paid' && !['cancelled', 'refunded'].includes(order.status)
 }
 
-function formatPrescriptionItemsPreview(rx: PrescriptionRecord) {
-  const items = unpaidPrescriptionItems(rx)
-  if (items.length === 0) return 'No unpaid item details available'
-  return items
-    .slice(0, 3)
-    .map((item) => `${item.qty}x ${item.name}`)
-    .join(' · ')
+function buildPaidPrescriptionEvidence(orders: AdminOrder[]) {
+  const itemKeys = new Set<string>()
+  const prescriptionReferences = new Set<string>()
+
+  orders.filter(isPaidOrder).forEach((order) => {
+    order.items.forEach((item) => {
+      if (item.prescription_id) {
+        prescriptionReferences.add(String(item.prescription_id))
+      }
+      if (item.prescription && item.prescription_item) {
+        itemKeys.add(`${item.prescription}:${item.prescription_item}`)
+      }
+      if (item.prescription_id && item.prescription_item) {
+        itemKeys.add(`${item.prescription_id}:${item.prescription_item}`)
+      }
+    })
+  })
+
+  return { itemKeys, prescriptionReferences }
+}
+
+function isPrescriptionItemPaidByOrder(
+  rx: PrescriptionRecord,
+  item: PrescriptionItem,
+  paidEvidence: ReturnType<typeof buildPaidPrescriptionEvidence>,
+) {
+  if (item.isPaidFor) return true
+  if (rx.backendId && item.backendId && paidEvidence.itemKeys.has(`${rx.backendId}:${item.backendId}`)) return true
+  if (item.backendId && paidEvidence.itemKeys.has(`${rx.id}:${item.backendId}`)) return true
+  if (paidEvidence.prescriptionReferences.has(rx.id) && rx.items.length === 1) return true
+  return false
+}
+
+function unpaidPrescriptionItemsForFollowUp(
+  rx: PrescriptionRecord,
+  paidEvidence: ReturnType<typeof buildPaidPrescriptionEvidence>,
+) {
+  return rx.items.filter((item) => !isPrescriptionItemPaidByOrder(rx, item, paidEvidence))
 }
 
 type WorkspaceView = 'prescriptions' | 'orders'
@@ -240,6 +271,7 @@ function PharmacistDashboardPage() {
   const [showClarificationInput, setShowClarificationInput] = useState(false)
   const [clarificationNote, setClarificationNote] = useState('')
   const [cartAddedMsg, setCartAddedMsg] = useState<string | null>(null)
+  const [brokenDocImages, setBrokenDocImages] = useState<Record<string, boolean>>({})
   const [itemSelections, setItemSelections] = useState<Record<string, boolean>>({})
   const [manualItems, setManualItems] = useState<Array<{ variant: PharmacistCatalogVariant; qty: number }>>([])
   const [productSearch, setProductSearch] = useState('')
@@ -300,6 +332,7 @@ function PharmacistDashboardPage() {
 
   useEffect(() => {
     if (!activeRx) return undefined
+    setBrokenDocImages({})
     const timer = window.setInterval(() => {
       void refreshPrescriptions().catch(() => undefined)
     }, 5000)
@@ -360,20 +393,20 @@ function PharmacistDashboardPage() {
     setItemSelections(initial)
   }, [activeRx?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keyboard shortcuts
+  // Modal keyboard shortcuts
   useEffect(() => {
     if (!activeRx) return
     const handleKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      if (e.code === 'KeyA') { void handleApprove() }
-      if (e.code === 'KeyR') { setShowRejectInput((p) => !p) }
-      if (e.code === 'KeyC') { setShowClarificationInput((p) => !p) }
+      if (activeWorkspace === 'prescriptions' && e.code === 'KeyA') { void handleApprove() }
+      if (activeWorkspace === 'prescriptions' && e.code === 'KeyR') { setShowRejectInput((p) => !p) }
+      if (activeWorkspace === 'prescriptions' && e.code === 'KeyC') { setShowClarificationInput((p) => !p) }
       if (e.code === 'Escape') { setActiveRx(null) }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activeRx]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeRx, activeWorkspace]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const actor = user?.name ?? 'Pharmacist'
 
@@ -452,7 +485,7 @@ function PharmacistDashboardPage() {
     ]
     if (reviewItems.length === 0) {
       setCartAddedMsg('Select at least one catalog variant before approving this prescription.')
-      setTimeout(() => setCartAddedMsg(null), 6000)
+      window.setTimeout(() => setCartAddedMsg(null), 6000)
       return
     }
     if (activeRx.backendId) {
@@ -472,13 +505,9 @@ function PharmacistDashboardPage() {
         qty: item.quantity,
       })) }, `Approved by ${actor}`)
     }
-    const totalAdded = reviewItems.length
     const skipped = activeRx.items.length - toAdd.length
-    const msg = totalAdded > 0
-      ? `Prescription approved with ${totalAdded} mapped item${totalAdded !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`
-      : 'Prescription approved.'
-    setCartAddedMsg(msg)
-    setTimeout(() => setCartAddedMsg(null), 6000)
+    setCartAddedMsg(`Prescription approved with ${reviewItems.length} mapped item${reviewItems.length !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`)
+    window.setTimeout(() => setCartAddedMsg(null), 6000)
   }
 
   const handleClarification = async (note: string) => {
@@ -552,25 +581,28 @@ function PharmacistDashboardPage() {
     })
   }, [orders, orderSearchTerm, selectedOrderStatus, selectedOrderPaymentStatus])
 
+  const paidPrescriptionEvidence = useMemo(() => buildPaidPrescriptionEvidence(orders), [orders])
+
   const approvedPrescriptionsAwaitingCheckout = useMemo(() => {
     if (selectedOrderStatus !== 'all' && selectedOrderStatus !== 'pending') return []
     if (selectedOrderPaymentStatus !== 'all' && selectedOrderPaymentStatus !== 'pending') return []
 
     const query = orderSearchTerm.trim().toLowerCase()
     return prescriptions
-      .filter((rx) => rx.status === 'Approved' && rx.dispatchStatus === 'Not started' && unpaidPrescriptionItems(rx).length > 0)
+      .filter((rx) => rx.status === 'Approved' && rx.dispatchStatus === 'Not started' && unpaidPrescriptionItemsForFollowUp(rx, paidPrescriptionEvidence).length > 0)
       .filter((rx) => {
+        const awaitingItems = unpaidPrescriptionItemsForFollowUp(rx, paidPrescriptionEvidence)
         if (!query) return true
         return [
           rx.id,
           rx.patient,
           rx.doctor,
           rx.pharmacist,
-          formatPrescriptionItemsPreview(rx),
+          awaitingItems.map((item) => `${item.qty}x ${item.name}`).join(' · '),
         ].join(' ').toLowerCase().includes(query)
       })
       .sort((left, right) => prescriptionSubmittedValue(right) - prescriptionSubmittedValue(left))
-  }, [orderSearchTerm, prescriptions, selectedOrderPaymentStatus, selectedOrderStatus])
+  }, [orderSearchTerm, paidPrescriptionEvidence, prescriptions, selectedOrderPaymentStatus, selectedOrderStatus])
 
   const ORDER_PAGE_SIZE = 8
   const totalOrderPages = Math.max(1, Math.ceil(filteredOrderRecords.length / ORDER_PAGE_SIZE))
@@ -946,7 +978,7 @@ function PharmacistDashboardPage() {
                     </thead>
                     <tbody>
                       {approvedPrescriptionsAwaitingCheckout.map((rx) => {
-                        const unpaidItems = unpaidPrescriptionItems(rx)
+                        const unpaidItems = unpaidPrescriptionItemsForFollowUp(rx, paidPrescriptionEvidence)
                         return (
                           <tr key={`awaiting-${rx.id}`}>
                             <td>
@@ -967,7 +999,11 @@ function PharmacistDashboardPage() {
                             </td>
                             <td>
                               <div className="pharm-cell-stack pharm-cell-stack--items">
-                                <span>{formatPrescriptionItemsPreview(rx)}</span>
+                                <span>
+                                  {unpaidItems.length > 0
+                                    ? unpaidItems.slice(0, 3).map((item) => `${item.qty}x ${item.name}`).join(' · ')
+                                    : 'No unpaid item details available'}
+                                </span>
                                 {unpaidItems.length > 3 && <span className="pharm-cell-muted">+{unpaidItems.length - 3} more line{unpaidItems.length - 3 === 1 ? '' : 's'}</span>}
                               </div>
                             </td>
@@ -1132,8 +1168,7 @@ function PharmacistDashboardPage() {
               </div>
             </div>
 
-            {/* Two-panel body */}
-            <div className="px-modal__body">
+            <div className={`px-modal__body${activeWorkspace === 'orders' ? ' px-modal__body--details-only' : ''}`}>
 
               {/* Left: prescription content */}
               <div className="px-modal__left">
@@ -1156,9 +1191,15 @@ function PharmacistDashboardPage() {
                     <p className="px-section-label">Prescription document{activeRx.files.length > 1 ? 's' : ''}</p>
                     <div className="px-doc-viewer">
                       {activeRx.files.map((f, i) =>
-                        isImageFile(f) ? (
+                        isImageFile(f) && !brokenDocImages[f] ? (
                           <div key={i} className="px-doc-viewer__frame">
-                            <img src={f} alt={`Document ${i + 1}`} className="px-doc-viewer__img" />
+                            <img
+                              src={f}
+                              alt={`Document ${i + 1}`}
+                              className="px-doc-viewer__img"
+                              loading="lazy"
+                              onError={() => setBrokenDocImages((current) => ({ ...current, [f]: true }))}
+                            />
                             <a href={f} download={`prescription-doc-${i + 1}`} className="px-doc-viewer__dl">↓ Download</a>
                           </div>
                         ) : isPdfFile(f) && f.startsWith('data:') ? (
@@ -1378,111 +1419,56 @@ function PharmacistDashboardPage() {
 
               </div>
 
-              {/* Right: decision panel */}
-              <div className="px-modal__right">
-                {cartAddedMsg && (
-                  <div className="px-cart-added-msg">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-                    {cartAddedMsg}
-                  </div>
-                )}
-                <div className="px-workflow-section">
-                  <p className="px-section-label">Decision</p>
-                  <div className="pharm-action-bar">
-                    <button
-                      className={`px-decision-btn px-decision-btn--approve ${activeRx.status === 'Approved' ? 'px-decision-btn--active' : ''}`}
-                      type="button"
-                      onClick={handleApprove}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      <span>Approve</span>
-                    </button>
-                    <button
-                      className={`px-decision-btn px-decision-btn--clarify ${activeRx.status === 'Clarification' ? 'px-decision-btn--active' : ''}`}
-                      type="button"
-                      onClick={() => setShowClarificationInput((p) => !p)}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      <span>Clarify</span>
-                    </button>
-                    <button
-                      className={`px-decision-btn px-decision-btn--reject ${activeRx.status === 'Rejected' ? 'px-decision-btn--active' : ''}`}
-                      type="button"
-                      onClick={() => setShowRejectInput((p) => !p)}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      <span>Reject</span>
-                    </button>
-                  </div>
-
-                  {/* Rejection reason template picker */}
-                  {showRejectInput && (
-                    <div className="px-clarification-box">
-                      <p className="px-section-label">Rejection reason</p>
-                      <select
-                        className="px-reject-select"
-                        value={rejectionTemplate}
-                        onChange={(e) => setRejectionTemplate(e.target.value)}
-                        autoFocus
-                      >
-                        <option value="">Select a reason…</option>
-                        {REJECTION_REASONS.map((r) => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </select>
-                      {rejectionTemplate === 'Other' && (
-                        <textarea
-                          className="px-clarification-textarea"
-                          placeholder="Describe the rejection reason…"
-                          value={rejectionCustom}
-                          onChange={(e) => setRejectionCustom(e.target.value)}
-                          rows={3}
-                          style={{ marginTop: '0.5rem' }}
-                        />
-                      )}
-                      <div className="px-clarification-actions">
-                        <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowRejectInput(false); setRejectionTemplate(''); setRejectionCustom('') }}>
-                          Cancel
-                        </button>
-                        <button
-                          className="btn btn--sm px-decision-btn--reject"
-                          type="button"
-                          onClick={handleReject}
-                          disabled={!rejectionTemplate || (rejectionTemplate === 'Other' && !rejectionCustom.trim())}
-                        >
-                          Confirm rejection
-                        </button>
-                      </div>
+              {activeWorkspace === 'prescriptions' && (
+                <div className="px-modal__right">
+                  {cartAddedMsg && <div className="px-cart-added-msg">{cartAddedMsg}</div>}
+                  <div className="px-workflow-section">
+                    <p className="px-section-label">Decision</p>
+                    <div className="pharm-action-bar">
+                      <button className={`px-decision-btn px-decision-btn--approve ${activeRx.status === 'Approved' ? 'px-decision-btn--active' : ''}`} type="button" onClick={handleApprove}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Approve</span>
+                      </button>
+                      <button className={`px-decision-btn px-decision-btn--clarify ${activeRx.status === 'Clarification' ? 'px-decision-btn--active' : ''}`} type="button" onClick={() => setShowClarificationInput((current) => !current)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>Clarify</span>
+                      </button>
+                      <button className={`px-decision-btn px-decision-btn--reject ${activeRx.status === 'Rejected' ? 'px-decision-btn--active' : ''}`} type="button" onClick={() => setShowRejectInput((current) => !current)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <span>Reject</span>
+                      </button>
                     </div>
-                  )}
 
-                  {showClarificationInput && (
-                    <div className="px-clarification-box">
-                      <textarea
-                        className="px-clarification-textarea"
-                        placeholder="Enter the clarification message for the patient…"
-                        value={clarificationNote}
-                        onChange={(e) => setClarificationNote(e.target.value)}
-                        rows={3}
-                        autoFocus
-                      />
-                      <div className="px-clarification-actions">
-                        <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowClarificationInput(false); setClarificationNote('') }}>
-                          Cancel
-                        </button>
-                        <button
-                          className="btn btn--sm px-decision-btn--clarify-confirm"
-                          type="button"
-                          onClick={() => handleClarification(clarificationNote)}
-                          disabled={!clarificationNote.trim()}
-                        >
-                          Send clarification
-                        </button>
+                    {showRejectInput && (
+                      <div className="px-clarification-box">
+                        <p className="px-section-label">Rejection reason</p>
+                        <select className="px-reject-select" value={rejectionTemplate} onChange={(event) => setRejectionTemplate(event.target.value)} autoFocus>
+                          <option value="">Select a reason…</option>
+                          {REJECTION_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
+                        </select>
+                        {rejectionTemplate === 'Other' && (
+                          <textarea className="px-clarification-textarea" placeholder="Describe the rejection reason…" value={rejectionCustom} onChange={(event) => setRejectionCustom(event.target.value)} rows={3} />
+                        )}
+                        <div className="px-clarification-actions">
+                          <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowRejectInput(false); setRejectionTemplate(''); setRejectionCustom('') }}>Cancel</button>
+                          <button className="btn btn--sm px-decision-btn--reject" type="button" onClick={handleReject} disabled={!rejectionTemplate || (rejectionTemplate === 'Other' && !rejectionCustom.trim())}>Confirm rejection</button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                    {showClarificationInput && (
+                      <div className="px-clarification-box">
+                        <textarea className="px-clarification-textarea" placeholder="Enter the clarification message for the patient…" value={clarificationNote} onChange={(event) => setClarificationNote(event.target.value)} rows={3} autoFocus />
+                        <div className="px-clarification-actions">
+                          <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowClarificationInput(false); setClarificationNote('') }}>Cancel</button>
+                          <button className="btn btn--sm px-decision-btn--clarify-confirm" type="button" onClick={() => handleClarification(clarificationNote)} disabled={!clarificationNote.trim()}>Send clarification</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
+
             </div>
 
             {/* Footer */}
@@ -1505,6 +1491,7 @@ function PharmacistDashboardPage() {
                 <span className="px-modal__submitted">Updated {formatOrderDate(activeOrder.updated_at)}</span>
                 <button className="modal__close" type="button" onClick={() => setActiveOrder(null)}>×</button>
               </div>
+
             </div>
 
             <div className="px-modal__body">

@@ -202,14 +202,35 @@ function PrescriptionUploadPage() {
   }, [isLoggedIn])
 
   useEffect(() => {
-    if (!isLoggedIn || showUploadForm) return undefined
-    const timer = window.setInterval(() => {
-      void prescriptionService.list({ scope: 'patient' }).then((response) => {
-        setPrescriptions(response.data)
-      }).catch(() => undefined)
-    }, 10000)
-    return () => window.clearInterval(timer)
-  }, [isLoggedIn, showUploadForm])
+    if (!isLoggedIn) return undefined
+
+    let isMounted = true
+    const refresh = () => {
+      void prescriptionService.list({ scope: 'patient' })
+        .then((response) => {
+          if (isMounted) setPrescriptions(response.data)
+        })
+        .catch(() => undefined)
+    }
+
+    const timer = window.setInterval(refresh, 10000)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    const handleFocus = () => {
+      refresh()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      isMounted = false
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [isLoggedIn])
 
   const counts = useMemo(() => ({
     all: prescriptions.length,
@@ -242,16 +263,6 @@ function PrescriptionUploadPage() {
     }
   }, [activeRx, prescriptions])
 
-  useEffect(() => {
-    if (!isLoggedIn || showUploadForm || !activeRx) return undefined
-    const timer = window.setInterval(() => {
-      void prescriptionService.list({ scope: 'patient' }).then((response) => {
-        setPrescriptions(response.data)
-      }).catch(() => undefined)
-    }, 5000)
-    return () => window.clearInterval(timer)
-  }, [activeRx?.id, isLoggedIn, showUploadForm])
-
   const addFiles = (files: File[]) => {
     setUploadedFiles((prev) => {
       const merged = [...prev]
@@ -266,7 +277,15 @@ function PrescriptionUploadPage() {
   }
 
   const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) addFiles(Array.from(event.target.files))
+    const selectedFiles = Array.from(event.target.files ?? []).filter((file) =>
+      ['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)
+    )
+    if (selectedFiles.length) {
+      addFiles(selectedFiles)
+    } else if (event.target.files?.length) {
+      setUploadError('Unsupported file type. Please upload a PDF, JPG, or PNG file.')
+    }
+    event.target.value = ''
   }
 
   const handleDrop = (event: React.DragEvent) => {
@@ -310,10 +329,8 @@ function PrescriptionUploadPage() {
         }
         : undefined,
     }).then((response) => {
-      const newest = response.data.find(
-        (record) => record.patient.toLowerCase() === patientName.toLowerCase() && record.status === 'Pending'
-      )
-      setSubmittedId(newest?.id ?? '')
+      const created = response.data[0]
+      setSubmittedId(created?.id ?? '')
       setSubmitted(true)
       setUploadedFiles([])
       setDoctorName('')
@@ -901,12 +918,18 @@ function PrescriptionUploadPage() {
                     }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(event) => event.key === 'Enter' && fileInputRef.current?.click()}
                   >
-                    <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={handleFileInput} className="rup-file-input" />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      multiple
+                      onChange={handleFileInput}
+                      className="rup-file-input"
+                    />
                     <div className="rup-dropzone__icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />

@@ -1413,6 +1413,13 @@ function DoctorDashboardPage() {
                                   </button>
                                 )}
                                 <button
+                                  className="dd-action-btn"
+                                  type="button"
+                                  onClick={() => setSelectedPatient(item.patientName)}
+                                >
+                                  Profile
+                                </button>
+                                <button
                                   className="dd-action-btn dd-action-btn--rx"
                                   type="button"
                                   disabled={item.status === 'Cancelled'}
@@ -1853,6 +1860,107 @@ function DoctorDashboardPage() {
             })()}
           </>
         )}
+
+        {activeTab === 'queue' && selectedPatient && (() => {
+          const patient = patientRecords.find((record) => record.name === selectedPatient)
+          const profile = patientProfileSeed(selectedPatient)
+          const patientConsults = doctorConsultations.filter((consultation) => consultation.patientName === selectedPatient)
+          const patientRx = doctorPrescriptions.filter((rx) => rx.patientName === selectedPatient)
+          const activeRx = patientRx.filter((rx) => rx.status === 'Draft' || rx.status === 'Sent')
+          const latestPrescribableConsultation = patientConsults.find((consultation) => consultation.backendId && consultation.status !== 'Cancelled')
+          const latestConsultation = patientConsults[0]
+
+          return (
+            <>
+              <div className="dd-overlay" onClick={() => setSelectedPatient(null)} />
+              <section className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
+                <div className="dd-patient-profile__header">
+                  <div className="dd-td-patient">
+                    <div className="dd-td-patient__avatar">{initials(selectedPatient)}</div>
+                    <div>
+                      <h2>{selectedPatient}</h2>
+                      <p>Patient profile and clinical history.</p>
+                    </div>
+                  </div>
+                  <div className="dd-patient-profile__header-actions">
+                    <details className="dd-patient-action-menu">
+                      <summary>Actions</summary>
+                      <div className="dd-patient-action-menu__panel">
+                        <button className="dd-sp-btn dd-sp-btn--primary" type="button" disabled={!latestPrescribableConsultation} onClick={() => { if (latestPrescribableConsultation) void handleStartConsultation(latestPrescribableConsultation) }}>
+                          Start Consultation
+                        </button>
+                        <button className="dd-sp-btn dd-sp-btn--rx" type="button" disabled={!latestPrescribableConsultation} onClick={() => { if (latestPrescribableConsultation) openPrescriptionForConsultation(latestPrescribableConsultation) }}>
+                          Create Prescription
+                        </button>
+                      </div>
+                    </details>
+                    <button className="dd-sp-close" type="button" aria-label="Close patient profile" onClick={() => setSelectedPatient(null)}>×</button>
+                  </div>
+                </div>
+
+                <div className="dd-patient-profile__grid">
+                  <div className="dd-profile-card dd-profile-card--summary">
+                    <h3>Patient Summary</h3>
+                    <div className="dd-profile-list">
+                      <span>Full Name <strong>{selectedPatient}</strong></span>
+                      <span>Age <strong>{latestConsultation?.patientAge ?? '-'}</strong></span>
+                      <span>Gender <strong>{profile.gender}</strong></span>
+                      <span>Phone Number <strong>{profile.phone}</strong></span>
+                      <span>Email Address <strong>{profile.email}</strong></span>
+                      <span>Allergies <strong>{profile.allergies.join(', ')}</strong></span>
+                      <span>Chronic Conditions <strong>{profile.chronicConditions.join(', ')}</strong></span>
+                      <span>Current Medication <strong>{profile.currentMedication.join(', ')}</strong></span>
+                      <span>Blood Group <strong>{profile.bloodGroup}</strong></span>
+                      <span>Active Prescriptions <strong>{activeRx.length}</strong></span>
+                      <span>Last Consultation Date <strong>{patient?.lastVisit ?? '-'}</strong></span>
+                    </div>
+                  </div>
+
+                  <div className="dd-profile-card">
+                    <h3>Prescriptions</h3>
+                    <div className="dd-profile-table-wrap">
+                      <table className="dd-profile-table">
+                        <thead><tr><th>Date</th><th>Medication</th><th>Diagnosis</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody>
+                          {patientRx.map((rx) => (
+                            <tr key={rx.id}>
+                              <td>{rx.createdAt}</td>
+                              <td>{medicationSummary(rx.items)}</td>
+                              <td>{rx.notes || 'Not recorded'}</td>
+                              <td>{rx.items[0]?.dosage || '-'}</td>
+                              <td>{rx.status}</td>
+                              <td>
+                                <div className="dd-actions-cell">
+                                  <button className="dd-action-btn" type="button">View</button>
+                                  <button className="dd-action-btn" type="button" disabled={!rx.backendId} onClick={() => handleDownloadPdf(rx)}>Download PDF</button>
+                                  <button className="dd-action-btn dd-action-btn--rx" type="button" disabled={!latestPrescribableConsultation} onClick={() => { if (latestPrescribableConsultation) openPrescriptionForConsultation(latestPrescribableConsultation) }}>Reuse</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {patientRx.length === 0 && <tr><td colSpan={6}>No prescriptions recorded.</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="dd-profile-card">
+                    <h3>Documents</h3>
+                    <div className="dd-documents-grid">
+                      {[...profile.documents, 'Lab Reports', 'Imaging', 'Prescriptions'].map((document) => (
+                        <div key={document} className="dd-document-chip">
+                          <span>{document}</span>
+                          <button type="button">Preview</button>
+                          <button type="button">Download</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </>
+          )
+        })()}
 
         {/* ── EARNINGS TAB ── */}
         {activeTab === 'earnings' && (

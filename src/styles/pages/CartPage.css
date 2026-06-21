@@ -431,28 +431,39 @@
 }
 
 .cart-item__move {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   border: 1px solid rgba(15, 23, 42, 0.1);
   background: #fff;
   color: #475569;
-  padding: 0.32rem 0.6rem;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .cart-item__move:hover {
   border-color: rgba(232, 23, 80, 0.25);
   color: var(--color-primary);
   background: rgba(232, 23, 80, 0.05);
+  transform: translateY(-1px);
 }
 
 .cart-item__move--done {
   background: rgba(22, 163, 74, 0.1);
   border-color: rgba(22, 163, 74, 0.18);
   color: #15803d;
+}
+
+.cart-item__move svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* ── Summary panel ──────────────────────────────────────────── */

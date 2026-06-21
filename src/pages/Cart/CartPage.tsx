@@ -250,8 +250,16 @@ function CartPage() {
                   <div className="cart-item__right">
                     <span className="cart-item__total">{fmt(item.price * item.quantity)}</span>
                     <div className="cart-item__action-row">
-                      <button className={`cart-item__move ${movedId === item.id ? 'cart-item__move--done' : ''}`} type="button" onClick={() => moveToWishlist(item)}>
-                        {movedId === item.id ? 'Moved' : 'Move to favourites'}
+                      <button
+                        className={`cart-item__move ${movedId === item.id ? 'cart-item__move--done' : ''}`}
+                        type="button"
+                        onClick={() => moveToWishlist(item)}
+                        aria-label={movedId === item.id ? 'Moved to favourites' : 'Move to favourites'}
+                        title={movedId === item.id ? 'Moved to favourites' : 'Move to favourites'}
+                      >
+                        <svg viewBox="0 0 24 24" fill={movedId === item.id ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" width="15" height="15" aria-hidden="true">
+                          <path d="M20.84 4.61c-1.54-1.67-4.06-1.82-5.77-.35L12 7.06l-3.07-2.8c-1.71-1.47-4.23-1.32-5.77.35-1.72 1.86-1.61 4.79.24 6.65l8.6 8.6 8.6-8.6c1.85-1.86 1.96-4.79.24-6.65z" />
+                        </svg>
                       </button>
                       <button className="cart-item__remove" type="button" onClick={() => removeItem(item)} aria-label="Remove">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
@@ -300,20 +308,14 @@ function CartPage() {
                 </div>
               </div>
 
-              {isLoggedIn && visibleCartItems.length > 0 && !hasHiddenCartItems ? (
-                <Link to="/checkout" className="btn btn--primary btn--lg cart-summary__cta">
-                  Proceed to Checkout
+              {isLoggedIn && visibleCartItems.length > 0 ? (
+                <Link
+                  to={focusedPrescriptionId ? `/checkout?prescription=${encodeURIComponent(focusedPrescriptionId)}` : '/checkout'}
+                  className="btn btn--primary btn--lg cart-summary__cta"
+                >
+                  {hasHiddenCartItems ? 'Checkout this prescription only' : 'Proceed to Checkout'}
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </Link>
-              ) : isLoggedIn && visibleCartItems.length > 0 && hasHiddenCartItems ? (
-                <>
-                  <button className="btn btn--primary btn--lg cart-summary__cta" type="button" disabled>
-                    Checkout this prescription only
-                  </button>
-                  <p className="cart-summary__note cart-summary__note--rx">
-                    Remove or checkout other cart items first. Checkout currently submits the full cart.
-                  </p>
-                </>
               ) : isLoggedIn ? (
                 <button className="btn btn--primary btn--lg cart-summary__cta" type="button" disabled>
                   Add an item to continue
@@ -331,6 +333,11 @@ function CartPage() {
                     </Link>
                   </div>
                 </div>
+              )}
+              {isLoggedIn && visibleCartItems.length > 0 && hasHiddenCartItems && (
+                  <p className="cart-summary__note cart-summary__note--rx">
+                    Only {focusedPrescriptionId} will be included. Other cart items stay in your cart.
+                  </p>
               )}
 
               <p className="cart-summary__note">

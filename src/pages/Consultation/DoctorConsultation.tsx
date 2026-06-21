@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
+import { PrescriptionRecord } from '../../data/prescriptions'
 import { formatPhoneHref } from '../../services/siteSettingsService'
+import { prescriptionService } from '../../services/prescriptionService'
 import {
   ClinicianSummary,
   CreateConsultationPayload,
@@ -24,13 +26,11 @@ import '../../styles/pages/ConsultationPage.css'
 import '../../styles/pages/AccountConsultationsPage.css'
 
 type ConsultationViewState = 'form' | 'waiting' | 'chatting' | 'completed'
-type HubTab = 'All' | 'Doctor' | 'Paediatric'
 type ConsultationStatusKey = ConsultationRecord['status']
 type StatusFilter = 'all' | ConsultationStatusKey
 type MpesaFlow = 'stk' | 'paybill'
 type ConsultationPaymentStatus = 'idle' | 'review' | 'waiting' | 'processing' | 'confirmed' | 'failed'
 
-const HUB_TABS: readonly HubTab[] = ['All', 'Doctor', 'Paediatric']
 const STATUS_FILTERS: readonly { key: StatusFilter; label: string }[] = [
   { key: 'all', label: 'All status' },
   { key: 'waiting', label: 'Waiting' },
@@ -69,10 +69,7 @@ function sortConsultations(items: ConsultationRecord[]) {
   })
 }
 
-function getTypeConfig(consultation: ConsultationRecord) {
-  if (consultation.isPediatric) {
-    return { color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)', label: 'Paediatric' }
-  }
+function getTypeConfig(_consultation: ConsultationRecord) {
   return { color: '#ec4899', bg: 'rgba(236,72,153,0.1)', label: 'Doctor' }
 }
 
@@ -136,7 +133,6 @@ function DoctorConsultation() {
   const [currentConsultation, setCurrentConsultation] = useState<ConsultationRecord | null>(null)
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [showStartForm, setShowStartForm] = useState(false)
-  const [activeHubTab, setActiveHubTab] = useState<HubTab>('All')
   const [activeStatus, setActiveStatus] = useState<StatusFilter>('all')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
@@ -167,6 +163,7 @@ function DoctorConsultation() {
     consultation: ConsultationRecord
     prescription: ConsultationPrescriptionSummary
   } | null>(null)
+  const [customerPrescriptions, setCustomerPrescriptions] = useState<PrescriptionRecord[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const finalizingPaymentIntentRef = useRef<number | null>(null)
 
@@ -182,6 +179,26 @@ function DoctorConsultation() {
 
   useEffect(() => {
     let isMounted = true
+    const refreshPrescriptions = () => {
+      void prescriptionService.list({ scope: 'patient' }).then((response) => {
+        if (isMounted) setCustomerPrescriptions(response.data)
+      }).catch(() => undefined)
+    }
+    refreshPrescriptions()
+    const intervalId = window.setInterval(refreshPrescriptions, 10000)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshPrescriptions()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
 
     const loadData = async () => {
       setIsLoading(true)
@@ -191,10 +208,11 @@ function DoctorConsultation() {
         if (!isMounted) return
 
         const activeDoctors = doctorList.filter((doctor) => doctor.status === 'active')
+        const doctorConsultations = consultations.filter((consultation) => !consultation.isPediatric)
         setDoctors(activeDoctors)
-        setConsultations(sortConsultations(consultations))
+        setConsultations(sortConsultations(doctorConsultations))
 
-        const activeConsultation = consultations.find(
+        const activeConsultation = doctorConsultations.find(
           (consultation) => !consultation.isPediatric && (consultation.status === 'waiting' || consultation.status === 'in_progress'),
         )
 
@@ -278,22 +296,10 @@ function DoctorConsultation() {
   const queueLabel = formData.urgency === 'Urgent' ? 'Priority queue' : 'Standard queue'
   const routingLabel = formData.specialty || 'General consultation'
   const hubFiltered = useMemo(() => {
-    const byType = activeHubTab === 'All'
-      ? consultations
-      : consultations.filter((consultation) => consultation.isPediatric === (activeHubTab === 'Paediatric'))
-    if (activeStatus === 'all') return byType
-    return byType.filter((consultation) => consultation.status === activeStatus)
-  }, [activeHubTab, activeStatus, consultations])
-  const hubTypedConsultations = useMemo(() => {
-    if (activeHubTab === 'All') return consultations
-    const targetIsPediatric = activeHubTab === 'Paediatric'
-    return consultations.filter((consultation) => consultation.isPediatric === targetIsPediatric)
-  }, [activeHubTab, consultations])
-  const hubCounts = useMemo(() => ({
-    All: consultations.length,
-    Doctor: consultations.filter((consultation) => !consultation.isPediatric).length,
-    Paediatric: consultations.filter((consultation) => consultation.isPediatric).length,
-  }), [consultations])
+    if (activeStatus === 'all') return consultations
+    return consultations.filter((consultation) => consultation.status === activeStatus)
+  }, [activeStatus, consultations])
+  const hubTypedConsultations = consultations
   const hubStatusCounts = useMemo(() => ({
     waiting: hubTypedConsultations.filter((consultation) => consultation.status === 'waiting').length,
     in_progress: hubTypedConsultations.filter((consultation) => consultation.status === 'in_progress').length,
@@ -333,6 +339,29 @@ function DoctorConsultation() {
       setShowStartForm(false)
     } catch {
       setSubmitError('Unable to open this consultation right now.')
+    }
+  }
+
+  const handleAddPrescriptionToCart = async (_consultation: ConsultationRecord, prescription: ConsultationPrescriptionSummary) => {
+    const dispensingPrescription = customerPrescriptions.find((item) => item.clinicianPrescriptionId === prescription.id)
+    if (!dispensingPrescription || dispensingPrescription.status !== 'Approved') {
+      setSubmitError('This prescription is still awaiting pharmacist approval.')
+      return
+    }
+
+    const eligibleItems = dispensingPrescription.items.filter((item) => !item.isPaidFor && item.backendId && (item.productId || item.variantId))
+    if (!eligibleItems.length) {
+      setSubmitError('This prescription has no approved unpaid medicines available for cart addition.')
+      return
+    }
+
+    setSubmitError('')
+    try {
+      for (const item of eligibleItems) {
+        await prescriptionService.addApprovedItemToCart(dispensingPrescription.id, item.backendId as number)
+      }
+    } catch {
+      setSubmitError('Unable to add this prescription to cart right now.')
     }
   }
 
@@ -691,6 +720,13 @@ function DoctorConsultation() {
             <Link to="/prescriptions" className="btn btn--primary btn--sm" onClick={() => setActivePrescriptionModal(null)}>
               Open prescriptions
             </Link>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={() => { void handleAddPrescriptionToCart(consultation, prescription) }}
+            >
+              Add to cart
+            </button>
             <button type="button" className="btn btn--outline btn--sm" onClick={() => setActivePrescriptionModal(null)}>
               Close
             </button>
@@ -737,19 +773,6 @@ function DoctorConsultation() {
         </div>
 
         <div className="ac-controls">
-          <div className="ac-tabs">
-            {HUB_TABS.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className={`ac-tab${activeHubTab === tab ? ' ac-tab--active' : ''}`}
-                onClick={() => setActiveHubTab(tab)}
-              >
-                {tab}
-                <span className="ac-tab__count">{hubCounts[tab]}</span>
-              </button>
-            ))}
-          </div>
           <div className="ac-status-tabs" aria-label="Consultation status filter">
             {STATUS_FILTERS.map((filter) => (
               <button
@@ -792,6 +815,9 @@ function DoctorConsultation() {
               const isExpanded = expandedId === consultation.id
               const activityDate = consultation.scheduledAt || consultation.lastMessageAt || consultation.createdAt
               const latestCardPrescription = consultation.prescriptions?.[0] ?? null
+              const dispensingPrescription = latestCardPrescription
+                ? customerPrescriptions.find((prescription) => prescription.clinicianPrescriptionId === latestCardPrescription.id) ?? null
+                : null
 
               return (
                 <li key={consultation.id} className="ac-card">
@@ -815,7 +841,7 @@ function DoctorConsultation() {
                             {type.label}
                           </span>
                         </div>
-                        <p className="ac-card__specialty">{consultation.doctorSpecialty || (consultation.isPediatric ? 'Paediatrics' : 'General medicine')}</p>
+                        <p className="ac-card__specialty">{consultation.doctorSpecialty || 'General medicine'}</p>
                         <p className="ac-card__datetime">{formatDateTime(activityDate)} · {consultation.reference}</p>
                       </div>
                     </div>
@@ -855,16 +881,6 @@ function DoctorConsultation() {
                         </div>
                       </div>
 
-                      {consultation.isPediatric && (
-                        <div className="ac-card__followup" style={{ color: '#7c3aed', background: 'rgba(124,58,237,0.08)' }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="8" r="4"/>
-                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                          </svg>
-                          Child: <strong>{consultation.childName || 'Not provided'}</strong> · Consent {consultation.consentStatus}
-                        </div>
-                      )}
-
                       {latestCardPrescription && (
                         <div className="ac-card__followup dc-card-rx-alert">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -873,39 +889,37 @@ function DoctorConsultation() {
                             <path d="M12 18v-6"/>
                             <path d="M9 15h6"/>
                           </svg>
-                          Prescription <strong>{latestCardPrescription.reference}</strong> is under pharmacist review.
+                          Prescription <strong>{latestCardPrescription.reference}</strong>{' '}
+                          {dispensingPrescription?.status === 'Approved'
+                            ? 'has been approved and is ready for checkout.'
+                            : dispensingPrescription?.status === 'Clarification'
+                              ? 'needs clarification before it can be approved.'
+                              : dispensingPrescription?.status === 'Rejected'
+                                ? 'was not approved. Review the pharmacist notes.'
+                                : 'is awaiting pharmacist approval.'}
                         </div>
                       )}
 
                       <div className="ac-card__actions">
-                        {!consultation.isPediatric && (consultation.status === 'waiting' || consultation.status === 'in_progress') && (
+                        {(consultation.status === 'waiting' || consultation.status === 'in_progress') && (
                           <button type="button" className="btn btn--primary btn--sm" onClick={() => { void openDoctorConsultation(consultation) }}>
                             Open chat
                           </button>
                         )}
-                        {consultation.isPediatric && (consultation.status === 'waiting' || consultation.status === 'in_progress') && (
-                          <Link to="/pediatric-consultation" className="btn btn--primary btn--sm">
-                            Open paediatric chat
-                          </Link>
-                        )}
-                        {!consultation.isPediatric && consultation.status === 'completed' && (
+                        {consultation.status === 'completed' && (
                           <button type="button" className="btn btn--primary btn--sm" onClick={startNewConsultation}>
                             Book follow-up
                           </button>
                         )}
-                        {consultation.isPediatric && consultation.status === 'completed' && (
-                          <Link to="/pediatric-consultation" className="btn btn--primary btn--sm">
-                            Book paediatric follow-up
+                        {latestCardPrescription && (
+                          <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="btn btn--outline btn--sm dc-view-rx-btn">
+                            View prescription
                           </Link>
                         )}
                         {latestCardPrescription && (
-                          <button
-                            type="button"
-                            className="btn btn--outline btn--sm dc-view-rx-btn"
-                            onClick={() => openPrescriptionModal(consultation, latestCardPrescription)}
-                          >
-                            View prescription
-                          </button>
+                          <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="btn btn--primary btn--sm">
+                            Add items to cart
+                          </Link>
                         )}
                       </div>
                     </div>

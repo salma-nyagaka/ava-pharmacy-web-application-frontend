@@ -90,6 +90,7 @@ function CheckoutPage() {
   const { user } = useAuth()
   const { settings } = useSiteSettings()
   const [searchParams, setSearchParams] = useSearchParams()
+  const focusedPrescriptionId = searchParams.get('prescription')?.trim() || ''
   const [currentStep, setCurrentStep] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card'>('mpesa')
   const [mpesaFlow, setMpesaFlow] = useState<MpesaFlow>('stk')
@@ -122,6 +123,15 @@ function CheckoutPage() {
   const [setDefaultAddress, setSetDefaultAddress] = useState(false)
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true)
   const [copiedField, setCopiedField] = useState<'paybill-number' | 'paybill-account' | null>(null)
+  const checkoutItems = useMemo(
+    () => focusedPrescriptionId
+      ? cartItems.filter((item) => item.prescriptionId === focusedPrescriptionId)
+      : cartItems,
+    [cartItems, focusedPrescriptionId],
+  )
+  const checkoutOrderStorageKey = focusedPrescriptionId
+    ? `${CHECKOUT_ORDER_STORAGE_KEY}:${focusedPrescriptionId}`
+    : CHECKOUT_ORDER_STORAGE_KEY
   const isPaymentLocked = paymentStatus === 'confirmed'
   const activeDeliveryCounties = useMemo(
     () => kenyaCounties.filter((countyName) => settings.activeDeliveryZones.includes(countyName)),
@@ -213,12 +223,16 @@ function CheckoutPage() {
   }, [])
 
   useEffect(() => {
-    const storedOrderId = window.localStorage.getItem(CHECKOUT_ORDER_STORAGE_KEY)
+    const storedOrderId = window.localStorage.getItem(checkoutOrderStorageKey)
     if (!storedOrderId) return
     let active = true
     void fetchOrder(Number(storedOrderId))
       .then((order) => {
         if (!active) return
+        if (focusedPrescriptionId && !order.items.every((item) => item.prescription_id === focusedPrescriptionId)) {
+          window.localStorage.removeItem(checkoutOrderStorageKey)
+          return
+        }
         setDraftOrder(order)
         setFirstName(order.shipping_first_name ?? '')
         setLastName(order.shipping_last_name ?? '')
@@ -236,12 +250,12 @@ function CheckoutPage() {
       })
       .catch(() => {
         if (!active) return
-        window.localStorage.removeItem(CHECKOUT_ORDER_STORAGE_KEY)
+        window.localStorage.removeItem(checkoutOrderStorageKey)
       })
     return () => {
       active = false
     }
-  }, [])
+  }, [checkoutOrderStorageKey, focusedPrescriptionId])
 
   useEffect(() => {
     if (!user) return
@@ -475,17 +489,17 @@ function CheckoutPage() {
   }, [draftOrder, paymentMethod, mpesaFlow, paymentStatus])
 
   useEffect(() => {
-    if (!cartItems.length) {
+    if (!checkoutItems.length) {
       setAvailabilityErrors([])
       return
     }
     let active = true
     const loadAvailability = () => {
-      void fetchAvailability(cartItems.map((item) => item.id))
+      void fetchAvailability(checkoutItems.map((item) => item.id))
         .then((rows) => {
           if (!active) return
           const byId = new Map(rows.map((row) => [row.product_id, row]))
-          const nextErrors = cartItems.flatMap((item) => {
+          const nextErrors = checkoutItems.flatMap((item) => {
             const availability = byId.get(item.id)
             if (!availability) return []
             const posQty = availability.pos_quantity ?? 0
@@ -503,7 +517,7 @@ function CheckoutPage() {
       active = false
       window.clearInterval(intervalId)
     }
-  }, [cartItems])
+  }, [checkoutItems])
 
   const pickupShippingMethod = useMemo(
     () => shippingMethods.find((method) => matchesShippingMethod(method, ['pickup', 'collect'])) ?? null,
@@ -521,16 +535,16 @@ function CheckoutPage() {
     [deliveryMethod, doorstepShippingMethod, pickupShippingMethod],
   )
   const deliveryMethodLabel = deliveryMethodLabels[deliveryMethod]
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const subtotal = checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const qualifiesForFreeDelivery =
-    subtotal >= settings.freeDeliveryThreshold || cartItems.length === 0
+    subtotal >= settings.freeDeliveryThreshold || checkoutItems.length === 0
   const delivery = deliveryMethod === 'store_pickup'
     ? 0
     : qualifiesForFreeDelivery
       ? 0
       : settings.baseDeliveryFee || (selectedShippingMethod ? Number(selectedShippingMethod.fee) : 300)
   const total = subtotal + delivery
-  const itemCount = cartItems.reduce((s, i) => s + i.quantity, 0)
+  const itemCount = checkoutItems.reduce((s, i) => s + i.quantity, 0)
   const paymentNoticeTone = paymentStatus === 'confirmed' || paymentNotice.toLowerCase().includes('initiated') || paymentNotice.toLowerCase().includes('success')
     ? 'success'
     : paymentStatus === 'failed'
@@ -830,6 +844,7 @@ function CheckoutPage() {
         : 'mpesa_stk',
     shipping_method_id: selectedShippingMethod?.id ?? null,
     delivery_method: deliveryMethod,
+    prescription_reference: focusedPrescriptionId,
   } as const)
 
   const doesDraftMatchCheckoutPayload = (order: Order) => {
@@ -846,6 +861,10 @@ function CheckoutPage() {
       (order.shipping_county ?? '') === payload.county &&
       Number(order.shipping_fee ?? 0) === delivery &&
       String(order.shipping_method?.id ?? '') === String(payload.shipping_method_id ?? '')
+      && (
+        !focusedPrescriptionId ||
+        (order.items.length > 0 && order.items.every((item) => item.prescription_id === focusedPrescriptionId))
+      )
     )
   }
 
@@ -859,7 +878,7 @@ function CheckoutPage() {
     }
     const order = await createCheckoutDraft(buildCheckoutPayload())
     setDraftOrder(order)
-    window.localStorage.setItem(CHECKOUT_ORDER_STORAGE_KEY, String(order.id))
+    window.localStorage.setItem(checkoutOrderStorageKey, String(order.id))
     return order
   }
 
@@ -1025,7 +1044,7 @@ function CheckoutPage() {
 
       const finalized = await finalizeCheckout(order.id)
       setDraftOrder(finalized)
-      window.localStorage.removeItem(CHECKOUT_ORDER_STORAGE_KEY)
+      window.localStorage.removeItem(checkoutOrderStorageKey)
       navigate('/order-confirmation', { state: { orderId: finalized.id } })
     } catch (error) {
       type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string | string[] } } }
@@ -1070,7 +1089,7 @@ function CheckoutPage() {
           ))}
         </div>
 
-        {cartItems.length === 0 && (
+        {checkoutItems.length === 0 && (
           <div className="co-empty">
             <p>Your cart is empty.</p>
             <Link to="/products" className="btn btn--outline btn--sm">Browse Products</Link>
@@ -1294,7 +1313,7 @@ function CheckoutPage() {
                   {availabilityErrors.length > 0 && <p className="co-error">{availabilityErrors[0]}</p>}
                   {validationError && <p className="co-error">{validationError}</p>}
                   <div className="co-form__actions">
-                    <button type="button" onClick={handleContinueToPayment} className="btn btn--primary btn--lg" disabled={cartItems.length === 0 || isSubmitting}>
+                    <button type="button" onClick={handleContinueToPayment} className="btn btn--primary btn--lg" disabled={checkoutItems.length === 0 || isSubmitting}>
                       Continue to Payment
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </button>
@@ -1568,7 +1587,7 @@ function CheckoutPage() {
 
                 <div className="co-review-items">
                   <h3 className="co-review-items__title">Order Items</h3>
-                  {cartItems.map((item) => (
+                  {checkoutItems.map((item) => (
                     <div key={`${item.id}-${item.prescriptionId ?? 'direct'}`} className="co-review-item">
                       <span className="co-review-item__name">{item.name} <em>×{item.quantity}</em></span>
                       <span className="co-review-item__price">{fmt(item.price * item.quantity)}</span>
@@ -1606,7 +1625,7 @@ function CheckoutPage() {
                     className="btn btn--primary co-actions__place"
                     type="button"
                     onClick={() => void handlePlaceOrder()}
-                    disabled={isSubmitting || cartItems.length === 0 || availabilityErrors.length > 0 || ((paymentMethod === 'mpesa' || paymentMethod === 'card') && paymentStatus !== 'confirmed')}
+                    disabled={isSubmitting || checkoutItems.length === 0 || availabilityErrors.length > 0 || ((paymentMethod === 'mpesa' || paymentMethod === 'card') && paymentStatus !== 'confirmed')}
                   >
                     {isSubmitting ? 'Processing…' : 'Complete & Place Order'}
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -1621,7 +1640,7 @@ function CheckoutPage() {
             <h2 className="co-summary__title">Order Summary</h2>
 
             <div className="co-summary__items">
-              {cartItems.map((item) => (
+              {checkoutItems.map((item) => (
                 <div key={`${item.id}-${item.prescriptionId ?? 'direct'}`} className="co-summary__item">
                   <span className="co-summary__item-name">{item.name} <em>×{item.quantity}</em></span>
                   <span className="co-summary__item-price">{fmt(item.price * item.quantity)}</span>

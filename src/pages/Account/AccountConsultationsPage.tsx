@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { PrescriptionRecord } from '../../data/prescriptions'
+import { prescriptionService } from '../../services/prescriptionService'
 import {
   ConsultationRecord,
   fetchMyConsultations,
 } from '../../services/consultationService'
 import '../../styles/pages/AccountConsultationsPage.css'
 
-type Tab = 'All' | 'Doctor' | 'Paediatric'
-
 type ConsultationStatusKey = ConsultationRecord['status']
 type StatusFilter = 'all' | ConsultationStatusKey
 
-const TABS: readonly Tab[] = ['All', 'Doctor', 'Paediatric']
 const STATUS_FILTERS: readonly { key: StatusFilter; label: string }[] = [
   { key: 'all', label: 'All status' },
   { key: 'waiting', label: 'Waiting' },
@@ -60,7 +59,7 @@ function sortConsultations(items: ConsultationRecord[]) {
 
 function AccountConsultationsPage() {
   const [consultations, setConsultations] = useState<ConsultationRecord[]>([])
-  const [activeTab, setActiveTab] = useState<Tab>('All')
+  const [customerPrescriptions, setCustomerPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeStatus, setActiveStatus] = useState<StatusFilter>('all')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -90,31 +89,31 @@ function AccountConsultationsPage() {
     }
   }, [])
 
+  useEffect(() => {
+    let isMounted = true
+    const refreshPrescriptions = () => {
+      void prescriptionService.list({ scope: 'patient' }).then((response) => {
+        if (isMounted) setCustomerPrescriptions(response.data)
+      }).catch(() => undefined)
+    }
+    refreshPrescriptions()
+    const intervalId = window.setInterval(refreshPrescriptions, 10000)
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+    }
+  }, [])
+
   const filtered = useMemo(() => {
-    const byType = activeTab === 'All'
-      ? consultations
-      : consultations.filter((consultation) => consultation.isPediatric === (activeTab === 'Paediatric'))
-    if (activeStatus === 'all') return byType
-    return byType.filter((consultation) => consultation.status === activeStatus)
-  }, [activeStatus, activeTab, consultations])
-
-  const typedConsultations = useMemo(() => {
-    if (activeTab === 'All') return consultations
-    const targetIsPediatric = activeTab === 'Paediatric'
-    return consultations.filter((consultation) => consultation.isPediatric === targetIsPediatric)
-  }, [activeTab, consultations])
-
-  const counts = useMemo(() => ({
-    All: consultations.length,
-    Doctor: consultations.filter((consultation) => !consultation.isPediatric).length,
-    Paediatric: consultations.filter((consultation) => consultation.isPediatric).length,
-  }), [consultations])
+    if (activeStatus === 'all') return consultations
+    return consultations.filter((consultation) => consultation.status === activeStatus)
+  }, [activeStatus, consultations])
 
   const statusCounts = useMemo(() => ({
-    waiting: typedConsultations.filter((consultation) => consultation.status === 'waiting').length,
-    in_progress: typedConsultations.filter((consultation) => consultation.status === 'in_progress').length,
-    completed: typedConsultations.filter((consultation) => consultation.status === 'completed').length,
-  }), [typedConsultations])
+    waiting: consultations.filter((consultation) => consultation.status === 'waiting').length,
+    in_progress: consultations.filter((consultation) => consultation.status === 'in_progress').length,
+    completed: consultations.filter((consultation) => consultation.status === 'completed').length,
+  }), [consultations])
 
   const toggle = (id: number) => setExpandedId((prev) => (prev === id ? null : id))
 
@@ -145,19 +144,6 @@ function AccountConsultationsPage() {
         </div>
 
         <div className="ac-controls">
-          <div className="ac-tabs">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className={`ac-tab${activeTab === tab ? ' ac-tab--active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab}
-                <span className="ac-tab__count">{counts[tab]}</span>
-              </button>
-            ))}
-          </div>
           <div className="ac-status-tabs" aria-label="Consultation status filter">
             {STATUS_FILTERS.map((filter) => (
               <button
@@ -205,6 +191,10 @@ function AccountConsultationsPage() {
               const isExpanded = expandedId === consultation.id
               const route = getConsultationRoute(consultation)
               const activityDate = consultation.scheduledAt || consultation.lastMessageAt || consultation.createdAt
+              const latestPrescription = consultation.prescriptions?.[0] ?? null
+              const dispensingPrescription = latestPrescription
+                ? customerPrescriptions.find((prescription) => prescription.clinicianPrescriptionId === latestPrescription.id) ?? null
+                : null
 
               return (
                 <li key={consultation.id} className="ac-card">
@@ -290,6 +280,15 @@ function AccountConsultationsPage() {
                         </div>
                       )}
 
+                      {latestPrescription && (
+                        <div className="ac-card__followup dc-card-rx-alert">
+                          Prescription <strong>{latestPrescription.reference}</strong>{' '}
+                          {dispensingPrescription?.status === 'Approved'
+                            ? 'is approved and ready for checkout.'
+                            : 'is available. Pharmacist approval is required before checkout.'}
+                        </div>
+                      )}
+
                       <div className="ac-card__actions">
                         {(consultation.status === 'waiting' || consultation.status === 'in_progress') && (
                           <Link to={route} className="btn btn--primary btn--sm">
@@ -304,6 +303,16 @@ function AccountConsultationsPage() {
                         {consultation.status === 'cancelled' && (
                           <Link to={route} className="btn btn--primary btn--sm">
                             Book again
+                          </Link>
+                        )}
+                        {latestPrescription && (
+                          <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="btn btn--outline btn--sm">
+                            View prescription
+                          </Link>
+                        )}
+                        {latestPrescription && (
+                          <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="btn btn--primary btn--sm">
+                            Add items to cart
                           </Link>
                         )}
                       </div>

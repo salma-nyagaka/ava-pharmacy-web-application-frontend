@@ -38,6 +38,7 @@ export interface PrescriptionRecord {
   pharmacist: string
   source?: 'upload' | 'e_prescription'
   clinicianType?: 'doctor' | 'pediatrician' | ''
+  clinicianPrescriptionId?: number | null
   status: PrescriptionStatus
   dispatchStatus: DispatchStatus
   submitted: string

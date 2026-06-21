@@ -770,6 +770,79 @@
   background: #ccfbf1 !important;
 }
 
+/* Consultation queue: preserve readable columns and compact row actions. */
+.portal-shell__main .pd-consultation-table {
+  width: 100%;
+  min-width: 1620px;
+}
+
+.portal-shell__main .pd-consultation-table th:nth-child(1),
+.portal-shell__main .pd-consultation-table td:nth-child(1) { min-width: 190px; }
+.portal-shell__main .pd-consultation-table th:nth-child(2),
+.portal-shell__main .pd-consultation-table td:nth-child(2) { min-width: 90px; }
+.portal-shell__main .pd-consultation-table th:nth-child(3),
+.portal-shell__main .pd-consultation-table td:nth-child(3) { min-width: 115px; }
+.portal-shell__main .pd-consultation-table th:nth-child(4),
+.portal-shell__main .pd-consultation-table td:nth-child(4) { min-width: 115px; }
+.portal-shell__main .pd-consultation-table th:nth-child(5),
+.portal-shell__main .pd-consultation-table td:nth-child(5) { min-width: 155px; }
+.portal-shell__main .pd-consultation-table th:nth-child(6),
+.portal-shell__main .pd-consultation-table td:nth-child(6) { min-width: 240px; }
+.portal-shell__main .pd-consultation-table th:nth-child(7),
+.portal-shell__main .pd-consultation-table td:nth-child(7) { min-width: 145px; }
+.portal-shell__main .pd-consultation-table th:nth-child(8),
+.portal-shell__main .pd-consultation-table td:nth-child(8) { min-width: 90px; }
+.portal-shell__main .pd-consultation-table th:nth-child(9),
+.portal-shell__main .pd-consultation-table td:nth-child(9) { min-width: 160px; }
+.portal-shell__main .pd-consultation-table th:nth-child(10),
+.portal-shell__main .pd-consultation-table td:nth-child(10) { min-width: 85px; }
+.portal-shell__main .pd-consultation-table th:nth-child(11),
+.portal-shell__main .pd-consultation-table td:nth-child(11) { min-width: 210px; }
+
+.portal-shell__main .pd-consultation-table td {
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+
+.portal-shell__main .pd-consultation-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.portal-shell__main .pd-consultation-actions .dd-action-btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 0.65rem;
+  justify-content: center;
+}
+
+.portal-shell__main .pd-action-btn--complete {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.portal-shell__main .pd-action-btn--complete:hover:not(:disabled) {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.portal-shell__main .pd-action-btn--cancel {
+  border-color: #fecaca;
+  background: #fff;
+  color: #dc2626;
+}
+
+.portal-shell__main .pd-action-btn--cancel:hover:not(:disabled) {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .pd-home-section {
   margin-bottom: 0.75rem;
 }
