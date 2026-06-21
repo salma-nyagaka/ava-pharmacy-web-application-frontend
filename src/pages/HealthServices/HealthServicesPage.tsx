@@ -145,7 +145,7 @@ function HealthServicesPage() {
               <li key={service.key}>
                 <Link
                   to={service.path}
-                  className="hs-service-card"
+                  className={`hs-service-card hs-service-card--${service.key}`}
                   aria-label={`${service.cta}: ${service.title}`}
                 >
                   <span className="hs-service-card__tag">

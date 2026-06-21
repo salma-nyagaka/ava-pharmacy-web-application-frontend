@@ -722,7 +722,7 @@ function DoctorConsultation() {
             </Link>
             <button
               type="button"
-              className="btn btn--primary btn--sm"
+              className="btn btn--primary btn--sm dc-add-to-cart-btn"
               onClick={() => { void handleAddPrescriptionToCart(consultation, prescription) }}
             >
               Add to cart
@@ -917,7 +917,7 @@ function DoctorConsultation() {
                           </Link>
                         )}
                         {latestCardPrescription && (
-                          <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="btn btn--primary btn--sm">
+                          <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="btn btn--primary btn--sm dc-add-to-cart-btn">
                             Add items to cart
                           </Link>
                         )}

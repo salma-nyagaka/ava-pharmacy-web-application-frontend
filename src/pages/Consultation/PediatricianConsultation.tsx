@@ -695,7 +695,7 @@ function PediatricianConsultation() {
   }
 
   const renderConsultationWorkspace = () => (
-    <div className="dc-page ac-page dc-hub-page">
+    <div className="dc-page ac-page dc-hub-page ped-page">
       <div className="container">
         <div className="ac-header">
           <div>
@@ -1097,7 +1097,7 @@ function PediatricianConsultation() {
 
   if (viewState === 'waiting' && currentConsultation) {
     return (
-      <div className="dc-page">
+      <div className="dc-page ped-page">
         <div className="dc-waiting">
           <div className="dc-waiting__shell">
             <section className="dc-waiting__summary" aria-label="Consultation status">
@@ -1193,7 +1193,7 @@ function PediatricianConsultation() {
       : null
 
     return (
-      <div className="dc-page">
+      <div className="dc-page ped-page">
         <div className="container">
           <div className="dc-active-shell">
             <div className="dc-chat">
@@ -1406,7 +1406,7 @@ function PediatricianConsultation() {
   }
 
   return (
-    <div className="dc-page">
+    <div className="dc-page ped-page">
       <a href="#ped-form" className="skip-to-content">Skip to form</a>
 
       <section className="page-hero page-hero--doctor">
@@ -1684,31 +1684,6 @@ function PediatricianConsultation() {
                           {child.currentMedications.length > 0 ? `Meds: ${child.currentMedications.join(', ')}` : ''}
                         </p>
                       )}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="dc-sidebar__card">
-              <p className="dc-sidebar__card-title">Available pediatricians</p>
-              <div className="dc-doctors-list">
-                {pediatricians.length === 0 && <p className="card__meta">No pediatricians are available right now.</p>}
-                {pediatricians.map((provider) => {
-                  const isSelected = selectedPediatricianId === provider.id
-                  return (
-                    <button
-                      key={provider.id}
-                      type="button"
-                      className={`dc-doctor-item${isSelected ? ' dc-doctor-item--selected' : ''}`}
-                      onClick={() => setSelectedPediatricianId(provider.id)}
-                    >
-                      <div className="dc-doctor-item__avatar">{getInitials(provider.name)}</div>
-                      <div className="dc-doctor-item__info">
-                        <p className="dc-doctor-item__name">{provider.name}</p>
-                        <p className="dc-doctor-item__spec">{provider.specialty} · Online</p>
-                      </div>
-                      <div className="dc-doctor-item__rating"><span>★ {provider.rating.toFixed(1)}</span></div>
                     </button>
                   )
                 })}
