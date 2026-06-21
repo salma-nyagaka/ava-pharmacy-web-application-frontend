@@ -316,7 +316,7 @@
 
 /* ── Pediatric consultation workspace ───────────────── */
 .pd-consult-panel {
-  width: min(1120px, 96vw);
+  width: min(620px, 96vw);
 }
 
 .pd-consult-body {

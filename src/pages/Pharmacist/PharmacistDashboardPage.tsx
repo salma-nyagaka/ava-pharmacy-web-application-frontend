@@ -558,7 +558,7 @@ function PharmacistDashboardPage() {
 
     const query = orderSearchTerm.trim().toLowerCase()
     return prescriptions
-      .filter((rx) => rx.status === 'Approved' && unpaidPrescriptionItems(rx).length > 0)
+      .filter((rx) => rx.status === 'Approved' && rx.dispatchStatus === 'Not started' && unpaidPrescriptionItems(rx).length > 0)
       .filter((rx) => {
         if (!query) return true
         return [

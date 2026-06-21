@@ -66,6 +66,7 @@ export interface ConsultationRecord {
   channel: string
   scheduledAt: string | null
   isPediatric: boolean
+  childPatient: number | null
   guardianName: string
   childName: string
   childAge: number | null
@@ -91,6 +92,7 @@ export interface CreateConsultationPayload {
   priority?: ConsultationPriority
   scheduled_at?: string | null
   is_pediatric?: boolean
+  child_patient_id?: number | null
   guardian_name?: string
   child_name?: string
   child_age?: number | null
@@ -118,6 +120,37 @@ export interface ConsultationPaymentIntent {
   paybillAccountReference: string
   paybillAccountLabel: string
   paybillInstructions: string
+}
+
+export interface ChildPatient {
+  id: number
+  reference: string
+  firstName: string
+  lastName: string
+  fullName: string
+  dateOfBirth: string | null
+  ageYears: number | null
+  gender: string
+  weightKg: string | null
+  allergies: string[]
+  chronicConditions: string[]
+  currentMedications: string[]
+  vaccinationNotes: string
+  notes: string
+}
+
+export interface ChildPatientPayload {
+  first_name?: string
+  last_name?: string
+  age_years?: number | null
+  date_of_birth?: string | null
+  gender?: string
+  weight_kg?: string | number | null
+  allergies?: string[]
+  chronic_conditions?: string[]
+  current_medications?: string[]
+  vaccination_notes?: string
+  notes?: string
 }
 
 type StoredUser = {
@@ -372,6 +405,7 @@ function createLocalConsultation(payload: CreateConsultationPayload): Consultati
     channel: 'chat',
     scheduledAt: payload.scheduled_at ?? now,
     isPediatric,
+    childPatient: payload.child_patient_id ?? null,
     guardianName: payload.guardian_name?.trim() ?? '',
     childName: payload.child_name?.trim() ?? '',
     childAge: payload.child_age ?? null,
@@ -468,6 +502,7 @@ function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
     channel: String(raw.channel ?? 'chat'),
     scheduledAt: raw.scheduled_at ? String(raw.scheduled_at) : null,
     isPediatric: Boolean(raw.is_pediatric),
+    childPatient: raw.child_patient == null ? null : Number(raw.child_patient),
     guardianName: String(raw.guardian_name ?? ''),
     childName: String(raw.child_name ?? ''),
     childAge: raw.child_age == null ? null : Number(raw.child_age),
@@ -479,6 +514,26 @@ function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
     prescriptions,
     createdAt: String(raw.created_at ?? ''),
     updatedAt: String(raw.updated_at ?? ''),
+  }
+}
+
+
+function mapChildPatient(raw: Record<string, unknown>): ChildPatient {
+  return {
+    id: normalizeNumber(raw.id),
+    reference: String(raw.reference ?? ''),
+    firstName: String(raw.first_name ?? ''),
+    lastName: String(raw.last_name ?? ''),
+    fullName: String(raw.full_name ?? `${String(raw.first_name ?? '')} ${String(raw.last_name ?? '')}`.trim()),
+    dateOfBirth: raw.date_of_birth ? String(raw.date_of_birth) : null,
+    ageYears: raw.age_years == null ? null : normalizeNumber(raw.age_years),
+    gender: String(raw.gender ?? ''),
+    weightKg: raw.weight_kg == null ? null : String(raw.weight_kg),
+    allergies: Array.isArray(raw.allergies) ? raw.allergies.map(String) : [],
+    chronicConditions: Array.isArray(raw.chronic_conditions) ? raw.chronic_conditions.map(String) : [],
+    currentMedications: Array.isArray(raw.current_medications) ? raw.current_medications.map(String) : [],
+    vaccinationNotes: String(raw.vaccination_notes ?? ''),
+    notes: String(raw.notes ?? ''),
   }
 }
 
@@ -558,9 +613,9 @@ export async function fetchMyConsultations(): Promise<ConsultationRecord[]> {
   }
 }
 
-export async function fetchDoctorConsultations(): Promise<ConsultationRecord[]> {
+async function fetchClinicianConsultations(endpoint: string): Promise<ConsultationRecord[]> {
   try {
-    const res = await apiClient.get('/doctor/consultations/')
+    const res = await apiClient.get(endpoint)
     const payload = unwrap<unknown>(res.data, [])
     const list = Array.isArray(payload)
       ? payload
@@ -572,6 +627,14 @@ export async function fetchDoctorConsultations(): Promise<ConsultationRecord[]> 
     if (!shouldUseLocalFallback(error)) throw error
     return []
   }
+}
+
+export async function fetchDoctorConsultations(): Promise<ConsultationRecord[]> {
+  return fetchClinicianConsultations('/doctor/consultations/')
+}
+
+export async function fetchPediatricianConsultations(): Promise<ConsultationRecord[]> {
+  return fetchClinicianConsultations('/pediatrician/consultations/')
 }
 
 export async function fetchConsultation(id: number): Promise<ConsultationRecord> {
@@ -617,6 +680,28 @@ export async function syncConsultationPaymentIntent(id: number): Promise<Consult
 export async function finalizePaidConsultation(paymentIntentId: number): Promise<ConsultationRecord> {
   const res = await apiClient.post('/consultations/payments/finalize/', { payment_intent_id: paymentIntentId })
   return mapConsultation(unwrap<Record<string, unknown>>(res.data, {}))
+}
+
+
+export async function fetchGuardianChildren(): Promise<ChildPatient[]> {
+  const res = await apiClient.get('/guardian/children/')
+  const payload = unwrap<unknown>(res.data, [])
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as { results?: unknown[] })?.results)
+      ? (payload as { results: unknown[] }).results
+      : []
+  return list.map((item) => mapChildPatient(item as Record<string, unknown>))
+}
+
+export async function createChildPatient(payload: ChildPatientPayload & { first_name: string }): Promise<ChildPatient> {
+  const res = await apiClient.post('/guardian/children/', payload)
+  return mapChildPatient(unwrap<Record<string, unknown>>(res.data, {}))
+}
+
+export async function updateChildPatient(id: number, payload: ChildPatientPayload): Promise<ChildPatient> {
+  const res = await apiClient.patch(`/guardian/children/${id}/`, payload)
+  return mapChildPatient(unwrap<Record<string, unknown>>(res.data, {}))
 }
 
 export async function updateConsultation(id: number, payload: Partial<Pick<ConsultationRecord, 'status' | 'consentStatus' | 'dosageAlert'>>): Promise<ConsultationRecord> {
@@ -832,8 +917,8 @@ export interface ClinicianEarningRecord {
   earned_at: string
 }
 
-export async function fetchClinicianPrescriptions(): Promise<ClinicianPrescription[]> {
-  const res = await apiClient.get('/doctor/prescriptions/')
+async function fetchPrescriptionsFor(endpoint: string): Promise<ClinicianPrescription[]> {
+  const res = await apiClient.get(endpoint)
   const payload = unwrap<unknown>(res.data, [])
   const list = Array.isArray(payload)
     ? payload
@@ -841,6 +926,14 @@ export async function fetchClinicianPrescriptions(): Promise<ClinicianPrescripti
       ? (payload as { results: unknown[] }).results
       : []
   return list as ClinicianPrescription[]
+}
+
+export async function fetchClinicianPrescriptions(): Promise<ClinicianPrescription[]> {
+  return fetchPrescriptionsFor('/doctor/prescriptions/')
+}
+
+export async function fetchPediatricianPrescriptions(): Promise<ClinicianPrescription[]> {
+  return fetchPrescriptionsFor('/pediatrician/prescriptions/')
 }
 
 export async function fetchClinicianEarnings(): Promise<ClinicianEarningRecord[]> {
@@ -854,13 +947,13 @@ export async function fetchClinicianEarnings(): Promise<ClinicianEarningRecord[]
   return list as ClinicianEarningRecord[]
 }
 
-export async function createClinicianPrescription(payload: {
+async function createPrescriptionFor(endpoint: string, payload: {
   patient_name: string
   consultation_id?: number | null
   notes?: string
   items: ClinicianPrescriptionItem[]
 }): Promise<ClinicianPrescription> {
-  const res = await apiClient.post('/doctor/prescriptions/', {
+  const res = await apiClient.post(endpoint, {
     patient_name: payload.patient_name,
     consultation: payload.consultation_id ?? null,
     notes: payload.notes ?? '',
@@ -869,25 +962,67 @@ export async function createClinicianPrescription(payload: {
   return unwrap<ClinicianPrescription>(res.data, {} as ClinicianPrescription)
 }
 
-export async function searchClinicianCatalogVariants(query: string, limit = 12): Promise<ClinicianCatalogVariant[]> {
-  const res = await apiClient.get('/doctor/catalog/variants/', { params: { q: query, limit } })
+export async function createClinicianPrescription(payload: {
+  patient_name: string
+  consultation_id?: number | null
+  notes?: string
+  items: ClinicianPrescriptionItem[]
+}): Promise<ClinicianPrescription> {
+  return createPrescriptionFor('/doctor/prescriptions/', payload)
+}
+
+export async function createPediatricianPrescription(payload: {
+  patient_name: string
+  consultation_id?: number | null
+  notes?: string
+  items: ClinicianPrescriptionItem[]
+}): Promise<ClinicianPrescription> {
+  return createPrescriptionFor('/pediatrician/prescriptions/', payload)
+}
+
+async function searchCatalogVariantsFor(endpoint: string, query: string, limit = 12): Promise<ClinicianCatalogVariant[]> {
+  const res = await apiClient.get(endpoint, { params: { q: query, limit } })
   const payload = unwrap<{ results?: ClinicianCatalogVariant[] }>(res.data, { results: [] })
   return payload.results ?? []
 }
 
-export async function sendClinicianPrescription(id: number): Promise<ClinicianPrescription> {
-  const res = await apiClient.post(`/doctor/prescriptions/${id}/send/`)
+export async function searchClinicianCatalogVariants(query: string, limit = 12): Promise<ClinicianCatalogVariant[]> {
+  return searchCatalogVariantsFor('/doctor/catalog/variants/', query, limit)
+}
+
+export async function searchPediatricianCatalogVariants(query: string, limit = 12): Promise<ClinicianCatalogVariant[]> {
+  return searchCatalogVariantsFor('/pediatrician/catalog/variants/', query, limit)
+}
+
+async function sendPrescriptionFor(endpoint: string): Promise<ClinicianPrescription> {
+  const res = await apiClient.post(endpoint)
   return unwrap<ClinicianPrescription>(res.data, {} as ClinicianPrescription)
 }
 
-export async function downloadClinicianPrescriptionPdf(id: number): Promise<void> {
-  const res = await apiClient.get(`/doctor/prescriptions/${id}/pdf/`, { responseType: 'blob' })
+export async function sendClinicianPrescription(id: number): Promise<ClinicianPrescription> {
+  return sendPrescriptionFor(`/doctor/prescriptions/${id}/send/`)
+}
+
+export async function sendPediatricianPrescription(id: number): Promise<ClinicianPrescription> {
+  return sendPrescriptionFor(`/pediatrician/prescriptions/${id}/send/`)
+}
+
+async function downloadPrescriptionPdfFor(endpoint: string, id: number): Promise<void> {
+  const res = await apiClient.get(endpoint, { responseType: 'blob' })
   const url = URL.createObjectURL(res.data as Blob)
   const a = document.createElement('a')
   a.href = url
   a.download = `prescription-${id}.pdf`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+export async function downloadClinicianPrescriptionPdf(id: number): Promise<void> {
+  return downloadPrescriptionPdfFor(`/doctor/prescriptions/${id}/pdf/`, id)
+}
+
+export async function downloadPediatricianPrescriptionPdf(id: number): Promise<void> {
+  return downloadPrescriptionPdfFor(`/pediatrician/prescriptions/${id}/pdf/`, id)
 }
 
 export async function grantConsultationConsent(id: number): Promise<void> {

@@ -4,6 +4,7 @@ import { CatalogProvider } from './context/CatalogContext'
 import { SiteSettingsProvider } from './context/SiteSettingsContext'
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import AdminRoute from './components/ProtectedRoute/AdminRoute'
+import RoleRoute from './components/ProtectedRoute/RoleRoute'
 import AdminLayout from './components/AdminLayout/AdminLayout'
 import Layout from './components/Layout/Layout'
 import HomePage from './pages/HomePage/HomePage'
@@ -88,6 +89,15 @@ function LegacyLabDashboardRedirect() {
   return <Navigate to={target} replace />
 }
 
+function DoctorConsultationEntry() {
+  const location = useLocation()
+  const tab = new URLSearchParams(location.search).get('tab')?.toLowerCase()
+  if (tab === 'paediatric' || tab === 'pediatric') {
+    return <Navigate to="/pediatric-consultation" replace />
+  }
+  return <ProtectedRoute><DoctorConsultation /></ProtectedRoute>
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -120,7 +130,7 @@ function App() {
               <Route path="prescriptions/history" element={<PrescriptionHistoryPage />} />
               <Route path="consultation" element={<Navigate to="/doctor-consultation" replace />} />
               <Route path="doctor" element={<Navigate to="/doctor-consultation" replace />} />
-              <Route path="doctor-consultation" element={<ProtectedRoute><DoctorConsultation /></ProtectedRoute>} />
+              <Route path="doctor-consultation" element={<DoctorConsultationEntry />} />
               <Route path="pediatrician" element={<Navigate to="/pediatric-consultation" replace />} />
               <Route path="paedetrician" element={<Navigate to="/pediatric-consultation" replace />} />
               <Route path="pediatric-consultation" element={<ProtectedRoute><PediatricianConsultation /></ProtectedRoute>} />
@@ -163,17 +173,17 @@ function App() {
               </div>} />
             </Route>
 
-            <Route path="doctor/dashboard" element={<ProtectedRoute><DoctorDashboardPage /></ProtectedRoute>} />
-            <Route path="doctor/onboarding" element={<ProtectedRoute><DoctorOnboardingPage /></ProtectedRoute>} />
-            <Route path="pediatrician/dashboard" element={<PediatricianDashboardPage />} />
+            <Route path="doctor/dashboard" element={<RoleRoute allowedRoles={['doctor', 'admin']}><DoctorDashboardPage /></RoleRoute>} />
+            <Route path="doctor/onboarding" element={<RoleRoute allowedRoles={['doctor', 'admin']}><DoctorOnboardingPage /></RoleRoute>} />
+            <Route path="pediatrician/dashboard" element={<RoleRoute allowedRoles={['pediatrician', 'admin']}><PediatricianDashboardPage /></RoleRoute>} />
             <Route path="paedetrician/dashboard" element={<Navigate to="/pediatrician/dashboard" replace />} />
-            <Route path="pharmacist/dashboard" element={<ProtectedRoute><PharmacistDashboardPage /></ProtectedRoute>} />
-            <Route path="lab/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
-            <Route path="ab/dashboard" element={<ProtectedRoute><LegacyLabDashboardRedirect /></ProtectedRoute>} />
-            <Route path="laboratory/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
-            <Route path="labaratory/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
-            <Route path="//ab/dashboard" element={<ProtectedRoute><LegacyLabDashboardRedirect /></ProtectedRoute>} />
-            <Route path="labtech/dashboard" element={<ProtectedRoute><LabTechPortal /></ProtectedRoute>} />
+            <Route path="pharmacist/dashboard" element={<RoleRoute allowedRoles={['pharmacist', 'admin']}><PharmacistDashboardPage /></RoleRoute>} />
+            <Route path="lab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'admin']}><LabDashboardPage /></RoleRoute>} />
+            <Route path="ab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'lab_technician', 'admin']}><LegacyLabDashboardRedirect /></RoleRoute>} />
+            <Route path="laboratory/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'admin']}><LabDashboardPage /></RoleRoute>} />
+            <Route path="labaratory/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'admin']}><LabDashboardPage /></RoleRoute>} />
+            <Route path="//ab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'lab_technician', 'admin']}><LegacyLabDashboardRedirect /></RoleRoute>} />
+            <Route path="labtech/dashboard" element={<RoleRoute allowedRoles={['lab_technician', 'admin']}><LabTechPortal /></RoleRoute>} />
 
             <Route path="admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route index element={<Navigate to="/admin/dashboard" replace />} />

@@ -1,10 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import ceraveImg from '../../assets/images/brands/cerave.png'
-import panadolImg from '../../assets/images/brands/panadol.jpeg'
-import larocheImg from '../../assets/images/brands/laroche.webp'
-import uncoverImg from '../../assets/images/brands/uncover.webp'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { fetchFeaturedProducts } from '../../services/productService'
@@ -16,72 +12,6 @@ import { categoryCardImages } from '../../data/categoryCardImages'
 import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import '../../styles/pages/HomePage.css'
 
-type HeroDesign = 'split' | 'split-left' | 'feature'
-
-type HeroSlide = {
-  id: number
-  eyebrow: string
-  headline: string
-  supporting: string
-  cta: { label: string; link: string }
-  image?: string
-  badge?: string
-  design?: HeroDesign
-  theme: { from: string; to: string; accent: string }
-  trust: string[]
-}
-
-const bannerSlides: HeroSlide[] = [
-  {
-    id: 1,
-    eyebrow: 'Skincare bestseller',
-    headline: 'CeraVe, loved by dermatologists',
-    supporting: 'Daily moisturisers and cleansers with essential ceramides for every skin type.',
-    cta: { label: 'Shop CeraVe', link: '/products?query=cerave' },
-    image: ceraveImg,
-    badge: 'Bestseller',
-    design: 'split',
-    theme: { from: '#EFF6FF', to: '#E0F2FE', accent: '#2563EB' },
-    trust: ['Genuine stock', 'Same-day delivery', 'M-Pesa & card'],
-  },
-  {
-    id: 2,
-    eyebrow: 'Pain relief essentials',
-    headline: 'Fast relief with Panadol',
-    supporting: 'Tablets and syrup for headaches, fever and cold, for adults and kids.',
-    cta: { label: 'Shop pain relief', link: '/products?query=panadol' },
-    image: panadolImg,
-    badge: 'Everyday essentials',
-    design: 'split-left',
-    theme: { from: '#ECFDF5', to: '#D1FAE5', accent: '#059669' },
-    trust: ['Pharmacist-reviewed', 'Licensed pharmacy', 'Fast checkout'],
-  },
-  {
-    id: 3,
-    eyebrow: 'Dermatological care',
-    headline: 'La Roche-Posay for sensitive skin',
-    supporting: 'Effaclar and Cicaplast ranges, recommended by dermatologists worldwide.',
-    cta: { label: 'Shop La Roche-Posay', link: '/products?query=la roche' },
-    image: larocheImg,
-    badge: 'Premium brand',
-    design: 'split',
-    theme: { from: '#F0F9FF', to: '#E0E7FF', accent: '#4F46E5' },
-    trust: ['Genuine stock', 'Same-day delivery', 'Secure checkout'],
-  },
-  {
-    id: 4,
-    eyebrow: 'Beauty, new in',
-    headline: 'Uncover skincare made for you',
-    supporting: 'Lightweight foundations and skincare built for melanin-rich skin tones.',
-    cta: { label: 'Discover Uncover', link: '/products?query=uncover' },
-    image: uncoverImg,
-    badge: 'New in',
-    design: 'feature',
-    theme: { from: '#FDF2F8', to: '#FCE7F3', accent: '#DB2777' },
-    trust: ['Cruelty-free', 'Genuine products', 'Member savings'],
-  },
-]
-
 const FEATURED_PRODUCTS_LIMIT = 5
 const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
 const isEligibleFeaturedProduct = (product: CatalogProduct) => isAvailableProduct(product) && !product.requiresPrescription
@@ -91,10 +21,6 @@ function HomePage() {
   const [addedId, setAddedId] = useState<number | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [isCarouselPaused, setIsCarouselPaused] = useState(false)
-  const [reducedMotion, setReducedMotion] = useState(false)
-  const [searchInput, setSearchInput] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<number | null>(null)
   const navigate = useNavigate()
@@ -151,12 +77,6 @@ function HomePage() {
       if (toastTimer.current) window.clearTimeout(toastTimer.current)
     }
   }, [])
-
-  const submitLandingSearch = (event: React.FormEvent) => {
-    event.preventDefault()
-    const query = searchInput.trim()
-    navigate(query ? `/products?query=${encodeURIComponent(query)}` : '/products')
-  }
 
   const refreshWishlist = () => {
     if (!isLoggedIn) {
@@ -337,34 +257,6 @@ function HomePage() {
       window.removeEventListener('resize', updateScrollButtons)
     }
   }, [visibleCategories.length])
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    setReducedMotion(mq.matches)
-    const handler = (event: MediaQueryListEvent) => setReducedMotion(event.matches)
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [])
-
-  useEffect(() => {
-    if (bannerSlides.length <= 1 || reducedMotion || isCarouselPaused) return undefined
-    const t = window.setInterval(() => {
-      setCurrentSlide(s => (s + 1) % bannerSlides.length)
-    }, 6000)
-    return () => window.clearInterval(t)
-  }, [bannerSlides.length, reducedMotion, isCarouselPaused])
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index)
-  }
-
-  const showPreviousSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length)
-  }
-
-  const showNextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % bannerSlides.length)
-  }
 
   const scrollCategories = (direction: 'prev' | 'next') => {
     const track = categoryTrackRef.current
@@ -639,129 +531,23 @@ function HomePage() {
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
-      {/* Hero Carousel - full-width promotional banner */}
-      <section
-        className="hero-carousel"
-        id="main-content"
-        aria-roledescription="carousel"
-        aria-label="Promotional banners"
-        onMouseEnter={() => setIsCarouselPaused(true)}
-        onMouseLeave={() => setIsCarouselPaused(false)}
-        onFocus={() => setIsCarouselPaused(true)}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsCarouselPaused(false)
-        }}
-      >
+      {/* Hero banner */}
+      <section className="hero-carousel" id="main-content" aria-label="Promotional banner">
         <h1 className="hero-carousel__sr-title">
           Ava Pharmacy: online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya
         </h1>
-        <div
-          className={`hero-carousel__track${reducedMotion ? ' hero-carousel__track--reduced' : ''}`}
-          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-        >
-          {bannerSlides.map((slide, index) => (
-            <Link
-              key={slide.id}
-              to={slide.cta.link}
-              className={`hero-carousel__slide hero-banner hero-banner--${slide.design ?? 'split'}`}
-              style={{ '--hb-from': slide.theme.from, '--hb-to': slide.theme.to, '--hb-accent': slide.theme.accent } as CSSProperties}
-              aria-label={slide.headline}
-            >
-              <div className="hero-banner__content">
-                <span className="hero-banner__eyebrow">{slide.eyebrow}</span>
-                <h2 className="hero-banner__headline">{slide.headline}</h2>
-                <p className="hero-banner__supporting">{slide.supporting}</p>
-                <span className="hero-banner__cta">
-                  {slide.cta.label}
-                  <span aria-hidden="true">→</span>
-                </span>
-                <ul className="hero-banner__trust">
-                  {slide.trust.map((item) => (
-                    <li key={item}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="hero-banner__visual">
-                <span className="hero-banner__blob" aria-hidden="true" />
-                {slide.badge && <span className="hero-banner__badge">{slide.badge}</span>}
-                {slide.image && (
-                  <ImageWithFallback
-                    src={slide.image}
-                    alt={slide.headline}
-                    className="hero-banner__product"
-                    loading={index === 0 ? 'eager' : 'lazy'}
-                  />
-                )}
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {bannerSlides.length > 1 && (
-          <>
-            <button
-              type="button"
-              className="hero-carousel__arrow hero-carousel__arrow--prev"
-              aria-label="Show previous banner"
-              onClick={showPreviousSlide}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </button>
-
-            <button
-              type="button"
-              className="hero-carousel__arrow hero-carousel__arrow--next"
-              aria-label="Show next banner"
-              onClick={showNextSlide}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </button>
-
-            <div className="hero-carousel__dots" aria-label="Banner navigation">
-              {bannerSlides.map((slide, index) => (
-                <button
-                  key={slide.id}
-                  type="button"
-                  className={`hero-carousel__dot${currentSlide === index ? ' hero-carousel__dot--active' : ''}`}
-                  aria-label={`Show banner ${index + 1}`}
-                  aria-pressed={currentSlide === index}
-                  onClick={() => goToSlide(index)}
-                />
-              ))}
-            </div>
-          </>
-        )}
-
-      </section>
-
-      <section className="home-search" aria-label="Search the store">
-        <div className="container">
-          <form className="home-search__form" role="search" onSubmit={submitLandingSearch}>
-            <svg className="home-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" strokeLinecap="round" />
-            </svg>
-            <input
-              className="home-search__input"
-              type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search medicines, supplements, devices…"
-              aria-label="Search products"
-            />
-            <button className="home-search__btn" type="submit">Search</button>
-          </form>
+        <div className="hero-placeholder">
+          <div className="hero-placeholder__inner">
+            <span className="hero-placeholder__eyebrow">Ava Pharmacy</span>
+            <h2 className="hero-placeholder__title">Coming Soon</h2>
+            <p className="hero-placeholder__text">
+              Our new storefront is on the way. Online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya.
+            </p>
+          </div>
         </div>
       </section>
+
+
 
       {professionalDashboard && (
         <section className="hero__quick-links hero__quick-links--professional" aria-label="Professional shortcuts">
@@ -782,7 +568,7 @@ function HomePage() {
         <div className="container">
           <div className="promo-banner__strip">
             {valueBannerItems.map((item, i) => (
-              <div key={item.title} className="promo-banner__item">
+              <Link key={item.title} to={item.link} className="promo-banner__item">
                 <span className={`promo-banner__icon promo-banner__icon--${item.color}`}>
                   {renderBannerIcon(item.key)}
                 </span>
@@ -791,7 +577,7 @@ function HomePage() {
                   <span>{item.subtitle}</span>
                 </div>
                 {i < valueBannerItems.length - 1 && <div className="promo-banner__divider" />}
-              </div>
+              </Link>
             ))}
           </div>
         </div>

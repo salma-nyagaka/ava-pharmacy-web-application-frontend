@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import {
   Consultation,
   DoctorEarning,
   DoctorMessage,
   DoctorMessageThread,
+  DoctorProfile,
   DoctorPrescription,
   DoctorPrescriptionItem,
   loadConsultations,
@@ -18,23 +19,27 @@ import {
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
 import {
-  createClinicianPrescription,
+  createPediatricianPrescription,
+  fetchConsultation,
   fetchClinicianEarnings,
-  fetchClinicianPrescriptions,
-  fetchDoctorConsultations,
-  searchClinicianCatalogVariants,
-  sendClinicianPrescription,
+  fetchPediatricianPrescriptions,
+  fetchPediatricianConsultations,
+  searchPediatricianCatalogVariants,
+  sendConsultationMessage,
+  sendPediatricianPrescription,
+  updateConsultation,
   type ClinicianEarningRecord,
   type ClinicianCatalogVariant,
   type ClinicianPrescription,
   type ConsultationRecord,
 } from '../../services/consultationService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
+import { useConsultationSocket, type SocketMessage } from '../../hooks/useConsultationSocket'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/portals/DoctorDashboardPage.css'
 import '../../styles/portals/PediatricianDashboardPage.css'
 
-type PediatricTab = 'queue' | 'messages' | 'consents' | 'prescriptions' | 'profiles' | 'earnings'
+type PediatricTab = 'queue' | 'consents' | 'prescriptions' | 'profiles' | 'earnings'
 
 type PediatricClinicalNoteKey = 'complaint' | 'history' | 'exam' | 'diagnosis' | 'plan' | 'followUp' | 'assessment'
 
@@ -137,6 +142,13 @@ const CONSULT_STATUS_FROM_API: Record<string, Consultation['status']> = {
   cancelled: 'Cancelled',
 }
 
+const CONSULT_STATUS_TO_API: Record<Consultation['status'], ConsultationRecord['status']> = {
+  Waiting: 'waiting',
+  'In progress': 'in_progress',
+  Completed: 'completed',
+  Cancelled: 'cancelled',
+}
+
 function formatBackendDate(value: string | null | undefined) {
   if (!value) return 'Not scheduled'
   return new Date(value).toLocaleString('en-KE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -182,6 +194,28 @@ function mapBackendPediatricThread(record: ConsultationRecord, doctorId: string)
     unreadCount: 0,
     status: record.status === 'completed' ? 'Resolved' : 'Open',
     messages,
+  }
+}
+
+function mapSocketMessage(message: SocketMessage, currentUserId: number | null | undefined): DoctorMessage {
+  const sentAt = message.sentAt ? new Date(message.sentAt) : null
+  return {
+    id: String(message.id),
+    sender: message.sender == null ? 'system' : message.sender === currentUserId ? 'doctor' : 'patient',
+    text: message.message,
+    time: sentAt && !Number.isNaN(sentAt.getTime())
+      ? sentAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '',
+  }
+}
+
+function mergeThreadMessage(thread: DoctorMessageThread, message: DoctorMessage, lastMessageAt: string): DoctorMessageThread {
+  if (thread.messages.some((item) => item.id === message.id)) return thread
+  return {
+    ...thread,
+    lastMessage: message.text || thread.lastMessage,
+    lastMessageAt,
+    messages: [...thread.messages, message],
   }
 }
 
@@ -570,9 +604,40 @@ function PediatricianDashboardPage() {
   const [activeTab, setActiveTab] = useState<PediatricTab>('queue')
   const isAdminPreview = user?.role === 'admin'
   const [doctors] = useState(loadDoctorProfiles())
+  const currentPediatricianProfile = useMemo<DoctorProfile>(() => {
+    const userEmail = user?.email?.trim().toLowerCase()
+    const matchedProfile = userEmail
+      ? doctors.find((d) => d.type === 'Pediatrician' && d.email.toLowerCase() === userEmail)
+      : undefined
+    if (matchedProfile) return matchedProfile
+    return {
+      id: user ? `USER-${user.id}` : 'CURRENT-PEDIATRICIAN',
+      name: user?.name
+        ? (/^dr\.?\s/i.test(user.name) ? user.name : `Dr. ${user.name}`)
+        : 'Pediatrician',
+      type: 'Pediatrician',
+      specialty: 'Pediatrician Portal',
+      email: user?.email ?? '',
+      phone: user?.phone ?? '',
+      license: '',
+      facility: 'Ava Pharmacy',
+      submitted: '',
+      status: 'Active',
+      commission: 0,
+      consultFee: 0,
+      rating: 0,
+      availability: '',
+      languages: [],
+      documents: [],
+    }
+  }, [doctors, user])
+  const adminPreviewPediatricians = useMemo(
+    () => doctors.filter((d) => d.type === 'Pediatrician'),
+    [doctors]
+  )
   const [activeDoctorId, setActiveDoctorId] = useState(() => {
-    const peds = loadDoctorProfiles().filter((d) => d.type === 'Pediatrician')
-    return (peds.find((d) => d.status === 'Active')?.id ?? peds[0]?.id ?? '')
+    if (!isAdminPreview) return currentPediatricianProfile.id
+    return adminPreviewPediatricians.find((d) => d.status === 'Active')?.id ?? adminPreviewPediatricians[0]?.id ?? ''
   })
   const [consultations, setConsultations] = useState<Consultation[]>(() => createInitialPediatricConsultations())
   const [threads, setThreads] = useState<DoctorMessageThread[]>(() => createInitialPediatricThreads())
@@ -583,10 +648,6 @@ function PediatricianDashboardPage() {
   const [selectedConsult, setSelectedConsult] = useState<Consultation | null>(null)
   const [consultationNotes, setConsultationNotes] = useState<Record<string, PediatricClinicalNotes>>({})
 
-  const [messageSearch, setMessageSearch] = useState('')
-  const [activeThread, setActiveThread] = useState<DoctorMessageThread | null>(null)
-  const [newMessage, setNewMessage] = useState('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
   const consultEndRef = useRef<HTMLDivElement>(null)
   const [showConsultChat, setShowConsultChat] = useState(false)
   const [consultThread, setConsultThread] = useState<DoctorMessageThread | null>(null)
@@ -603,11 +664,106 @@ function PediatricianDashboardPage() {
   const [rxCatalogList, setRxCatalogList] = useState<ClinicianCatalogVariant[]>([])
   const [rxCatalogListLoading, setRxCatalogListLoading] = useState(false)
   const [workspaceError, setWorkspaceError] = useState('')
+  const [consultationRefreshError, setConsultationRefreshError] = useState('')
   const [selectedChild, setSelectedChild] = useState<string | null>(null)
 
+  const liveConsultationId = showConsultChat
+    ? consultThread?.backendConsultationId ?? selectedConsult?.backendId ?? null
+    : null
+  const socketToken = typeof window === 'undefined' ? null : window.localStorage.getItem('ava_access_token')
+
+  const handleLiveConsultationMessage = useCallback((socketMessage: SocketMessage) => {
+    if (!liveConsultationId) return
+    const message = mapSocketMessage(socketMessage, user?.id)
+    const lastMessageAt = socketMessage.sentAt ? formatBackendDate(socketMessage.sentAt) : 'Now'
+    const fallbackPatientName = selectedConsult?.childName || selectedConsult?.patientName || consultThread?.patientName || 'Child'
+
+    setThreads((prev) => {
+      let matched = false
+      const next = prev.map((thread) => {
+        if (thread.backendConsultationId !== liveConsultationId) return thread
+        matched = true
+        return mergeThreadMessage(thread, message, lastMessageAt)
+      })
+      if (matched) return next
+      return [{
+        id: `CONS-${liveConsultationId}`,
+        backendConsultationId: liveConsultationId,
+        doctorId: activeDoctorId,
+        patientName: fallbackPatientName,
+        lastMessage: message.text,
+        lastMessageAt,
+        unreadCount: 0,
+        status: 'Open',
+        messages: [message],
+      }, ...prev]
+    })
+    setConsultThread((prev) => {
+      if (prev?.backendConsultationId === liveConsultationId) {
+        return mergeThreadMessage(prev, message, lastMessageAt)
+      }
+      if (selectedConsult?.backendId !== liveConsultationId) return prev
+      return {
+        id: `CONS-${liveConsultationId}`,
+        backendConsultationId: liveConsultationId,
+        doctorId: activeDoctorId,
+        patientName: fallbackPatientName,
+        lastMessage: message.text,
+        lastMessageAt,
+        unreadCount: 0,
+        status: 'Open',
+        messages: [message],
+      }
+    })
+    setConsultations((prev) => prev.map((consultation) => (
+      consultation.backendId === liveConsultationId
+        ? { ...consultation, lastMessageAt }
+        : consultation
+    )))
+  }, [activeDoctorId, consultThread?.patientName, liveConsultationId, selectedConsult?.childName, selectedConsult?.patientName, user?.id])
+
+  useConsultationSocket(liveConsultationId, socketToken, handleLiveConsultationMessage)
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeThread?.messages])
+    if (!liveConsultationId || isAdminPreview) return undefined
+    let cancelled = false
+
+    const refreshOpenConversation = async () => {
+      try {
+        const record = await fetchConsultation(liveConsultationId)
+        if (cancelled) return
+        const mappedConsultation = mapBackendPediatricConsultation(record, activeDoctorId)
+        const mappedThread = mapBackendPediatricThread(record, activeDoctorId)
+
+        setConsultations((prev) => prev.map((consultation) => (
+          consultation.backendId === record.id || consultation.id === mappedConsultation.id
+            ? mappedConsultation
+            : consultation
+        )))
+        setThreads((prev) => {
+          const exists = prev.some((thread) => thread.backendConsultationId === record.id || thread.id === mappedThread.id)
+          return exists
+            ? prev.map((thread) => (
+              thread.backendConsultationId === record.id || thread.id === mappedThread.id ? mappedThread : thread
+            ))
+            : [mappedThread, ...prev]
+        })
+        setSelectedConsult((prev) => (
+          prev?.backendId === record.id || prev?.id === mappedConsultation.id ? mappedConsultation : prev
+        ))
+        setConsultThread(() => ({ ...mappedThread, unreadCount: 0 }))
+      } catch {
+        // Keep the open chat usable while the socket reconnects or a poll fails.
+      }
+    }
+
+    void refreshOpenConversation()
+    const timer = window.setInterval(() => { void refreshOpenConversation() }, 3000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [activeDoctorId, isAdminPreview, liveConsultationId])
 
   useEffect(() => {
     consultEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -626,18 +782,11 @@ function PediatricianDashboardPage() {
       }
       try {
         setWorkspaceError('')
-        const [backendConsultations, backendPrescriptions, backendEarnings] = await Promise.all([
-          fetchDoctorConsultations(),
-          fetchClinicianPrescriptions(),
+        const [backendPrescriptions, backendEarnings] = await Promise.all([
+          fetchPediatricianPrescriptions(),
           fetchClinicianEarnings(),
         ])
         if (cancelled) return
-        setConsultations(backendConsultations.map((record) => mapBackendPediatricConsultation(record, activeDoctorId)))
-        setThreads(
-          backendConsultations
-            .filter((record) => record.messages.length > 0 || record.status === 'in_progress')
-            .map((record) => mapBackendPediatricThread(record, activeDoctorId))
-        )
         setPrescriptions(backendPrescriptions.map((rx) => mapBackendPediatricPrescription(rx, activeDoctorId)))
         setEarningsData(backendEarnings.map((earning) => mapBackendPediatricEarning(earning, activeDoctorId)))
       } catch {
@@ -648,17 +797,76 @@ function PediatricianDashboardPage() {
     return () => { cancelled = true }
   }, [activeDoctorId, isAdminPreview])
 
-  const pediatricDoctors = useMemo(
-    () => doctors.filter((d) => d.type === 'Pediatrician'),
-    [doctors]
-  )
+  useEffect(() => {
+    if (isAdminPreview) return undefined
+
+    let cancelled = false
+    let refreshInProgress = false
+
+    const refreshConsultations = async () => {
+      if (refreshInProgress) return
+      refreshInProgress = true
+
+      try {
+        const backendConsultations = await fetchPediatricianConsultations()
+        if (cancelled) return
+
+        const nextConsultations = backendConsultations.map((record) =>
+          mapBackendPediatricConsultation(record, activeDoctorId)
+        )
+        const nextThreads = backendConsultations
+          .filter((record) => record.messages.length > 0 || record.status === 'in_progress')
+          .map((record) => mapBackendPediatricThread(record, activeDoctorId))
+
+        setConsultations(nextConsultations)
+        setThreads(nextThreads)
+        setSelectedConsult((current) => {
+          if (!current) return current
+          return nextConsultations.find((item) => item.backendId === current.backendId || item.id === current.id) ?? current
+        })
+        setConsultThread((current) => {
+          if (!current) return current
+          return nextThreads.find((item) => item.backendConsultationId === current.backendConsultationId || item.id === current.id) ?? current
+        })
+        setConsultationRefreshError('')
+      } catch {
+        if (!cancelled) setConsultationRefreshError('Unable to refresh consultation requests. Retrying automatically…')
+      } finally {
+        refreshInProgress = false
+      }
+    }
+
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void refreshConsultations()
+    }
+
+    void refreshConsultations()
+    const refreshTimer = window.setInterval(() => { void refreshConsultations() }, 5000)
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(refreshTimer)
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [activeDoctorId, isAdminPreview])
+
+  const pediatricDoctors = isAdminPreview ? adminPreviewPediatricians : [currentPediatricianProfile]
 
   useEffect(() => {
-    if (pediatricDoctors.length === 0) return
-    if (!pediatricDoctors.some((d) => d.id === activeDoctorId)) {
-      setActiveDoctorId(pediatricDoctors[0].id)
+    if (!isAdminPreview) {
+      if (activeDoctorId !== currentPediatricianProfile.id) {
+        setActiveDoctorId(currentPediatricianProfile.id)
+      }
+      return
     }
-  }, [activeDoctorId, pediatricDoctors])
+    if (adminPreviewPediatricians.length === 0) return
+    if (!adminPreviewPediatricians.some((d) => d.id === activeDoctorId)) {
+      setActiveDoctorId(adminPreviewPediatricians[0].id)
+    }
+  }, [activeDoctorId, adminPreviewPediatricians, currentPediatricianProfile.id, isAdminPreview])
 
   const doctor = pediatricDoctors.find((d) => d.id === activeDoctorId)
 
@@ -679,14 +887,6 @@ function PediatricianDashboardPage() {
     () => threads.filter((t) => t.doctorId === activeDoctorId),
     [threads, activeDoctorId]
   )
-
-  const filteredThreads = useMemo(() => {
-    const q = messageSearch.trim().toLowerCase()
-    if (!q) return pedThreads
-    return pedThreads.filter((t) =>
-      [t.patientName, t.lastMessage, t.status].some((v) => v.toLowerCase().includes(q))
-    )
-  }, [pedThreads, messageSearch])
 
   const pedPrescriptions = useMemo(
     () => prescriptions.filter((rx) => rx.doctorId === activeDoctorId && rx.pediatric),
@@ -823,16 +1023,6 @@ function PediatricianDashboardPage() {
       ),
     },
     {
-      id: 'messages',
-      label: 'Family messages',
-      badge: unreadCount,
-      icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      ),
-    },
-    {
       id: 'consents',
       label: 'Consents',
       badge: stats.consents,
@@ -890,7 +1080,37 @@ function PediatricianDashboardPage() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  const updateConsultationStatus = (id: string, status: Consultation['status']) => {
+  const replaceLiveConsultation = (record: ConsultationRecord) => {
+    const mappedConsultation = mapBackendPediatricConsultation(record, activeDoctorId)
+    const mappedThread = mapBackendPediatricThread(record, activeDoctorId)
+    setConsultations((prev) => {
+      const exists = prev.some((item) => item.backendId === record.id || item.id === mappedConsultation.id)
+      return exists
+        ? prev.map((item) => (item.backendId === record.id || item.id === mappedConsultation.id ? mappedConsultation : item))
+        : [mappedConsultation, ...prev]
+    })
+    setThreads((prev) => {
+      const exists = prev.some((item) => item.backendConsultationId === record.id || item.id === mappedThread.id)
+      return exists
+        ? prev.map((item) => (item.backendConsultationId === record.id || item.id === mappedThread.id ? mappedThread : item))
+        : [mappedThread, ...prev]
+    })
+    return { consultation: mappedConsultation, thread: mappedThread }
+  }
+
+  const updateConsultationStatus = async (id: string, status: Consultation['status']) => {
+    const existing = consultations.find((consultation) => consultation.id === id)
+    if (existing?.backendId) {
+      try {
+        setWorkspaceError('')
+        const record = await updateConsultation(existing.backendId, { status: CONSULT_STATUS_TO_API[status] })
+        replaceLiveConsultation(record)
+      } catch {
+        setWorkspaceError('Unable to update the consultation. Please try again.')
+      }
+      return
+    }
+
     const updated = consultations.map((c) => (c.id === id ? { ...c, status } : c))
     setConsultations(updated)
     saveConsultations(updated)
@@ -920,9 +1140,12 @@ function PediatricianDashboardPage() {
   }
 
   const findOrCreateThread = (consult: Consultation): DoctorMessageThread => {
-    const existing = threads.find(
-      (t) => t.doctorId === consult.doctorId && t.patientName === consult.patientName
-    )
+    const existing = consult.backendId
+      ? threads.find((thread) => thread.backendConsultationId === consult.backendId || thread.id === `CONS-${consult.backendId}`)
+      : threads.find((thread) => (
+        thread.doctorId === consult.doctorId
+        && (thread.patientName === consult.patientName || thread.patientName === consult.childName)
+      ))
     if (existing) return existing
     const newThread: DoctorMessageThread = {
       id: `TH-${Date.now()}`,
@@ -945,16 +1168,46 @@ function PediatricianDashboardPage() {
     return newThread
   }
 
-  const handleStartConsultation = (consult: Consultation) => {
-    updateConsultationStatus(consult.id, 'In progress')
+  const handleStartConsultation = async (consult: Consultation) => {
+    if (consult.backendId) {
+      try {
+        setWorkspaceError('')
+        const record = await updateConsultation(consult.backendId, { status: 'in_progress' })
+        const live = replaceLiveConsultation(record)
+        setSelectedConsult(live.consultation)
+        setConsultThread({ ...live.thread, unreadCount: 0 })
+        setShowConsultChat(true)
+      } catch {
+        setWorkspaceError('Unable to start this consultation. Please refresh and try again.')
+      }
+      return
+    }
+
+    void updateConsultationStatus(consult.id, 'In progress')
     const thread = findOrCreateThread(consult)
     setConsultThread({ ...thread, unreadCount: 0 })
     setSelectedConsult({ ...consult, status: 'In progress' })
-    setShowConsultChat(false)
+    setShowConsultChat(true)
   }
 
-  const handleSendConsultMessage = () => {
+  const handleSendConsultMessage = async () => {
     if (!consultThread || !consultMessage.trim()) return
+    if (consultThread.backendConsultationId) {
+      try {
+        setWorkspaceError('')
+        const message = consultMessage.trim()
+        setConsultMessage('')
+        await sendConsultationMessage(consultThread.backendConsultationId, message)
+        const record = await fetchConsultation(consultThread.backendConsultationId)
+        const live = replaceLiveConsultation(record)
+        setSelectedConsult(live.consultation)
+        setConsultThread(live.thread)
+      } catch {
+        setWorkspaceError('Unable to send this message. Please try again.')
+      }
+      return
+    }
+
     const msg: DoctorMessage = {
       id: `MSG-${Date.now()}`,
       sender: 'doctor',
@@ -974,34 +1227,6 @@ function PediatricianDashboardPage() {
     setConsultMessage('')
   }
 
-  const openThread = (thread: DoctorMessageThread) => {
-    const all = threads.map((t) => (t.id === thread.id ? { ...t, unreadCount: 0 } : t))
-    setThreads(all)
-    saveDoctorMessages(all)
-    setActiveThread({ ...thread, unreadCount: 0 })
-  }
-
-  const handleSendMessage = () => {
-    if (!activeThread || !newMessage.trim()) return
-    const msg: DoctorMessage = {
-      id: `MSG-${Date.now()}`,
-      sender: 'doctor',
-      text: newMessage,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }
-    const updated: DoctorMessageThread = {
-      ...activeThread,
-      lastMessage: newMessage,
-      lastMessageAt: 'Now',
-      messages: [...activeThread.messages, msg],
-    }
-    const all = threads.map((t) => (t.id === activeThread.id ? updated : t))
-    setThreads(all)
-    saveDoctorMessages(all)
-    setActiveThread(updated)
-    setNewMessage('')
-  }
-
   const updateRxItem = (index: number, patch: Partial<DoctorPrescriptionItem>) => {
     setRxItems((prev) => prev.map((item, i) => i === index ? { ...item, ...patch } : item))
   }
@@ -1009,8 +1234,8 @@ function PediatricianDashboardPage() {
   const loadPrescriptionCatalog = () => {
     if (rxCatalogList.length > 0 || rxCatalogListLoading) return
     setRxCatalogListLoading(true)
-    void searchClinicianCatalogVariants('', 1000)
-      .then((options) => setRxCatalogList(options))
+    void searchPediatricianCatalogVariants('', 1000)
+      .then((options: ClinicianCatalogVariant[]) => setRxCatalogList(options))
       .catch(() => setWorkspaceError('Unable to load the medicine catalog. You can still search manually.'))
       .finally(() => setRxCatalogListLoading(false))
   }
@@ -1044,7 +1269,7 @@ function PediatricianDashboardPage() {
       return
     }
     setRxCatalogLoading((prev) => ({ ...prev, [index]: true }))
-    void searchClinicianCatalogVariants(value)
+    void searchPediatricianCatalogVariants(value)
       .then((options) => setRxCatalogOptions((prev) => ({ ...prev, [index]: options })))
       .finally(() => setRxCatalogLoading((prev) => ({ ...prev, [index]: false })))
   }
@@ -1134,7 +1359,7 @@ function PediatricianDashboardPage() {
     }
     try {
       setWorkspaceError('')
-      const created = await createClinicianPrescription({
+      const created = await createPediatricianPrescription({
         patient_name: rxPatient.trim(),
         consultation_id: rxConsultationId,
         notes: rxNotes,
@@ -1152,7 +1377,7 @@ function PediatricianDashboardPage() {
           quantity: item.quantity,
         })),
       })
-      const sent = await sendClinicianPrescription(created.id)
+      const sent = await sendPediatricianPrescription(created.id)
       const rx = mapBackendPediatricPrescription(sent, activeDoctorId)
       const updated = [rx, ...prescriptions]
       setPrescriptions(updated)
@@ -1186,7 +1411,7 @@ function PediatricianDashboardPage() {
       onNavChange={(itemId) => setActiveTab(itemId as PediatricTab)}
       onLogout={() => { void logout() }}
       roleLabel={isAdminPreview ? 'Admin · Pediatrician Preview' : 'Pediatrician'}
-      sidebarHeaderContent={(
+      sidebarHeaderContent={isAdminPreview ? (
         <select
           value={activeDoctorId}
           onChange={(e) => setActiveDoctorId(e.target.value)}
@@ -1196,7 +1421,7 @@ function PediatricianDashboardPage() {
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
         </select>
-      )}
+      ) : undefined}
       userInitials={doctor ? initials(doctor.name) : 'PD'}
       userMeta={doctor?.specialty || 'Pediatrician Portal'}
       userName={user?.name || doctor?.name || 'Pediatrician'}
@@ -1205,6 +1430,11 @@ function PediatricianDashboardPage() {
         {workspaceError && (
           <div className="dd-alert dd-alert--warning" role="status">
             <span>{workspaceError}</span>
+          </div>
+        )}
+        {consultationRefreshError && (
+          <div className="dd-alert dd-alert--warning" role="status">
+            <span>{consultationRefreshError}</span>
           </div>
         )}
 
@@ -1287,7 +1517,6 @@ function PediatricianDashboardPage() {
 
             <div className="pd-quick-actions">
               <button type="button" onClick={() => queueItems[0] && handleStartConsultation(queueItems[0])}>Start consultation</button>
-              <button type="button" onClick={() => setActiveTab('messages')}>View messages</button>
               <button type="button" onClick={() => setActiveTab('profiles')}>View medical records</button>
             </div>
 
@@ -1562,106 +1791,6 @@ function PediatricianDashboardPage() {
               </div>
             )}
           </>
-        )}
-
-        {/* ── MESSAGES TAB ── */}
-        {activeTab === 'messages' && (
-          <div className="dd-messages-layout">
-            <div className="dd-thread-list">
-              <div className="dd-thread-search">
-                <div className="dd-search-wrap">
-                  <svg className="dd-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  <input
-                    className="dd-search-input"
-                    type="text"
-                    placeholder="Search family messages…"
-                    value={messageSearch}
-                    onChange={(e) => setMessageSearch(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="dd-threads">
-                {filteredThreads.map((thread) => (
-                  <button
-                    key={thread.id}
-                    className={`dd-thread-item ${activeThread?.id === thread.id ? 'dd-thread-item--active' : ''} ${thread.unreadCount > 0 ? 'dd-thread-item--unread' : ''}`}
-                    type="button"
-                    onClick={() => openThread(thread)}
-                  >
-                    <div className="dd-thread-item__avatar">{initials(thread.patientName)}</div>
-                    <div className="dd-thread-item__body">
-                      <p className="dd-thread-item__name">{thread.patientName}</p>
-                      <p className="dd-thread-item__preview">{thread.lastMessage}</p>
-                    </div>
-                    <div className="dd-thread-item__right">
-                      <span className="dd-thread-item__time">{thread.lastMessageAt}</span>
-                      {thread.unreadCount > 0 && (
-                        <span className="dd-unread-badge">{thread.unreadCount}</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
-                {filteredThreads.length === 0 && (
-                  <div className="dd-empty dd-empty--sm">No family conversations.</div>
-                )}
-              </div>
-            </div>
-
-            <div className="dd-chat-pane">
-              {activeThread ? (
-                <>
-                  <div className="dd-chat-header">
-                    <div className="dd-chat-header__info">
-                      <div className="dd-chat-header__avatar">{initials(activeThread.patientName)}</div>
-                      <div>
-                        <p className="dd-chat-header__name">{activeThread.patientName}</p>
-                        <p className="dd-chat-header__status">
-                          <span>{activeThread.backendConsultationId ? `E-consultation #${activeThread.backendConsultationId}` : `E-consultation ${activeThread.id}`}</span>
-                          <span className="dd-online-dot" /> Active
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="dd-chat-messages">
-                    {activeThread.messages.map((msg) => (
-                      <div key={msg.id} className={`dd-msg dd-msg--${msg.sender}`}>
-                        {msg.sender !== 'doctor' && (
-                          <div className="dd-msg__avatar">{initials(activeThread.patientName)}</div>
-                        )}
-                        <div className="dd-msg__bubble">
-                          <p>{msg.text}</p>
-                          <span className="dd-msg__time">{msg.time}</span>
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={messagesEndRef} />
-                  </div>
-                  <div className="dd-chat-input">
-                    <input
-                      type="text"
-                      placeholder="Write your response…"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    />
-                    <button
-                      className="dd-send-btn"
-                      type="button"
-                      onClick={handleSendMessage}
-                      disabled={!newMessage.trim()}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="dd-chat-empty">
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <p>Select a family conversation to reply</p>
-                </div>
-              )}
-            </div>
-          </div>
         )}
 
         {/* ── CONSENTS TAB ── */}
@@ -1997,7 +2126,7 @@ function PediatricianDashboardPage() {
       </div>
 
       {/* ── Consultation side panel ── */}
-      {selectedConsult && activeTab !== 'queue' && (
+      {selectedConsult && (
         <>
           <div className="dd-overlay" onClick={() => { setSelectedConsult(null); setShowConsultChat(false) }} />
           <aside className={`dd-side-panel pd-consult-panel ${showConsultChat ? 'dd-side-panel--chat' : ''}`}>
@@ -2069,17 +2198,24 @@ function PediatricianDashboardPage() {
                 <div className="dd-sp-footer">
                   <div className="dd-sp-actions">
                     <button
+                      className="dd-sp-btn dd-sp-btn--rx"
+                      type="button"
+                      onClick={() => openPrescriptionForConsultation(selectedConsult)}
+                    >
+                      Issue prescription
+                    </button>
+                    <button
                       className="dd-sp-btn dd-sp-btn--success"
                       type="button"
                       disabled={selectedConsult.status === 'Completed'}
-                      onClick={() => { updateConsultationStatus(selectedConsult.id, 'Completed'); setShowConsultChat(false) }}
+                      onClick={() => { void updateConsultationStatus(selectedConsult.id, 'Completed'); setShowConsultChat(false) }}
                     >
                       Mark completed
                     </button>
                     <button
                       className="dd-sp-btn dd-sp-btn--danger"
                       type="button"
-                      onClick={() => { updateConsultationStatus(selectedConsult.id, 'Cancelled'); setSelectedConsult(null); setShowConsultChat(false) }}
+                      onClick={() => { void updateConsultationStatus(selectedConsult.id, 'Cancelled'); setSelectedConsult(null); setShowConsultChat(false) }}
                     >
                       End &amp; cancel
                     </button>
