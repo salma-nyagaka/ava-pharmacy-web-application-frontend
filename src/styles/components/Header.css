@@ -233,6 +233,15 @@
   background-color: var(--color-background-alt);
 }
 
+.header__action-btn--dashboard {
+  color: var(--color-primary);
+}
+
+.header__action-btn--dashboard:hover {
+  color: var(--color-primary-dark);
+  background: rgba(232, 23, 80, 0.08);
+}
+
 .header__action-text {
   font-size: 0.7rem;
   font-weight: 500;
@@ -277,6 +286,9 @@
 /* ── Accounts wrapper ── */
 .header__accounts {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .header__accounts-dropdown {

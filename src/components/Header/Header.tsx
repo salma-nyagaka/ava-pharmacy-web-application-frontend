@@ -126,6 +126,14 @@ function Header() {
 
   const closeActiveMenu = () => setActiveMenu(null)
 
+  const staffDashboard = user?.role === 'admin'
+    ? { label: 'Dashboard', path: '/admin/dashboard' }
+    : user?.role === 'doctor'
+      ? { label: 'Dashboard', path: '/doctor/dashboard' }
+      : user?.role === 'pharmacist'
+        ? { label: 'Dashboard', path: '/pharmacist/dashboard' }
+        : null
+
   const closeMenus = () => {
     setActiveMenu(null)
     setIsMenuOpen(false)
@@ -222,18 +230,6 @@ function Header() {
 
             {/* Actions */}
             <div className="header__actions">
-              {isLoggedIn && user?.role === 'admin' && (
-                <Link to="/admin" className="header__action-btn header__action-btn--admin">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="7" height="7" rx="1"/>
-                    <rect x="14" y="3" width="7" height="7" rx="1"/>
-                    <rect x="3" y="14" width="7" height="7" rx="1"/>
-                    <rect x="14" y="14" width="7" height="7" rx="1"/>
-                  </svg>
-                  <span className="header__action-text">Admin Dashboard</span>
-                </Link>
-              )}
-
               <button className="header__action-btn header__action-btn--search-mobile" onClick={toggleSearch}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"/>
@@ -255,6 +251,17 @@ function Header() {
                       {user?.name?.split(' ')[0] || 'Account'}
                     </span>
                   </button>
+                  {staffDashboard && (
+                    <Link to={staffDashboard.path} className="header__action-btn header__action-btn--dashboard">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1"/>
+                      </svg>
+                      <span className="header__action-text">{staffDashboard.label}</span>
+                    </Link>
+                  )}
                   <div className="header__accounts-dropdown">
                     <nav className="had-links">
                       <Link to="/account" className="had-link">

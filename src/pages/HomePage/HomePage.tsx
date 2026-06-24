@@ -9,7 +9,8 @@ import { useCatalog } from '../../context/CatalogContext'
 import { useAuth } from '../../context/AuthContext'
 import type { CatalogProduct } from '../../data/products'
 import { categoryCardImages } from '../../data/categoryCardImages'
-import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
+import HomeSearch from '../../components/HomeSearch/HomeSearch'
+import LazySection from '../../components/LazySection/LazySection'
 import '../../styles/pages/HomePage.css'
 
 const FEATURED_PRODUCTS_LIMIT = 5
@@ -25,7 +26,7 @@ function HomePage() {
   const toastTimer = useRef<number | null>(null)
   const navigate = useNavigate()
   const { categories } = useCatalog()
-  const { isLoggedIn, user } = useAuth()
+  const { isLoggedIn } = useAuth()
   const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
 
   const valueBannerItems = [
@@ -173,15 +174,6 @@ function HomePage() {
       }))
     return JSON.stringify({ '@context': 'https://schema.org', '@type': 'ItemList', itemListElement: items })
   }, [spotlightOfferProducts, featuredProducts, newProducts])
-  const professionalDashboard =
-    user?.role === 'doctor'
-      ? { label: 'Doctor dashboard', path: '/doctor/dashboard' }
-      : user?.role === 'pediatrician'
-        ? { label: 'Pediatrician dashboard', path: '/pediatrician/dashboard' }
-        : user?.role === 'pharmacist'
-          ? { label: 'Pharmacist dashboard', path: '/pharmacist/dashboard' }
-          : null
-
   const formatPrice = (price: number) => {
     return `KSh ${price.toLocaleString()}`
   }
@@ -532,36 +524,32 @@ function HomePage() {
         Skip to main content
       </a>
       {/* Hero banner */}
-      <section className="hero-carousel" id="main-content" aria-label="Promotional banner">
+      <section className="hero-carousel" id="main-content" aria-label="Ava Pharmacy online pharmacy and care services">
         <h1 className="hero-carousel__sr-title">
           Ava Pharmacy: online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya
         </h1>
         <div className="hero-placeholder">
           <div className="hero-placeholder__inner">
-            <span className="hero-placeholder__eyebrow">Ava Pharmacy</span>
-            <h2 className="hero-placeholder__title">Coming Soon</h2>
+            <span className="hero-placeholder__eyebrow">Ava Pharmacy · Kenya</span>
+            <h2 className="hero-placeholder__title">Medicines & care, delivered to your door</h2>
             <p className="hero-placeholder__text">
-              Our new storefront is on the way. Online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya.
+              Order genuine medicines, book doctor and pediatric consultations, upload prescriptions, and schedule lab tests — all from one place.
             </p>
+            <div className="hero-placeholder__cta">
+              <Link to="/products" className="hero-placeholder__btn hero-placeholder__btn--primary">
+                Shop medicines <span aria-hidden="true">→</span>
+              </Link>
+              <Link to="/doctor-consultation" className="hero-placeholder__btn hero-placeholder__btn--ghost">
+                Book a consultation
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
+      <HomeSearch />
 
 
-      {professionalDashboard && (
-        <section className="hero__quick-links hero__quick-links--professional" aria-label="Professional shortcuts">
-          <div className="container">
-            <span className="hero__quick-links-label">Your workspace</span>
-            <div className="hero__quick-links-list">
-              <Link to={professionalDashboard.path} className="hero__quick-link hero__quick-link--dashboard">
-                {professionalDashboard.label}
-                <span aria-hidden="true">→</span>
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Promotional Banner */}
       <section className="promo-banner">
@@ -582,6 +570,7 @@ function HomePage() {
           </div>
         </div>
       </section>
+
 
       {/* Categories - browse the store */}
       {visibleCategories.length > 0 && (
@@ -641,6 +630,7 @@ function HomePage() {
           </div>
         </section>
       )}
+      <LazySection fallback={<div className="lazy-placeholder" />}>
       <section className="section offers-preview home-section--offers">
         <div className="container">
           {renderSectionHeader('offers', 'Limited time', 'Products On Offer', 'Monthly deals on health essentials, while stocks last.')}
@@ -663,8 +653,10 @@ function HomePage() {
           </div>
         </div>
       </section>
+      </LazySection>
 
       {/* Featured Products - social proof via best sellers */}
+      <LazySection fallback={<div className="lazy-placeholder" />}>
       <section className="section featured-products home-section--featured">
         <div className="container">
           {renderSectionHeader('top', 'Customer favourites', 'Top Rated Products', 'Highly rated by shoppers like you.')}
@@ -687,8 +679,10 @@ function HomePage() {
           </div>
         </div>
       </section>
+      </LazySection>
 
       {/* Services Section */}
+      <LazySection fallback={<div className="lazy-placeholder" />}>
       <section className="hp-services">
         <div className="container">
           <div className="hp-services__shell">
@@ -775,8 +769,10 @@ function HomePage() {
       
         </div>
       </section>
+      </LazySection>
 
       {/* New Products Section */}
+      <LazySection fallback={<div className="lazy-placeholder" />}>
       <section className="section new-products home-section--new">
         <div className="container">
           {renderSectionHeader('new', 'Just in', 'New Products', 'Fresh stock added to our shelves.')}
@@ -799,8 +795,68 @@ function HomePage() {
           </div>
         </div>
       </section>
+      </LazySection>
 
-      <SupportShortcuts />
+      {/* Trust & compliance band */}
+      <section className="home-trust" aria-label="Pharmacy accreditation and licensing">
+        <div className="container">
+          <div className="home-trust__row">
+            <div className="home-trust__item">
+              <span className="home-trust__icon home-trust__icon--shield" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.95" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 3l7 3v5.25c0 4.95-3.24 8.62-7 9.75-3.76-1.13-7-4.8-7-9.75V6l7-3z" />
+                  <path d="M9.25 12.4l2 2 3.8-4.1" />
+                </svg>
+              </span>
+              <div>
+                <strong>Pharmacy & Poisons Board registered</strong>
+                <span>Licensed pharmacy practice in Kenya</span>
+              </div>
+            </div>
+            <div className="home-trust__item">
+              <span className="home-trust__icon home-trust__icon--document" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M8 3h7l4 4v14H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                  <path d="M15 3v4h4" />
+                  <path d="M9 12h6" />
+                  <path d="M9 15.5h6" />
+                </svg>
+              </span>
+              <div>
+                <strong>Verified prescription handling</strong>
+                <span>Pharmacist-reviewed Rx orders</span>
+              </div>
+            </div>
+            <div className="home-trust__item">
+              <span className="home-trust__icon home-trust__icon--lock" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                  <rect x="5" y="11" width="14" height="10" rx="2.5" />
+                  <path d="M12 15.3v2.2" />
+                </svg>
+              </span>
+              <div>
+                <strong>Secure & private</strong>
+                <span>Encrypted checkout & health data</span>
+              </div>
+            </div>
+            <div className="home-trust__item">
+              <span className="home-trust__icon home-trust__icon--truck" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 8h10v8H3z" />
+                  <path d="M13 11h4l3 3v2h-7z" />
+                  <circle cx="8" cy="18" r="1.6" />
+                  <circle cx="18" cy="18" r="1.6" />
+                </svg>
+              </span>
+              <div>
+                <strong>Nairobi & nationwide delivery</strong>
+                <span>Find us on the store locator</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {toast && (
         <div className="home-toast" role="status" aria-live="polite">
