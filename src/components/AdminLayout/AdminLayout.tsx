@@ -84,6 +84,17 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
+        label: 'Banners',
+        to: '/admin/banners',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
+            <path d="M4 6h16v10H4z" />
+            <path d="M8 16v3l4-3h8" />
+            <path d="M8 10h8" />
+          </svg>
+        ),
+      },
+      {
         label: 'Inventory',
         to: '/admin/inventory',
         matchChildren: true,
@@ -252,7 +263,19 @@ const NAV_SECTIONS: AdminNavSection[] = [
   },
 ]
 
-const ENABLED_NON_STORE_ITEMS = new Set(['Doctors', 'Pediatricians', 'Pharmacists', 'Support', 'Settings'])
+const ENABLED_NON_STORE_ITEMS = new Set([
+  'Dashboard',
+  'Doctors',
+  'Pediatricians',
+  'Pharmacists',
+  'Customers',
+  'Payouts',
+  'Reports',
+  'Invoices',
+  'Support',
+  'Settings',
+  'Banners',
+])
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)

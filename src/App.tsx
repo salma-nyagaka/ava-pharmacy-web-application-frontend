@@ -28,6 +28,7 @@ import ProductManagement from './pages/Admin/ProductManagement'
 import CategoryManagement from './pages/Admin/CategoryManagement'
 import HealthConcernManagement from './pages/Admin/HealthConcernManagement'
 import BrandManagement from './pages/Admin/BrandManagement'
+import BannerManagement from './pages/Admin/BannerManagement'
 import UserManagement from './pages/Admin/UserManagement'
 import UserDetailsPage from './pages/Admin/UserDetailsPage'
 import OrderManagement from './pages/Admin/OrderManagementLive'
@@ -192,6 +193,7 @@ function App() {
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="health-concerns" element={<HealthConcernManagement />} />
               <Route path="brands" element={<BrandManagement />} />
+              <Route path="banners" element={<BannerManagement />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:id" element={<UserDetailsPage />} />
               <Route path="orders" element={<OrderManagement />} />

@@ -3,6 +3,7 @@ import { adminProductService, ApiHealthConcern } from '../../services/adminProdu
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/HealthConcernManagement.css'
 
 const PAGE_SIZE = 8
 type SortDirection = 'asc' | 'desc'
@@ -43,10 +44,6 @@ function HealthConcernManagement() {
   const [formImagePreview, setFormImagePreview] = useState('')
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
-
-  const [deleteTarget, setDeleteTarget] = useState<ApiHealthConcern | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
 
   const [togglingIds, setTogglingIds] = useState<Set<number>>(new Set())
 
@@ -118,22 +115,6 @@ function HealthConcernManagement() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    setDeleting(true); setDeleteError('')
-    try {
-      await adminProductService.deleteHealthConcern(deleteTarget.id)
-      setConcerns((prev) => prev.filter((c) => c.id !== deleteTarget.id))
-      setDeleteTarget(null)
-      window.dispatchEvent(new Event('ava:catalog-updated'))
-    } catch (err: unknown) {
-      type ApiErr = { response?: { data?: { error?: { message?: string } } } }
-      setDeleteError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to delete. Please try again.')
-    } finally {
-      setDeleting(false)
-    }
-  }
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return concerns.filter((c) => {
@@ -191,13 +172,13 @@ function HealthConcernManagement() {
 
   const sortIndicator = (field: SortField) => sortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
   const renderSortButton = (field: SortField, label: string) => (
-    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort(field)}>
+    <button type="button" className="cm-th-sort" onClick={() => handleSort(field)}>
       {label} {sortIndicator(field)}
     </button>
   )
 
   return (
-    <div className="category-management">
+    <div className="category-management hcm-page">
 
       {/* ── Header ── */}
       <div className="category-management__header">
@@ -209,9 +190,11 @@ function HealthConcernManagement() {
         </div>
         <div className="category-management__actions">
           <button className="btn btn--primary btn--sm" type="button" onClick={openAddModal}>
-            + Health Concern
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+              <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+            </svg>
+            Health Concern
           </button>
-      
         </div>
       </div>
 
@@ -222,17 +205,9 @@ function HealthConcernManagement() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Active</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeCount}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Inactive</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : concerns.length - activeCount}</strong>
+            <span className="cm-kpi-card__label">Health Concerns</span>
+            <strong className="cm-kpi-card__value">{loading ? '—' : concerns.length}</strong>
+            <span className="cm-kpi-card__delta">{loading ? '' : `${activeCount} active · ${concerns.length - activeCount} inactive`}</span>
           </div>
         </div>
       </div>
@@ -320,7 +295,10 @@ function HealthConcernManagement() {
               </p>
               {!search && (
                 <button className="btn btn--primary btn--sm" type="button" onClick={openAddModal}>
-                  + Add Health Concern
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+                    <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+                  </svg>
+                  Add Health Concern
                 </button>
               )}
             </div>
@@ -334,9 +312,7 @@ function HealthConcernManagement() {
                     <th>Description</th>
                     <th>{renderSortButton('status', 'Status')}</th>
                     <th>{renderSortButton('created_at', 'Created At')}</th>
-                    <th>Created By</th>
-                    <th>Updated By</th>
-                    <th className="cm-th-actions"></th>
+                    <th className="cm-th-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -350,11 +326,11 @@ function HealthConcernManagement() {
                       </td>
                       <td>
                         {c.image
-                          ? <a href={c.image} target="_blank" rel="noreferrer" style={{ color: '#2563eb', fontSize: '0.74rem', textDecoration: 'underline' }}>View image</a>
-                          : <span className="cm-name-cell__id">—</span>}
+                          ? <a className="cm-cell-link" href={c.image} target="_blank" rel="noreferrer">View image</a>
+                          : <span className="cm-cell-muted">—</span>}
                       </td>
                       <td>
-                        <span className="cm-name-cell__desc" style={{ maxWidth: 340 }}>
+                        <span className="cm-cell-desc">
                           {c.description || <span className="cm-name-cell__id">—</span>}
                         </span>
                       </td>
@@ -369,9 +345,7 @@ function HealthConcernManagement() {
                           <span className="cm-toggle__knob" />
                         </button>
                       </td>
-                      <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(c.created_at)}</td>
-                      <td style={{ color: '#6b7280' }}>—</td>
-                      <td style={{ color: '#6b7280' }}>—</td>
+                      <td className="cm-cell-date">{formatDate(c.created_at)}</td>
                       <td>
                         <div className="cm-row-actions">
                           <button
@@ -520,66 +494,6 @@ function HealthConcernManagement() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Delete Confirmation ── */}
-      {deleteTarget && (
-        <div className="cm-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
-          <div className="cm-modal cm-modal--sm" onClick={(e) => e.stopPropagation()}>
-            <div className="cm-modal__header cm-modal__header--danger">
-              <h2>Delete Health Concern</h2>
-              <button
-                type="button"
-                className="cm-modal__close"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-                aria-label="Close"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="cm-delete-body">
-              <div className="cm-delete-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-              </div>
-              <p>Delete <strong>"{deleteTarget.name}"</strong>? This action cannot be undone.</p>
-              <p className="cm-delete-warning">Products tagged with this concern will have it removed.</p>
-              {deleteError && (
-                <p className="cm-form__error" style={{ marginTop: '0.75rem', justifyContent: 'center' }}>
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  {deleteError}
-                </p>
-              )}
-            </div>
-
-            <div className="cm-modal__actions">
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn--danger btn--sm"
-                onClick={() => void handleDelete()}
-                disabled={deleting}
-              >
-                {deleting ? <><span className="cm-spinner cm-spinner--light" /> Deleting…</> : 'Delete'}
-              </button>
-            </div>
           </div>
         </div>
       )}

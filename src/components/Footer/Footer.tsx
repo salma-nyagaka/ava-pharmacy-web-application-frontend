@@ -125,6 +125,23 @@ function Footer() {
               <Link to="/contact" className="footer__location-link">Contact Us</Link>
             </div>
 
+            <div className="footer__column">
+              <h4 className="footer__title">Pharmacy Compliance</h4>
+              <ul className="footer__links footer__links--compliance">
+                <li>Health Safety Code: {settings.healthSafetyCode || 'Pending PPB issue'}</li>
+                <li>Premises Reg: {settings.premisesRegistrationNumber || 'Pending update'}</li>
+                <li>Online License: {settings.onlinePharmacyLicenseNumber || 'Pending update'}</li>
+                <li>Superintendent: {settings.superintendentName || 'Pending update'} {settings.superintendentRegistrationNumber ? `(${settings.superintendentRegistrationNumber})` : ''}</li>
+                <li>Pharmacist available: {settings.pharmacistConsultationHours || settings.supportHours}</li>
+                <li>
+                  <a href={settings.ppbWebsite} target="_blank" rel="noopener noreferrer">
+                    {settings.ppbContactName}
+                  </a>
+                </li>
+                <li>{settings.ppbContactPhone} · {settings.ppbContactEmail}</li>
+              </ul>
+            </div>
+
           </div>
         </div>
       </div>

@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   adminProductService,
-  ApiPromotion,
   ApiProductCategory,
   ApiProductSubcategory,
 } from '../../services/adminProductService'
@@ -34,30 +33,9 @@ function compareCreatedAt(left?: string, right?: string): number {
   return leftTime - rightTime
 }
 
-function isActivePromotion(promotion: ApiPromotion, now = new Date()): boolean {
-  if (promotion.status !== 'active') return false
-  const today = new Date(now.toISOString().slice(0, 10))
-  const start = new Date(promotion.start_date)
-  const end = new Date(promotion.end_date)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false
-  return start <= today && today <= end
-}
-
-function getDealLabel(promotions: ApiPromotion[], scope: 'category' | 'brand', slug?: string | null): string {
-  const activePromotions = promotions.filter((promotion) => isActivePromotion(promotion))
-  if (slug && activePromotions.some((promotion) => promotion.scope === scope && promotion.targets.includes(slug))) {
-    return 'Active deal'
-  }
-  if (activePromotions.some((promotion) => promotion.scope === 'all')) {
-    return 'Storewide deal'
-  }
-  return 'No active deal'
-}
-
 function CategoryManagement() {
   const [categories, setCategories] = useState<ApiProductCategory[]>([])
   const [subcategories, setSubcategories] = useState<ApiProductSubcategory[]>([])
-  const [promotions, setPromotions] = useState<ApiPromotion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('categories')
@@ -90,14 +68,12 @@ function CategoryManagement() {
     setLoading(true)
     setError('')
     try {
-      const [cats, subs, promoRows] = await Promise.all([
+      const [cats, subs] = await Promise.all([
         adminProductService.listProductCategories(),
         adminProductService.listProductSubcategories(),
-        adminProductService.listPromotions(),
       ])
       setCategories(cats)
       setSubcategories(subs)
-      setPromotions(promoRows)
     } catch {
       setError('Unable to load categories. Check your connection and try again.')
     } finally {
@@ -421,7 +397,7 @@ function CategoryManagement() {
   const categorySortIndicator = (field: CategorySortField) => categorySortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
   const subcategorySortIndicator = (field: SubcategorySortField) => subcategorySortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
 
-  const sortButtonClass = 'btn btn--ghost btn--sm'
+  const sortButtonClass = 'cm-th-sort'
 
   const renderCategorySortButton = (field: CategorySortField, label: string) => (
     <button type="button" className={sortButtonClass} onClick={() => handleCategorySort(field)}>
@@ -448,7 +424,10 @@ function CategoryManagement() {
         </div>
         <div className="category-management__actions">
           <button className="btn btn--primary btn--sm" type="button" onClick={() => openCreateModal('category')}>
-            + Category
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+              <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+            </svg>
+            Category
           </button>
           <button
             className="btn btn--secondary btn--sm"
@@ -456,9 +435,11 @@ function CategoryManagement() {
             onClick={() => openCreateModal('subcategory')}
             disabled={categories.length === 0}
           >
-            + Subcategory
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+              <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+            </svg>
+            Subcategory
           </button>
-     
         </div>
       </div>
 
@@ -471,8 +452,9 @@ function CategoryManagement() {
             </svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Total Categories</span>
+            <span className="cm-kpi-card__label">Categories</span>
             <strong className="cm-kpi-card__value">{loading ? '—' : categories.length}</strong>
+            <span className="cm-kpi-card__delta">{loading ? '' : `${activeCategories} active · ${categories.length - activeCategories} inactive`}</span>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -482,30 +464,9 @@ function CategoryManagement() {
             </svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Total Subcategories</span>
+            <span className="cm-kpi-card__label">Subcategories</span>
             <strong className="cm-kpi-card__value">{loading ? '—' : subcategories.length}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
-              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Active Categories</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeCategories}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
-              <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-            </svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Active Subcategories</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeSubcategories}</strong>
+            <span className="cm-kpi-card__delta">{loading ? '' : `${activeSubcategories} active · ${subcategories.length - activeSubcategories} inactive`}</span>
           </div>
         </div>
       </div>
@@ -640,12 +601,9 @@ function CategoryManagement() {
                     <th>Description</th>
                     <th>Image</th>
                     <th>{renderCategorySortButton('status', 'Status')}</th>
-                    <th>Active Deal</th>
                     <th>{renderCategorySortButton('subcategories', 'Subcategories')}</th>
                     <th>{renderCategorySortButton('created_at', 'Created At')}</th>
-                    <th>Created By</th>
-                    <th>Updated By</th>
-                    <th className="cm-th-actions"></th>
+                    <th className="cm-th-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -653,7 +611,6 @@ function CategoryManagement() {
                     const preview = cat.subcategories.slice(0, 3)
                     const overflow = cat.subcategories.length - preview.length
                     const toggleKey = `category-${cat.id}`
-                    const dealLabel = getDealLabel(promotions, 'category', cat.slug)
                     return (
                       <tr key={cat.id}>
                         <td>
@@ -666,22 +623,15 @@ function CategoryManagement() {
                           </div>
                         </td>
                         <td>
-                          <span style={{ color: '#4b5563', fontSize: '0.74rem', lineHeight: 1.25 }}>
-                            {cat.description || '—'}
-                          </span>
+                          <span className="cm-cell-desc">{cat.description || '—'}</span>
                         </td>
                         <td>
                           {cat.image ? (
-                            <a
-                              href={cat.image}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ color: '#2563eb', fontSize: '0.74rem', textDecoration: 'underline' }}
-                            >
+                            <a className="cm-cell-link" href={cat.image} target="_blank" rel="noreferrer">
                               View image
                             </a>
                           ) : (
-                            <span style={{ color: '#6b7280', fontSize: '0.74rem' }}>—</span>
+                            <span className="cm-cell-muted">—</span>
                           )}
                         </td>
                         <td>
@@ -694,11 +644,6 @@ function CategoryManagement() {
                           >
                             <span className="cm-toggle__knob" />
                           </button>
-                        </td>
-                        <td>
-                          <span className={`cm-status ${dealLabel === 'No active deal' ? 'cm-status--inactive' : 'cm-status--active'}`}>
-                            {dealLabel}
-                          </span>
                         </td>
                         <td>
                           <div className="cm-chips">
@@ -724,9 +669,7 @@ function CategoryManagement() {
                             )}
                           </div>
                         </td>
-                        <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(cat.created_at)}</td>
-                        <td style={{ color: '#6b7280' }}>—</td>
-                        <td style={{ color: '#6b7280' }}>—</td>
+                        <td className="cm-cell-date">{formatDate(cat.created_at)}</td>
                         <td>
                           <div className="cm-row-actions">
                             <button
@@ -786,18 +729,13 @@ function CategoryManagement() {
                     <th>{renderSubcategorySortButton('name', 'Subcategory')}</th>
                     <th>{renderSubcategorySortButton('parent', 'Parent Category')}</th>
                     <th>{renderSubcategorySortButton('status', 'Status')}</th>
-                    <th>Active Deal</th>
                     <th>{renderSubcategorySortButton('created_at', 'Created At')}</th>
-                    <th>Created By</th>
-                    <th>Updated By</th>
-                    <th className="cm-th-actions"></th>
+                    <th className="cm-th-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pagedSubcategories.map((sub) => {
                     const toggleKey = `subcategory-${sub.id}`
-                    const parentCategory = categories.find((category) => category.id === sub.category)
-                    const dealLabel = getDealLabel(promotions, 'category', parentCategory?.slug)
                     return (
                       <tr key={sub.id}>
                         <td>
@@ -823,14 +761,7 @@ function CategoryManagement() {
                             <span className="cm-toggle__knob" />
                           </button>
                         </td>
-                        <td>
-                          <span className={`cm-status ${dealLabel === 'No active deal' ? 'cm-status--inactive' : 'cm-status--active'}`}>
-                            {dealLabel}
-                          </span>
-                        </td>
-                        <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(sub.created_at)}</td>
-                        <td style={{ color: '#6b7280' }}>—</td>
-                        <td style={{ color: '#6b7280' }}>—</td>
+                        <td className="cm-cell-date">{formatDate(sub.created_at)}</td>
                         <td>
                           <div className="cm-row-actions">
                             <button
@@ -943,7 +874,7 @@ function CategoryManagement() {
                 <p>
                   {isSubcategoryModal
                     ? 'A subcategory belongs to a parent category.'
-                    : 'Top-level grouping for your product catalog.'}
+                    : 'Used to group products at the top level.'}
                 </p>
               </div>
               <button type="button" className="cm-modal__close" onClick={closeModal} disabled={formSaving} aria-label="Close">

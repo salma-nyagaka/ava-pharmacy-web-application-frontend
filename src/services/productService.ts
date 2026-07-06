@@ -345,6 +345,57 @@ export interface PublicBrand {
   description: string | null
 }
 
+export interface PublicBanner {
+  id: number
+  title: string
+  message: string
+  link: string | null
+  image: string | null
+  category: number | null
+  category_slug: string | null
+  category_name: string | null
+  target_url: string
+  placement: string
+  sort_order: number
+  status: 'active' | 'inactive'
+}
+
+type RawBanner = Partial<PublicBanner> & {
+  image_url?: string | null
+  banner_image?: string | null
+  redirect_url?: string | null
+  url?: string | null
+  is_active?: boolean
+}
+
+function getBannerTargetUrl(banner: Partial<PublicBanner> & RawBanner): string {
+  if (banner.category_slug) return `/products?category=${encodeURIComponent(banner.category_slug)}`
+  return banner.target_url || banner.link || banner.redirect_url || banner.url || ''
+}
+
+function extractBannerCollection(raw: unknown): PublicBanner[] {
+  if (Array.isArray(raw)) return raw as PublicBanner[]
+  if (!raw || typeof raw !== 'object') return []
+
+  const payload = raw as {
+    data?: unknown
+    results?: PublicBanner[]
+    banners?: PublicBanner[]
+  }
+
+  if (Array.isArray(payload.results)) return payload.results
+  if (Array.isArray(payload.banners)) return payload.banners
+  if (Array.isArray(payload.data)) return payload.data as PublicBanner[]
+
+  if (payload.data && typeof payload.data === 'object') {
+    const nested = payload.data as { results?: PublicBanner[]; banners?: PublicBanner[] }
+    if (Array.isArray(nested.results)) return nested.results
+    if (Array.isArray(nested.banners)) return nested.banners
+  }
+
+  return []
+}
+
 export async function fetchBrands(): Promise<unknown[]> {
   const res = await apiClient.get('/products/brands/')
   return res.data?.data ?? []
@@ -369,9 +420,22 @@ export async function fetchFeaturedProducts(): Promise<Product[]> {
   return []
 }
 
-export async function fetchBanners(): Promise<unknown[]> {
-  const res = await apiClient.get('/products/banners/')
-  return res.data?.data ?? []
+export async function fetchBanners(): Promise<PublicBanner[]> {
+  const res = await apiClient.get('/banners/')
+  const items = extractBannerCollection(res.data)
+  return items.map((banner) => ({
+    ...banner,
+    title: banner.title || '',
+    message: banner.message || '',
+    link: banner.link || (banner as RawBanner).redirect_url || (banner as RawBanner).url || null,
+    target_url: getBannerTargetUrl(banner as RawBanner),
+    image: resolveMediaUrl(banner.image || (banner as RawBanner).image_url || (banner as RawBanner).banner_image),
+    placement: banner.placement || 'home_hero',
+    sort_order: Number.isFinite(Number(banner.sort_order)) ? Number(banner.sort_order) : 0,
+    status: String(banner.status || ((banner as RawBanner).is_active === false ? 'inactive' : 'active')).toLowerCase() === 'inactive'
+      ? 'inactive'
+      : 'active',
+  }))
 }
 
 export async function fetchProductReviews(productId: number): Promise<ProductReview[]> {

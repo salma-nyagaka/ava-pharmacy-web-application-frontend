@@ -22,15 +22,14 @@
 
 /* ── Stats bar ──────────────────────────── */
 .dm-stats {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1.25rem;
-  flex-wrap: wrap;
 }
 
 .dm-stat {
-  flex: 1;
-  min-width: 120px;
+  min-width: 0;
   background: #fff;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -842,6 +841,7 @@
 
   .dm-stats {
     gap: 0.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dm-detail-value {

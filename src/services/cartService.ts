@@ -33,6 +33,7 @@ function mapApiItem(item: Record<string, unknown>): CartItem {
     stockSource: ((product.inventory_status ?? '') === 'out_of_stock' ? undefined : ((product.stock_source ?? 'branch') as 'branch' | 'warehouse')),
     prescriptionId: item.prescription_id as string | undefined,
     prescriptionItemId: item.prescription_item as number | undefined,
+    otcScreening: item.otc_screening as Record<string, unknown> | undefined,
   }
 }
 
@@ -55,6 +56,7 @@ export const cartService = {
         variant_id: item.variantId,
         quantity: item.quantity,
         prescription_id: item.prescriptionId,
+        otc_screening: item.otcScreening,
       })),
     })
     clearCartItems()
@@ -75,9 +77,10 @@ export const cartService = {
     }
   },
 
-  add: async (item: CartAddPayload, quantity = 1) => {
+  add: async (item: CartAddPayload, quantity = 1, otcScreening?: Record<string, unknown>) => {
+    const nextItem = otcScreening ? { ...item, otcScreening } : item
     if (!isAuthenticated()) {
-      const updated = addItemToCart(item, quantity)
+      const updated = addItemToCart(nextItem, quantity)
       dispatchCartEvent()
       return { data: updated }
     }
@@ -86,6 +89,7 @@ export const cartService = {
         product_id: item.productId ?? item.id,
         quantity,
         prescription_id: item.prescriptionId,
+        otc_screening: otcScreening ?? item.otcScreening,
       }
       if (item.variantId) {
         payload.variant_id = item.variantId
@@ -96,7 +100,7 @@ export const cartService = {
       dispatchCartEvent()
       return { data: items }
     } catch {
-      const updated = addItemToCart(item, quantity)
+      const updated = addItemToCart(nextItem, quantity)
       dispatchCartEvent()
       return { data: updated }
     }

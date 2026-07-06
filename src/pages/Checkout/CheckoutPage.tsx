@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
 import { CartItem } from '../../data/cart'
 import { kenyaCounties, kenyaCountyCities } from '../../data/kenyaLocations'
 import { useAuth } from '../../context/AuthContext'
@@ -20,6 +21,7 @@ import {
   type PaymentIntent,
   type ShippingMethod,
 } from '../../services/orderService'
+import { isBotChallengeEnabled } from '../../services/botProtectionService'
 import { fetchAvailability } from '../../services/productService'
 import '../../styles/pages/CheckoutPage.css'
 
@@ -109,6 +111,8 @@ function CheckoutPage() {
   const [city, setCity] = useState('')
   const [county, setCounty] = useState('')
   const [validationError, setValidationError] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [challengeResetKey, setChallengeResetKey] = useState(0)
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethodOption>('doorstep_delivery')
@@ -145,6 +149,12 @@ function CheckoutPage() {
   )
   const inactiveSavedAddressCount = savedAddresses.length - deliverableSavedAddresses.length
   const areaLabel = county === 'Nairobi' ? 'Area *' : 'City / Town *'
+  const challengeRequired = isBotChallengeEnabled()
+
+  const resetChallenge = () => {
+    setChallengeToken('')
+    setChallengeResetKey((key) => key + 1)
+  }
 
   const applySavedAddress = (address: SavedAddress) => {
     setSelectedAddressId(String(address.id))
@@ -724,6 +734,7 @@ function CheckoutPage() {
       setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
       setCurrentStep(2)
     } catch (error) {
+      resetChallenge()
       type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string } } }
       const message = (error as ApiErr)?.response?.data?.error?.message
         ?? (error as ApiErr)?.response?.data?.detail
@@ -743,6 +754,7 @@ function CheckoutPage() {
         setValidationError('Payment is still being confirmed. Please wait a moment and try again.')
       }
     } catch (error) {
+      resetChallenge()
       type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string | string[] } } }
       const detail = (error as ApiErr)?.response?.data?.error?.message
         ?? (error as ApiErr)?.response?.data?.detail
@@ -813,6 +825,10 @@ function CheckoutPage() {
   const handleContinueToPayment = () => {
     if (isPaymentLocked) return
     if (!validateStepOne()) return
+    if (challengeRequired && !challengeToken) {
+      setValidationError('Complete the security check before continuing.')
+      return
+    }
     if (!mpesaPhone.trim() && phone.trim()) setMpesaPhone(phone.trim())
     setCurrentStep(2)
   }
@@ -876,7 +892,7 @@ function CheckoutPage() {
     ) {
       return draftOrder
     }
-    const order = await createCheckoutDraft(buildCheckoutPayload())
+    const order = await createCheckoutDraft(buildCheckoutPayload(), challengeToken)
     setDraftOrder(order)
     window.localStorage.setItem(checkoutOrderStorageKey, String(order.id))
     return order
@@ -1311,9 +1327,10 @@ function CheckoutPage() {
                     </p>
                   </div>
                   {availabilityErrors.length > 0 && <p className="co-error">{availabilityErrors[0]}</p>}
+                  <TurnstileChallenge action="checkout" onToken={setChallengeToken} resetKey={challengeResetKey} />
                   {validationError && <p className="co-error">{validationError}</p>}
                   <div className="co-form__actions">
-                    <button type="button" onClick={handleContinueToPayment} className="btn btn--primary btn--lg" disabled={checkoutItems.length === 0 || isSubmitting}>
+                    <button type="button" onClick={handleContinueToPayment} className="btn btn--primary btn--lg" disabled={checkoutItems.length === 0 || isSubmitting || (challengeRequired && !challengeToken)}>
                       Continue to Payment
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </button>

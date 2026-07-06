@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
+import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
-import { fetchFeaturedProducts } from '../../services/productService'
+import { adminProductService } from '../../services/adminProductService'
+import { fetchBanners, fetchFeaturedProducts, type PublicBanner } from '../../services/productService'
 import { mapApiProduct, useProducts } from '../../hooks/useProducts'
 import { useCatalog } from '../../context/CatalogContext'
 import { useAuth } from '../../context/AuthContext'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
 import type { CatalogProduct } from '../../data/products'
 import { categoryCardImages } from '../../data/categoryCardImages'
 import HomeSearch from '../../components/HomeSearch/HomeSearch'
@@ -27,7 +30,12 @@ function HomePage() {
   const navigate = useNavigate()
   const { categories } = useCatalog()
   const { isLoggedIn } = useAuth()
+  const { settings } = useSiteSettings()
   const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
+  const [homeBanners, setHomeBanners] = useState<PublicBanner[]>([])
+  const [homeBannersLoading, setHomeBannersLoading] = useState(true)
+  const [bannerRefreshTick, setBannerRefreshTick] = useState(0)
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0)
 
   const valueBannerItems = [
     { key: 'delivery', title: 'Free Delivery',       subtitle: `On orders over KSh 2500/-`, link: '/help', color: 'green'  },
@@ -49,6 +57,8 @@ function HomePage() {
     const normalizedSlug = category.slug.trim().toLowerCase()
     return normalizedName !== 'collections' && normalizedSlug !== 'collections'
   })
+  const getCategoryBannerTarget = (categorySlug?: string | null) =>
+    categorySlug ? `/products?category=${encodeURIComponent(categorySlug)}` : ''
 
   const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name' | 'variantId'>) => {
     const params = new URLSearchParams({
@@ -126,6 +136,113 @@ function HomePage() {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadHomeBanners = async () => {
+      setHomeBannersLoading(true)
+      try {
+        const apiBanners = await fetchBanners()
+        if (!isMounted) return
+        const activeApiBanners = apiBanners
+          .filter((banner) => banner.status === 'active' && Boolean(banner.image))
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+
+        if (activeApiBanners.length > 0) {
+          setHomeBanners(activeApiBanners)
+          setHomeBannersLoading(false)
+          return
+        }
+      } catch {
+        // Continue through the authenticated and local fallbacks below.
+      }
+
+      try {
+        if (window.localStorage.getItem('ava_access_token')) {
+          const adminBanners = await adminProductService.listBanners()
+          if (!isMounted) return
+          const activeAdminBanners = adminBanners
+            .filter((banner) => banner.status === 'active' && Boolean(banner.image))
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            .map((banner) => ({
+              id: banner.id,
+              title: banner.title || '',
+              message: banner.message,
+              link: banner.link || null,
+              image: banner.image || null,
+              category: banner.category,
+              category_slug: banner.category_slug,
+              category_name: banner.category_name,
+              target_url: getCategoryBannerTarget(banner.category_slug) || banner.target_url || banner.link || '',
+              placement: banner.placement || 'home_hero',
+              sort_order: banner.sort_order ?? 0,
+              status: banner.status,
+            }))
+
+          if (activeAdminBanners.length > 0) {
+            setHomeBanners(activeAdminBanners)
+            setHomeBannersLoading(false)
+            return
+          }
+        }
+      } catch {
+        // Continue through the local fallback below.
+      }
+
+      if (!isMounted) return
+      const localBanners = loadBanners()
+        .filter((banner) => banner.status === 'active' && Boolean(banner.image))
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map((banner, index) => ({
+          id: Number.isFinite(Number(banner.id)) ? Number(banner.id) : index + 1,
+          title: banner.title || '',
+          message: banner.message,
+          link: banner.link || null,
+          image: banner.image || null,
+          category: banner.category ?? null,
+          category_slug: banner.category_slug ?? null,
+          category_name: banner.category_name ?? null,
+          target_url: getCategoryBannerTarget(banner.category_slug) || banner.target_url || banner.link || '',
+          placement: banner.placement || 'home_hero',
+          sort_order: banner.sort_order ?? 0,
+          status: banner.status,
+        }))
+      setHomeBanners(localBanners)
+      setHomeBannersLoading(false)
+    }
+
+    void loadHomeBanners()
+    const refreshBanners = () => { void loadHomeBanners(); setBannerRefreshTick((value) => value + 1) }
+    window.addEventListener('ava:catalog-updated', refreshBanners)
+    return () => {
+      isMounted = false
+      window.removeEventListener('ava:catalog-updated', refreshBanners)
+    }
+  }, [])
+
+  const visibleHomeBanners = useMemo(
+    () => homeBanners
+      .filter((banner) => banner.status === 'active' && banner.placement === 'home_hero' && Boolean(banner.image))
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [homeBanners, bannerRefreshTick]
+  )
+  const hasMultipleHeroBanners = visibleHomeBanners.length > 1
+
+  useEffect(() => {
+    setActiveHeroIndex((current) => {
+      if (visibleHomeBanners.length === 0) return 0
+      return Math.min(current, visibleHomeBanners.length - 1)
+    })
+  }, [visibleHomeBanners.length])
+
+  useEffect(() => {
+    if (!hasMultipleHeroBanners) return undefined
+    const timer = window.setInterval(() => {
+      setActiveHeroIndex((current) => (current + 1) % visibleHomeBanners.length)
+    }, 6000)
+    return () => window.clearInterval(timer)
+  }, [hasMultipleHeroBanners, visibleHomeBanners.length])
 
   const featuredProducts = useMemo(() => {
     const seen = new Set<number>()
@@ -406,6 +523,41 @@ function HomePage() {
     </div>
   )
 
+  const renderHeroSlide = (banner: PublicBanner, index: number) => {
+    const target = banner.target_url || banner.link || ''
+    const isExternal = /^https?:\/\//i.test(target)
+    const slideContent = (
+      <ImageWithFallback
+        src={banner.image || ''}
+        alt={banner.title || banner.message || `Hero banner ${index + 1}`}
+        className="hero-placeholder__bg"
+      />
+    )
+    const className = 'hero-carousel__slide hero-placeholder hero-placeholder--dynamic'
+
+    if (!target) {
+      return (
+        <div className={className} key={banner.id || index}>
+          {slideContent}
+        </div>
+      )
+    }
+
+    if (isExternal) {
+      return (
+        <a className={className} href={target} rel="noreferrer" target="_blank" key={banner.id || index}>
+          {slideContent}
+        </a>
+      )
+    }
+
+    return (
+      <Link className={className} to={target} key={banner.id || index}>
+        {slideContent}
+      </Link>
+    )
+  }
+
   const renderProductCard = (product: CatalogProduct, section: 'deals' | 'featured' | 'new') => {
     const displayBadge = getProductBadge(product, section)
     const discountPercent =
@@ -528,23 +680,73 @@ function HomePage() {
         <h1 className="hero-carousel__sr-title">
           Ava Pharmacy: online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya
         </h1>
-        <div className="hero-placeholder">
-          <div className="hero-placeholder__inner">
-            <span className="hero-placeholder__eyebrow">Ava Pharmacy · Kenya</span>
-            <h2 className="hero-placeholder__title">Medicines & care, delivered to your door</h2>
-            <p className="hero-placeholder__text">
-              Order genuine medicines, book doctor and pediatric consultations, upload prescriptions, and schedule lab tests — all from one place.
-            </p>
-            <div className="hero-placeholder__cta">
-              <Link to="/products" className="hero-placeholder__btn hero-placeholder__btn--primary">
-                Shop medicines <span aria-hidden="true">→</span>
-              </Link>
-              <Link to="/doctor-consultation" className="hero-placeholder__btn hero-placeholder__btn--ghost">
-                Book a consultation
-              </Link>
+        {homeBannersLoading && visibleHomeBanners.length === 0 ? (
+          <div className="hero-placeholder hero-placeholder--dynamic hero-placeholder--loading" aria-hidden="true" />
+        ) : visibleHomeBanners.length === 0 ? (
+          <div className="hero-placeholder">
+            <div className="hero-placeholder__inner">
+              <span className="hero-placeholder__eyebrow">Ava Pharmacy · Kenya</span>
+              <h2 className="hero-placeholder__title">Medicines & care, delivered to your door</h2>
+              <p className="hero-placeholder__text">
+                Order genuine medicines, book doctor and pediatric consultations, upload prescriptions, and schedule lab tests — all from one place.
+              </p>
+              <div className="hero-placeholder__cta">
+                <Link to="/products" className="hero-placeholder__btn hero-placeholder__btn--primary">
+                  Shop medicines <span aria-hidden="true">→</span>
+                </Link>
+                <Link to="/doctor-consultation" className="hero-placeholder__btn hero-placeholder__btn--ghost">
+                  Book a consultation
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div
+              className="hero-carousel__track"
+              style={{ transform: `translateX(-${activeHeroIndex * 100}%)` }}
+            >
+              {visibleHomeBanners.map(renderHeroSlide)}
+            </div>
+            {hasMultipleHeroBanners && (
+              <>
+                <button
+                  className="hero-carousel__arrow hero-carousel__arrow--prev"
+                  type="button"
+                  aria-label="Previous hero banner"
+                  onClick={() => setActiveHeroIndex((current) => (current - 1 + visibleHomeBanners.length) % visibleHomeBanners.length)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+                <button
+                  className="hero-carousel__arrow hero-carousel__arrow--next"
+                  type="button"
+                  aria-label="Next hero banner"
+                  onClick={() => setActiveHeroIndex((current) => (current + 1) % visibleHomeBanners.length)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+                <div className="hero-carousel__dots" role="tablist" aria-label="Hero banners">
+                  {visibleHomeBanners.map((banner, index) => (
+                    <button
+                      className={`hero-carousel__dot${index === activeHeroIndex ? ' hero-carousel__dot--active' : ''}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={index === activeHeroIndex}
+                      aria-label={`Show hero banner ${index + 1}: ${banner.title || banner.message || 'promotion'}`}
+                      key={banner.id || index}
+                      onClick={() => setActiveHeroIndex(index)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
       </section>
 
       <HomeSearch />
@@ -810,7 +1012,7 @@ function HomePage() {
               </span>
               <div>
                 <strong>Pharmacy & Poisons Board registered</strong>
-                <span>Licensed pharmacy practice in Kenya</span>
+                <span>{settings.healthSafetyCode || settings.premisesRegistrationNumber || 'Licensed pharmacy practice in Kenya'}</span>
               </div>
             </div>
             <div className="home-trust__item">
@@ -824,7 +1026,7 @@ function HomePage() {
               </span>
               <div>
                 <strong>Verified prescription handling</strong>
-                <span>Pharmacist-reviewed Rx orders</span>
+                <span>{settings.superintendentName ? `Supervised by ${settings.superintendentName}` : 'Pharmacist-reviewed Rx orders'}</span>
               </div>
             </div>
             <div className="home-trust__item">

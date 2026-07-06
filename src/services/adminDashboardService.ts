@@ -47,6 +47,13 @@ export interface PayoutByRole {
   pending_amount: number
 }
 
+export interface ExpenseBreakdown {
+  key: string
+  label: string
+  amount: number
+  note: string
+}
+
 export interface ActivityFeedItem {
   type: string
   message: string
@@ -82,6 +89,15 @@ export interface FullReports {
   low_stock_products: number
   out_of_stock_products: number
   daily_revenue: DailyRevenue[]
+  expenses: {
+    total: number
+    net_cash: number
+    gross_margin: number
+    gross_margin_percent: number
+    items_costed_count: number
+    items_total_count: number
+    breakdown: ExpenseBreakdown[]
+  }
   prescriptions: {
     by_status: StatusCount[]
     total: number
@@ -110,6 +126,8 @@ export interface FullReports {
     pending_amount: number
     paid_month_amount: number
     paid_month_count: number
+    paid_range_amount: number
+    paid_range_count: number
     failed_count: number
     by_role: PayoutByRole[]
   }

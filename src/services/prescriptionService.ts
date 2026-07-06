@@ -6,6 +6,7 @@ import {
   loadPrescriptionRecords,
   savePrescriptionRecords,
 } from '../data/prescriptions'
+import { appendBotPayload } from './botProtectionService'
 import { cartService } from './cartService'
 
 type UploadPayload = {
@@ -13,6 +14,7 @@ type UploadPayload = {
   doctor: string
   notes?: string
   files: File[]
+  botChallengeToken?: string
   requestedItem?: {
     name: string
     productId?: number | null
@@ -279,6 +281,7 @@ export const prescriptionService = {
       }]))
     }
     payload.files.forEach((file) => formData.append('files', file))
+    appendBotPayload(formData, '', payload.botChallengeToken ?? '')
     try {
       const response = await apiClient.post('/prescriptions/upload/', formData)
       const created = mapPrescription(response.data?.data ?? response.data)

@@ -237,6 +237,14 @@ function Settings() {
   )
   const [supportAddress, setSupportAddress] = useState(settings.supportAddress)
   const [supportHours, setSupportHours] = useState(settings.supportHours)
+  const [postalAddress, setPostalAddress] = useState(settings.postalAddress)
+  const [healthSafetyCode, setHealthSafetyCode] = useState(settings.healthSafetyCode)
+  const [premisesRegistrationNumber, setPremisesRegistrationNumber] = useState(settings.premisesRegistrationNumber)
+  const [onlinePharmacyLicenseNumber, setOnlinePharmacyLicenseNumber] = useState(settings.onlinePharmacyLicenseNumber)
+  const [superintendentName, setSuperintendentName] = useState(settings.superintendentName)
+  const [superintendentRegistrationNumber, setSuperintendentRegistrationNumber] = useState(settings.superintendentRegistrationNumber)
+  const [pharmacistConsultationHours, setPharmacistConsultationHours] = useState(settings.pharmacistConsultationHours)
+  const [ppbWebsite, setPpbWebsite] = useState(settings.ppbWebsite)
   const initialSupportSchedule = parseSupportHours(settings.supportHours)
   const [supportFromDay, setSupportFromDay] = useState(initialSupportSchedule.fromDay)
   const [supportToDay, setSupportToDay] = useState(initialSupportSchedule.toDay)
@@ -265,6 +273,14 @@ function Settings() {
     setUseSeparateWhatsapp(hasSeparateWhatsapp)
     setSupportAddress(settings.supportAddress)
     setSupportHours(settings.supportHours)
+    setPostalAddress(settings.postalAddress)
+    setHealthSafetyCode(settings.healthSafetyCode)
+    setPremisesRegistrationNumber(settings.premisesRegistrationNumber)
+    setOnlinePharmacyLicenseNumber(settings.onlinePharmacyLicenseNumber)
+    setSuperintendentName(settings.superintendentName)
+    setSuperintendentRegistrationNumber(settings.superintendentRegistrationNumber)
+    setPharmacistConsultationHours(settings.pharmacistConsultationHours)
+    setPpbWebsite(settings.ppbWebsite)
     const nextSupportSchedule = parseSupportHours(settings.supportHours)
     setSupportFromDay(nextSupportSchedule.fromDay)
     setSupportToDay(nextSupportSchedule.toDay)
@@ -362,6 +378,21 @@ function Settings() {
         whatsappPhone: effectiveWhatsappPhone,
         supportAddress,
         supportHours,
+        postalAddress,
+        healthSafetyCode,
+        premisesRegistrationNumber,
+        onlinePharmacyLicenseNumber,
+        superintendentName,
+        superintendentRegistrationNumber,
+        pharmacistConsultationHours,
+        ppbContactName: settings.ppbContactName,
+        ppbContactAddress: settings.ppbContactAddress,
+        ppbContactPhone: settings.ppbContactPhone,
+        ppbContactEmail: settings.ppbContactEmail,
+        ppbWebsite,
+        complaintPolicyUrl: settings.complaintPolicyUrl,
+        privacyPolicyUrl: settings.privacyPolicyUrl,
+        returnsPolicyUrl: settings.returnsPolicyUrl,
         baseDeliveryFee: normalizedBaseFee,
         freeDeliveryThreshold: normalizedFreeThreshold,
         activeDeliveryZones: selectedZones,
@@ -389,6 +420,14 @@ function Settings() {
       || useSeparateWhatsapp !== (settings.supportPhone.replace(/\D/g, '') !== settings.whatsappPhone.replace(/\D/g, ''))
       || supportAddress.trim() !== settings.supportAddress
       || supportHours.trim() !== settings.supportHours
+      || postalAddress.trim() !== settings.postalAddress
+      || healthSafetyCode.trim() !== settings.healthSafetyCode
+      || premisesRegistrationNumber.trim() !== settings.premisesRegistrationNumber
+      || onlinePharmacyLicenseNumber.trim() !== settings.onlinePharmacyLicenseNumber
+      || superintendentName.trim() !== settings.superintendentName
+      || superintendentRegistrationNumber.trim() !== settings.superintendentRegistrationNumber
+      || pharmacistConsultationHours.trim() !== settings.pharmacistConsultationHours
+      || ppbWebsite.trim() !== settings.ppbWebsite
       || baseFee.trim() !== String(settings.baseDeliveryFee)
       || freeThreshold.trim() !== String(settings.freeDeliveryThreshold)
       || JSON.stringify(normalizedSelectedZones) !== JSON.stringify(normalizedSavedZones)
@@ -398,12 +437,28 @@ function Settings() {
       freeThreshold,
       normalizedSavedZones,
       normalizedSelectedZones,
+      onlinePharmacyLicenseNumber,
+      pharmacistConsultationHours,
+      ppbWebsite,
+      postalAddress,
+      premisesRegistrationNumber,
       settings.baseDeliveryFee,
       settings.freeDeliveryThreshold,
+      settings.healthSafetyCode,
+      settings.onlinePharmacyLicenseNumber,
+      settings.pharmacistConsultationHours,
+      settings.postalAddress,
+      settings.ppbWebsite,
+      settings.premisesRegistrationNumber,
       settings.supportAddress,
       settings.supportEmail,
       settings.supportHours,
       settings.supportPhone,
+      settings.superintendentName,
+      settings.superintendentRegistrationNumber,
+      healthSafetyCode,
+      superintendentName,
+      superintendentRegistrationNumber,
       settings.whatsappPhone,
       supportAddress,
       supportEmail,
@@ -611,6 +666,43 @@ function Settings() {
           <div className="settings-inline-link">
             <span>Escalated issues are handled in</span>
             <Link to="/admin/support">Support & Escalations</Link>
+          </div>
+        </div>
+
+        <div className="form-card settings-card">
+          <h2 className="card__title">PPB Internet Pharmacy</h2>
+          <p className="card__subtitle">These details are displayed publicly for PPB internet-pharmacy compliance.</p>
+          <div className="form-group">
+            <label htmlFor="health-safety-code">Health Safety Code</label>
+            <input id="health-safety-code" value={healthSafetyCode} onChange={(e) => { setHealthSafetyCode(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="premises-registration">Premises registration number</label>
+            <input id="premises-registration" value={premisesRegistrationNumber} onChange={(e) => { setPremisesRegistrationNumber(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="online-license">Online pharmacy license number</label>
+            <input id="online-license" value={onlinePharmacyLicenseNumber} onChange={(e) => { setOnlinePharmacyLicenseNumber(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="postal-address">Postal address</label>
+            <input id="postal-address" value={postalAddress} onChange={(e) => { setPostalAddress(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="superintendent-name">Superintendent pharmacist / technologist</label>
+            <input id="superintendent-name" value={superintendentName} onChange={(e) => { setSuperintendentName(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="superintendent-reg">Superintendent registration number</label>
+            <input id="superintendent-reg" value={superintendentRegistrationNumber} onChange={(e) => { setSuperintendentRegistrationNumber(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="pharmacist-hours">Pharmacist consultation hours</label>
+            <input id="pharmacist-hours" value={pharmacistConsultationHours} onChange={(e) => { setPharmacistConsultationHours(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="ppb-website">PPB website</label>
+            <input id="ppb-website" value={ppbWebsite} onChange={(e) => { setPpbWebsite(e.target.value); markDirty() }} />
           </div>
         </div>
       </div>

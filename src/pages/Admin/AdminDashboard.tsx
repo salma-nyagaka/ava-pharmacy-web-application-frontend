@@ -211,18 +211,6 @@ function AdminDashboard() {
       ),
     },
     {
-      title: 'Total Customers',
-      value: reports ? reports.total_customers.toLocaleString() : '—',
-      sub: `${dashboard?.users.new_today ?? 0} new today`,
-      color: '#8b5cf6',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      ),
-    },
-    {
       title: 'Low Stock Items',
       value: reports ? reports.low_stock_products.toLocaleString() : '—',
       sub: 'items need restocking',
@@ -235,35 +223,14 @@ function AdminDashboard() {
       ),
     },
     {
-      title: 'Pending Orders',
-      value: dashboard ? String(dashboard.orders.pending ?? 0) : '—',
-      sub: 'orders awaiting action',
-      color: '#ef4444',
+      title: 'Customers',
+      value: reports ? reports.total_customers.toLocaleString() : '—',
+      sub: `${dashboard?.users.new_today ?? 0} new today`,
+      color: '#8b5cf6',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
-          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-        </svg>
-      ),
-    },
-    {
-      title: 'Pending Prescriptions',
-      value: dashboard ? String(dashboard.prescriptions.pending ?? 0) : '—',
-      sub: 'awaiting pharmacist review',
-      color: '#f97316',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
-          <path d="M9 12h6M9 16h6M9 8h3M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
-        </svg>
-      ),
-    },
-    {
-      title: 'Open Tickets',
-      value: dashboard ? String(dashboard.support.open ?? 0) : '—',
-      sub: 'support requests still open',
-      color: '#0ea5e9',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="22" height="22">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
       ),
     },
@@ -291,6 +258,40 @@ function AdminDashboard() {
     setOrderSearchTerm('')
     setSelectedOrderStatus('all')
   }
+
+  const lowStockCount = reports?.low_stock_products ?? lowStockProducts.length
+  const dashboardInsights = [
+    {
+      title: 'Prescription reviews',
+      value: dashboard?.prescriptions.pending ?? 0,
+      detail: (dashboard?.prescriptions.pending ?? 0) > 0 ? 'Awaiting pharmacist approval' : 'No prescription backlog',
+      to: '/admin/prescriptions',
+      tone: 'amber',
+    },
+    {
+      title: 'Orders to process',
+      value: dashboard?.orders.pending ?? 0,
+      detail: (dashboard?.orders.pending ?? 0) > 0 ? 'Confirm stock and prepare fulfilment' : 'Order queue is clear',
+      to: '/admin/orders',
+      tone: 'blue',
+    },
+    {
+      title: 'Stock alerts',
+      value: lowStockCount,
+      detail: lowStockCount > 0 ? 'Products are at or below threshold' : 'No low-stock products',
+      to: '/admin/inventory',
+      tone: 'red',
+    },
+    {
+      title: 'Support follow-up',
+      value: (dashboard?.support.open ?? 0) + (dashboard?.support.in_progress ?? 0),
+      detail: (dashboard?.support.high_priority ?? 0) > 0
+        ? `${dashboard?.support.high_priority ?? 0} high priority tickets`
+        : 'Open and in-progress tickets',
+      to: '/admin/support',
+      tone: 'teal',
+    },
+  ]
 
   const actionQueue = [
     {
@@ -359,8 +360,8 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Stat cards with sparklines ── */}
-      <div className="ad-stats ad-stats--5">
+      {/* ── Stat cards ── */}
+      <div className="ad-stats">
         {stats.map((stat) => (
           <div key={stat.title} className="ad-stat" style={{ '--stat-color': stat.color } as React.CSSProperties}>
             <div className="ad-stat__top">
@@ -374,6 +375,26 @@ function AdminDashboard() {
           
           </div>
         ))}
+      </div>
+
+      {/* ── Simple insights ── */}
+      <div className="ad-insights">
+        <div className="ad-insights__header">
+          <div>
+            <h2>Today&apos;s Insights</h2>
+            <p>Simple signals for what needs attention first.</p>
+          </div>
+          <Link to="/admin/reports" className="ad-insights__link">Full reports →</Link>
+        </div>
+        <div className="ad-insights__grid">
+          {dashboardInsights.map((item) => (
+            <Link key={item.title} to={item.to} className={`ad-insight ad-insight--${item.tone}`}>
+              <span className="ad-insight__label">{item.title}</span>
+              <strong className="ad-insight__value">{loading ? '…' : item.value}</strong>
+              <span className="ad-insight__detail">{loading ? 'Loading…' : item.detail}</span>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* ── Quick actions ── */}
@@ -392,107 +413,143 @@ function AdminDashboard() {
       {/* ── Main grid ── */}
       <div className="ad-grid">
 
-        {/* Left: Recent Orders */}
-        <div className="ad-panel">
-          <div className="ad-panel__header">
-            <div>
-              <h2 className="ad-panel__title">Recent Orders</h2>
-              <p className="ad-panel__subtitle">Latest transactions across the store</p>
+        <div className="ad-grid__main">
+          {/* Recent Orders */}
+          <div className="ad-panel">
+            <div className="ad-panel__header">
+              <div>
+                <h2 className="ad-panel__title">Recent Orders</h2>
+                <p className="ad-panel__subtitle">Latest transactions across the store</p>
+              </div>
+              <Link to="/admin/orders" className="ad-panel__link">View all</Link>
             </div>
-            <Link to="/admin/orders" className="ad-panel__link">View all</Link>
-          </div>
 
-          <div className="ad-toolbar">
-            <input
-              type="search"
-              placeholder="Search orders…"
-              value={orderSearchTerm}
-              onChange={(e) => setOrderSearchTerm(e.target.value)}
-              className="ad-toolbar__input"
-            />
-            <select
-              value={selectedOrderStatus}
-              onChange={(e) => setSelectedOrderStatus(e.target.value)}
-              className="ad-toolbar__select"
-            >
-              <option value="all">All statuses</option>
-              {availableOrderStatuses.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            {(orderSearchTerm.trim() || selectedOrderStatus !== 'all') && (
-              <button className="ad-toolbar__clear" type="button" onClick={clearOrderFilters}>Clear</button>
+            <div className="ad-toolbar">
+              <input
+                type="search"
+                placeholder="Search orders…"
+                value={orderSearchTerm}
+                onChange={(e) => setOrderSearchTerm(e.target.value)}
+                className="ad-toolbar__input"
+              />
+              <select
+                value={selectedOrderStatus}
+                onChange={(e) => setSelectedOrderStatus(e.target.value)}
+                className="ad-toolbar__select"
+              >
+                <option value="all">All statuses</option>
+                {availableOrderStatuses.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              {(orderSearchTerm.trim() || selectedOrderStatus !== 'all') && (
+                <button className="ad-toolbar__clear" type="button" onClick={clearOrderFilters}>Clear</button>
+              )}
+            </div>
+
+            <div className="ad-table-wrap">
+              <table className="ad-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="ad-table__row">
+                        <td><div className="ad-skeleton" style={{ width: '80px' }} /></td>
+                        <td><div className="ad-skeleton" style={{ width: '120px' }} /></td>
+                        <td><div className="ad-skeleton" style={{ width: '70px' }} /></td>
+                        <td><div className="ad-skeleton" style={{ width: '72px' }} /></td>
+                        <td><div className="ad-skeleton" style={{ width: '40px' }} /></td>
+                      </tr>
+                    ))
+                  ) : pagedRecentOrders.length === 0 ? (
+                    <tr><td colSpan={5} className="ad-table__empty">No orders found.</td></tr>
+                  ) : (
+                    pagedRecentOrders.map((order) => (
+                      <tr key={order.id} className="ad-table__row" data-status={order.status.toLowerCase()}>
+                        <td className="ad-table__order-num">{order.order_number}</td>
+                        <td>{order.customer_name}</td>
+                        <td className="ad-table__amount">KSh {Number(order.total).toLocaleString()}</td>
+                        <td><span className={`ad-status ad-status--${order.status.toLowerCase()}`}>{order.status}</span></td>
+                        <td><Link to={`/admin/orders/${order.id}`} className="ad-table__view">View →</Link></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {!loading && filteredRecentOrders.length > RECENT_ORDERS_PAGE_SIZE && (
+              <div className="ad-pagination">
+                <span className="ad-pagination__info">
+                  {orderStartIndex + 1}–{Math.min(orderStartIndex + RECENT_ORDERS_PAGE_SIZE, filteredRecentOrders.length)} of {filteredRecentOrders.length}
+                </span>
+                <div className="ad-pagination__controls">
+                  <button
+                    className="ad-pagination__btn"
+                    type="button"
+                    onClick={() => setCurrentOrderPage((p) => Math.max(1, p - 1))}
+                    disabled={currentOrderPage === 1}
+                  >Prev</button>
+                  {Array.from({ length: totalOrderPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      className={`ad-pagination__btn ${page === currentOrderPage ? 'ad-pagination__btn--active' : ''}`}
+                      type="button"
+                      onClick={() => setCurrentOrderPage(page)}
+                    >{page}</button>
+                  ))}
+                  <button
+                    className="ad-pagination__btn"
+                    type="button"
+                    onClick={() => setCurrentOrderPage((p) => Math.min(totalOrderPages, p + 1))}
+                    disabled={currentOrderPage === totalOrderPages}
+                  >Next</button>
+                </div>
+              </div>
             )}
           </div>
 
-          <div className="ad-table-wrap">
-            <table className="ad-table">
-              <thead>
-                <tr>
-                  <th>Order</th>
-                  <th>Customer</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="ad-table__row">
-                      <td><div className="ad-skeleton" style={{ width: '80px' }} /></td>
-                      <td><div className="ad-skeleton" style={{ width: '120px' }} /></td>
-                      <td><div className="ad-skeleton" style={{ width: '70px' }} /></td>
-                      <td><div className="ad-skeleton" style={{ width: '72px' }} /></td>
-                      <td><div className="ad-skeleton" style={{ width: '40px' }} /></td>
-                    </tr>
-                  ))
-                ) : pagedRecentOrders.length === 0 ? (
-                  <tr><td colSpan={5} className="ad-table__empty">No orders found.</td></tr>
-                ) : (
-                  pagedRecentOrders.map((order) => (
-                    <tr key={order.id} className="ad-table__row" data-status={order.status.toLowerCase()}>
-                      <td className="ad-table__order-num">{order.order_number}</td>
-                      <td>{order.customer_name}</td>
-                      <td className="ad-table__amount">KSh {Number(order.total).toLocaleString()}</td>
-                      <td><span className={`ad-status ad-status--${order.status.toLowerCase()}`}>{order.status}</span></td>
-                      <td><Link to={`/admin/orders/${order.id}`} className="ad-table__view">View →</Link></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {!loading && filteredRecentOrders.length > RECENT_ORDERS_PAGE_SIZE && (
-            <div className="ad-pagination">
-              <span className="ad-pagination__info">
-                {orderStartIndex + 1}–{Math.min(orderStartIndex + RECENT_ORDERS_PAGE_SIZE, filteredRecentOrders.length)} of {filteredRecentOrders.length}
-              </span>
-              <div className="ad-pagination__controls">
-                <button
-                  className="ad-pagination__btn"
-                  type="button"
-                  onClick={() => setCurrentOrderPage((p) => Math.max(1, p - 1))}
-                  disabled={currentOrderPage === 1}
-                >Prev</button>
-                {Array.from({ length: totalOrderPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    className={`ad-pagination__btn ${page === currentOrderPage ? 'ad-pagination__btn--active' : ''}`}
-                    type="button"
-                    onClick={() => setCurrentOrderPage(page)}
-                  >{page}</button>
-                ))}
-                <button
-                  className="ad-pagination__btn"
-                  type="button"
-                  onClick={() => setCurrentOrderPage((p) => Math.min(totalOrderPages, p + 1))}
-                  disabled={currentOrderPage === totalOrderPages}
-                >Next</button>
+          {/* Activity Feed */}
+          <div className="ad-panel">
+            <div className="ad-panel__header">
+              <div>
+                <h2 className="ad-panel__title">Live Activity Feed</h2>
+                <p className="ad-panel__subtitle">Recent system events · auto-refreshes</p>
               </div>
             </div>
-          )}
+            <div className="ad-feed">
+              {feedLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="ad-feed-item">
+                    <div className="ad-skeleton" style={{ width: '100%', height: 30 }} />
+                  </div>
+                ))
+              ) : activityFeed.length === 0 ? (
+                <div className="ad-feed__empty">No recent activity.</div>
+              ) : (
+                activityFeed.map((item, i) => (
+                  <div key={i} className="ad-feed-item">
+                    <ActivityIcon type={item.type} />
+                    <div className="ad-feed-item__body">
+                      <span className="ad-feed-item__msg">{item.message}</span>
+                      <span className="ad-feed-item__time">{relativeTime(item.timestamp)}</span>
+                    </div>
+                    {item.link && (
+                      <Link to={item.link} className="ad-feed-item__link">→</Link>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Right: stacked panels */}
@@ -569,40 +626,6 @@ function AdminDashboard() {
                     </div>
                   )
                 })
-              )}
-            </div>
-          </div>
-
-          {/* Activity Feed */}
-          <div className="ad-panel">
-            <div className="ad-panel__header">
-              <div>
-                <h2 className="ad-panel__title">Live Activity Feed</h2>
-                <p className="ad-panel__subtitle">Recent system events · auto-refreshes</p>
-              </div>
-            </div>
-            <div className="ad-feed">
-              {feedLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="ad-feed-item">
-                    <div className="ad-skeleton" style={{ width: '100%', height: 38 }} />
-                  </div>
-                ))
-              ) : activityFeed.length === 0 ? (
-                <div className="ad-feed__empty">No recent activity.</div>
-              ) : (
-                activityFeed.map((item, i) => (
-                  <div key={i} className="ad-feed-item">
-                    <ActivityIcon type={item.type} />
-                    <div className="ad-feed-item__body">
-                      <span className="ad-feed-item__msg">{item.message}</span>
-                      <span className="ad-feed-item__time">{relativeTime(item.timestamp)}</span>
-                    </div>
-                    {item.link && (
-                      <Link to={item.link} className="ad-feed-item__link">→</Link>
-                    )}
-                  </div>
-                ))
               )}
             </div>
           </div>

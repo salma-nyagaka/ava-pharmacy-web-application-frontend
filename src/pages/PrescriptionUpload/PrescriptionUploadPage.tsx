@@ -1,9 +1,11 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
 import { useAuth } from '../../context/AuthContext'
 import { PrescriptionClarificationMessage, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { resolveMediaUrl } from '../../lib/apiClient'
 import { prescriptionService } from '../../services/prescriptionService'
+import { isBotChallengeEnabled } from '../../services/botProtectionService'
 import '../../styles/pages/ConsultationPage.css'
 import '../../styles/pages/AccountConsultationsPage.css'
 import '../../styles/pages/PrescriptionHistoryPage.css'
@@ -162,6 +164,9 @@ function PrescriptionUploadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submittedId, setSubmittedId] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [challengeResetKey, setChallengeResetKey] = useState(0)
+  const challengeRequired = isBotChallengeEnabled()
   const requestedProductName = searchParams.get('product_name')?.trim() ?? ''
   const requestedProductId = Number(searchParams.get('product_id') || 0) || null
   const requestedVariantId = Number(searchParams.get('variant_id') || 0) || null
@@ -328,6 +333,7 @@ function PrescriptionUploadPage() {
           quantity: 1,
         }
         : undefined,
+      botChallengeToken: challengeToken,
     }).then((response) => {
       const created = response.data[0]
       setSubmittedId(created?.id ?? '')
@@ -338,6 +344,8 @@ function PrescriptionUploadPage() {
       setUploadError('')
       loadPrescriptions()
     }).catch((error) => {
+      setChallengeToken('')
+      setChallengeResetKey((key) => key + 1)
       type ApiErr = { response?: { data?: { error?: { message?: string }; detail?: string | Record<string, string> } } }
       const detail = (error as ApiErr)?.response?.data?.error?.message
         ?? (error as ApiErr)?.response?.data?.detail
@@ -1002,7 +1010,9 @@ function PrescriptionUploadPage() {
                     </p>
                   )}
 
-                  <button className="btn btn--primary rup-submit-btn" type="button" onClick={handleSubmit} disabled={uploadedFiles.length === 0 || isSubmitting}>
+                  <TurnstileChallenge action="prescription_upload" onToken={setChallengeToken} resetKey={challengeResetKey} />
+
+                  <button className="btn btn--primary rup-submit-btn" type="button" onClick={handleSubmit} disabled={uploadedFiles.length === 0 || isSubmitting || (challengeRequired && !challengeToken)}>
                     {isSubmitting ? 'Submitting...' : 'Submit Prescription for Review'}
                   </button>
 

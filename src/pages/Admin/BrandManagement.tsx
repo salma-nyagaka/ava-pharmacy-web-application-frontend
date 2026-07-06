@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import { adminProductService, ApiBrand, ApiPromotion } from '../../services/adminProductService'
+import { adminProductService, ApiBrand } from '../../services/adminProductService'
 import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSpecs'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
@@ -28,29 +28,8 @@ function compareCreatedAt(left?: string, right?: string): number {
   return leftTime - rightTime
 }
 
-function isActivePromotion(promotion: ApiPromotion, now = new Date()): boolean {
-  if (promotion.status !== 'active') return false
-  const today = new Date(now.toISOString().slice(0, 10))
-  const start = new Date(promotion.start_date)
-  const end = new Date(promotion.end_date)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false
-  return start <= today && today <= end
-}
-
-function getBrandDealLabel(promotions: ApiPromotion[], slug?: string | null): string {
-  const activePromotions = promotions.filter((promotion) => isActivePromotion(promotion))
-  if (slug && activePromotions.some((promotion) => promotion.scope === 'brand' && promotion.targets.includes(slug))) {
-    return 'Active deal'
-  }
-  if (activePromotions.some((promotion) => promotion.scope === 'all')) {
-    return 'Storewide deal'
-  }
-  return 'No active deal'
-}
-
 function BrandManagement() {
   const [brands, setBrands] = useState<ApiBrand[]>([])
-  const [promotions, setPromotions] = useState<ApiPromotion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
@@ -74,12 +53,7 @@ function BrandManagement() {
     setLoading(true)
     setError('')
     try {
-      const [results, promoRows] = await Promise.all([
-        adminProductService.listBrands(),
-        adminProductService.listPromotions(),
-      ])
-      setBrands(results)
-      setPromotions(promoRows)
+      setBrands(await adminProductService.listBrands())
     } catch {
       setError('Unable to load brands. Check your connection and try again.')
     } finally {
@@ -286,13 +260,13 @@ function BrandManagement() {
 
   const sortIndicator = (field: SortField) => sortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
   const renderSortButton = (field: SortField, label: string) => (
-    <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort(field)}>
+    <button type="button" className="cm-th-sort" onClick={() => handleSort(field)}>
       {label} {sortIndicator(field)}
     </button>
   )
 
   return (
-    <div className="category-management">
+    <div className="category-management bm-page">
       <div className="category-management__header">
         <div className="category-management__title">
           <div className="cm-title-group">
@@ -302,7 +276,10 @@ function BrandManagement() {
         </div>
         <div className="category-management__actions">
           <button className="btn btn--primary btn--sm" type="button" onClick={openAddModal}>
-            + Brand
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+              <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+            </svg>
+            Brand
           </button>
         </div>
       </div>
@@ -313,26 +290,9 @@ function BrandManagement() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Total Brands</span>
+            <span className="cm-kpi-card__label">Brands</span>
             <strong className="cm-kpi-card__value">{loading ? '—' : brands.length}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Active</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeCount}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Inactive</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : brands.length - activeCount}</strong>
+            <span className="cm-kpi-card__delta">{loading ? '' : `${activeCount} active · ${brands.length - activeCount} inactive`}</span>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -342,6 +302,7 @@ function BrandManagement() {
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">With Logo</span>
             <strong className="cm-kpi-card__value">{loading ? '—' : withLogosCount}</strong>
+            <span className="cm-kpi-card__delta">{loading ? '' : `${brands.length - withLogosCount} missing`}</span>
           </div>
         </div>
       </div>
@@ -427,7 +388,10 @@ function BrandManagement() {
               </p>
               {!search && (
                 <button className="btn btn--primary btn--sm" type="button" onClick={openAddModal}>
-                  + Add Brand
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+                    <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+                  </svg>
+                  Add Brand
                 </button>
               )}
             </div>
@@ -439,16 +403,13 @@ function BrandManagement() {
                     <th>{renderSortButton('name', 'Brand')}</th>
                     <th>Description</th>
                     <th>{renderSortButton('status', 'Status')}</th>
-                    <th>Active Deal</th>
                     <th>{renderSortButton('created_at', 'Created At')}</th>
                     <th>Created By</th>
-                    <th>Updated By</th>
-                    <th className="cm-th-actions"></th>
+                    <th className="cm-th-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pagedBrands.map((brand) => {
-                    const dealLabel = getBrandDealLabel(promotions, brand.slug)
                     return (
                     <tr key={brand.id}>
                       <td>
@@ -472,7 +433,7 @@ function BrandManagement() {
                       </td>
                       <td>
                         {brand.description ? (
-                          <span className="cm-name-cell__desc" style={{ maxWidth: 340 }}>
+                          <span className="cm-cell-desc">
                             {brand.description}
                           </span>
                         ) : (
@@ -491,14 +452,8 @@ function BrandManagement() {
                           <span className="cm-toggle__knob" />
                         </button>
                       </td>
-                      <td>
-                        <span className={`cm-status ${dealLabel === 'No active deal' ? 'cm-status--inactive' : 'cm-status--active'}`}>
-                          {dealLabel}
-                        </span>
-                      </td>
-                      <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(brand.created_at)}</td>
-                      <td style={{ color: '#6b7280' }}>{brand.created_by_name || '—'}</td>
-                      <td style={{ color: '#6b7280' }}>—</td>
+                      <td className="cm-cell-date">{formatDate(brand.created_at)}</td>
+                      <td className="cm-cell-by">{brand.created_by_name || '—'}</td>
                       <td>
                         <div className="cm-row-actions">
                           <button

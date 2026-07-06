@@ -4,6 +4,8 @@ import {
   ProfessionalRegistrationError,
   type ProfessionalRegistrationType,
 } from '../../services/professionalRegistrationService'
+import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
+import { appendBotPayload, isBotChallengeEnabled } from '../../services/botProtectionService'
 import '../../styles/pages/ProfessionalRegisterPage.css'
 
 type ProfType = 'Doctor' | 'Pediatrician' | 'Lab Partner'
@@ -215,6 +217,10 @@ function ProfessionalRegisterPage() {
   const [submitError, setSubmitError] = useState('')
   const [successDetail, setSuccessDetail] = useState('')
   const [successSteps, setSuccessSteps] = useState<string[]>([])
+  const [website, setWebsite] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [challengeResetKey, setChallengeResetKey] = useState(0)
+  const challengeRequired = isBotChallengeEnabled()
   const [currentStep, setCurrentStep] = useState(1)
   const [langOpen, setLangOpen] = useState(false)
   const [langQuery, setLangQuery] = useState('')
@@ -477,6 +483,7 @@ function ProfessionalRegisterPage() {
         formData.append(doc === CV_RESUME_DOC ? 'cv_files' : 'documents', file)
       })
     })
+    appendBotPayload(formData, website, challengeToken)
 
     setSubmitting(true)
     try {
@@ -486,6 +493,8 @@ function ProfessionalRegisterPage() {
       setSubmitted(true)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
+      setChallengeToken('')
+      setChallengeResetKey((key) => key + 1)
       if (error instanceof ProfessionalRegistrationError) {
         const mapped = Object.entries(error.fieldErrors).reduce<Record<string, string>>((acc, [k, v]) => {
           acc[API_TO_FORM_ERROR_MAP[k] ?? k] = v
@@ -1162,6 +1171,16 @@ function ProfessionalRegisterPage() {
               </div>
 
               <form onSubmit={handleSubmit}>
+                <input
+                  type="text"
+                  name="website"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
+                />
                 <label className={`pr-consent pr-consent--terms ${errors.terms ? 'pr-consent--err' : ''}`}>
                   <input
                     type="checkbox"
@@ -1177,8 +1196,9 @@ function ProfessionalRegisterPage() {
                   </span>
                 </label>
                 {errors.terms && <p className="pr-field__err">{errors.terms}</p>}
+                <TurnstileChallenge action="professional_register" onToken={setChallengeToken} resetKey={challengeResetKey} />
                 {submitError && <p className="pr-submit-error">{submitError}</p>}
-                <button type="submit" className="pr-submit-btn" disabled={submitting}>
+                <button type="submit" className="pr-submit-btn" disabled={submitting || (challengeRequired && !challengeToken)}>
                   {submitting
                     ? <><span className="pr-spinner" />Submitting application…</>
                     : <>Submit application<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" width="15" height="15"><path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round"/></svg></>

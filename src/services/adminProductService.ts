@@ -66,6 +66,23 @@ export interface ApiPromotion {
   updated_at: string
 }
 
+export interface ApiBanner {
+  id: number
+  title: string
+  message: string
+  link: string
+  image: string | null
+  category: number | null
+  category_slug: string | null
+  category_name: string | null
+  target_url: string
+  placement: string
+  sort_order: number
+  status: 'active' | 'inactive'
+  created_at: string
+  updated_at: string
+}
+
 export interface ApiBrand {
   id: number
   name: string
@@ -374,6 +391,13 @@ function normalizePromotion<T extends ApiPromotion>(promotion: T): T {
   }
 }
 
+function normalizeBanner<T extends ApiBanner>(banner: T): T {
+  return {
+    ...banner,
+    image: resolveMediaUrl(banner.image),
+  }
+}
+
 export const adminProductService = {
   async listProducts(params?: Record<string, string>) {
     const res = await apiClient.get('/admin/products/', { params: { page_size: '500', ...params } })
@@ -586,6 +610,43 @@ export const adminProductService = {
   async listPromotions(params?: Record<string, string>) {
     const res = await apiClient.get('/admin/promotions/', { params })
     return unwrapList<ApiPromotion>(res).map(normalizePromotion)
+  },
+
+  async listBanners(params?: Record<string, string>) {
+    const res = await apiClient.get('/admin/banners/', { params })
+    return unwrapList<ApiBanner>(res).map(normalizeBanner)
+  },
+
+  async createBanner(payload: FormData | {
+    title?: string
+    message: string
+    link?: string
+    category?: number | null
+    placement?: string
+    sort_order?: number
+    status?: 'active' | 'inactive'
+  }) {
+    const isFormData = payload instanceof FormData
+    const res = await apiClient.post('/admin/banners/', payload, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
+    return normalizeBanner(unwrap<ApiBanner>(res))
+  },
+
+  async updateBanner(id: number, payload: FormData | Partial<{
+    title: string
+    message: string
+    link: string
+    category: number | null
+    placement: string
+    sort_order: number
+    status: 'active' | 'inactive'
+  }>) {
+    const isFormData = payload instanceof FormData
+    const res = await apiClient.patch(`/admin/banners/${id}/`, payload, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
+    return normalizeBanner(unwrap<ApiBanner>(res))
+  },
+
+  async deleteBanner(id: number) {
+    await apiClient.delete(`/admin/banners/${id}/`)
   },
 
   async createPromotion(payload: FormData | {

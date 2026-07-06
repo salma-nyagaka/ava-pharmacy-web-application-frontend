@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
 import { apiClient } from '../../lib/apiClient'
+import { buildBotPayload, isBotChallengeEnabled } from '../../services/botProtectionService'
 import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/pages/AuthPage.css'
 
@@ -53,6 +55,10 @@ function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [verificationSentTo, setVerificationSentTo] = useState('')
+  const [website, setWebsite] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [challengeResetKey, setChallengeResetKey] = useState(0)
+  const challengeRequired = isBotChallengeEnabled()
 
   const pwRules = [
     { key: 'length', label: 'At least 8 characters', pass: password.length >= 8 },
@@ -96,10 +102,13 @@ function RegisterPage() {
         county: city.trim(),
         date_of_birth: dateOfBirth || null,
         gender,
+        ...buildBotPayload(website, challengeToken),
       })
       const data = res.data?.data ?? res.data
       setVerificationSentTo(data?.verification_email?.sent_to ?? email.trim())
     } catch (err: unknown) {
+      setChallengeToken('')
+      setChallengeResetKey((key) => key + 1)
       type ApiErr = { response?: { data?: { error?: { message?: string; details?: { errors?: { details?: Record<string, string[]> } } } } } }
       const axiosErr = err as ApiErr
       const details = axiosErr?.response?.data?.error?.details?.errors?.details
@@ -218,6 +227,16 @@ function RegisterPage() {
           </div>
 
           <form className="login-form" onSubmit={handleSubmit} noValidate>
+            <input
+              type="text"
+              name="website"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
+            />
             <div className="login-form-row">
               <div className="login-field">
                 <label htmlFor="first-name">First name</label>
@@ -476,6 +495,8 @@ function RegisterPage() {
               )}
             </div>
 
+            <TurnstileChallenge action="register" onToken={setChallengeToken} resetKey={challengeResetKey} />
+
             {error && (
               <div className="login-error">
                 <svg viewBox="0 0 16 16" fill="currentColor">
@@ -485,7 +506,7 @@ function RegisterPage() {
               </div>
             )}
 
-            <button type="submit" className="login-submit" disabled={loading || !passwordMeetsRules || !passwordsMatch}>
+            <button type="submit" className="login-submit" disabled={loading || !passwordMeetsRules || !passwordsMatch || (challengeRequired && !challengeToken)}>
               {loading ? <><span className="login-spinner" />Creating account…</> : 'Create account'}
             </button>
 

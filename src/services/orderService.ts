@@ -1,4 +1,5 @@
 import { apiClient } from '../lib/apiClient'
+import { buildBotPayload } from './botProtectionService'
 
 export interface OrderItem {
   id: number
@@ -193,8 +194,8 @@ export async function fetchShippingMethods(): Promise<ShippingMethod[]> {
   return res.data?.data ?? res.data ?? []
 }
 
-export async function createCheckoutDraft(payload: CheckoutDraftPayload): Promise<Order> {
-  const res = await apiClient.post('/checkout/draft/', payload)
+export async function createCheckoutDraft(payload: CheckoutDraftPayload, challengeToken = ''): Promise<Order> {
+  const res = await apiClient.post('/checkout/draft/', { ...payload, ...buildBotPayload('', challengeToken) })
   return res.data?.data ?? res.data
 }
 

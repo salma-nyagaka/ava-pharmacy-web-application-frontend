@@ -63,6 +63,14 @@ function ProductDetailPage() {
   const [reviewError, setReviewError] = useState('')
   const [reviewSuccess, setReviewSuccess] = useState('')
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [otcIntendedUser, setOtcIntendedUser] = useState('self')
+  const [otcAgeGroup, setOtcAgeGroup] = useState('')
+  const [otcReason, setOtcReason] = useState('')
+  const [otcAllergies, setOtcAllergies] = useState('')
+  const [otcCurrentMeds, setOtcCurrentMeds] = useState('')
+  const [otcPregnancy, setOtcPregnancy] = useState('not_applicable')
+  const [otcCounselingAck, setOtcCounselingAck] = useState(false)
+  const [otcError, setOtcError] = useState('')
 
   const parsedId = Number.parseInt(routeId ?? '0', 10) || 0
 
@@ -216,6 +224,38 @@ function ProductDetailPage() {
     ? (selectedVariant.available_quantity ?? 0) > 0
     : liveAvailability?.is_available ?? Boolean(product?.can_purchase)
   const requiresPrescription = selectedVariant?.requires_prescription ?? product?.requires_prescription ?? false
+  const requiresOtcScreening = useMemo(() => {
+    if (!product || requiresPrescription) return false
+    const medicineVariant = selectedVariant as typeof selectedVariant & {
+      warnings?: string
+      dosage_instructions?: string
+      directions?: string
+    }
+    const values = [
+      product.name,
+      selectedVariant?.name,
+      product.category?.name,
+      product.category?.slug,
+      product.description,
+      product.short_description,
+      (product as { warnings?: string }).warnings,
+      medicineVariant?.warnings,
+      medicineVariant?.dosage_instructions,
+      medicineVariant?.directions,
+    ].join(' ').toLowerCase()
+    return ['medicine', 'medicines', 'pain', 'cough', 'cold', 'flu', 'allergy', 'antacid', 'antibiotic']
+      .some((term) => values.includes(term)) || Boolean(medicineVariant?.dosage_instructions || medicineVariant?.directions || medicineVariant?.warnings)
+  }, [product, requiresPrescription, selectedVariant])
+
+  const buildOtcScreening = () => ({
+    intended_user: otcIntendedUser,
+    age_group: otcAgeGroup,
+    symptoms_or_reason: otcReason.trim(),
+    allergies: otcAllergies.trim() || 'None stated',
+    current_medicines: otcCurrentMeds.trim() || 'None stated',
+    pregnant_or_breastfeeding: otcPregnancy,
+    counseling_acknowledged: otcCounselingAck,
+  })
 
   const prescriptionRedirectTarget = useMemo(
     () => {
@@ -265,6 +305,19 @@ function ProductDetailPage() {
       return
     }
     if (!inStock) return
+    const otcScreening = requiresOtcScreening ? buildOtcScreening() : undefined
+    if (requiresOtcScreening) {
+      const missing = [
+        !otcAgeGroup ? 'age group' : '',
+        !otcReason.trim() ? 'reason or symptoms' : '',
+        !otcCounselingAck ? 'counseling acknowledgement' : '',
+      ].filter(Boolean)
+      if (missing.length) {
+        setOtcError(`Complete OTC screening: ${missing.join(', ')}.`)
+        return
+      }
+      setOtcError('')
+    }
 
     await cartService.add(
       {
@@ -278,6 +331,7 @@ function ProductDetailPage() {
         stockSource: stockSource === 'out' ? undefined : stockSource,
       },
       quantity,
+      otcScreening,
     )
     setCartMessage('Added to cart.')
     window.setTimeout(() => setCartMessage(''), 1500)
@@ -469,6 +523,56 @@ function ProductDetailPage() {
               </div>
             ) : (
               <div className="pdp__actions">
+                {requiresOtcScreening && (
+                  <div className="pdp__otc-screening">
+                    <h2>OTC screening</h2>
+                    <div className="pdp__otc-grid">
+                      <label>
+                        Intended user
+                        <select value={otcIntendedUser} onChange={(event) => setOtcIntendedUser(event.target.value)}>
+                          <option value="self">Self</option>
+                          <option value="guardian">Person under my care</option>
+                        </select>
+                      </label>
+                      <label>
+                        Age group
+                        <select value={otcAgeGroup} onChange={(event) => setOtcAgeGroup(event.target.value)}>
+                          <option value="">Select age group</option>
+                          <option value="adult">Adult</option>
+                          <option value="child_12_17">Child 12-17</option>
+                          <option value="child_under_12">Child under 12</option>
+                          <option value="older_adult">Older adult</option>
+                        </select>
+                      </label>
+                      <label>
+                        Pregnant or breastfeeding
+                        <select value={otcPregnancy} onChange={(event) => setOtcPregnancy(event.target.value)}>
+                          <option value="not_applicable">Not applicable</option>
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                          <option value="prefer_not_to_say">Prefer not to say</option>
+                        </select>
+                      </label>
+                      <label className="pdp__otc-wide">
+                        Reason or symptoms
+                        <textarea value={otcReason} onChange={(event) => setOtcReason(event.target.value)} rows={2} />
+                      </label>
+                      <label>
+                        Allergies
+                        <input value={otcAllergies} onChange={(event) => setOtcAllergies(event.target.value)} placeholder="None stated" />
+                      </label>
+                      <label>
+                        Current medicines
+                        <input value={otcCurrentMeds} onChange={(event) => setOtcCurrentMeds(event.target.value)} placeholder="None stated" />
+                      </label>
+                    </div>
+                    <label className="pdp__otc-ack">
+                      <input type="checkbox" checked={otcCounselingAck} onChange={(event) => setOtcCounselingAck(event.target.checked)} />
+                      I have read the product directions, warnings, storage, and disposal advice and understand a pharmacist may contact me before supply.
+                    </label>
+                    {otcError && <p className="pdp__otc-error">{otcError}</p>}
+                  </div>
+                )}
                 <div className="quantity-selector">
                   <button onClick={() => setQuantity(Math.max(1, quantity - 1))} type="button">-</button>
                   <input
