@@ -79,7 +79,7 @@ function ProductListingPage() {
     })
   }
 
-  const { products } = useProducts({
+  const { products, loading: productsLoading } = useProducts({
     category: categorySlug !== 'all' ? categorySlug : undefined,
     subcategory: activeSubcategorySlug || undefined,
     brand: brandParam,
@@ -458,7 +458,9 @@ function ProductListingPage() {
           <main className="plp__main">
             <div className="plp__toolbar">
               <p className="plp__results-count">
-                {sortedProducts.length === 0
+                {productsLoading
+                  ? 'Loading products…'
+                  : sortedProducts.length === 0
                   ? 'No products found'
                   : `Showing ${startItem}–${endItem} of ${sortedProducts.length} product${sortedProducts.length !== 1 ? 's' : ''}`}
               </p>
@@ -522,7 +524,13 @@ function ProductListingPage() {
             </div>
 
             <div className={`products-grid ${viewMode === 'list' ? 'products-grid--list' : ''}`}>
-              {paginatedProducts.map((product) => (
+              {productsLoading && (
+                <div className="products-loading" role="status" aria-live="polite">
+                  <span className="products-loading__spinner" aria-hidden="true" />
+                  <p>Loading products…</p>
+                </div>
+              )}
+              {!productsLoading && paginatedProducts.map((product) => (
                 <article key={product.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
                   <Link to={`/product/${product.id}`} className="product-card__image">
                     {product.badge && (
@@ -586,7 +594,7 @@ function ProductListingPage() {
                   </div>
                 </article>
               ))}
-              {sortedProducts.length === 0 && (
+              {!productsLoading && sortedProducts.length === 0 && (
                 <div className="empty-state">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
                     <circle cx="11" cy="11" r="8"/>
@@ -603,7 +611,7 @@ function ProductListingPage() {
               )}
             </div>
 
-            {totalPages > 1 && (
+            {!productsLoading && totalPages > 1 && (
               <div className="pagination-wrap">
                 <p className="pagination-info">
                   Showing <strong>{startItem}–{endItem}</strong> of <strong>{sortedProducts.length}</strong> results

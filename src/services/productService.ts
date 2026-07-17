@@ -17,6 +17,7 @@ export interface Product {
   discount_total: string
   active_promotions: unknown[]
   image: string | null
+  brand_image?: string | null
   badge: string | null
   short_description: string
   average_rating: number
@@ -132,16 +133,22 @@ export interface NavHealthConcern {
 
 
 function normalizeProduct(product: Product): Product {
+  const image = resolveMediaUrl(product.image)
+  const brandImage = resolveMediaUrl(product.brand_image)
   return {
     ...product,
-    image: resolveMediaUrl(product.image),
+    image: image && brandImage && image === brandImage ? null : image,
+    brand_image: brandImage,
   }
 }
 
 function normalizeProductDetail(product: ProductDetail): ProductDetail {
+  const image = resolveMediaUrl(product.image)
+  const brandImage = resolveMediaUrl(product.brand_image ?? product.brand?.logo)
   return {
     ...product,
-    image: resolveMediaUrl(product.image),
+    image: image && brandImage && image === brandImage ? null : image,
+    brand_image: brandImage,
     brand: {
       ...product.brand,
       logo: resolveMediaUrl(product.brand?.logo),

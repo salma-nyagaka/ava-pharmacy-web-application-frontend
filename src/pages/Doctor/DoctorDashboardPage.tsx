@@ -181,7 +181,10 @@ function mapBackendPrescription(rx: ClinicianPrescription, doctorId: string): Do
     notes: rx.notes || (consultationId ? `Consultation #${consultationId}` : 'No notes provided.'),
     items: (rx.items || []).map((item) => ({
       name: item.drug_name || item.catalog_name || 'Medication',
-      dosage: compactDoseParts(item.dose, item.frequency, item.duration),
+      dosage: item.dose || '',
+      frequency: item.frequency || '',
+      duration: item.duration || '',
+      quantityMeasurement: item.quantity_measurement || 'unit(s)',
       quantity: item.quantity ?? 1,
       variantId: item.variant_id ?? item.product_variant_id ?? null,
       productId: item.product_id ?? null,
@@ -230,15 +233,6 @@ function prescriptionMatchesConsultation(rx: DoctorPrescription, consultation: C
   return rx.notes.toLowerCase().includes(consultationId.toLowerCase())
 }
 
-function compactDoseParts(...parts: Array<string | undefined>) {
-  const uniqueParts = parts
-    .map((part) => String(part || '').trim())
-    .flatMap((part) => part.split('·').map((piece) => piece.trim()))
-    .filter(Boolean)
-    .filter((part, index, all) => all.indexOf(part) === index)
-  return uniqueParts.join(' · ') || '-'
-}
-
 function prescriptionItemKey(item: DoctorPrescriptionItem) {
   return String(item.variantId ?? item.sku ?? `${item.name}-${item.dosage}`).toLowerCase()
 }
@@ -250,6 +244,9 @@ function prescriptionItemsForForm(rx: DoctorPrescription | null): DoctorPrescrip
     const formItem = {
       name: item.catalogName || item.name,
       dosage: item.dosage,
+      frequency: item.frequency || '',
+      duration: item.duration || '',
+      quantityMeasurement: item.quantityMeasurement || 'unit(s)',
       quantity: item.quantity || 1,
       variantId: item.variantId ?? null,
       productId: item.productId ?? null,
@@ -988,6 +985,9 @@ function DoctorDashboardPage() {
       item.name.trim() &&
       item.variantId &&
       item.dosage.trim() &&
+      Boolean(item.frequency?.trim()) &&
+      Boolean(item.duration?.trim()) &&
+      Boolean(item.quantityMeasurement?.trim()) &&
       Number.isFinite(Number(item.quantity)) &&
       Number(item.quantity) >= 1,
     )
@@ -1007,7 +1007,7 @@ function DoctorDashboardPage() {
     if (filteredItems.length === 0) return
     if (filteredItems.some((item) => !isCompletePrescriptionItem(item))) {
       setWorkspaceSuccess('')
-      setWorkspaceError('Select a medicine, dosage, and quantity for each prescription item.')
+      setWorkspaceError('Complete medicine, dose, frequency, duration, quantity, and measurement for each item.')
       return
     }
     let issuedPrescription: DoctorPrescription | null = null
@@ -1023,8 +1023,9 @@ function DoctorDashboardPage() {
         items: filteredItems.map((item) => ({
           drug_name: item.name,
           dose: item.dosage,
-          frequency: '',
-          duration: '',
+          frequency: item.frequency || '',
+          duration: item.duration || '',
+          quantity_measurement: item.quantityMeasurement || 'unit(s)',
           variant_id: item.variantId ?? null,
           product_variant_id: item.variantId ?? null,
           product_id: item.productId ?? null,
@@ -2418,15 +2419,19 @@ function DoctorDashboardPage() {
                         )}
                       </div>
                       <div className="dd-rx-dose-cell">
-                        <label>Dosage <span className="dd-rx-required">*</span></label>
+                        <label>Dose <span className="dd-rx-required">*</span></label>
                         <input
                           type="text"
                           required
-                          placeholder="e.g. 500mg 3x/day"
+                          placeholder="e.g. 500 mg"
                           disabled={rxLockedByPayment}
                           value={item.dosage}
                           onChange={(e) => updateRxItem(idx, { dosage: e.target.value })}
                         />
+                        <label>Frequency <span className="dd-rx-required">*</span></label>
+                        <input type="text" required placeholder="e.g. TID" disabled={rxLockedByPayment} value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
+                        <label>Duration <span className="dd-rx-required">*</span></label>
+                        <input type="text" required placeholder="e.g. 3/7, 2/52, 1/12" disabled={rxLockedByPayment} value={item.duration ?? ''} onChange={(e) => updateRxItem(idx, { duration: e.target.value })} />
                       </div>
                       <div className="dd-rx-qty-cell">
                         <label>Qty <span className="dd-rx-required">*</span></label>
@@ -2439,6 +2444,8 @@ function DoctorDashboardPage() {
                           value={item.quantity}
                           onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })}
                         />
+                        <label>Measurement <span className="dd-rx-required">*</span></label>
+                        <input type="text" required placeholder="e.g. tablets, ml" disabled={rxLockedByPayment} value={item.quantityMeasurement ?? ''} onChange={(e) => updateRxItem(idx, { quantityMeasurement: e.target.value })} />
                       </div>
                     </div>
                   ))}

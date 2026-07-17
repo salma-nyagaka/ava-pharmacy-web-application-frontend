@@ -13,7 +13,9 @@ export interface PrescriptionItem {
   variantSku?: string
   dose: string
   frequency: string
+  duration?: string
   qty: number
+  quantityMeasurement?: string
   isPaidFor?: boolean
 }
 

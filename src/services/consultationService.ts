@@ -30,6 +30,7 @@ export interface ConsultationPrescriptionItemSummary {
   dose: string
   frequency: string
   duration: string
+  quantity_measurement?: string
   quantity: number
   notes: string
   catalogName: string
@@ -71,6 +72,10 @@ export interface ConsultationRecord {
   childName: string
   childAge: number | null
   weightKg: string | null
+  heightCm: string | null
+  bmi: string | null
+  muacCm: string | null
+  bloodGlucoseMmolL: string | null
   consentStatus: ConsultationConsentStatus
   dosageAlert: boolean
   lastMessageAt: string | null
@@ -97,6 +102,10 @@ export interface CreateConsultationPayload {
   child_name?: string
   child_age?: number | null
   weight_kg?: number | null
+  height_cm?: number | null
+  bmi?: number | null
+  muac_cm?: number | null
+  blood_glucose_mmol_l?: number | null
 }
 
 export type ConsultationPaymentProvider = 'mpesa' | 'paybill'
@@ -132,6 +141,10 @@ export interface ChildPatient {
   ageYears: number | null
   gender: string
   weightKg: string | null
+  heightCm: string | null
+  bmi: string | null
+  muacCm: string | null
+  bloodGlucoseMmolL: string | null
   allergies: string[]
   chronicConditions: string[]
   currentMedications: string[]
@@ -146,6 +159,10 @@ export interface ChildPatientPayload {
   date_of_birth?: string | null
   gender?: string
   weight_kg?: string | number | null
+  height_cm?: string | number | null
+  bmi?: string | number | null
+  muac_cm?: string | number | null
+  blood_glucose_mmol_l?: string | number | null
   allergies?: string[]
   chronic_conditions?: string[]
   current_medications?: string[]
@@ -410,6 +427,10 @@ function createLocalConsultation(payload: CreateConsultationPayload): Consultati
     childName: payload.child_name?.trim() ?? '',
     childAge: payload.child_age ?? null,
     weightKg: payload.weight_kg == null ? null : String(payload.weight_kg),
+    heightCm: payload.height_cm == null ? null : String(payload.height_cm),
+    bmi: payload.bmi == null ? null : String(payload.bmi),
+    muacCm: payload.muac_cm == null ? null : String(payload.muac_cm),
+    bloodGlucoseMmolL: payload.blood_glucose_mmol_l == null ? null : String(payload.blood_glucose_mmol_l),
     consentStatus: isPediatric ? 'pending' : 'granted',
     dosageAlert: false,
     lastMessageAt: null,
@@ -507,6 +528,10 @@ function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
     childName: String(raw.child_name ?? ''),
     childAge: raw.child_age == null ? null : Number(raw.child_age),
     weightKg: raw.weight_kg == null ? null : String(raw.weight_kg),
+    heightCm: raw.height_cm == null ? null : String(raw.height_cm),
+    bmi: raw.bmi == null ? null : String(raw.bmi),
+    muacCm: raw.muac_cm == null ? null : String(raw.muac_cm),
+    bloodGlucoseMmolL: raw.blood_glucose_mmol_l == null ? null : String(raw.blood_glucose_mmol_l),
     consentStatus: String(raw.consent_status ?? 'pending') as ConsultationConsentStatus,
     dosageAlert: Boolean(raw.dosage_alert),
     lastMessageAt: raw.last_message_at ? String(raw.last_message_at) : null,
@@ -529,6 +554,10 @@ function mapChildPatient(raw: Record<string, unknown>): ChildPatient {
     ageYears: raw.age_years == null ? null : normalizeNumber(raw.age_years),
     gender: String(raw.gender ?? ''),
     weightKg: raw.weight_kg == null ? null : String(raw.weight_kg),
+    heightCm: raw.height_cm == null ? null : String(raw.height_cm),
+    bmi: raw.bmi == null ? null : String(raw.bmi),
+    muacCm: raw.muac_cm == null ? null : String(raw.muac_cm),
+    bloodGlucoseMmolL: raw.blood_glucose_mmol_l == null ? null : String(raw.blood_glucose_mmol_l),
     allergies: Array.isArray(raw.allergies) ? raw.allergies.map(String) : [],
     chronicConditions: Array.isArray(raw.chronic_conditions) ? raw.chronic_conditions.map(String) : [],
     currentMedications: Array.isArray(raw.current_medications) ? raw.current_medications.map(String) : [],
@@ -870,6 +899,7 @@ export interface ClinicianPrescriptionItem {
   dose: string
   frequency: string
   duration: string
+  quantity_measurement?: string
   variant_id?: number | null
   product_variant_id?: number | null
   product_id?: number | null

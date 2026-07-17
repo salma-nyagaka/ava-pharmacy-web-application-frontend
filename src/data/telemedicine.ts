@@ -89,6 +89,9 @@ export interface DoctorMessageThread {
 export interface DoctorPrescriptionItem {
   name: string
   dosage: string
+  frequency?: string
+  duration?: string
+  quantityMeasurement?: string
   quantity: number
   variantId?: number | null
   productId?: number | null

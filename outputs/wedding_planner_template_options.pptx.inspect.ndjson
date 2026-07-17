@@ -1,0 +1,159 @@
+{"kind":"deck","id":"pr/c6pi6z","name":"Deck"}
+{"kind":"layout","layoutId":"911492fb-67c4-4ca6-90d3-61ca78b67bba","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"f3523696-fd33-4c4b-9e24-6d9d11c8429b","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/le2dok","slide":1,"title":"OPTION 1 · CLASSIC BOTANICAL","textShapes":12}
+{"kind":"shape","id":"sh/wn6twve5","slide":1,"name":"option-label","bbox":[250,24,294,34]}
+{"kind":"textbox","id":"sh/xofa50fq","slide":1,"name":"text-OPTION 1 · CLASSIC BOT","text":"OPTION 1 · CLASSIC BOTANICAL","textPreview":"OPTION 1 · CLASSIC BOTANICAL","textChars":28,"textLines":1,"bbox":[250,24,294,34]}
+{"kind":"textbox","id":"sh/yp8by5wb","slide":1,"name":"text-WEDDING","text":"WEDDING","textPreview":"WEDDING","textChars":7,"textLines":1,"bbox":[135,86,524,52]}
+{"kind":"textbox","id":"sh/jqhs7qxg","slide":1,"name":"text-VISION & MOOD BOARD","text":"VISION & MOOD BOARD","textPreview":"VISION & MOOD BOARD","textChars":19,"textLines":1,"bbox":[110,133,574,45]}
+{"kind":"shape","id":"sh/krqt0ve1","slide":1,"name":"accent","bbox":[392,190,9,9]}
+{"kind":"textbox","id":"sh/5szu90fm","slide":1,"name":"text-THEME","text":"THEME","textPreview":"THEME","textChars":5,"textLines":1,"bbox":[110,225,260,28]}
+{"kind":"shape","id":"sh/6t8b25w7","slide":1,"name":"editable-writing-line","bbox":[110,267,574,0.8]}
+{"kind":"textbox","id":"sh/7ehcbaxs","slide":1,"name":"text-WEDDING STYLE","text":"WEDDING STYLE","textPreview":"WEDDING STYLE","textChars":13,"textLines":1,"bbox":[110,295,260,28]}
+{"kind":"shape","id":"sh/vipwzmhw","slide":1,"name":"editable-writing-line","bbox":[110,337,574,0.8]}
+{"kind":"textbox","id":"sh/uhgv6h0b","slide":1,"name":"text-VENUE FEELING","text":"VENUE FEELING","textPreview":"VENUE FEELING","textChars":13,"textLines":1,"bbox":[110,365,260,28]}
+{"kind":"shape","id":"sh/hk7e1wzm","slide":1,"name":"editable-writing-line","bbox":[110,407,574,0.8]}
+{"kind":"textbox","id":"sh/gjyd8rih","slide":1,"name":"text-MUST-HAVE MOMENTS","text":"MUST-HAVE MOMENTS","textPreview":"MUST-HAVE MOMENTS","textChars":17,"textLines":1,"bbox":[110,435,260,28]}
+{"kind":"shape","id":"sh/7upwvmhk","slide":1,"name":"editable-writing-line","bbox":[110,477,574,0.8]}
+{"kind":"textbox","id":"sh/6tgv2h0z","slide":1,"name":"text-FLORAL DIRECTION","text":"FLORAL DIRECTION","textPreview":"FLORAL DIRECTION","textChars":16,"textLines":1,"bbox":[110,505,260,28]}
+{"kind":"shape","id":"sh/tg7exwzq","slide":1,"name":"editable-writing-line","bbox":[110,547,574,0.8]}
+{"kind":"textbox","id":"sh/8vyd4ri5","slide":1,"name":"text-FASHION","text":"FASHION","textPreview":"FASHION","textChars":7,"textLines":1,"bbox":[98,595,175,28]}
+{"kind":"shape","id":"sh/rq9w76h4","slide":1,"name":"editable-photo-frame","bbox":[98,633,175,190]}
+{"kind":"textbox","id":"sh/qp0fy1gj","slide":1,"name":"text-FLOWERS","text":"FLOWERS","textPreview":"FLOWERS","textChars":7,"textLines":1,"bbox":[300,595,175,28]}
+{"kind":"shape","id":"sh/mho7m9on","slide":1,"name":"editable-photo-frame","bbox":[300,633,175,190]}
+{"kind":"textbox","id":"sh/nix8fe58","slide":1,"name":"text-DÉCOR","text":"DÉCOR","textPreview":"DÉCOR","textChars":5,"textLines":1,"bbox":[502,595,175,28]}
+{"kind":"shape","id":"sh/oj6pojmt","slide":1,"name":"editable-photo-frame","bbox":[502,633,175,190]}
+{"kind":"textbox","id":"sh/9kfqhone","slide":1,"name":"text-COLOR PALETTE","text":"COLOR PALETTE","textPreview":"COLOR PALETTE","textChars":13,"textLines":1,"bbox":[275,850,244,28]}
+{"kind":"shape","id":"sh/alo7q94z","slide":1,"name":"editable-color-swatch","bbox":[224,897,44,44]}
+{"kind":"shape","id":"sh/vmx8je5k","slide":1,"name":"editable-color-swatch","bbox":[294,897,44,44]}
+{"kind":"shape","id":"sh/wn6psjm5","slide":1,"name":"editable-color-swatch","bbox":[364,897,44,44]}
+{"kind":"shape","id":"sh/xozqlonq","slide":1,"name":"editable-color-swatch","bbox":[434,897,44,44]}
+{"kind":"shape","id":"sh/qpk7epov","slide":1,"name":"editable-color-swatch","bbox":[504,897,44,44]}
+{"kind":"image","id":"im/qxkne1kz","slide":1,"name":"","alt":"Watercolor eucalyptus and flower background with no geometric lines","bbox":[0,0,794,1123]}
+{"kind":"notes","id":"nt/le2dok","slide":1,"text":""}
+{"kind":"slide","id":"sl/tvzsxz","slide":2,"title":"OPTION 2 · MODERN SAGE","textShapes":12}
+{"kind":"shape","id":"sh/4vul836h","slide":2,"name":"content-panel","bbox":[76,70,642,980]}
+{"kind":"shape","id":"sh/5w32h8n2","slide":2,"name":"option-label","bbox":[250,24,294,34]}
+{"kind":"textbox","id":"sh/6xc3ado7","slide":2,"name":"text-OPTION 2 · MODERN SAGE","text":"OPTION 2 · MODERN SAGE","textPreview":"OPTION 2 · MODERN SAGE","textChars":22,"textLines":1,"bbox":[250,24,294,34]}
+{"kind":"shape","id":"sh/rylkji5s","slide":2,"name":"title-bar","bbox":[105,98,8,112]}
+{"kind":"textbox","id":"sh/szulcn6d","slide":2,"name":"text-WEDDING VISION","text":"WEDDING VISION","textPreview":"WEDDING VISION","textChars":14,"textLines":1,"bbox":[135,100,520,58]}
+{"kind":"textbox","id":"sh/tkn2l8ny","slide":2,"name":"text-MOOD BOARD","text":"MOOD BOARD","textPreview":"MOOD BOARD","textChars":10,"textLines":1,"bbox":[135,158,520,40]}
+{"kind":"textbox","id":"sh/elw3edoj","slide":2,"name":"text-THEME","text":"THEME","textPreview":"THEME","textChars":5,"textLines":1,"bbox":[110,245,260,28]}
+{"kind":"shape","id":"sh/fm54ni54","slide":2,"name":"editable-writing-line","bbox":[110,287,574,0.8]}
+{"kind":"textbox","id":"sh/b6tozupw","slide":2,"name":"text-WEDDING STYLE","text":"WEDDING STYLE","textPreview":"WEDDING STYLE","textChars":13,"textLines":1,"bbox":[110,315,260,28]}
+{"kind":"shape","id":"sh/a50nqp8b","slide":2,"name":"editable-writing-line","bbox":[110,357,574,0.8]}
+{"kind":"textbox","id":"sh/xsb61472","slide":2,"name":"text-VENUE FEELING","text":"VENUE FEELING","textPreview":"VENUE FEELING","textChars":13,"textLines":1,"bbox":[110,385,260,28]}
+{"kind":"shape","id":"sh/c725szqh","slide":2,"name":"editable-writing-line","bbox":[110,427,574,0.8]}
+{"kind":"textbox","id":"sh/n29ovu90","slide":2,"name":"text-MUST-HAVE MOMENTS","text":"MUST-HAVE MOMENTS","textPreview":"MUST-HAVE MOMENTS","textChars":17,"textLines":1,"bbox":[110,455,260,28]}
+{"kind":"shape","id":"sh/210nmp8f","slide":2,"name":"editable-writing-line","bbox":[110,497,574,0.8]}
+{"kind":"textbox","id":"sh/p4r6xkrq","slide":2,"name":"text-FLORAL DIRECTION","text":"FLORAL DIRECTION","textPreview":"FLORAL DIRECTION","textChars":16,"textLines":1,"bbox":[110,525,260,28]}
+{"kind":"shape","id":"sh/o3i5ofq5","slide":2,"name":"editable-writing-line","bbox":[110,567,574,0.8]}
+{"kind":"textbox","id":"sh/7ydo7ep4","slide":2,"name":"text-FASHION","text":"FASHION","textPreview":"FASHION","textChars":7,"textLines":1,"bbox":[98,610,175,28]}
+{"kind":"shape","id":"sh/mx4ny98j","slide":2,"name":"editable-photo-frame","bbox":[98,648,175,190]}
+{"kind":"textbox","id":"sh/i58zmhw3","slide":2,"name":"text-FLOWERS","text":"FLOWERS","textPreview":"FLOWERS","textChars":7,"textLines":1,"bbox":[300,610,175,28]}
+{"kind":"shape","id":"sh/36h0fmdo","slide":2,"name":"editable-photo-frame","bbox":[300,648,175,190]}
+{"kind":"textbox","id":"sh/47qho7et","slide":2,"name":"text-DÉCOR","text":"DÉCOR","textPreview":"DÉCOR","textChars":5,"textLines":1,"bbox":[502,610,175,28]}
+{"kind":"shape","id":"sh/58zihcve","slide":2,"name":"editable-photo-frame","bbox":[502,648,175,190]}
+{"kind":"textbox","id":"sh/qt8zqhwz","slide":2,"name":"text-COLOR PALETTE","text":"COLOR PALETTE","textPreview":"COLOR PALETTE","textChars":13,"textLines":1,"bbox":[275,865,244,28]}
+{"kind":"shape","id":"sh/ru10jmdk","slide":2,"name":"editable-color-swatch","bbox":[224,912,44,44]}
+{"kind":"shape","id":"sh/svahsre5","slide":2,"name":"editable-color-swatch","bbox":[294,912,44,44]}
+{"kind":"shape","id":"sh/dwjilwvq","slide":2,"name":"editable-color-swatch","bbox":[364,912,44,44]}
+{"kind":"shape","id":"sh/6xozexwv","slide":2,"name":"editable-color-swatch","bbox":[434,912,44,44]}
+{"kind":"shape","id":"sh/7yxg72xg","slide":2,"name":"editable-color-swatch","bbox":[504,912,44,44]}
+{"kind":"image","id":"im/ydw76pkz","slide":2,"name":"","alt":"Watercolor eucalyptus and flower background with no geometric lines","bbox":[0,0,794,1123]}
+{"kind":"notes","id":"nt/tvzsxz","slide":2,"text":""}
+{"kind":"slide","id":"sl/omsjpv","slide":3,"title":"OPTION 3 · SOFT ROMANTIC","textShapes":12}
+{"kind":"shape","id":"sh/gzah4fqt","slide":3,"name":"romantic-panel","bbox":[92,72,610,966]}
+{"kind":"shape","id":"sh/10jydk7e","slide":3,"name":"option-label","bbox":[250,24,294,34]}
+{"kind":"textbox","id":"sh/21sz6p8z","slide":3,"name":"text-OPTION 3 · SOFT ROMANT","text":"OPTION 3 · SOFT ROMANTIC","textPreview":"OPTION 3 · SOFT ROMANTIC","textChars":24,"textLines":1,"bbox":[250,24,294,34]}
+{"kind":"textbox","id":"sh/3mlgfapk","slide":3,"name":"text-Our Wedding","text":"Our Wedding","textPreview":"Our Wedding","textChars":11,"textLines":1,"bbox":[145,105,504,52]}
+{"kind":"textbox","id":"sh/onuh8fq5","slide":3,"name":"text-VISION & INSPIRATION","text":"VISION & INSPIRATION","textPreview":"VISION & INSPIRATION","textChars":20,"textLines":1,"bbox":[150,158,494,35]}
+{"kind":"textbox","id":"sh/po3yhk7q","slide":3,"name":"text-THEME","text":"THEME","textPreview":"THEME","textChars":5,"textLines":1,"bbox":[110,230,260,28]}
+{"kind":"shape","id":"sh/qpczap8b","slide":3,"name":"editable-writing-line","bbox":[110,272,574,0.8]}
+{"kind":"textbox","id":"sh/bqlgjupg","slide":3,"name":"text-WEDDING STYLE","text":"WEDDING STYLE","textPreview":"WEDDING STYLE","textChars":13,"textLines":1,"bbox":[110,300,260,28]}
+{"kind":"shape","id":"sh/b698japc","slide":3,"name":"editable-writing-line","bbox":[110,342,574,0.8]}
+{"kind":"textbox","id":"sh/a507a58r","slide":3,"name":"text-VENUE FEELING","text":"VENUE FEELING","textPreview":"VENUE FEELING","textChars":13,"textLines":1,"bbox":[110,370,260,28]}
+{"kind":"shape","id":"sh/x8bqlk7i","slide":3,"name":"editable-writing-line","bbox":[110,412,574,0.8]}
+{"kind":"textbox","id":"sh/c7ipcfqx","slide":3,"name":"text-MUST-HAVE MOMENTS","text":"MUST-HAVE MOMENTS","textPreview":"MUST-HAVE MOMENTS","textChars":17,"textLines":1,"bbox":[110,440,260,28]}
+{"kind":"shape","id":"sh/n298fqpg","slide":3,"name":"editable-writing-line","bbox":[110,482,574,0.8]}
+{"kind":"textbox","id":"sh/2107658v","slide":3,"name":"text-FLORAL DIRECTION","text":"FLORAL DIRECTION","textPreview":"FLORAL DIRECTION","textChars":16,"textLines":1,"bbox":[110,510,260,28]}
+{"kind":"shape","id":"sh/p4rqh076","slide":3,"name":"editable-writing-line","bbox":[110,552,574,0.8]}
+{"kind":"textbox","id":"sh/o3ip8vq1","slide":3,"name":"text-FASHION","text":"FASHION","textPreview":"FASHION","textChars":7,"textLines":1,"bbox":[98,600,175,28]}
+{"kind":"shape","id":"sh/7yt8rupk","slide":3,"name":"editable-photo-frame","bbox":[98,638,175,190]}
+{"kind":"textbox","id":"sh/mxkrip8z","slide":3,"name":"text-FLOWERS","text":"FLOWERS","textPreview":"FLOWERS","textChars":7,"textLines":1,"bbox":[300,600,175,28]}
+{"kind":"shape","id":"sh/itobats7","slide":3,"name":"editable-photo-frame","bbox":[300,638,175,190]}
+{"kind":"textbox","id":"sh/juxsjy9s","slide":3,"name":"text-DÉCOR","text":"DÉCOR","textPreview":"DÉCOR","textChars":5,"textLines":1,"bbox":[502,600,175,28]}
+{"kind":"shape","id":"sh/4v6tc3ad","slide":3,"name":"editable-photo-frame","bbox":[502,638,175,190]}
+{"kind":"textbox","id":"sh/5wfal8ry","slide":3,"name":"text-COLOR PALETTE","text":"COLOR PALETTE","textPreview":"COLOR PALETTE","textChars":13,"textLines":1,"bbox":[275,855,244,28]}
+{"kind":"shape","id":"sh/6xobedsj","slide":3,"name":"editable-color-swatch","bbox":[224,902,44,44]}
+{"kind":"shape","id":"sh/ryxcny94","slide":3,"name":"editable-color-swatch","bbox":[294,902,44,44]}
+{"kind":"shape","id":"sh/szqtg3a9","slide":3,"name":"editable-color-swatch","bbox":[364,902,44,44]}
+{"kind":"shape","id":"sh/tkzup8ru","slide":3,"name":"editable-color-swatch","bbox":[434,902,44,44]}
+{"kind":"shape","id":"sh/m14b29sz","slide":3,"name":"editable-color-swatch","bbox":[504,902,44,44]}
+{"kind":"image","id":"im/edkfudkz","slide":3,"name":"","alt":"Watercolor eucalyptus and flower background with no geometric lines","bbox":[0,0,794,1123]}
+{"kind":"notes","id":"nt/omsjpv","slide":3,"text":""}
+{"kind":"slide","id":"sl/fvroys","slide":4,"title":"OPTION 4 · REFINED MINIMAL","textShapes":12}
+{"kind":"shape","id":"sh/8ni54zeh","slide":4,"name":"minimal-panel","bbox":[68,66,658,990]}
+{"kind":"shape","id":"sh/9obmd4vm","slide":4,"name":"option-label","bbox":[250,24,294,34]}
+{"kind":"textbox","id":"sh/yh03ypwz","slide":4,"name":"text-OPTION 4 · REFINED MIN","text":"OPTION 4 · REFINED MINIMAL","textPreview":"OPTION 4 · REFINED MINIMAL","textChars":26,"textLines":1,"bbox":[250,24,294,34]}
+{"kind":"textbox","id":"sh/zi947udk","slide":4,"name":"text-VISION","text":"VISION","textPreview":"VISION","textChars":6,"textLines":1,"bbox":[105,100,260,55]}
+{"kind":"textbox","id":"sh/kjil0ze5","slide":4,"name":"text-WEDDING PLANNING","text":"WEDDING PLANNING","textPreview":"WEDDING PLANNING","textChars":16,"textLines":1,"bbox":[108,154,300,28]}
+{"kind":"shape","id":"sh/lkrm9kvq","slide":4,"name":"header-rule","bbox":[105,195,584,2]}
+{"kind":"textbox","id":"sh/idkna9cj","slide":4,"name":"text-THEME","text":"THEME","textPreview":"THEME","textChars":5,"textLines":1,"bbox":[110,235,260,28]}
+{"kind":"shape","id":"sh/jet4jed4","slide":4,"name":"editable-writing-line","bbox":[110,277,574,0.8]}
+{"kind":"textbox","id":"sh/nu5sj6h4","slide":4,"name":"text-WEDDING STYLE","text":"WEDDING STYLE","textPreview":"WEDDING STYLE","textChars":13,"textLines":1,"bbox":[110,305,260,28]}
+{"kind":"shape","id":"sh/2twbq1gj","slide":4,"name":"editable-writing-line","bbox":[110,347,574,0.8]}
+{"kind":"textbox","id":"sh/pw7algza","slide":4,"name":"text-VENUE FEELING","text":"VENUE FEELING","textPreview":"VENUE FEELING","textChars":13,"textLines":1,"bbox":[110,375,260,28]}
+{"kind":"shape","id":"sh/ovytsbyp","slide":4,"name":"editable-writing-line","bbox":[110,417,574,0.8]}
+{"kind":"textbox","id":"sh/bipsn6h0","slide":4,"name":"text-MUST-HAVE MOMENTS","text":"MUST-HAVE MOMENTS","textPreview":"MUST-HAVE MOMENTS","textChars":17,"textLines":1,"bbox":[110,445,260,28]}
+{"kind":"shape","id":"sh/ahgbu1gv","slide":4,"name":"editable-writing-line","bbox":[110,487,574,0.8]}
+{"kind":"textbox","id":"sh/xk7apgz6","slide":4,"name":"text-FLORAL DIRECTION","text":"FLORAL DIRECTION","textPreview":"FLORAL DIRECTION","textChars":16,"textLines":1,"bbox":[110,515,260,28]}
+{"kind":"shape","id":"sh/cjytwbyl","slide":4,"name":"editable-writing-line","bbox":[110,557,574,0.8]}
+{"kind":"textbox","id":"sh/zmpsrqhc","slide":4,"name":"text-FASHION","text":"FASHION","textPreview":"FASHION","textChars":7,"textLines":1,"bbox":[98,615,175,28]}
+{"kind":"shape","id":"sh/ylgbylgr","slide":4,"name":"editable-photo-frame","bbox":[98,653,175,190]}
+{"kind":"textbox","id":"sh/uhkvqp0z","slide":4,"name":"text-FLOWERS","text":"FLOWERS","textPreview":"FLOWERS","textChars":7,"textLines":1,"bbox":[300,615,175,28]}
+{"kind":"shape","id":"sh/vitwju1k","slide":4,"name":"editable-photo-frame","bbox":[300,653,175,190]}
+{"kind":"textbox","id":"sh/wj2dszi5","slide":4,"name":"text-DÉCOR","text":"DÉCOR","textPreview":"DÉCOR","textChars":5,"textLines":1,"bbox":[502,615,175,28]}
+{"kind":"shape","id":"sh/hkbelkjq","slide":4,"name":"editable-photo-frame","bbox":[502,653,175,190]}
+{"kind":"textbox","id":"sh/md0vm503","slide":4,"name":"text-COLOR PALETTE","text":"COLOR PALETTE","textPreview":"COLOR PALETTE","textChars":13,"textLines":1,"bbox":[275,870,244,28]}
+{"kind":"shape","id":"sh/7etwfa18","slide":4,"name":"editable-color-swatch","bbox":[224,917,44,44]}
+{"kind":"shape","id":"sh/8f2dofit","slide":4,"name":"editable-color-swatch","bbox":[294,917,44,44]}
+{"kind":"shape","id":"sh/9gbehkje","slide":4,"name":"editable-color-swatch","bbox":[364,917,44,44]}
+{"kind":"shape","id":"sh/q94vy907","slide":4,"name":"editable-color-swatch","bbox":[434,917,44,44]}
+{"kind":"shape","id":"sh/radwre1s","slide":4,"name":"editable-color-swatch","bbox":[504,917,44,44]}
+{"kind":"image","id":"im/ipgv6xgb","slide":4,"name":"","alt":"Watercolor eucalyptus and flower background with no geometric lines","bbox":[0,0,794,1123]}
+{"kind":"notes","id":"nt/fvroys","slide":4,"text":""}
+{"kind":"slide","id":"sl/r0y2zp","slide":5,"title":"OPTION 5 · LUXURY GARDEN","textShapes":13}
+{"kind":"shape","id":"sh/4jypoz65","slide":5,"name":"luxury-panel","bbox":[82,70,630,980]}
+{"kind":"shape","id":"sh/pkr6h4nq","slide":5,"name":"option-label","bbox":[250,24,294,34]}
+{"kind":"textbox","id":"sh/udg7ipo3","slide":5,"name":"text-OPTION 5 · LUXURY GARD","text":"OPTION 5 · LUXURY GARDEN","textPreview":"OPTION 5 · LUXURY GARDEN","textChars":24,"textLines":1,"bbox":[250,24,294,34]}
+{"kind":"shape","id":"sh/fepobu5o","slide":5,"name":"luxury-title-panel","bbox":[104,100,586,148]}
+{"kind":"textbox","id":"sh/gfypkz69","slide":5,"name":"text-THE WEDDING","text":"THE WEDDING","textPreview":"THE WEDDING","textChars":11,"textLines":1,"bbox":[135,118,524,47]}
+{"kind":"textbox","id":"sh/hg76d4nu","slide":5,"name":"text-VISION","text":"VISION","textPreview":"VISION","textChars":6,"textLines":1,"bbox":[135,158,524,67]}
+{"kind":"shape","id":"sh/e907uto7","slide":5,"name":"accent","bbox":[392,263,10,10]}
+{"kind":"textbox","id":"sh/za98ne5s","slide":5,"name":"text-01  THEME","text":"01  THEME","textPreview":"01  THEME","textChars":9,"textLines":1,"bbox":[112,304,250,27]}
+{"kind":"shape","id":"sh/7ql4nex8","slide":5,"name":"editable-writing-line","bbox":[365,328,315,1]}
+{"kind":"textbox","id":"sh/6pcne9gn","slide":5,"name":"text-02  WEDDING STYLE","text":"02  WEDDING STYLE","textPreview":"02  WEDDING STYLE","textChars":17,"textLines":1,"bbox":[112,362,250,27]}
+{"kind":"shape","id":"sh/ts3mpofy","slide":5,"name":"editable-writing-line","bbox":[365,386,315,1]}
+{"kind":"textbox","id":"sh/sru5gjyt","slide":5,"name":"text-03  VENUE FEELING","text":"03  VENUE FEELING","textPreview":"03  VENUE FEELING","textChars":17,"textLines":1,"bbox":[112,420,250,27]}
+{"kind":"shape","id":"sh/fu54ryx4","slide":5,"name":"editable-writing-line","bbox":[365,444,315,1]}
+{"kind":"textbox","id":"sh/etwnitwj","slide":5,"name":"text-04  MUST-HAVE MOMENTS","text":"04  MUST-HAVE MOMENTS","textPreview":"04  MUST-HAVE MOMENTS","textChars":21,"textLines":1,"bbox":[112,478,250,27]}
+{"kind":"shape","id":"sh/1gnmtofa","slide":5,"name":"editable-writing-line","bbox":[365,502,315,1]}
+{"kind":"textbox","id":"sh/gve5kjep","slide":5,"name":"text-05  FLORAL DIRECTION","text":"05  FLORAL DIRECTION","textPreview":"05  FLORAL DIRECTION","textChars":20,"textLines":1,"bbox":[112,536,250,27]}
+{"kind":"shape","id":"sh/3i54vyxg","slide":5,"name":"editable-writing-line","bbox":[365,560,315,1]}
+{"kind":"shape","id":"sh/2hwnmtwv","slide":5,"name":"editable-photo-frame","bbox":[103,625,178,215]}
+{"kind":"textbox","id":"sh/yd07uxg3","slide":5,"name":"text-FASHION","text":"FASHION","textPreview":"FASHION","textChars":7,"textLines":1,"bbox":[113,642,158,26]}
+{"kind":"shape","id":"sh/ze98n2ho","slide":5,"name":"editable-photo-frame","bbox":[305,625,178,215]}
+{"kind":"textbox","id":"sh/0fipw7yt","slide":5,"name":"text-FLOWERS","text":"FLOWERS","textPreview":"FLOWERS","textChars":7,"textLines":1,"bbox":[315,642,158,26]}
+{"kind":"shape","id":"sh/lgrqpcze","slide":5,"name":"editable-photo-frame","bbox":[507,625,178,215]}
+{"kind":"textbox","id":"sh/qpg7qx0r","slide":5,"name":"text-DÉCOR","text":"DÉCOR","textPreview":"DÉCOR","textChars":5,"textLines":1,"bbox":[517,642,158,26]}
+{"kind":"textbox","id":"sh/bapoj2hc","slide":5,"name":"text-PALETTE","text":"PALETTE","textPreview":"PALETTE","textChars":7,"textLines":1,"bbox":[110,890,110,27]}
+{"kind":"shape","id":"sh/cbypsnyx","slide":5,"name":"palette-rule","bbox":[210,904,110,1]}
+{"kind":"shape","id":"sh/dcr6lszi","slide":5,"name":"editable-color-swatch","bbox":[340,873,42,42]}
+{"kind":"shape","id":"sh/alk72hgb","slide":5,"name":"editable-color-swatch","bbox":[403,873,42,42]}
+{"kind":"shape","id":"sh/v6t8vmhg","slide":5,"name":"editable-color-swatch","bbox":[466,873,42,42]}
+{"kind":"shape","id":"sh/50valgjy","slide":5,"name":"editable-color-swatch","bbox":[529,873,42,42]}
+{"kind":"shape","id":"sh/kfm9sbid","slide":5,"name":"editable-color-swatch","bbox":[592,873,42,42]}
+{"kind":"textbox","id":"sh/jedsj61s","slide":5,"name":"text-Elegant structure · wa","text":"Elegant structure · warm editorial character","textPreview":"Elegant structure · warm editorial character","textChars":44,"textLines":1,"bbox":[180,957,434,30]}
+{"kind":"image","id":"im/y1ojy5of","slide":5,"name":"","alt":"Watercolor eucalyptus and flower background with no geometric lines","bbox":[0,0,794,1123]}
+{"kind":"notes","id":"nt/r0y2zp","slide":5,"text":""}

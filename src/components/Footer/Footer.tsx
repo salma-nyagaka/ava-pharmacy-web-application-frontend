@@ -1,15 +1,24 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { useCatalog } from '../../context/CatalogContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import '../../styles/components/Footer.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import { sortCategoriesByPreferredOrder } from '../../constants/catalog'
 import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
+import { faqService } from '../../services/faqService'
 
 function Footer() {
   const currentYear = new Date().getFullYear()
   const { categories } = useCatalog()
   const { settings } = useSiteSettings()
+  const [hasPublishedFAQs, setHasPublishedFAQs] = useState(false)
+
+  useEffect(() => {
+    faqService.listPublished()
+      .then((items) => setHasPublishedFAQs(items.length > 0))
+      .catch(() => setHasPublishedFAQs(false))
+  }, [])
 
   const orderedCategories = sortCategoriesByPreferredOrder(categories).slice(0, 4)
   const normalizedSupportPhone = settings.supportPhone.replace(/\D/g, '')
@@ -30,7 +39,7 @@ function Footer() {
     { name: 'Contact Us', path: '/contact' },
     { name: 'Doctor Consultation', path: '/doctor-consultation' },
     { name: 'Track My Order', path: '/account/orders' },
-    { name: 'FAQs', path: '/help' },
+    ...(hasPublishedFAQs ? [{ name: 'FAQs', path: '/faqs' }] : []),
   ]
 
   return (

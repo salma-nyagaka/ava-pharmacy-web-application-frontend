@@ -12,6 +12,11 @@ export interface AccountProfile {
   role: string
   status: string
   address: string
+  weight_kg: string | null
+  height_cm: string | null
+  bmi: string | null
+  muac_cm: string | null
+  blood_glucose_mmol_l: string | null
   total_orders: number
   date_joined: string
   updated_at: string
@@ -25,6 +30,11 @@ export interface AccountProfilePayload {
   date_of_birth?: string | null
   gender?: string
   address?: string
+  weight_kg?: string | number | null
+  height_cm?: string | number | null
+  bmi?: string | number | null
+  muac_cm?: string | number | null
+  blood_glucose_mmol_l?: string | number | null
 }
 
 export interface PasswordChangePayload {

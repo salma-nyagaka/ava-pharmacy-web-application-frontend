@@ -98,6 +98,10 @@
   align-items: start;
 }
 
+.help-page__layout--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .help-page__panel {
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.08);

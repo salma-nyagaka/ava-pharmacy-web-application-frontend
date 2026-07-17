@@ -40,7 +40,9 @@ type ApiPrescriptionItem = {
   variant_sku?: string
   dose: string
   frequency: string
+  duration?: string
   quantity: number
+  quantity_measurement?: string
   is_paid_for?: boolean
 }
 
@@ -205,7 +207,9 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
       variantSku: item.variant_sku || '',
       dose: item.dose || '-',
       frequency: item.frequency || '-',
+      duration: item.duration || '',
       qty: item.quantity ?? 0,
+      quantityMeasurement: item.quantity_measurement || 'unit(s)',
       isPaidFor: item.is_paid_for ?? false,
     })),
     notes: record.notes || '',
@@ -312,7 +316,9 @@ export const prescriptionService = {
         variant_id: item.variantId ?? null,
         dose: item.dose,
         frequency: item.frequency,
+        duration: item.duration || '',
         quantity: item.qty,
+        quantity_measurement: item.quantityMeasurement || 'unit(s)',
       }))
     }
 
@@ -393,7 +399,9 @@ export const prescriptionService = {
       variant_id?: number | null
       dose?: string
       frequency?: string
+      duration?: string
       quantity: number
+      quantity_measurement?: string
     }>
   }) => {
     await apiClient.post(`/pharmacist/prescriptions/${backendId}/review/`, payload)

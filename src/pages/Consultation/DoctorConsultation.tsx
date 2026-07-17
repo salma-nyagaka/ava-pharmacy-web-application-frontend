@@ -5,6 +5,7 @@ import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { PrescriptionRecord } from '../../data/prescriptions'
 import { formatPhoneHref } from '../../services/siteSettingsService'
 import { prescriptionService } from '../../services/prescriptionService'
+import { fetchAccountProfile, updateAccountProfile } from '../../services/accountService'
 import {
   ClinicianSummary,
   CreateConsultationPayload,
@@ -142,7 +143,14 @@ function DoctorConsultation() {
     specialty: '',
     urgency: 'Routine' as 'Routine' | 'Urgent',
     symptoms: '',
+    weightKg: '',
+    heightCm: '',
+    bmi: '',
+    muacCm: '',
+    bloodGlucoseMmolL: '',
   })
+  const [profileHydrated, setProfileHydrated] = useState(false)
+  const [saveBioData, setSaveBioData] = useState(false)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [loadError, setLoadError] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -176,6 +184,27 @@ function DoctorConsultation() {
     }))
     setMpesaPhone((prev) => prev || user?.phone || '')
   }, [user?.email, user?.name, user?.phone])
+
+  useEffect(() => {
+    let mounted = true
+    if (!user) return undefined
+    void fetchAccountProfile().then((profile) => {
+      if (!mounted) return
+      setFormData((prev) => ({
+        ...prev,
+        name: profile.full_name || prev.name,
+        email: profile.email || prev.email,
+        phone: profile.phone || prev.phone,
+        weightKg: profile.weight_kg ?? '',
+        heightCm: profile.height_cm ?? '',
+        bmi: profile.bmi ?? '',
+        muacCm: profile.muac_cm ?? '',
+        bloodGlucoseMmolL: profile.blood_glucose_mmol_l ?? '',
+      }))
+      setProfileHydrated(true)
+    }).catch(() => undefined)
+    return () => { mounted = false }
+  }, [user?.id])
 
   useEffect(() => {
     let isMounted = true
@@ -387,11 +416,26 @@ function DoctorConsultation() {
     return Object.keys(errors).length === 0
   }
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const optionalNumber = (value: string) => value.trim() ? Number(value) : null
+
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!validateForm()) return
 
     setSubmitError('')
+    if (saveBioData) {
+      try {
+        await updateAccountProfile({
+          weight_kg: optionalNumber(formData.weightKg),
+          height_cm: optionalNumber(formData.heightCm),
+          bmi: optionalNumber(formData.bmi),
+          muac_cm: optionalNumber(formData.muacCm),
+          blood_glucose_mmol_l: optionalNumber(formData.bloodGlucoseMmolL),
+        })
+      } catch {
+        setSubmitError('Your consultation can continue, but the profile measurements could not be updated.')
+      }
+    }
     setPendingPayload({
       doctor: null,
       patient_name: formData.name.trim(),
@@ -400,6 +444,11 @@ function DoctorConsultation() {
       issue: formData.symptoms.trim(),
       requested_specialty: formData.specialty.trim(),
       priority: formData.urgency === 'Urgent' ? 'priority' : 'routine',
+      weight_kg: optionalNumber(formData.weightKg),
+      height_cm: optionalNumber(formData.heightCm),
+      bmi: optionalNumber(formData.bmi),
+      muac_cm: optionalNumber(formData.muacCm),
+      blood_glucose_mmol_l: optionalNumber(formData.bloodGlucoseMmolL),
     })
     setMpesaFlow('stk')
     setPaymentIntent(null)
@@ -1330,6 +1379,28 @@ function DoctorConsultation() {
 
               <div className="dc-form-section">
                 <div className="dc-form-section__heading">
+                  <span>3</span>
+                  <div>
+                    <h3>Health measurements</h3>
+                    <p>{profileHydrated ? 'We pulled your saved measurements. Review them and choose whether to update your profile.' : 'Add the latest available measurements.'}</p>
+                  </div>
+                </div>
+                <div className="dc-form-row">
+                  <div className="dc-field"><label htmlFor="dc-weight">Weight (kg)</label><input id="dc-weight" type="number" min="0" step="0.01" value={formData.weightKg} onChange={(event) => setField('weightKg', event.target.value)} /></div>
+                  <div className="dc-field"><label htmlFor="dc-height">Height (cm)</label><input id="dc-height" type="number" min="0" step="0.01" value={formData.heightCm} onChange={(event) => setField('heightCm', event.target.value)} /></div>
+                </div>
+                <div className="dc-form-row">
+                  <div className="dc-field"><label htmlFor="dc-bmi">BMI</label><input id="dc-bmi" type="number" min="0" step="0.01" value={formData.bmi} onChange={(event) => setField('bmi', event.target.value)} /></div>
+                  <div className="dc-field"><label htmlFor="dc-muac">MUAC (cm)</label><input id="dc-muac" type="number" min="0" step="0.01" value={formData.muacCm} onChange={(event) => setField('muacCm', event.target.value)} /></div>
+                </div>
+                <div className="dc-form-row">
+                  <div className="dc-field"><label htmlFor="dc-glucose">Blood glucose (mmol/L)</label><input id="dc-glucose" type="number" min="0" step="0.01" value={formData.bloodGlucoseMmolL} onChange={(event) => setField('bloodGlucoseMmolL', event.target.value)} /></div>
+                  {profileHydrated && <label className="dc-field" style={{ alignSelf: 'end' }}><span>Update saved bio data?</span><input type="checkbox" checked={saveBioData} onChange={(event) => setSaveBioData(event.target.checked)} /> Yes, save these measurements to my profile</label>}
+                </div>
+              </div>
+
+              <div className="dc-form-section">
+                <div className="dc-form-section__heading">
                   <span>2</span>
                   <div>
                     <h3>Care preference</h3>
@@ -1355,7 +1426,7 @@ function DoctorConsultation() {
 
               <div className="dc-form-section">
                 <div className="dc-form-section__heading">
-                  <span>3</span>
+                  <span>4</span>
                   <div>
                     <h3>Symptoms</h3>
                     <p>Add enough detail for the doctor to make the first response useful.</p>

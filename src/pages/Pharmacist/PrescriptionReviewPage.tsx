@@ -44,7 +44,7 @@ function statusDescription(status: string) {
 }
 
 function createEmptyItem(): PrescriptionItem {
-  return { name: '', dose: '', frequency: '', qty: 1, productId: null, productName: '' }
+  return { name: '', dose: '', frequency: '', duration: '', qty: 1, quantityMeasurement: 'unit(s)', productId: null, productName: '' }
 }
 
 function PrescriptionReviewPage() {
@@ -148,7 +148,10 @@ function PrescriptionReviewPage() {
 
   if (!prescription) return null
 
-  const hasIncomplete = editableItems.some((item) => !item.name.trim() || item.qty <= 0 || !item.productId)
+  const hasIncomplete = editableItems.some((item) =>
+    !item.name.trim() || !item.dose.trim() || !item.frequency.trim() || !item.duration?.trim()
+    || item.qty <= 0 || !item.quantityMeasurement?.trim() || !item.productId
+  )
 
   return (
     <div className="prx-page">
@@ -212,7 +215,9 @@ function PrescriptionReviewPage() {
                     <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Medication name" value={item.name} onChange={(event) => handleItemChange(index, { name: event.target.value })} />
                     <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Dose" value={item.dose} onChange={(event) => handleItemChange(index, { dose: event.target.value })} />
                     <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Frequency" value={item.frequency} onChange={(event) => handleItemChange(index, { frequency: event.target.value })} />
+                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Duration (e.g. 3/7, 2/52)" value={item.duration ?? ''} onChange={(event) => handleItemChange(index, { duration: event.target.value })} />
                     <input className="prx-textarea prx-item-editor__input prx-item-editor__qty" type="number" min="1" value={item.qty} onChange={(event) => handleItemChange(index, { qty: Number(event.target.value) || 1 })} />
+                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Measurement (tablets, ml)" value={item.quantityMeasurement ?? ''} onChange={(event) => handleItemChange(index, { quantityMeasurement: event.target.value })} />
                     <select className="prx-textarea prx-item-editor__select" value={item.productId || ''} onChange={(event) => handleProductSelect(index, Number(event.target.value))}>
                       <option value="">Map to product…</option>
                       {catalogProducts.map((product) => (
@@ -241,7 +246,7 @@ function PrescriptionReviewPage() {
                 {hasIncomplete && (
                   <div className="prx-safety-item prx-safety-item--warn">
                     <span className="prx-safety-item__icon">⚠️</span>
-                    <span>Each item needs a name, quantity, and mapped product before this prescription can be approved.</span>
+                    <span>Each item needs a medicine, dose, frequency, duration, quantity measurement, and mapped product before approval.</span>
                   </div>
                 )}
                 {prescription.status === 'Clarification' && (

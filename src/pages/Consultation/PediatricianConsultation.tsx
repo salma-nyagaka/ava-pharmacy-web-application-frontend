@@ -37,6 +37,10 @@ type ChildProfileDraft = {
   ageYears: string
   gender: string
   weightKg: string
+  heightCm: string
+  bmi: string
+  muacCm: string
+  bloodGlucoseMmolL: string
   allergies: string
   chronicConditions: string
   currentMedications: string
@@ -102,6 +106,10 @@ function childToDraft(child: ChildPatient): ChildProfileDraft {
     ageYears: child.ageYears == null ? '' : String(child.ageYears),
     gender: child.gender,
     weightKg: child.weightKg ?? '',
+    heightCm: child.heightCm ?? '',
+    bmi: child.bmi ?? '',
+    muacCm: child.muacCm ?? '',
+    bloodGlucoseMmolL: child.bloodGlucoseMmolL ?? '',
     allergies: child.allergies.join(', '),
     chronicConditions: child.chronicConditions.join(', '),
     currentMedications: child.currentMedications.join(', '),
@@ -183,6 +191,10 @@ function PediatricianConsultation() {
     childAge: '',
     childGender: '',
     childWeightKg: '',
+    childHeightCm: '',
+    childBmi: '',
+    childMuacCm: '',
+    childBloodGlucoseMmolL: '',
     childAllergies: '',
     childChronicConditions: '',
     childCurrentMedications: '',
@@ -361,6 +373,10 @@ function PediatricianConsultation() {
       childAge: child.ageYears == null ? '' : String(child.ageYears),
       childGender: child.gender,
       childWeightKg: child.weightKg ?? '',
+      childHeightCm: child.heightCm ?? '',
+      childBmi: child.bmi ?? '',
+      childMuacCm: child.muacCm ?? '',
+      childBloodGlucoseMmolL: child.bloodGlucoseMmolL ?? '',
       childAllergies: child.allergies.join(', '),
       childChronicConditions: child.chronicConditions.join(', '),
       childCurrentMedications: child.currentMedications.join(', '),
@@ -377,6 +393,10 @@ function PediatricianConsultation() {
       childAge: '',
       childGender: '',
       childWeightKg: '',
+      childHeightCm: '',
+      childBmi: '',
+      childMuacCm: '',
+      childBloodGlucoseMmolL: '',
       childAllergies: '',
       childChronicConditions: '',
       childCurrentMedications: '',
@@ -438,6 +458,10 @@ function PediatricianConsultation() {
         age_years: ageValue ? Number(ageValue) : null,
         gender: childDraft.gender,
         weight_kg: childDraft.weightKg || null,
+        height_cm: childDraft.heightCm || null,
+        bmi: childDraft.bmi || null,
+        muac_cm: childDraft.muacCm || null,
+        blood_glucose_mmol_l: childDraft.bloodGlucoseMmolL || null,
         allergies: splitList(childDraft.allergies),
         chronic_conditions: splitList(childDraft.chronicConditions),
         current_medications: splitList(childDraft.currentMedications),
@@ -536,6 +560,10 @@ function PediatricianConsultation() {
           age_years: Number(formData.childAge),
           gender: formData.childGender,
           weight_kg: formData.childWeightKg || null,
+          height_cm: formData.childHeightCm || null,
+          bmi: formData.childBmi || null,
+          muac_cm: formData.childMuacCm || null,
+          blood_glucose_mmol_l: formData.childBloodGlucoseMmolL || null,
           allergies: splitList(formData.childAllergies),
           chronic_conditions: splitList(formData.childChronicConditions),
           current_medications: splitList(formData.childCurrentMedications),
@@ -828,6 +856,10 @@ function PediatricianConsultation() {
                               <label htmlFor={`child-weight-${child.id}`}>Weight in kg</label>
                               <input id={`child-weight-${child.id}`} type="number" min="0" step="0.1" value={childDraft.weightKg} onChange={(event) => setChildDraftField('weightKg', event.target.value)} />
                             </div>
+                            <div className="dc-field"><label htmlFor={`child-height-${child.id}`}>Height (cm)</label><input id={`child-height-${child.id}`} type="number" min="0" step="0.1" value={childDraft.heightCm} onChange={(event) => setChildDraftField('heightCm', event.target.value)} /></div>
+                            <div className="dc-field"><label htmlFor={`child-bmi-${child.id}`}>BMI</label><input id={`child-bmi-${child.id}`} type="number" min="0" step="0.01" value={childDraft.bmi} onChange={(event) => setChildDraftField('bmi', event.target.value)} /></div>
+                            <div className="dc-field"><label htmlFor={`child-muac-${child.id}`}>MUAC (cm)</label><input id={`child-muac-${child.id}`} type="number" min="0" step="0.1" value={childDraft.muacCm} onChange={(event) => setChildDraftField('muacCm', event.target.value)} /></div>
+                            <div className="dc-field"><label htmlFor={`child-glucose-${child.id}`}>Blood glucose (mmol/L)</label><input id={`child-glucose-${child.id}`} type="number" min="0" step="0.01" value={childDraft.bloodGlucoseMmolL} onChange={(event) => setChildDraftField('bloodGlucoseMmolL', event.target.value)} /></div>
                             <div className="dc-field">
                               <label htmlFor={`child-allergies-${child.id}`}>Allergies</label>
                               <input id={`child-allergies-${child.id}`} type="text" value={childDraft.allergies} onChange={(event) => setChildDraftField('allergies', event.target.value)} placeholder="Separate with commas" />
@@ -1492,6 +1524,14 @@ function PediatricianConsultation() {
                     <input id="ped-email" type="email" value={formData.email} onChange={(event) => setField('email', event.target.value)} aria-invalid={!!formErrors.email} placeholder="you@example.com" />
                     {formErrors.email && <span className="dc-field-error">{formErrors.email}</span>}
                   </div>
+                </div>
+                <div className="dc-form-row">
+                  <div className="dc-field"><label htmlFor="ped-child-height">Height (cm) <span className="dc-field-optional">optional</span></label><input id="ped-child-height" type="number" min="0" step="0.1" value={formData.childHeightCm} onChange={(event) => setField('childHeightCm', event.target.value)} readOnly={isUsingRegisteredChild} /></div>
+                  <div className="dc-field"><label htmlFor="ped-child-bmi">BMI <span className="dc-field-optional">optional</span></label><input id="ped-child-bmi" type="number" min="0" step="0.01" value={formData.childBmi} onChange={(event) => setField('childBmi', event.target.value)} readOnly={isUsingRegisteredChild} /></div>
+                </div>
+                <div className="dc-form-row">
+                  <div className="dc-field"><label htmlFor="ped-child-muac">MUAC (cm) <span className="dc-field-optional">optional</span></label><input id="ped-child-muac" type="number" min="0" step="0.1" value={formData.childMuacCm} onChange={(event) => setField('childMuacCm', event.target.value)} readOnly={isUsingRegisteredChild} /></div>
+                  <div className="dc-field"><label htmlFor="ped-child-glucose">Blood glucose (mmol/L) <span className="dc-field-optional">optional</span></label><input id="ped-child-glucose" type="number" min="0" step="0.01" value={formData.childBloodGlucoseMmolL} onChange={(event) => setField('childBloodGlucoseMmolL', event.target.value)} readOnly={isUsingRegisteredChild} /></div>
                 </div>
                 <div className="dc-form-row">
                   <div className="dc-field">

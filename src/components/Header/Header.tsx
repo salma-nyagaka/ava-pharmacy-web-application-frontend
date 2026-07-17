@@ -8,6 +8,7 @@ import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { useAuth } from '../../context/AuthContext'
+import { faqService } from '../../services/faqService'
 
 function Header() {
   const ALL_CATEGORIES_KEY = 'all'
@@ -25,6 +26,7 @@ function Header() {
   const [searchQuery, setSearchQuery] = useState('')
   const [cartCount, setCartCount] = useState(0)
   const [favCount, setFavCount] = useState(0)
+  const [hasPublishedFAQs, setHasPublishedFAQs] = useState(false)
 
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev)
@@ -42,6 +44,12 @@ function Header() {
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    faqService.listPublished()
+      .then((items) => setHasPublishedFAQs(items.length > 0))
+      .catch(() => setHasPublishedFAQs(false))
   }, [])
 
   useEffect(() => {
@@ -188,7 +196,7 @@ function Header() {
             </div>
             <div className="header__topbar-right">
               <Link to="/about" className="header__topbar-link">About Us</Link>
-              <Link to="/help" className="header__topbar-link">FAQ</Link>
+              {hasPublishedFAQs && <Link to="/faqs" className="header__topbar-link">FAQ</Link>}
               <Link to="/track-order" className="header__topbar-link">Track Order</Link>
               <Link to="/contact" className="header__topbar-link">Contact Us</Link>
               <Link to="/professional/register" className="header__topbar-link header__topbar-link--pro">Professional Registration</Link>
@@ -533,6 +541,11 @@ function Header() {
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/health-services" className={`header__nav-link${isActive('/health-services') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>Health Services</Link>
             </li>
+            {hasPublishedFAQs && (
+              <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
+                <Link to="/faqs" className={`header__nav-link${isActive('/faqs') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>FAQs</Link>
+              </li>
+            )}
           </ul>
         </div>
       </nav>

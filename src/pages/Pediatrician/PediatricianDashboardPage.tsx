@@ -256,7 +256,10 @@ function mapBackendPediatricPrescription(rx: ClinicianPrescription, doctorId: st
     pediatric: true,
     items: (rx.items || []).map((item) => ({
       name: item.drug_name || item.catalog_name || 'Medication',
-      dosage: [item.dose, item.frequency, item.duration].filter(Boolean).join(' · ') || '-',
+      dosage: item.dose || '',
+      frequency: item.frequency || '',
+      duration: item.duration || '',
+      quantityMeasurement: item.quantity_measurement || 'unit(s)',
       quantity: item.quantity ?? 1,
       variantId: item.variant_id ?? item.product_variant_id ?? null,
       productId: item.product_id ?? null,
@@ -1424,6 +1427,9 @@ function PediatricianDashboardPage() {
       item.name.trim() &&
       item.variantId &&
       item.dosage.trim() &&
+      Boolean(item.frequency?.trim()) &&
+      Boolean(item.duration?.trim()) &&
+      Boolean(item.quantityMeasurement?.trim()) &&
       Number.isFinite(Number(item.quantity)) &&
       Number(item.quantity) >= 1,
     )
@@ -1440,7 +1446,7 @@ function PediatricianDashboardPage() {
     const filteredItems = rxItems.filter(isStartedPrescriptionItem)
     if (filteredItems.length === 0) return
     if (filteredItems.some((item) => !isCompletePrescriptionItem(item))) {
-      setWorkspaceError('Select a medicine, dosage, and quantity for each prescription item.')
+      setWorkspaceError('Complete medicine, dose, frequency, duration, quantity, and measurement for each item.')
       return
     }
     try {
@@ -1452,8 +1458,9 @@ function PediatricianDashboardPage() {
         items: filteredItems.map((item) => ({
           drug_name: item.name,
           dose: item.dosage,
-          frequency: item.dosage,
-          duration: '',
+          frequency: item.frequency || '',
+          duration: item.duration || '',
+          quantity_measurement: item.quantityMeasurement || 'unit(s)',
           variant_id: item.variantId ?? null,
           product_variant_id: item.variantId ?? null,
           product_id: item.productId ?? null,
@@ -2663,12 +2670,18 @@ function PediatricianDashboardPage() {
                         )}
                       </div>
                       <div className="dd-rx-dose-cell">
-                        <label>Dosage <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. 5ml 3x/day" value={item.dosage} onChange={(e) => updateRxItem(idx, { dosage: e.target.value })} />
+                        <label>Dose <span className="dd-rx-required">*</span></label>
+                        <input type="text" required placeholder="e.g. 5 ml" value={item.dosage} onChange={(e) => updateRxItem(idx, { dosage: e.target.value })} />
+                        <label>Frequency <span className="dd-rx-required">*</span></label>
+                        <input type="text" required placeholder="e.g. TID" value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
+                        <label>Duration <span className="dd-rx-required">*</span></label>
+                        <input type="text" required placeholder="e.g. 3/7 or 2/52" value={item.duration ?? ''} onChange={(e) => updateRxItem(idx, { duration: e.target.value })} />
                       </div>
                       <div className="dd-rx-qty-cell">
                         <label>Qty <span className="dd-rx-required">*</span></label>
                         <input type="number" min={1} required placeholder="Qty" value={item.quantity} onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })} />
+                        <label>Measurement <span className="dd-rx-required">*</span></label>
+                        <input type="text" required placeholder="e.g. tablets, ml" value={item.quantityMeasurement ?? ''} onChange={(e) => updateRxItem(idx, { quantityMeasurement: e.target.value })} />
                       </div>
                     </div>
                   ))}

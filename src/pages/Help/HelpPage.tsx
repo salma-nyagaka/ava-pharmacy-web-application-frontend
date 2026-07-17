@@ -6,25 +6,6 @@ import '../../styles/pages/HelpPage.css'
 
 function HelpPage() {
   const { settings } = useSiteSettings()
-  const faqs = [
-    {
-      question: 'How do I upload a prescription?',
-      answer: 'Open Prescriptions, then upload a clear photo or PDF.',
-    },
-    {
-      question: 'Which payment methods are accepted?',
-      answer: 'Card, M-Pesa, and other supported mobile money options.',
-    },
-    {
-      question: 'Can I book a pediatric consultation?',
-      answer: 'Yes. Go to Pediatric Services and start from the specialist list.',
-    },
-    {
-      question: 'How long does delivery take?',
-      answer: 'Same-day in Nairobi, or 2-3 business days outside Nairobi.',
-    },
-  ]
-
   return (
     <div className="help-page">
       <section className="help-page__section">
@@ -57,7 +38,7 @@ function HelpPage() {
             </div>
           </div>
 
-          <div className="help-page__layout">
+          <div className="help-page__layout help-page__layout--single">
             <section className="help-page__panel">
               <div className="help-page__panel-head">
                 <h2 className="help-page__panel-title">Contact</h2>
@@ -101,21 +82,6 @@ function HelpPage() {
               </div>
             </section>
 
-            <section className="help-page__panel">
-              <div className="help-page__panel-head">
-                <h2 className="help-page__panel-title">FAQ</h2>
-                <p className="help-page__panel-subtitle">Common questions, kept short.</p>
-              </div>
-
-              <div className="faq-list">
-                {faqs.map((faq) => (
-                  <details key={faq.question} className="faq-item">
-                    <summary>{faq.question}</summary>
-                    <p>{faq.answer}</p>
-                  </details>
-                ))}
-              </div>
-            </section>
           </div>
         </div>
       </section>

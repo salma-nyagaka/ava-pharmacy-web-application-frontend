@@ -365,10 +365,10 @@ function PayoutManagement() {
       <div className="category-management__header">
         <div>
           <div className="pm-title-row">
-            <h1>Payouts</h1>
+            <h1>Payments & reports</h1>
             <span className="pm-auto-pill">Auto payouts enabled</span>
           </div>
-          <p className="pm-subtitle">Payouts are generated automatically per completed task. Register manual payouts only for adjustments or edge cases.</p>
+          <p className="pm-subtitle">Create, report on, and manage provider payments across doctors, pediatricians, lab technicians, labs, and pharmacists.</p>
         </div>
         <div className="pm-header-actions">
           <button className="btn btn--outline btn--sm" type="button" onClick={handleSyncEarnings}>

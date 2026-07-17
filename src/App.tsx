@@ -53,6 +53,7 @@ import OrderConfirmationPage from './pages/OrderConfirmation/OrderConfirmationPa
 import WishlistPage from './pages/Wishlist/WishlistPage'
 import ReturnsPage from './pages/Returns/ReturnsPage'
 import HelpPage from './pages/Help/HelpPage'
+import FAQPage from './pages/FAQ/FAQPage'
 import OffersPage from './pages/Offers/OffersPage'
 import StoreLocatorPage from './pages/StoreLocator/StoreLocatorPage'
 import AboutPage from './pages/About/AboutPage'
@@ -82,6 +83,7 @@ import ProfessionalResubmissionPage from './pages/Professional/ProfessionalResub
 import BrandsPage from './pages/Brands/BrandsPage'
 import ConditionsPage from './pages/Conditions/ConditionsPage'
 import HealthServicesPage from './pages/HealthServices/HealthServicesPage'
+import FAQManagement from './pages/Admin/FAQManagement'
 
 
 function LegacyLabDashboardRedirect() {
@@ -146,6 +148,7 @@ function App() {
               <Route path="wishlist" element={<WishlistPage />} />
               <Route path="returns" element={<ReturnsPage />} />
               <Route path="help" element={<HelpPage />} />
+              <Route path="faqs" element={<FAQPage />} />
               <Route path="offers" element={<OffersPage />} />
               <Route path="store-locator" element={<StoreLocatorPage />} />
               <Route path="brands" element={<BrandsPage />} />
@@ -194,6 +197,7 @@ function App() {
               <Route path="health-concerns" element={<HealthConcernManagement />} />
               <Route path="brands" element={<BrandManagement />} />
               <Route path="banners" element={<BannerManagement />} />
+              <Route path="faqs" element={<FAQManagement />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:id" element={<UserDetailsPage />} />
               <Route path="orders" element={<OrderManagement />} />
