@@ -4,12 +4,20 @@ import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 
+const FAQ_CATEGORIES = [
+  'Ordering & Prescriptions',
+  'Delivery & Collection',
+  'Payments & Pricing',
+  'Quality & Safety',
+  'Support',
+] as const
+
 const EMPTY_FORM: FAQPayload = {
-  category: '',
+  category: FAQ_CATEGORIES[0],
   question: '',
   answer: '',
   is_published: true,
-  sort_order: 0,
+  sort_order: 10,
 }
 
 function FAQManagement() {
@@ -89,7 +97,7 @@ function FAQManagement() {
         : await faqService.create(payload)
       setFaqs((current) => editing
         ? current.map((faq) => faq.id === saved.id ? saved : faq)
-        : [...current, saved])
+        : [saved, ...current])
       setShowModal(false)
     } catch {
       setFormError('Unable to save this FAQ. Please review the fields and try again.')
@@ -113,7 +121,7 @@ function FAQManagement() {
       <div className="admin-page__header">
         <div className="admin-page__title">
           <h1>Frequently Asked Questions</h1>
-          <p>Create, categorize, order, and publish the answers shown on the storefront.</p>
+          <p>Create, order, and publish answers shown on the storefront.</p>
         </div>
         <div className="admin-page__actions">
           <button className="btn btn--primary" type="button" onClick={openCreate}>Add FAQ</button>
@@ -175,7 +183,9 @@ function FAQManagement() {
               {formError && <p className="cm-form__error">{formError}</p>}
               <label className="cm-field">
                 <span>Category *</span>
-                <input className="admin-input" maxLength={100} value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} placeholder="e.g. Delivery" />
+                <select className="admin-select" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>
+                  {FAQ_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
               </label>
               <label className="cm-field">
                 <span>Question *</span>

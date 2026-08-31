@@ -217,16 +217,6 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
-        label: 'Payments & Reports',
-        to: '/admin/payouts',
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
-            <rect x="2.5" y="5" width="19" height="14" rx="2" />
-            <path d="M2.5 10h19M7 15h4" />
-          </svg>
-        ),
-      },
-      {
         label: 'Reports',
         to: '/admin/reports',
         icon: (
@@ -236,7 +226,7 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
-        label: 'Invoices',
+        label: 'Invoices & Payments',
         to: '/admin/invoices',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
@@ -279,9 +269,8 @@ const ENABLED_NON_STORE_ITEMS = new Set([
   'Pediatricians',
   'Pharmacists',
   'Customers',
-  'Payments & Reports',
   'Reports',
-  'Invoices',
+  'Invoices & Payments',
   'Support',
   'Settings',
   'Banners',

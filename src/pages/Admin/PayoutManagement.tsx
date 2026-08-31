@@ -9,17 +9,23 @@ import {
   PayoutMethod,
   PayoutRole,
   PayoutStatus,
-  loadAdminPayouts,
-  saveAdminPayouts,
 } from '../../data/payouts'
-import { PayoutRule, loadPayoutRules, savePayoutRules } from '../../data/payoutRules'
+import { PayoutRule } from '../../data/payoutRules'
+import { payoutService } from '../../services/payoutService'
 
 const payoutMethods: PayoutMethod[] = ['Bank Transfer', 'M-Pesa', 'Card', 'Cheque', 'Cash']
 const basePayoutRoles: PayoutRole[] = ['Doctor', 'Pediatrician', 'Lab Technician', 'Lab Partner', 'Pharmacist']
+const payoutStatuses: PayoutStatus[] = ['Draft', 'Pending', 'Approved', 'Processing', 'On hold', 'Paid', 'Failed', 'Reversed', 'Cancelled']
 const formatCurrency = (value: number) => `KSh ${value.toLocaleString()}`
 
-function PayoutManagement() {
-  const [payouts, setPayouts] = useState<AdminPayout[]>(() => loadAdminPayouts())
+const apiErrorMessage = (error: unknown) => {
+  const candidate = error as { response?: { data?: { detail?: string; reason?: string; payment_reference?: string } }; message?: string }
+  const data = candidate.response?.data
+  return data?.detail ?? data?.reason ?? data?.payment_reference ?? candidate.message ?? 'The finance request could not be completed.'
+}
+
+function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
+  const [payouts, setPayouts] = useState<AdminPayout[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState<'all' | PayoutRole>('all')
   const [selectedStatus, setSelectedStatus] = useState<'all' | PayoutStatus>('all')
@@ -27,7 +33,7 @@ function PayoutManagement() {
   const [pageSize, setPageSize] = useState(10)
   const [activeTab, setActiveTab] = useState<'payouts' | 'rules' | 'register'>('payouts')
   const [showPaidModal, setShowPaidModal] = useState(false)
-  const [rules, setRules] = useState<PayoutRule[]>(() => loadPayoutRules())
+  const [rules, setRules] = useState<PayoutRule[]>([])
   const [newRuleRole, setNewRuleRole] = useState('')
   const [newRuleAmount, setNewRuleAmount] = useState('')
   const [newRuleActive, setNewRuleActive] = useState(true)
@@ -40,12 +46,14 @@ function PayoutManagement() {
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState<PayoutMethod>('Bank Transfer')
   const [reference, setReference] = useState('')
-  const [status, setStatus] = useState<PayoutStatus>('Pending')
+  const [status] = useState<PayoutStatus>('Draft')
   const [notes, setNotes] = useState('')
+  const [financeError, setFinanceError] = useState('')
+  const [isSyncing, setIsSyncing] = useState(false)
   const hasFilters = searchTerm.trim().length > 0 || selectedRole !== 'all' || selectedStatus !== 'all'
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null)
   const [paidTarget, setPaidTarget] = useState<AdminPayout | null>(null)
-  const [paidMethod, setPaidMethod] = useState<'M-Pesa' | 'Card'>('M-Pesa')
+  const [paidMethod, setPaidMethod] = useState<'M-Pesa' | 'Bank Transfer'>('M-Pesa')
   const [paidRef, setPaidRef] = useState('')
   const [paidTime, setPaidTime] = useState('')
   const [paidError, setPaidError] = useState('')
@@ -70,14 +78,6 @@ function PayoutManagement() {
   )
 
   useEffect(() => {
-    saveAdminPayouts(payouts)
-  }, [payouts])
-
-  useEffect(() => {
-    savePayoutRules(rules)
-  }, [rules])
-
-  useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, selectedRole, selectedStatus, pageSize])
 
@@ -98,14 +98,15 @@ function PayoutManagement() {
   const pagedPayouts = filteredPayouts.slice(startIndex, startIndex + pageSize)
 
   const stats = useMemo(() => {
-    const pending = payouts.filter((payout) => payout.status === 'Pending').length
+    const payableStatuses: PayoutStatus[] = ['Draft', 'Pending', 'Approved', 'Processing', 'On hold']
+    const pending = payouts.filter((payout) => payableStatuses.includes(payout.status)).length
     const paid = payouts.filter((payout) => payout.status === 'Paid').length
     const failed = payouts.filter((payout) => payout.status === 'Failed').length
     const totalAmount = payouts
       .filter((payout) => payout.status === 'Paid')
       .reduce((sum, payout) => sum + payout.amount, 0)
     const pendingAmount = payouts
-      .filter((payout) => payout.status === 'Pending')
+      .filter((payout) => payableStatuses.includes(payout.status))
       .reduce((sum, payout) => sum + payout.amount, 0)
     const failedAmount = payouts
       .filter((payout) => payout.status === 'Failed')
@@ -121,7 +122,6 @@ function PayoutManagement() {
     setAmount('')
     setMethod('Bank Transfer')
     setReference('')
-    setStatus('Pending')
     setNotes('')
   }
 
@@ -159,32 +159,33 @@ function PayoutManagement() {
     tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const handleAddRule = () => {
+  const handleAddRule = async () => {
     const role = newRuleRole.trim()
     const amountValue = Number(newRuleAmount)
     if (!role) {
       setNewRuleError('Role name is required.')
       return
     }
+    const supportedRole = basePayoutRoles.find((item) => item.toLowerCase() === role.toLowerCase())
+    if (!supportedRole) {
+      setNewRuleError(`Select one of the supported roles: ${basePayoutRoles.join(', ')}.`)
+      return
+    }
     if (!Number.isFinite(amountValue) || amountValue < 0) {
       setNewRuleError('Enter a valid amount.')
       return
     }
-    setRules((prev) => {
-      const existing = prev.find((rule) => rule.role.toLowerCase() === role.toLowerCase())
-      if (existing) {
-        return prev.map((rule) =>
-          rule.role.toLowerCase() === role.toLowerCase()
-            ? { ...rule, amount: amountValue, active: newRuleActive }
-            : rule
-        )
-      }
-      return [...prev, { role: role as PayoutRule['role'], amount: amountValue, currency: 'KSh', active: newRuleActive }]
-    })
-    setNewRuleRole('')
-    setNewRuleAmount('')
-    setNewRuleActive(true)
-    setNewRuleError('')
+    try {
+      const existing = rules.find((rule) => rule.role === supportedRole)
+      const saved = await payoutService.saveRule({ ...existing, role: supportedRole, amount: amountValue, currency: 'KSh', active: newRuleActive })
+      setRules((prev) => [saved, ...prev.filter((rule) => rule.role !== saved.role)])
+      setNewRuleRole('')
+      setNewRuleAmount('')
+      setNewRuleActive(true)
+      setNewRuleError('')
+    } catch (error) {
+      setNewRuleError(apiErrorMessage(error))
+    }
   }
 
   const escapeCsvValue = (value: string | number | undefined) => {
@@ -248,15 +249,25 @@ function PayoutManagement() {
     downloadCsv(rows, `payout-summary-${stamp}.csv`)
   }
 
-  const handleSyncEarnings = useCallback(() => {
-    setPayouts(loadAdminPayouts())
-    setLastSyncAt(new Date().toISOString())
+  const handleSyncEarnings = useCallback(async () => {
+    setIsSyncing(true)
+    try {
+      const [nextPayouts, nextRules] = await Promise.all([payoutService.list(), payoutService.listRules()])
+      setPayouts(nextPayouts)
+      setRules(nextRules)
+      setLastSyncAt(new Date().toISOString())
+      setFinanceError('')
+    } catch (error) {
+      setFinanceError(apiErrorMessage(error))
+    } finally {
+      setIsSyncing(false)
+    }
   }, [])
 
   useEffect(() => {
-    handleSyncEarnings()
+    void handleSyncEarnings()
     const interval = window.setInterval(() => {
-      handleSyncEarnings()
+      void handleSyncEarnings()
     }, 5 * 60 * 1000)
     return () => window.clearInterval(interval)
   }, [handleSyncEarnings])
@@ -267,63 +278,48 @@ function PayoutManagement() {
     }
   }, [currentPage, totalPages])
 
-  useEffect(() => {
-    handleSyncEarnings()
-  }, [rules, handleSyncEarnings])
-
-  const updatePayoutStatus = (payoutId: string, nextStatus: PayoutStatus) => {
-    setPayouts((prev) =>
-      prev.map((payout) =>
-        payout.id === payoutId
-          ? {
-            ...payout,
-            status: nextStatus,
-            paidAt: nextStatus === 'Paid' ? new Date().toISOString().slice(0, 10) : payout.paidAt,
-          }
-          : payout
-      )
-    )
-    logAdminAction({
-      action: 'Update payout status',
-      entity: 'Payout',
-      entityId: payoutId,
-      detail: `Status updated to ${nextStatus}`,
-    })
+  const runPayoutAction = async (payout: AdminPayout, action: string, extras: Record<string, unknown> = {}) => {
+    if (!payout.backendId) return
+    try {
+      const updated = await payoutService.action(payout.backendId, action, extras)
+      setPayouts((prev) => prev.map((item) => item.backendId === updated.backendId ? updated : item))
+      setFinanceError('')
+      logAdminAction({ action: `Payout ${action.replace(/_/g, ' ')}`, entity: 'Payout', entityId: payout.id, detail: `${payout.recipientName} · ${updated.status}` })
+    } catch (error) {
+      setFinanceError(apiErrorMessage(error))
+    }
   }
 
-  const confirmMarkPaid = () => {
+  const requestReasonAndRun = (payout: AdminPayout, action: 'hold' | 'cancel' | 'reverse') => {
+    const reason = window.prompt(`Enter the reason to ${action} payout ${payout.id}:`)
+    if (reason?.trim()) void runPayoutAction(payout, action, { reason: reason.trim() })
+  }
+
+  const confirmMarkPaid = async () => {
     if (!paidTarget) return
     if (!paidRef.trim() || !paidTime.trim()) {
       setPaidError('Payment reference and time are required.')
       return
     }
-    setPayouts((prev) =>
-      prev.map((payout) =>
-        payout.id === paidTarget.id
-          ? {
-            ...payout,
-            status: 'Paid',
-            method: paidMethod,
-            reference: paidRef.trim(),
-            paidAt: paidTime,
-          }
-          : payout
-      )
-    )
-    logAdminAction({
-      action: 'Mark payout as paid',
-      entity: 'Payout',
-      entityId: paidTarget.id,
-      detail: `Paid via ${paidMethod} · Ref ${paidRef.trim()} · ${paidTime}`,
-    })
-    setShowPaidModal(false)
-    setPaidTarget(null)
-    setPaidRef('')
-    setPaidTime('')
-    setPaidError('')
+    if (!paidTarget.backendId) return
+    try {
+      const updated = await payoutService.action(paidTarget.backendId, 'mark_paid', {
+        payment_reference: paidRef.trim(), provider_transaction_id: paidRef.trim(),
+        method: paidMethod === 'M-Pesa' ? 'mpesa' : 'bank_transfer', paid_at: paidTime,
+      })
+      setPayouts((prev) => prev.map((item) => item.backendId === updated.backendId ? updated : item))
+      logAdminAction({ action: 'Mark payout as paid', entity: 'Payout', entityId: paidTarget.id, detail: `Paid via ${paidMethod} · Ref ${paidRef.trim()} · ${paidTime}` })
+      setShowPaidModal(false)
+      setPaidTarget(null)
+      setPaidRef('')
+      setPaidTime('')
+      setPaidError('')
+    } catch (error) {
+      setPaidError(apiErrorMessage(error))
+    }
   }
 
-  const handleSavePayout = () => {
+  const handleSavePayout = async () => {
     const normalizedAmount = Number.parseFloat(amount)
     const resolvedRecipientName = recipientId
       ? recipientOptions.find((profile) => profile.id === recipientId)?.name ?? ''
@@ -333,36 +329,42 @@ function PayoutManagement() {
       return
     }
 
-    const generatedId = `PAY-${1000 + payouts.length + 1}`
-    const generatedReference = reference.trim() || `REF-${Date.now().toString().slice(-6)}`
-    const payout: AdminPayout = {
-      id: generatedId,
-      recipientId: recipientId || undefined,
-      recipientName: resolvedRecipientName,
-      role: recipientRole,
-      period: period.trim(),
-      amount: normalizedAmount,
-      method,
-      reference: generatedReference,
-      status,
-      requestedAt: new Date().toISOString().slice(0, 10),
-      paidAt: status === 'Paid' ? new Date().toISOString().slice(0, 10) : undefined,
-      notes: notes.trim() || undefined,
-      source: 'Manual',
+    try {
+      const payout = await payoutService.create({
+        recipientName: resolvedRecipientName, role: recipientRole, period: period.trim(), amount: normalizedAmount,
+        method, notes: notes.trim() || undefined, sourceReference: reference.trim() || undefined,
+      })
+      setPayouts((prev) => [payout, ...prev])
+      setFinanceError('')
+      logAdminAction({ action: 'Register payout', entity: 'Payout', entityId: payout.id, detail: `${resolvedRecipientName} · KSh ${normalizedAmount.toLocaleString()} · Draft` })
+      resetRegisterForm()
+      setActiveTab('payouts')
+    } catch (error) {
+      setFinanceError(apiErrorMessage(error))
     }
+  }
 
-    setPayouts((prev) => [payout, ...prev])
-    logAdminAction({
-      action: 'Register payout',
-      entity: 'Payout',
-      entityId: generatedId,
-      detail: `${resolvedRecipientName} · KSh ${normalizedAmount.toLocaleString()} · ${status}`,
-    })
+  const persistRule = async (rule: PayoutRule) => {
+    try {
+      const saved = await payoutService.saveRule(rule)
+      setRules((prev) => prev.map((item) => item.role === saved.role ? saved : item))
+      setFinanceError('')
+    } catch (error) {
+      setFinanceError(apiErrorMessage(error))
+    }
   }
 
   return (
-    <div className="category-management admin-page">
-      <div className="category-management__header">
+    <div className={embedded ? 'category-management' : 'category-management admin-page'}>
+      {embedded && (
+        <div className="pm-header-actions" style={{ justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <button className="btn btn--outline btn--sm" type="button" onClick={() => void handleSyncEarnings()} disabled={isSyncing}>{isSyncing ? 'Syncing…' : 'Sync ledger'}</button>
+          <button className="btn btn--outline btn--sm" type="button" onClick={handleExportCsv}>Export CSV</button>
+          <button className="btn btn--outline btn--sm" type="button" onClick={handleDownloadSummary}>Download summary</button>
+          <button className="btn btn--primary btn--sm" type="button" onClick={openRegisterTab}>Register manual payout</button>
+        </div>
+      )}
+      {!embedded && <div className="category-management__header">
         <div>
           <div className="pm-title-row">
             <h1>Payments & reports</h1>
@@ -371,8 +373,8 @@ function PayoutManagement() {
           <p className="pm-subtitle">Create, report on, and manage provider payments across doctors, pediatricians, lab technicians, labs, and pharmacists.</p>
         </div>
         <div className="pm-header-actions">
-          <button className="btn btn--outline btn--sm" type="button" onClick={handleSyncEarnings}>
-            Sync tasks
+          <button className="btn btn--outline btn--sm" type="button" onClick={() => void handleSyncEarnings()} disabled={isSyncing}>
+            {isSyncing ? 'Syncing…' : 'Sync ledger'}
           </button>
           <button className="btn btn--outline btn--sm" type="button" onClick={handleExportCsv}>
             Export CSV
@@ -384,12 +386,19 @@ function PayoutManagement() {
             Register manual payout
           </button>
         </div>
-      </div>
+      </div>}
 
       {lastSyncAt && (
         <div className="pm-sync-banner">
           <span>Last synced {lastSyncAt.slice(0, 10)} at {lastSyncAt.slice(11, 16)}</span>
           <span className="pm-sync-banner__note">Auto-sync runs every 5 minutes.</span>
+        </div>
+      )}
+
+      {financeError && (
+        <div className="pm-pending-banner" role="alert">
+          <span><strong>Finance action needs attention:</strong> {financeError}</span>
+          <button className="pm-pending-banner__btn" type="button" onClick={() => setFinanceError('')}>Dismiss</button>
         </div>
       )}
 
@@ -481,9 +490,7 @@ function PayoutManagement() {
           </select>
           <select className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as 'all' | PayoutStatus)}>
             <option value="all">All statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Paid">Paid</option>
-            <option value="Failed">Failed</option>
+            {payoutStatuses.map((statusOption) => <option key={statusOption} value={statusOption}>{statusOption}</option>)}
           </select>
           {hasFilters && (
             <button className="cm-clear-filter" type="button" onClick={clearFilters}>Clear filters</button>
@@ -540,13 +547,23 @@ function PayoutManagement() {
                   <span className="pm-meta">Ref {payout.reference}</span>
                 </td>
                 <td>
-                  <span className={`admin-status ${payout.status === 'Paid' ? 'admin-status--success' : payout.status === 'Pending' ? 'admin-status--warning' : 'admin-status--danger'}`}>
+                  <span className={`admin-status ${payout.status === 'Paid' ? 'admin-status--success' : ['Draft', 'Pending', 'Approved', 'Processing', 'On hold'].includes(payout.status) ? 'admin-status--warning' : 'admin-status--danger'}`}>
                     {payout.status}
                   </span>
+                  {payout.reconciliationStatus && <span className="pm-meta">{payout.reconciliationStatus}</span>}
                 </td>
                 <td>
                   <div className="cm-row-actions">
-                    {payout.status !== 'Paid' && (
+                    {payout.status === 'Draft' && (
+                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'submit')}>Submit</button>
+                    )}
+                    {payout.status === 'Pending' && (
+                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'approve')}>Approve</button>
+                    )}
+                    {payout.status === 'Approved' && (
+                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'process')}>Process</button>
+                    )}
+                    {(payout.status === 'Approved' || payout.status === 'Processing') && (
                       <button
                         className="cm-row-btn cm-row-btn--edit"
                         type="button"
@@ -555,14 +572,32 @@ function PayoutManagement() {
                         Mark paid
                       </button>
                     )}
-                    {payout.status !== 'Failed' && payout.status !== 'Paid' && (
+                    {(payout.status === 'Approved' || payout.status === 'Processing') && (
                       <button
                         className="cm-row-btn cm-row-btn--delete"
                         type="button"
-                        onClick={() => updatePayoutStatus(payout.id, 'Failed')}
+                        onClick={() => void runPayoutAction(payout, 'mark_failed', { failure_message: 'Marked failed by finance admin' })}
                       >
                         Mark failed
                       </button>
+                    )}
+                    {payout.status === 'Failed' && (
+                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'retry')}>Retry</button>
+                    )}
+                    {['Pending', 'Approved', 'Processing'].includes(payout.status) && (
+                      <button className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => requestReasonAndRun(payout, 'hold')}>Hold</button>
+                    )}
+                    {payout.status === 'On hold' && (
+                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'release')}>Release</button>
+                    )}
+                    {payout.status === 'Paid' && payout.reconciliationStatus !== 'Matched' && (
+                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'reconcile')}>Reconcile</button>
+                    )}
+                    {payout.status === 'Paid' && (
+                      <button className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => requestReasonAndRun(payout, 'reverse')}>Reverse</button>
+                    )}
+                    {['Draft', 'Pending', 'Approved', 'Failed', 'On hold'].includes(payout.status) && (
+                      <button className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => requestReasonAndRun(payout, 'cancel')}>Cancel</button>
                     )}
                   </div>
                 </td>
@@ -661,17 +696,14 @@ function PayoutManagement() {
                         )
                       )
                     }
+                    onBlur={() => void persistRule(rule)}
                   />
                   <label className="pm-rules__toggle">
                     <input
                       type="checkbox"
                       checked={rule.active}
                       onChange={(event) =>
-                        setRules((prev) =>
-                          prev.map((item) =>
-                            item.role === rule.role ? { ...item, active: event.target.checked } : item
-                          )
-                        )
+                        void persistRule({ ...rule, active: event.target.checked })
                       }
                     />
                     <span className={`pm-rule-pill ${rule.active ? 'pm-rule-pill--active' : 'pm-rule-pill--paused'}`}>
@@ -835,11 +867,7 @@ function PayoutManagement() {
                   <div className="pm-modal__grid pm-modal__grid--single">
                     <div className="form-group">
                       <label>Status</label>
-                      <select value={status} onChange={(event) => setStatus(event.target.value as PayoutStatus)}>
-                        <option value="Pending">Pending</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Failed">Failed</option>
-                      </select>
+                      <input value={status} readOnly />
                     </div>
                     <div className="form-group">
                       <label>Notes (optional)</label>
@@ -904,14 +932,14 @@ function PayoutManagement() {
                     </div>
                   )}
                 </div>
-                <p className="pm-summary-hint">Review details before saving. Records are stored locally for finance review.</p>
+                <p className="pm-summary-hint">Review details before saving. Records enter the auditable finance ledger as drafts, then follow submission and approval controls.</p>
               </div>
             </div>
             <div className="pm-modal__footer">
               <button className="btn btn--outline btn--sm" onClick={resetRegisterForm}>
                 Reset
               </button>
-              <button className="btn btn--primary btn--sm" onClick={() => { handleSavePayout(); resetRegisterForm() }}>
+              <button className="btn btn--primary btn--sm" onClick={() => void handleSavePayout()}>
                 Save payout
               </button>
             </div>
@@ -932,9 +960,9 @@ function PayoutManagement() {
               </p>
               <div className="form-group">
                 <label>Payment method</label>
-                <select value={paidMethod} onChange={(event) => setPaidMethod(event.target.value as 'M-Pesa' | 'Card')}>
+                <select value={paidMethod} onChange={(event) => setPaidMethod(event.target.value as 'M-Pesa' | 'Bank Transfer')}>
                   <option value="M-Pesa">M-Pesa</option>
-                  <option value="Card">Card</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
                 </select>
               </div>
               <div className="form-group">

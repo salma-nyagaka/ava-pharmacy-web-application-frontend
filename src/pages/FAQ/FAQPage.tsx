@@ -23,6 +23,11 @@ function FAQPage() {
   const visibleFaqs = activeCategory === 'All'
     ? faqs
     : faqs.filter((faq) => faq.category === activeCategory)
+  const columnBreak = Math.ceil(visibleFaqs.length / 2)
+  const faqColumns = [
+    visibleFaqs.slice(0, columnBreak),
+    visibleFaqs.slice(columnBreak),
+  ]
 
   if (!loading && !error && faqs.length === 0) return null
 
@@ -34,9 +39,7 @@ function FAQPage() {
         </nav>
 
         <header className="faq-page__hero">
-          <p className="faq-page__eyebrow">Help centre</p>
-          <h1>Frequently asked questions</h1>
-          <p>Find clear answers about medicines, prescriptions, delivery, payments, and your account.</p>
+          <h1>Frequently Asked Questions</h1>
         </header>
 
         {loading ? (
@@ -61,11 +64,23 @@ function FAQPage() {
             )}
 
             <div className="faq-page__list">
-              {visibleFaqs.map((faq) => (
-                <details key={faq.id} className="faq-page__item">
-                  <summary>{faq.question}</summary>
-                  <div className="faq-page__answer"><p>{faq.answer}</p></div>
-                </details>
+              {faqColumns.map((column, columnIndex) => (
+                <div className="faq-page__column" key={columnIndex}>
+                  {column.map((faq, faqIndex) => (
+                    <details key={faq.id} className="faq-page__item">
+                      <summary>
+                        <span className="faq-page__chevron" aria-hidden="true" />
+                        <span>
+                          <span className="faq-page__number" aria-hidden="true">
+                            {columnIndex * columnBreak + faqIndex + 1}.
+                          </span>
+                          {faq.question}
+                        </span>
+                      </summary>
+                      <div className="faq-page__answer"><p>{faq.answer}</p></div>
+                    </details>
+                  ))}
+                </div>
               ))}
             </div>
           </section>

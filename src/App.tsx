@@ -36,7 +36,6 @@ import OrderDetailsPage from './pages/Admin/OrderDetailsLivePage'
 import Reports from './pages/Admin/Reports'
 import Invoices from './pages/Admin/Invoices'
 import DealsManagement from './pages/Admin/DealsManagement'
-import PayoutManagement from './pages/Admin/PayoutManagement'
 import LabTestManagement from './pages/Admin/LabTestManagement'
 import LabRequestManagement from './pages/Admin/LabRequestManagement'
 import LabPartnerManagement from './pages/Admin/LabPartnerManagement'
@@ -208,7 +207,7 @@ function App() {
               <Route path="reports" element={<Reports />} />
               <Route path="invoices" element={<Invoices />} />
               <Route path="deals" element={<DealsManagement />} />
-              <Route path="payouts" element={<PayoutManagement />} />
+              <Route path="payouts" element={<Navigate to="/admin/invoices?view=payouts" replace />} />
               <Route path="lab-tests" element={<LabTestManagement />} />
               <Route path="lab-requests" element={<LabRequestManagement />} />
               <Route path="lab-partners" element={<LabPartnerManagement />} />

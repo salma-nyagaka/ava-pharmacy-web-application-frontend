@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { adminDashboardService, ApiInvoice } from '../../services/adminDashboardService'
+import PayoutManagement from './PayoutManagement'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/Invoices.css'
@@ -176,6 +178,8 @@ function InvoiceModal({ invoice, onClose }: { invoice: ApiInvoice; onClose: () =
 }
 
 function Invoices() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const financeView = searchParams.get('view') === 'payouts' ? 'payouts' : 'invoices'
   const [invoices, setInvoices] = useState<ApiInvoice[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -224,18 +228,29 @@ function Invoices() {
     <div className="admin-page invoices-page">
       <div className="admin-page__header">
         <div>
-          <h1>Invoices</h1>
-          <p className="admin-page__subtitle">View, search, and download invoices for all placed orders.</p>
+          <h1>Invoices &amp; Payments</h1>
+          <p className="admin-page__subtitle">Manage customer invoices, provider payouts, payment rules, reconciliation, and finance reports in one place.</p>
         </div>
-        <button
+        {financeView === 'invoices' && <button
           className="btn btn--primary"
           type="button"
           onClick={handleDownload}
           disabled={downloading}
         >
           {downloading ? 'Exporting…' : 'Export All (CSV)'}
+        </button>}
+      </div>
+
+      <div className="pm-tabs" aria-label="Finance sections">
+        <button className={`pm-tab ${financeView === 'invoices' ? 'pm-tab--active' : ''}`} type="button" onClick={() => setSearchParams({ view: 'invoices' })}>
+          Customer invoices
+        </button>
+        <button className={`pm-tab ${financeView === 'payouts' ? 'pm-tab--active' : ''}`} type="button" onClick={() => setSearchParams({ view: 'payouts' })}>
+          Provider payments &amp; reports
         </button>
       </div>
+
+      {financeView === 'payouts' ? <PayoutManagement embedded /> : <>
 
       {/* KPI bar */}
       <div className="cm-kpi-grid">
@@ -388,6 +403,7 @@ function Invoices() {
 
       {/* Invoice modal */}
       {selected && <InvoiceModal invoice={selected} onClose={() => setSelected(null)} />}
+      </>}
     </div>
   )
 }
