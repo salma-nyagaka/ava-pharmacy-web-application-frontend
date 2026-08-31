@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
 import { apiClient } from '../../lib/apiClient'
+import { buildBotPayload, isBotChallengeEnabled } from '../../services/botProtectionService'
 import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/pages/AuthPage.css'
 
@@ -9,6 +11,10 @@ function ForgotPasswordPage() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [website, setWebsite] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [challengeResetKey, setChallengeResetKey] = useState(0)
+  const challengeRequired = isBotChallengeEnabled()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,10 +25,14 @@ function ForgotPasswordPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await apiClient.post('/auth/forgot-password/', { email: email.trim().toLowerCase() })
-      console.log(res, "dsadasdasdasd")
+      await apiClient.post('/auth/forgot-password/', {
+        email: email.trim().toLowerCase(),
+        ...buildBotPayload(website, challengeToken),
+      })
       setSubmitted(true)
     } catch (err: unknown) {
+      setChallengeToken('')
+      setChallengeResetKey((key) => key + 1)
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
       const msg = (err as ApiErr)?.response?.data?.error?.message
       setError(msg ?? 'Something went wrong. Please try again.')
@@ -49,8 +59,8 @@ function ForgotPasswordPage() {
           </div>
           <div className="login-brand__stats">
             <div className="login-brand__stat">
-              <strong>12k+</strong>
-              <span>Patients</span>
+              <strong>Licensed</strong>
+              <span>Pharmacy</span>
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
@@ -88,6 +98,16 @@ function ForgotPasswordPage() {
               </div>
 
               <form className="login-form" onSubmit={handleSubmit} noValidate>
+                <input
+                  type="text"
+                  name="website"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
+                />
                 <div className="login-field">
                   <label htmlFor="fp-email">Email address</label>
                   <div className="login-field__input-wrap">
@@ -109,6 +129,8 @@ function ForgotPasswordPage() {
                   </div>
                 </div>
 
+                <TurnstileChallenge action="forgot_password" onToken={setChallengeToken} resetKey={challengeResetKey} />
+
                 {error && (
                   <div className="login-error">
                     <svg viewBox="0 0 16 16" fill="currentColor">
@@ -118,7 +140,7 @@ function ForgotPasswordPage() {
                   </div>
                 )}
 
-                <button type="submit" className="login-submit" disabled={loading}>
+                <button type="submit" className="login-submit" disabled={loading || (challengeRequired && !challengeToken)}>
                   {loading ? 'Sending…' : 'Send reset link'}
                 </button>
               </form>

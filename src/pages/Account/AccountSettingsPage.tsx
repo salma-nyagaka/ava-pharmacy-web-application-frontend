@@ -3,11 +3,8 @@ import { useAuth } from '../../context/AuthContext'
 import {
   changeAccountPassword,
   fetchAccountProfile,
-  fetchNotificationPreferences,
   updateAccountProfile,
-  updateNotificationPreferences,
   type AccountProfile,
-  type NotificationPreferences,
 } from '../../services/accountService'
 import '../../styles/pages/AccountSettingsPage.css'
 
@@ -29,16 +26,6 @@ const TABS = [
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="3" y="11" width="18" height="11" rx="2"/>
         <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-      </svg>
-    ),
-  },
-  {
-    key: 'notifications',
-    label: 'Notifications',
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
       </svg>
     ),
   },
@@ -135,7 +122,6 @@ function AccountSettingsPage() {
   const { updateUser } = useAuth()
   const [activeTab, setActiveTab] = useState<TabKey>('profile')
   const [profile, setProfile] = useState<AccountProfile | null>(null)
-  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null)
   const [loading, setLoading] = useState(true)
 
   const [profileForm, setProfileForm] = useState({
@@ -144,6 +130,7 @@ function AccountSettingsPage() {
     email: '',
     phone: '',
     date_of_birth: '',
+    gender: '',
   })
   const [passwordForm, setPasswordForm] = useState({
     old_password: '',
@@ -159,23 +146,19 @@ function AccountSettingsPage() {
   const [passwordMessage, setPasswordMessage] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
 
-  const [preferencesError, setPreferencesError] = useState('')
-  const [preferencesMessage, setPreferencesMessage] = useState('')
-  const [preferencesSaving, setPreferencesSaving] = useState(false)
-
   useEffect(() => {
     let active = true
-    Promise.all([fetchAccountProfile(), fetchNotificationPreferences()])
-      .then(([profileResponse, preferencesResponse]) => {
+    fetchAccountProfile()
+      .then((profileResponse) => {
         if (!active) return
         setProfile(profileResponse)
-        setPreferences(preferencesResponse)
         setProfileForm({
           first_name: profileResponse.first_name ?? '',
           last_name: profileResponse.last_name ?? '',
           email: profileResponse.email ?? '',
           phone: profileResponse.phone ?? '',
           date_of_birth: profileResponse.date_of_birth ?? '',
+          gender: profileResponse.gender ?? '',
         })
       })
       .finally(() => {
@@ -199,6 +182,7 @@ function AccountSettingsPage() {
         email: profileForm.email.trim(),
         phone: profileForm.phone.trim(),
         date_of_birth: profileForm.date_of_birth || null,
+        gender: profileForm.gender,
       })
       setProfile(updated)
       setProfileForm({
@@ -207,6 +191,7 @@ function AccountSettingsPage() {
         email: updated.email ?? '',
         phone: updated.phone ?? '',
         date_of_birth: updated.date_of_birth ?? '',
+        gender: updated.gender ?? '',
       })
       updateUser({
         name: updated.full_name,
@@ -241,33 +226,6 @@ function AccountSettingsPage() {
     }
   }
 
-  const togglePreference = <K extends keyof NotificationPreferences>(key: K, value: NotificationPreferences[K]) => {
-    setPreferences((prev) => prev ? { ...prev, [key]: value } : prev)
-  }
-
-  const handlePreferencesSave = async () => {
-    if (!preferences) return
-    setPreferencesSaving(true)
-    setPreferencesError('')
-    setPreferencesMessage('')
-    try {
-      const updated = await updateNotificationPreferences({
-        email_enabled: preferences.email_enabled,
-        sms_enabled: preferences.sms_enabled,
-        push_enabled: preferences.push_enabled,
-        marketing_enabled: preferences.marketing_enabled,
-        order_updates_email: preferences.order_updates_email,
-        order_updates_sms: preferences.order_updates_sms,
-      })
-      setPreferences(updated)
-      setPreferencesMessage('Notification preferences saved.')
-    } catch (error) {
-      setPreferencesError(extractErrorMessage(error, 'Unable to save notification preferences right now.'))
-    } finally {
-      setPreferencesSaving(false)
-    }
-  }
-
   return (
     <div className="ase">
       <div className="ase-banner">
@@ -281,7 +239,7 @@ function AccountSettingsPage() {
           </button>
         </div>
         <div className="ase-banner__info">
-          <p className="ase-banner__name">{profile?.full_name || 'Your account'}</p>
+          <h1 className="ase-banner__name">{profile?.full_name || 'Your account'}</h1>
           <p className="ase-banner__email">{profile?.email || 'Loading…'}</p>
           <span className="ase-banner__badge">{formatJoinDate(profile?.date_joined)}</span>
         </div>
@@ -338,10 +296,23 @@ function AccountSettingsPage() {
               <input id="ase-phone" type="tel" value={profileForm.phone} onChange={(event) => setProfileForm((prev) => ({ ...prev, phone: event.target.value }))} disabled={loading || profileSaving} />
               <p className="ase-hint">Used for delivery updates and SMS reminders</p>
             </div>
-            <div className="ase-form__group">
-              <label htmlFor="ase-dob">Date of birth</label>
-              <input id="ase-dob" type="date" value={profileForm.date_of_birth} onChange={(event) => setProfileForm((prev) => ({ ...prev, date_of_birth: event.target.value }))} disabled={loading || profileSaving} />
-              <p className="ase-hint">Required for age-restricted medicines and prescriptions</p>
+            <div className="ase-form__row">
+              <div className="ase-form__group">
+                <label htmlFor="ase-dob">Date of birth</label>
+                <input id="ase-dob" type="date" value={profileForm.date_of_birth} onChange={(event) => setProfileForm((prev) => ({ ...prev, date_of_birth: event.target.value }))} disabled={loading || profileSaving} />
+                <p className="ase-hint">Required for age-restricted medicines and prescriptions</p>
+              </div>
+              <div className="ase-form__group">
+                <label htmlFor="ase-gender">Gender</label>
+                <select id="ase-gender" value={profileForm.gender} onChange={(event) => setProfileForm((prev) => ({ ...prev, gender: event.target.value }))} disabled={loading || profileSaving}>
+                  <option value="">Prefer not to say</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="non_binary">Non-binary</option>
+                  <option value="other">Other</option>
+                </select>
+                <p className="ase-hint">Optional profile information.</p>
+              </div>
             </div>
             {profileError && <p className="ase-hint" style={{ color: '#b91c1c' }}>{profileError}</p>}
             {profileMessage && <p className="ase-hint" style={{ color: '#15803d' }}>{profileMessage}</p>}
@@ -416,128 +387,6 @@ function AccountSettingsPage() {
         </div>
       )}
 
-      {activeTab === 'notifications' && (
-        <div className="ase-card">
-          <div className="ase-section-head">
-            <div className="ase-section-head__icon ase-section-head__icon--green">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-            </div>
-            <div>
-              <h3 className="ase-section-head__title">How we contact you</h3>
-              <p className="ase-section-head__sub">Choose which channels we should use for important order updates and optional marketing</p>
-            </div>
-          </div>
-
-          <p className="ase-toggles-label">Important alerts</p>
-          <div className="ase-toggles">
-            <div className="ase-toggle-row">
-              <div className="ase-toggle-row__left">
-                <span className="ase-toggle-row__emoji">📦</span>
-                <div className="ase-toggle-row__info">
-                  <p className="ase-toggle-row__label">
-                    In-account order updates
-                    <span className="ase-toggle-row__required">Required</span>
-                  </p>
-                  <p className="ase-toggle-row__desc">Your order timeline and status changes stay visible in your account.</p>
-                </div>
-              </div>
-              <label className="ase-toggle" htmlFor="nt-account-orders">
-                <input id="nt-account-orders" type="checkbox" checked disabled />
-                <span className="ase-toggle__track" />
-              </label>
-            </div>
-            <div className="ase-toggle-row">
-              <div className="ase-toggle-row__left">
-                <span className="ase-toggle-row__emoji">✉️</span>
-                <div className="ase-toggle-row__info">
-                  <p className="ase-toggle-row__label">Email order updates</p>
-                  <p className="ase-toggle-row__desc">Confirmation, dispatch, delivery, and refund updates by email.</p>
-                </div>
-              </div>
-              <label className="ase-toggle" htmlFor="nt-order-email">
-                <input id="nt-order-email" type="checkbox" checked={!!preferences?.order_updates_email} onChange={(event) => togglePreference('order_updates_email', event.target.checked)} />
-                <span className="ase-toggle__track" />
-              </label>
-            </div>
-            <div className="ase-toggle-row">
-              <div className="ase-toggle-row__left">
-                <span className="ase-toggle-row__emoji">💬</span>
-                <div className="ase-toggle-row__info">
-                  <p className="ase-toggle-row__label">SMS order updates</p>
-                  <p className="ase-toggle-row__desc">Text alerts for payment and delivery progress on active orders.</p>
-                </div>
-              </div>
-              <label className="ase-toggle" htmlFor="nt-order-sms">
-                <input id="nt-order-sms" type="checkbox" checked={!!preferences?.order_updates_sms} onChange={(event) => togglePreference('order_updates_sms', event.target.checked)} />
-                <span className="ase-toggle__track" />
-              </label>
-            </div>
-          </div>
-
-          <p className="ase-toggles-label ase-toggles-label--mt">Optional</p>
-          <div className="ase-toggles">
-            {[
-              {
-                id: 'nt-email-enabled',
-                icon: '📨',
-                label: 'General email alerts',
-                desc: 'Account and service-related emails beyond order-specific updates.',
-                checked: !!preferences?.email_enabled,
-                onChange: (checked: boolean) => togglePreference('email_enabled', checked),
-              },
-              {
-                id: 'nt-sms-enabled',
-                icon: '📱',
-                label: 'General SMS alerts',
-                desc: 'SMS messaging beyond order-specific updates.',
-                checked: !!preferences?.sms_enabled,
-                onChange: (checked: boolean) => togglePreference('sms_enabled', checked),
-              },
-              {
-                id: 'nt-push-enabled',
-                icon: '🔔',
-                label: 'Push / browser alerts',
-                desc: 'Real-time browser notifications when supported.',
-                checked: !!preferences?.push_enabled,
-                onChange: (checked: boolean) => togglePreference('push_enabled', checked),
-              },
-              {
-                id: 'nt-marketing-enabled',
-                icon: '🏷️',
-                label: 'Deals & offers',
-                desc: 'Promotions, launches, and campaign announcements.',
-                checked: !!preferences?.marketing_enabled,
-                onChange: (checked: boolean) => togglePreference('marketing_enabled', checked),
-              },
-            ].map((item) => (
-              <div key={item.id} className="ase-toggle-row">
-                <div className="ase-toggle-row__left">
-                  <span className="ase-toggle-row__emoji">{item.icon}</span>
-                  <div className="ase-toggle-row__info">
-                    <p className="ase-toggle-row__label">{item.label}</p>
-                    <p className="ase-toggle-row__desc">{item.desc}</p>
-                  </div>
-                </div>
-                <label className="ase-toggle" htmlFor={item.id}>
-                  <input id={item.id} type="checkbox" checked={item.checked} onChange={(event) => item.onChange(event.target.checked)} />
-                  <span className="ase-toggle__track" />
-                </label>
-              </div>
-            ))}
-          </div>
-
-          {preferencesError && <p className="ase-hint" style={{ color: '#b91c1c', marginTop: '1rem' }}>{preferencesError}</p>}
-          {preferencesMessage && <p className="ase-hint" style={{ color: '#15803d', marginTop: '1rem' }}>{preferencesMessage}</p>}
-          <div className="ase-form__actions">
-            <button className={`ase-btn ase-btn--primary ${preferencesMessage ? 'ase-btn--saved' : ''}`} type="button" onClick={() => void handlePreferencesSave()} disabled={preferencesSaving || !preferences}>
-              {preferencesSaving ? 'Saving…' : preferencesMessage ? 'Saved!' : 'Save preferences'}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

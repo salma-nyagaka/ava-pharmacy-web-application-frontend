@@ -1,9 +1,13 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/avapharmacy/api/v1').replace(/\/$/, '')
 
 export interface PharmacistCreatePayload {
-  name: string
+  firstName: string
+  lastName: string
   email: string
   phone: string
+  licenseNumber: string
+  branchLocation: string
+  position: string
   address?: string
   pharmacistPermissions: string[]
 }
@@ -21,6 +25,9 @@ export interface AdminUserApi {
   is_active?: boolean
   address?: string
   pharmacist_permissions?: string[]
+  pharmacist_license_number?: string
+  pharmacist_branch_location?: string
+  pharmacist_position?: string
   created_at?: string
   date_joined?: string
   total_orders?: number
@@ -53,34 +60,118 @@ export class AdminUserError extends Error {
   }
 }
 
-const extractFieldErrors = (payload: unknown) => {
-  if (!payload || typeof payload !== 'object') {
-    return {}
+const stringifyErrorValue = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    return value.map(stringifyErrorValue).filter(Boolean).join('\n')
+  }
+  if (typeof value === 'string') {
+    return value
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    if (typeof record.detail === 'string') return record.detail
+    if (typeof record.message === 'string') return record.message
+    if (typeof record.error === 'string') return record.error
+  }
+  return ''
+}
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> => (
+  !!value && typeof value === 'object' && !Array.isArray(value)
+)
+
+const getErrorRecord = (payload: unknown): Record<string, unknown> | null => {
+  if (!isObjectRecord(payload)) {
+    return null
   }
 
-  const asRecord = payload as Record<string, unknown>
-  return Object.entries(asRecord).reduce<Record<string, string>>((acc, [key, value]) => {
-    if (key === 'detail' || key === 'error') {
+  const asRecord = payload
+  if (isObjectRecord(asRecord.error)) {
+    if (isObjectRecord(asRecord.error.details)) {
+      return asRecord.error.details
+    }
+    if (isObjectRecord(asRecord.error.errors)) {
+      return asRecord.error.errors
+    }
+    return asRecord.error
+  }
+  if (isObjectRecord(asRecord.errors)) {
+    if (isObjectRecord(asRecord.errors.details)) {
+      return asRecord.errors.details
+    }
+    return asRecord.errors
+  }
+  if (isObjectRecord(asRecord.detail)) {
+    return asRecord.detail
+  }
+  if (isObjectRecord(asRecord.data)) {
+    return asRecord.data
+  }
+  return asRecord
+}
+
+const extractFieldErrors = (payload: unknown) => {
+  const record = getErrorRecord(payload)
+  if (!record) return {}
+
+  return Object.entries(record).reduce<Record<string, string>>((acc, [key, value]) => {
+    if (key === 'code' || key === 'detail' || key === 'error' || key === 'message') {
       return acc
     }
-    if (Array.isArray(value) && value.length > 0) {
-      acc[key] = String(value[0])
-      return acc
-    }
-    if (typeof value === 'string') {
-      acc[key] = value
+    const message = stringifyErrorValue(value)
+    if (message) {
+      acc[key] = message
     }
     return acc
   }, {})
 }
 
 const extractMessage = (payload: unknown, fallback: string) => {
-  if (!payload || typeof payload !== 'object') {
+  if (!isObjectRecord(payload)) {
     return fallback
   }
-  const asRecord = payload as Record<string, unknown>
+  const asRecord = payload
+  if (isObjectRecord(asRecord.error)) {
+    if (typeof asRecord.error.message === 'string') {
+      return asRecord.error.message
+    }
+    if (Array.isArray(asRecord.error.message)) {
+      return stringifyErrorValue(asRecord.error.message) || fallback
+    }
+    if (typeof asRecord.error.detail === 'string') {
+      return asRecord.error.detail
+    }
+    if (Array.isArray(asRecord.error.detail)) {
+      return stringifyErrorValue(asRecord.error.detail) || fallback
+    }
+    return stringifyErrorValue(asRecord.error.details) || fallback
+  }
+  if (isObjectRecord(asRecord.errors)) {
+    if (typeof asRecord.errors.message === 'string') {
+      return asRecord.errors.message
+    }
+    return stringifyErrorValue(asRecord.errors.details) || fallback
+  }
   if (typeof asRecord.detail === 'string') {
     return asRecord.detail
+  }
+  if (Array.isArray(asRecord.detail)) {
+    return stringifyErrorValue(asRecord.detail) || fallback
+  }
+  if (typeof asRecord.error === 'string') {
+    return asRecord.error
+  }
+  if (Array.isArray(asRecord.error)) {
+    return stringifyErrorValue(asRecord.error) || fallback
+  }
+  if (typeof asRecord.message === 'string') {
+    return asRecord.message
+  }
+  if (Array.isArray(asRecord.message)) {
+    return stringifyErrorValue(asRecord.message) || fallback
+  }
+  if (Array.isArray(asRecord.non_field_errors)) {
+    return stringifyErrorValue(asRecord.non_field_errors) || fallback
   }
   return fallback
 }
@@ -124,13 +215,6 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
     extractMessage(payload, 'Request failed.'),
     extractFieldErrors(payload),
   )
-}
-
-const splitName = (fullName: string) => {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return { first_name: '', last_name: '' }
-  if (parts.length === 1) return { first_name: parts[0], last_name: '' }
-  return { first_name: parts[0], last_name: parts.slice(1).join(' ') }
 }
 
 export const adminUserService = {
@@ -190,7 +274,6 @@ export const adminUserService = {
   },
 
   async createPharmacist(payload: PharmacistCreatePayload) {
-    const { first_name, last_name } = splitName(payload.name)
     const response = await fetch(`${API_BASE_URL}/admin/users/`, {
       method: 'POST',
       headers: {
@@ -198,12 +281,15 @@ export const adminUserService = {
         ...getAuthHeaders(),
       },
       body: JSON.stringify({
-        first_name,
-        last_name,
+        first_name: payload.firstName,
+        last_name: payload.lastName,
         email: payload.email,
         phone: payload.phone,
         role: 'pharmacist',
-        address: payload.address,
+        address: payload.address || payload.branchLocation,
+        pharmacist_license_number: payload.licenseNumber,
+        pharmacist_branch_location: payload.branchLocation,
+        pharmacist_position: payload.position,
         pharmacist_permissions: payload.pharmacistPermissions,
       }),
     })
@@ -219,7 +305,7 @@ export const adminUserService = {
     return handleResponse<{ detail: string }>(response)
   },
 
-  async activateStaffPassword(payload: { token: string; new_password: string; new_password_confirm: string }) {
+  async activateStaffPassword(payload: { token: string; new_password: string; new_password_confirm: string; accepted_terms: boolean }) {
     const response = await fetch(`${API_BASE_URL}/auth/professional/activate/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

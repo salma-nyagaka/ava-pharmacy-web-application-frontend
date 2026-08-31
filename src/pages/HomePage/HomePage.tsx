@@ -1,50 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
-import backgroundBanner from '../../assets/images/banner/background.jpg'
-
-// import easterBanner from '../../assets/images/banner/easter.png'
-// import easterBannerMobile from '../../assets/images/banner/easter2.png'
-// import uncoverBanner from '../../assets/images/banner/uncover.png'
-// import uncoverBannerMobile from '../../assets/images/banner/uncover2.png'
+import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
-import { fetchFeaturedProducts } from '../../services/productService'
+import { adminProductService } from '../../services/adminProductService'
+import { fetchBanners, fetchFeaturedProducts, type PublicBanner } from '../../services/productService'
 import { mapApiProduct, useProducts } from '../../hooks/useProducts'
 import { useCatalog } from '../../context/CatalogContext'
 import { useAuth } from '../../context/AuthContext'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
 import type { CatalogProduct } from '../../data/products'
 import { categoryCardImages } from '../../data/categoryCardImages'
-import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
+import HomeSearch from '../../components/HomeSearch/HomeSearch'
+import LazySection from '../../components/LazySection/LazySection'
 import '../../styles/pages/HomePage.css'
-
-type HeroSlide = {
-  id: number
-  image: string
-  mobileImage: string
-  alt: string
-  link: string
-  background: string
-}
-
-const bannerSlides: HeroSlide[] = [
-  {
-    id: 1,
-    image: backgroundBanner,
-    mobileImage: backgroundBanner,
-    alt: 'Coming Soon',
-    link: '/',
-    background: '#d8f3fb',
-  },
-  // {
-  //   id: 2,
-  //   image: uncoverBanner,
-  //   mobileImage: uncoverBannerMobile,
-  //   alt: 'Ava Pharmacy uncover skincare banner',
-  //   link: '/products',
-  //   background: '#e7d3be',
-  // },
-]
 
 const FEATURED_PRODUCTS_LIMIT = 5
 const isAvailableProduct = (product: CatalogProduct) => product.stockSource !== 'out'
@@ -55,11 +25,17 @@ function HomePage() {
   const [addedId, setAddedId] = useState<number | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
-  const [currentSlide, setCurrentSlide] = useState(0)
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<number | null>(null)
   const navigate = useNavigate()
   const { categories } = useCatalog()
   const { isLoggedIn } = useAuth()
+  const { settings } = useSiteSettings()
   const [wishlist, setWishlist] = useState<Record<number, boolean>>({})
+  const [homeBanners, setHomeBanners] = useState<PublicBanner[]>([])
+  const [homeBannersLoading, setHomeBannersLoading] = useState(true)
+  const [bannerRefreshTick, setBannerRefreshTick] = useState(0)
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0)
 
   const valueBannerItems = [
     { key: 'delivery', title: 'Free Delivery',       subtitle: `On orders over KSh 2500/-`, link: '/help', color: 'green'  },
@@ -68,16 +44,30 @@ function HomePage() {
     { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
   ]
 
-  const { products: catalogProducts } = useProducts({ page_size: 200 }, { loadAllPages: true })
+  const { products: catalogProducts, loading: catalogLoading } = useProducts({ page_size: 48 })
+  const { products: latestStockedProducts, loading: newLoading } = useProducts({
+    page_size: 5,
+    ordering: '-created_at',
+    inventory_status: 'available',
+  })
   const [featuredSeedProducts, setFeaturedSeedProducts] = useState<CatalogProduct[]>([])
+  const [featuredLoading, setFeaturedLoading] = useState(true)
   const visibleCategories = categories.filter((category) => {
     const normalizedName = category.name.trim().toLowerCase()
     const normalizedSlug = category.slug.trim().toLowerCase()
     return normalizedName !== 'collections' && normalizedSlug !== 'collections'
   })
+  const getCategoryBannerTarget = (categorySlug?: string | null) =>
+    categorySlug ? `/products?category=${encodeURIComponent(categorySlug)}` : ''
 
-  const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name'>) =>
-    `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+  const prescriptionPathFor = (product: Pick<CatalogProduct, 'id' | 'name' | 'variantId'>) => {
+    const params = new URLSearchParams({
+      product_id: String(product.id),
+      product_name: product.name,
+    })
+    if (product.variantId) params.set('variant_id', String(product.variantId))
+    return `/prescriptions?${params.toString()}`
+  }
 
   const isDealProduct = (product: CatalogProduct) => product.originalPrice !== null && product.originalPrice > product.price
   const getDealSavings = (product: CatalogProduct) => (product.originalPrice ?? product.price) - product.price
@@ -86,6 +76,18 @@ function HomePage() {
     if (product.badge?.trim()) return product.badge.trim()
     return null
   }
+
+  const showToast = (message: string) => {
+    setToast(message)
+    if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(null), 2200)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    }
+  }, [])
 
   const refreshWishlist = () => {
     if (!isLoggedIn) {
@@ -125,13 +127,124 @@ function HomePage() {
         if (!isMounted) return
         setFeaturedSeedProducts([])
       })
+      .finally(() => {
+        if (!isMounted) return
+        setFeaturedLoading(false)
+      })
 
     return () => {
       isMounted = false
     }
   }, [])
 
-  const featuredProducts = (() => {
+  useEffect(() => {
+    let isMounted = true
+
+    const loadHomeBanners = async () => {
+      setHomeBannersLoading(true)
+      try {
+        const apiBanners = await fetchBanners()
+        if (!isMounted) return
+        const activeApiBanners = apiBanners
+          .filter((banner) => banner.status === 'active' && Boolean(banner.image))
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+
+        if (activeApiBanners.length > 0) {
+          setHomeBanners(activeApiBanners)
+          setHomeBannersLoading(false)
+          return
+        }
+      } catch {
+        // Continue through the authenticated and local fallbacks below.
+      }
+
+      try {
+        if (window.localStorage.getItem('ava_access_token')) {
+          const adminBanners = await adminProductService.listBanners()
+          if (!isMounted) return
+          const activeAdminBanners = adminBanners
+            .filter((banner) => banner.status === 'active' && Boolean(banner.image))
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            .map((banner) => ({
+              id: banner.id,
+              title: banner.title || '',
+              message: banner.message,
+              link: banner.link || null,
+              image: banner.image || null,
+              category: banner.category,
+              category_slug: banner.category_slug,
+              category_name: banner.category_name,
+              target_url: getCategoryBannerTarget(banner.category_slug) || banner.target_url || banner.link || '',
+              placement: banner.placement || 'home_hero',
+              sort_order: banner.sort_order ?? 0,
+              status: banner.status,
+            }))
+
+          if (activeAdminBanners.length > 0) {
+            setHomeBanners(activeAdminBanners)
+            setHomeBannersLoading(false)
+            return
+          }
+        }
+      } catch {
+        // Continue through the local fallback below.
+      }
+
+      if (!isMounted) return
+      const localBanners = loadBanners()
+        .filter((banner) => banner.status === 'active' && Boolean(banner.image))
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map((banner, index) => ({
+          id: Number.isFinite(Number(banner.id)) ? Number(banner.id) : index + 1,
+          title: banner.title || '',
+          message: banner.message,
+          link: banner.link || null,
+          image: banner.image || null,
+          category: banner.category ?? null,
+          category_slug: banner.category_slug ?? null,
+          category_name: banner.category_name ?? null,
+          target_url: getCategoryBannerTarget(banner.category_slug) || banner.target_url || banner.link || '',
+          placement: banner.placement || 'home_hero',
+          sort_order: banner.sort_order ?? 0,
+          status: banner.status,
+        }))
+      setHomeBanners(localBanners)
+      setHomeBannersLoading(false)
+    }
+
+    void loadHomeBanners()
+    const refreshBanners = () => { void loadHomeBanners(); setBannerRefreshTick((value) => value + 1) }
+    window.addEventListener('ava:catalog-updated', refreshBanners)
+    return () => {
+      isMounted = false
+      window.removeEventListener('ava:catalog-updated', refreshBanners)
+    }
+  }, [])
+
+  const visibleHomeBanners = useMemo(
+    () => homeBanners
+      .filter((banner) => banner.status === 'active' && banner.placement === 'home_hero' && Boolean(banner.image))
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+    [homeBanners, bannerRefreshTick]
+  )
+  const hasMultipleHeroBanners = visibleHomeBanners.length > 1
+
+  useEffect(() => {
+    setActiveHeroIndex((current) => {
+      if (visibleHomeBanners.length === 0) return 0
+      return Math.min(current, visibleHomeBanners.length - 1)
+    })
+  }, [visibleHomeBanners.length])
+
+  useEffect(() => {
+    if (!hasMultipleHeroBanners) return undefined
+    const timer = window.setInterval(() => {
+      setActiveHeroIndex((current) => (current + 1) % visibleHomeBanners.length)
+    }, 6000)
+    return () => window.clearInterval(timer)
+  }, [hasMultipleHeroBanners, visibleHomeBanners.length])
+
+  const featuredProducts = useMemo(() => {
     const seen = new Set<number>()
     const merged: CatalogProduct[] = []
 
@@ -147,17 +260,37 @@ function HomePage() {
     appendUnique(catalogProducts)
 
     return merged.slice(0, FEATURED_PRODUCTS_LIMIT)
-  })()
+  }, [featuredSeedProducts, catalogProducts])
 
-  const newProducts = catalogProducts
-    .filter((product) => isAvailableProduct(product) && !isDealProduct(product))
-    .slice(0, 5)
+  const newProducts = useMemo(() => latestStockedProducts.slice(0, 5), [latestStockedProducts])
 
-  const offerDeals = [...catalogProducts]
-    .filter((product) => isAvailableProduct(product) && isDealProduct(product))
-    .sort((a, b) => getDealSavings(b) - getDealSavings(a))
-  const spotlightOfferProducts = offerDeals.slice(0, 5)
+  const spotlightOfferProducts = useMemo(() => {
+    return [...catalogProducts]
+      .filter((product) => isAvailableProduct(product) && isDealProduct(product))
+      .sort((a, b) => getDealSavings(b) - getDealSavings(a))
+      .slice(0, 5)
+  }, [catalogProducts])
 
+  const productJsonLd = useMemo(() => {
+    const items = [...spotlightOfferProducts, ...featuredProducts, ...newProducts]
+      .filter((product, index, self) => self.findIndex((p) => p.id === product.id) === index)
+      .slice(0, 12)
+      .map((product) => ({
+        '@type': 'Product',
+        name: product.name,
+        image: product.image ?? undefined,
+        brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+        offers: {
+          '@type': 'Offer',
+          price: product.price,
+          priceCurrency: 'KES',
+          availability: product.stockSource === 'out'
+            ? 'https://schema.org/OutOfStock'
+            : 'https://schema.org/InStock',
+        },
+      }))
+    return JSON.stringify({ '@context': 'https://schema.org', '@type': 'ItemList', itemListElement: items })
+  }, [spotlightOfferProducts, featuredProducts, newProducts])
   const formatPrice = (price: number) => {
     return `KSh ${price.toLocaleString()}`
   }
@@ -195,6 +328,25 @@ function HomePage() {
     return stars
   }
 
+  const renderSkeletonCard = (key: string) => (
+    <div className="product-card product-card--skeleton" aria-hidden="true" key={key}>
+      <div className="product-card__image skeleton" />
+      <div className="product-card__content">
+        <div className="skeleton skeleton--text skeleton--text--sm" />
+        <div className="skeleton skeleton--text" />
+        <div className="skeleton skeleton--text skeleton--text--sm" />
+        <div className="product-card__spacer" />
+        <div className="skeleton skeleton--bar" />
+      </div>
+    </div>
+  )
+
+  const renderSkeletonGrid = (count: number, compact = false) => (
+    <div className={`products__grid${compact ? ' products__grid--compact' : ''}`}>
+      {Array.from({ length: count }, (_, i) => renderSkeletonCard(`sk-${i}`))}
+    </div>
+  )
+
   const updateScrollButtons = () => {
     const track = categoryTrackRef.current
     if (!track) return
@@ -214,25 +366,6 @@ function HomePage() {
       window.removeEventListener('resize', updateScrollButtons)
     }
   }, [visibleCategories.length])
-
-  useEffect(() => {
-    const t = window.setInterval(() => {
-      setCurrentSlide(s => (s + 1) % bannerSlides.length)
-    }, 6000)
-    return () => window.clearInterval(t)
-  }, [bannerSlides.length])
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index)
-  }
-
-  const showPreviousSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length)
-  }
-
-  const showNextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % bannerSlides.length)
-  }
 
   const scrollCategories = (direction: 'prev' | 'next') => {
     const track = categoryTrackRef.current
@@ -261,6 +394,8 @@ function HomePage() {
 
     await cartService.add({
       id: product.id,
+      productId: product.productId,
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,
@@ -268,6 +403,7 @@ function HomePage() {
       stockSource: product.stockSource === 'out' ? 'warehouse' : (product.stockSource ?? 'branch'),
     })
     setAddedId(product.id)
+    showToast(`${product.name} added to cart`)
     window.setTimeout(() => {
       setAddedId((prev) => (prev === product.id ? null : prev))
     }, 1200)
@@ -282,6 +418,8 @@ function HomePage() {
 
     void favouritesService.toggle({
       id: product.id,
+      productId: product.productId,
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,
@@ -326,24 +464,145 @@ function HomePage() {
     )
   }
 
+  const renderSectionIcon = (key: 'categories' | 'offers' | 'top' | 'new') => {
+    const common = {
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: 2,
+      strokeLinecap: 'round' as const,
+      strokeLinejoin: 'round' as const,
+      'aria-hidden': true,
+    }
+    if (key === 'categories') {
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+      )
+    }
+    if (key === 'offers') {
+      return (
+        <svg {...common}>
+          <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L3 13V3h10l7.59 7.59a2 2 0 0 1 0 2.82z" />
+          <path d="M7 7h.01" />
+        </svg>
+      )
+    }
+    if (key === 'top') {
+      return (
+        <svg {...common}>
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      )
+    }
+    return (
+      <svg {...common}>
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+        <circle cx="12" cy="12" r="3.2" />
+      </svg>
+    )
+  }
+
+  const renderSectionHeader = (
+    key: 'categories' | 'offers' | 'top' | 'new',
+    eyebrow: string,
+    title: string,
+    subtitle?: string,
+  ) => (
+    <div className="section__header">
+      <span className="section__eyebrow">
+        {renderSectionIcon(key)}
+        {eyebrow}
+      </span>
+      <h2 className="section__title">{title}</h2>
+      {subtitle && <p className="section__subtitle">{subtitle}</p>}
+    </div>
+  )
+
+  const renderHeroSlide = (banner: PublicBanner, index: number) => {
+    const target = banner.target_url || banner.link || ''
+    const isExternal = /^https?:\/\//i.test(target)
+    const slideContent = (
+      <ImageWithFallback
+        src={banner.image || ''}
+        alt={banner.title || banner.message || `Hero banner ${index + 1}`}
+        className="hero-placeholder__bg"
+      />
+    )
+    const className = 'hero-carousel__slide hero-placeholder hero-placeholder--dynamic'
+
+    if (!target) {
+      return (
+        <div className={className} key={banner.id || index}>
+          {slideContent}
+        </div>
+      )
+    }
+
+    if (isExternal) {
+      return (
+        <a className={className} href={target} rel="noreferrer" target="_blank" key={banner.id || index}>
+          {slideContent}
+        </a>
+      )
+    }
+
+    return (
+      <Link className={className} to={target} key={banner.id || index}>
+        {slideContent}
+      </Link>
+    )
+  }
+
   const renderProductCard = (product: CatalogProduct, section: 'deals' | 'featured' | 'new') => {
     const displayBadge = getProductBadge(product, section)
+    const discountPercent =
+      product.originalPrice && product.originalPrice > product.price
+        ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+        : null
+    const isOut = product.stockSource === 'out'
+    const addLabel = isOut
+      ? 'Out of stock'
+      : product.requiresPrescription
+        ? 'Add Prescription'
+        : addedId === product.id
+          ? 'Added'
+          : 'Add to cart'
 
     return (
       <article key={product.id} className="product-card">
-        <Link to={`/product/${product.id}`} className="product-card__image">
-          {displayBadge && (
-            <span className={`product-card__badge ${section === 'deals' ? 'product-card__badge--sale' : ''}`}>
-              {displayBadge}
-            </span>
+        <Link
+          to={`/product/${product.id}`}
+          className="product-card__stretched"
+          tabIndex={-1}
+          aria-label={`View ${product.name}`}
+        />
+        <div className="product-card__image">
+          {discountPercent !== null ? (
+            <span className="product-card__badge product-card__badge--sale">-{discountPercent}%</span>
+          ) : displayBadge ? (
+            <span className="product-card__badge">{displayBadge}</span>
+          ) : null}
+          {product.requiresPrescription && (
+            <span className="product-card__flag product-card__flag--rx">Rx</span>
+          )}
+          {isOut && (
+            <span className="product-card__flag product-card__flag--out">Out of stock</span>
           )}
           <ImageWithFallback src={product.image} alt={product.name} loading="lazy" />
           <div className="product-card__actions">
             <button
               className={`product-card__action ${wishlist[product.id] ? 'product-card__action--active' : ''}`}
               title={wishlist[product.id] ? 'Remove from favourites' : 'Save to favourites'}
+              aria-label={wishlist[product.id] ? 'Remove from favourites' : 'Save to favourites'}
+              aria-pressed={wishlist[product.id]}
               onClick={(e) => {
                 e.preventDefault()
+                e.stopPropagation()
                 toggleWishlist(product)
               }}
             >
@@ -352,7 +611,7 @@ function HomePage() {
               </svg>
             </button>
           </div>
-        </Link>
+        </div>
         <div className="product-card__content">
           {product.brand && <span className="product-card__brand">{product.brand}</span>}
           <h3 className="product-card__name">
@@ -375,22 +634,36 @@ function HomePage() {
                 <span className="product-card__original-price">{formatPrice(product.originalPrice)}</span>
               )}
             </div>
-            <div className="product-card__buttons">
-              <Link
-                to={`/product/${product.id}`}
-                className="product-card__view-details"
-              >
-                View details
-              </Link>
-              <button
-                className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}`}
-                type="button"
-                title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
-                onClick={() => void handleAddToCart(product)}
-              >
-              {product.requiresPrescription ? 'Add Prescription' : addedId === product.id ? 'Added!' : 'Add to cart'}
+            <button
+              className={`product-card__add-to-cart${addedId === product.id ? ' product-card__add-to-cart--added' : ''}${isOut ? ' product-card__add-to-cart--disabled' : ''}`}
+              type="button"
+              disabled={isOut}
+              title={product.requiresPrescription ? 'Upload prescription to request' : 'Add to cart'}
+              onClick={() => void handleAddToCart(product)}
+            >
+              {isOut ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M5.6 5.6l12.8 12.8" />
+                </svg>
+              ) : product.requiresPrescription ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M9 13h6M9 17h4" />
+                </svg>
+              ) : addedId === product.id ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="9" cy="20" r="1.4" />
+                  <circle cx="18" cy="20" r="1.4" />
+                  <path d="M2 3h2.5l2.2 12.3a2 2 0 0 0 2 1.7h8.7a2 2 0 0 0 2-1.6L22 7H5.2" />
+                </svg>
+              )}
+              <span className="product-card__add-to-cart-label">{addLabel}</span>
             </button>
-            </div>
           </div>
         </div>
       </article>
@@ -402,85 +675,90 @@ function HomePage() {
       <a href="#main-content" className="skip-to-content">
         Skip to main content
       </a>
-      {/* Hero Carousel - full-width promotional banner */}
-      <section className="hero-carousel" id="main-content">
-        <div
-          className="hero-carousel__track"
-          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-        >
-          {bannerSlides.map((slide, index) => (
-            <Link
-              key={slide.id}
-              to={slide.link}
-              className="hero-carousel__slide"
-              style={{ background: slide.background }}
-            >
-              <picture className="hero-carousel__picture">
-                <source media="(max-width: 768px)" srcSet={slide.mobileImage} />
-                <img
-                  src={slide.image}
-                  alt={slide.alt}
-                  className="hero-carousel__img"
-                  loading={index === 0 ? 'eager' : 'lazy'}
-                  decoding="async"
-                  fetchPriority={index === 0 ? 'high' : 'auto'}
-                />
-              </picture>
-              <div className="hero-carousel__overlay">
-                <span className="hero-carousel__eyebrow">Announcement</span>
-                <h1 className="hero-carousel__headline">Coming Soon</h1>
+      {/* Hero banner */}
+      <section className="hero-carousel" id="main-content" aria-label="Ava Pharmacy online pharmacy and care services">
+        <h1 className="hero-carousel__sr-title">
+          Ava Pharmacy: online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya
+        </h1>
+        {homeBannersLoading && visibleHomeBanners.length === 0 ? (
+          <div className="hero-placeholder hero-placeholder--dynamic hero-placeholder--loading" aria-hidden="true" />
+        ) : visibleHomeBanners.length === 0 ? (
+          <div className="hero-placeholder">
+            <div className="hero-placeholder__inner">
+              <span className="hero-placeholder__eyebrow">Ava Pharmacy · Kenya</span>
+              <h2 className="hero-placeholder__title">Medicines & care, delivered to your door</h2>
+              <p className="hero-placeholder__text">
+                Order genuine medicines, book doctor and pediatric consultations, upload prescriptions, and schedule lab tests — all from one place.
+              </p>
+              <div className="hero-placeholder__cta">
+                <Link to="/products" className="hero-placeholder__btn hero-placeholder__btn--primary">
+                  Shop medicines <span aria-hidden="true">→</span>
+                </Link>
+                <Link to="/doctor-consultation" className="hero-placeholder__btn hero-placeholder__btn--ghost">
+                  Book a consultation
+                </Link>
               </div>
-            </Link>
-          ))}
-        </div>
-
-        {bannerSlides.length > 1 && (
-          <>
-            <button
-              type="button"
-              className="hero-carousel__arrow hero-carousel__arrow--prev"
-              aria-label="Show previous banner"
-              onClick={showPreviousSlide}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-            </button>
-
-            <button
-              type="button"
-              className="hero-carousel__arrow hero-carousel__arrow--next"
-              aria-label="Show next banner"
-              onClick={showNextSlide}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </button>
-
-            <div className="hero-carousel__dots" aria-label="Banner navigation">
-              {bannerSlides.map((slide, index) => (
-                <button
-                  key={slide.id}
-                  type="button"
-                  className={`hero-carousel__dot${currentSlide === index ? ' hero-carousel__dot--active' : ''}`}
-                  aria-label={`Show banner ${index + 1}`}
-                  aria-pressed={currentSlide === index}
-                  onClick={() => goToSlide(index)}
-                />
-              ))}
             </div>
+          </div>
+        ) : (
+          <>
+            <div
+              className="hero-carousel__track"
+              style={{ transform: `translateX(-${activeHeroIndex * 100}%)` }}
+            >
+              {visibleHomeBanners.map(renderHeroSlide)}
+            </div>
+            {hasMultipleHeroBanners && (
+              <>
+                <button
+                  className="hero-carousel__arrow hero-carousel__arrow--prev"
+                  type="button"
+                  aria-label="Previous hero banner"
+                  onClick={() => setActiveHeroIndex((current) => (current - 1 + visibleHomeBanners.length) % visibleHomeBanners.length)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+                <button
+                  className="hero-carousel__arrow hero-carousel__arrow--next"
+                  type="button"
+                  aria-label="Next hero banner"
+                  onClick={() => setActiveHeroIndex((current) => (current + 1) % visibleHomeBanners.length)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+                <div className="hero-carousel__dots" role="tablist" aria-label="Hero banners">
+                  {visibleHomeBanners.map((banner, index) => (
+                    <button
+                      className={`hero-carousel__dot${index === activeHeroIndex ? ' hero-carousel__dot--active' : ''}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={index === activeHeroIndex}
+                      aria-label={`Show hero banner ${index + 1}: ${banner.title || banner.message || 'promotion'}`}
+                      key={banner.id || index}
+                      onClick={() => setActiveHeroIndex(index)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </>
         )}
-
       </section>
+
+      <HomeSearch />
+
+
 
       {/* Promotional Banner */}
       <section className="promo-banner">
         <div className="container">
           <div className="promo-banner__strip">
             {valueBannerItems.map((item, i) => (
-              <div key={item.title} className="promo-banner__item">
+              <Link key={item.title} to={item.link} className="promo-banner__item">
                 <span className={`promo-banner__icon promo-banner__icon--${item.color}`}>
                   {renderBannerIcon(item.key)}
                 </span>
@@ -489,19 +767,18 @@ function HomePage() {
                   <span>{item.subtitle}</span>
                 </div>
                 {i < valueBannerItems.length - 1 && <div className="promo-banner__divider" />}
-              </div>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
+
       {/* Categories - browse the store */}
       {visibleCategories.length > 0 && (
         <section className="section categories">
           <div className="container">
-            <div className="section__header">
-              <h2 className="section__title">Shop by Category</h2>
-            </div>
+            {renderSectionHeader('categories', 'Browse', 'Shop by Category', 'Find what you need by department, from everyday medicines to wellness.')}
             <div className="categories__carousel">
               <button
                 className="carousel__btn carousel__btn--prev"
@@ -530,15 +807,7 @@ function HomePage() {
                       </div>
                       <div className="category-card__body">
                         <h3 className="category-card__name">{cat.name}</h3>
-                        {/* <p className="category-card__description">
-                          {cat.description || `Explore trusted ${cat.name.toLowerCase()} picks curated for everyday care.`}
-                        </p> */}
                         <div className="category-card__footer">
-                          {/* <span className="category-card__eyebrow">
-                            {cat.subcategories.length > 0
-                              ? `${cat.subcategories.length} ${cat.subcategories.length === 1 ? 'collection' : 'collections'}`
-                              : 'Coming soon'}
-                          </span> */}
                           <span className="category-card__cta">
                             Explore
                             <span aria-hidden="true">→</span>
@@ -563,22 +832,20 @@ function HomePage() {
           </div>
         </section>
       )}
+      <LazySection fallback={<div className="lazy-placeholder" />}>
       <section className="section offers-preview home-section--offers">
         <div className="container">
-          {/* Hot Offers campaign header and promotion cards are intentionally hidden for now. */}
-          {spotlightOfferProducts.length === 0 ? (
+          {renderSectionHeader('offers', 'Limited time', 'Products On Offer', 'Monthly deals on health essentials, while stocks last.')}
+          {catalogLoading ? (
+            renderSkeletonGrid(5, true)
+          ) : spotlightOfferProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No live offers are available right now.</p>
             </div>
           ) : (
-            <>
-              <div className="section__header">
-                <h2 className="section__title" >Products On Offer</h2>
-              </div>
-              <div className="products__grid products__grid--compact">
-                {spotlightOfferProducts.map((product) => renderProductCard(product, 'deals'))}
-              </div>
-            </>
+            <div className="products__grid products__grid--compact">
+              {spotlightOfferProducts.map((product) => renderProductCard(product, 'deals'))}
+            </div>
           )}
           <div className="featured-products__cta">
             <Link to="/offers" className="featured-products__link-cta">
@@ -588,14 +855,16 @@ function HomePage() {
           </div>
         </div>
       </section>
+      </LazySection>
 
       {/* Featured Products - social proof via best sellers */}
+      <LazySection fallback={<div className="lazy-placeholder" />}>
       <section className="section featured-products home-section--featured">
         <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">Top Rated Products</h2>
-          </div>
-          {featuredProducts.length === 0 ? (
+          {renderSectionHeader('top', 'Customer favourites', 'Top Rated Products', 'Highly rated by shoppers like you.')}
+          {featuredLoading && catalogLoading ? (
+            renderSkeletonGrid(5)
+          ) : featuredProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No top rated products available at the moment.</p>
             </div>
@@ -604,10 +873,18 @@ function HomePage() {
               {featuredProducts.map((product) => renderProductCard(product, 'featured'))}
             </div>
           )}
+          <div className="featured-products__cta">
+            <Link to="/products?sort=rating" className="featured-products__link-cta">
+              View All Top Rated Products
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
       </section>
+      </LazySection>
 
       {/* Services Section */}
+      <LazySection fallback={<div className="lazy-placeholder" />}>
       <section className="hp-services">
         <div className="container">
           <div className="hp-services__shell">
@@ -625,7 +902,7 @@ function HomePage() {
             </div>
 
             <div className="hp-services__grid">
-              <Link to="/doctor-consultation" className="hp-svc-card hp-svc-card--doctor" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <Link to="/doctor-consultation" className="hp-svc-card hp-svc-card--doctor">
                 <div className="hp-svc-card__icon-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/>
@@ -641,7 +918,7 @@ function HomePage() {
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>
 
-              <Link to="/pediatric-consultation" className="hp-svc-card hp-svc-card--paed" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <Link to="/pediatric-consultation" className="hp-svc-card hp-svc-card--paed">
                 <div className="hp-svc-card__icon-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <circle cx="12" cy="6" r="3"/>
@@ -657,7 +934,7 @@ function HomePage() {
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>
 
-              <Link to="/prescriptions" className="hp-svc-card hp-svc-card--rx" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <Link to="/prescriptions" className="hp-svc-card hp-svc-card--rx">
                 <div className="hp-svc-card__icon-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -674,7 +951,7 @@ function HomePage() {
                 <span className="hp-svc-card__arrow" aria-hidden="true">→</span>
               </Link>
 
-              <Link to="/laboratory" className="hp-svc-card hp-svc-card--lab" onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}>
+              <Link to="/laboratory" className="hp-svc-card hp-svc-card--lab">
                 <div className="hp-svc-card__icon-wrap">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v11M3 9h18M3 9l3 9h12l3-9"/>
@@ -694,14 +971,16 @@ function HomePage() {
       
         </div>
       </section>
+      </LazySection>
 
       {/* New Products Section */}
+      <LazySection fallback={<div className="lazy-placeholder" />}>
       <section className="section new-products home-section--new">
         <div className="container">
-          <div className="section__header">
-            <h2 className="section__title">New Products</h2>
-          </div>
-          {newProducts.length === 0 ? (
+          {renderSectionHeader('new', 'Just in', 'New Products', 'Fresh stock added to our shelves.')}
+          {newLoading ? (
+            renderSkeletonGrid(5)
+          ) : newProducts.length === 0 ? (
             <div className="empty-state">
               <p className="empty-state__message">No new products have been added yet.</p>
             </div>
@@ -711,16 +990,86 @@ function HomePage() {
             </div>
           )}
           <div className="featured-products__cta">
-            <Link to="/products" className="featured-products__link-cta">
+            <Link to="/products?sort=newest" className="featured-products__link-cta">
               View All New Products
               <span aria-hidden="true">→</span>
             </Link>
           </div>
         </div>
       </section>
+      </LazySection>
 
+      {/* Trust & compliance band */}
+      <section className="home-trust" aria-label="Pharmacy accreditation and licensing">
+        <div className="container">
+          <div className="home-trust__row">
+            <div className="home-trust__item">
+              <span className="home-trust__icon home-trust__icon--shield" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.95" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 3l7 3v5.25c0 4.95-3.24 8.62-7 9.75-3.76-1.13-7-4.8-7-9.75V6l7-3z" />
+                  <path d="M9.25 12.4l2 2 3.8-4.1" />
+                </svg>
+              </span>
+              <div>
+                <strong>Pharmacy & Poisons Board registered</strong>
+                <span>{settings.healthSafetyCode || settings.premisesRegistrationNumber || 'Licensed pharmacy practice in Kenya'}</span>
+              </div>
+            </div>
+            <div className="home-trust__item">
+              <span className="home-trust__icon home-trust__icon--document" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M8 3h7l4 4v14H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                  <path d="M15 3v4h4" />
+                  <path d="M9 12h6" />
+                  <path d="M9 15.5h6" />
+                </svg>
+              </span>
+              <div>
+                <strong>Verified prescription handling</strong>
+                <span>{settings.superintendentName ? `Supervised by ${settings.superintendentName}` : 'Pharmacist-reviewed Rx orders'}</span>
+              </div>
+            </div>
+            <div className="home-trust__item">
+              <span className="home-trust__icon home-trust__icon--lock" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                  <rect x="5" y="11" width="14" height="10" rx="2.5" />
+                  <path d="M12 15.3v2.2" />
+                </svg>
+              </span>
+              <div>
+                <strong>Secure & private</strong>
+                <span>Encrypted checkout & health data</span>
+              </div>
+            </div>
+            <div className="home-trust__item">
+              <span className="home-trust__icon home-trust__icon--truck" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 8h10v8H3z" />
+                  <path d="M13 11h4l3 3v2h-7z" />
+                  <circle cx="8" cy="18" r="1.6" />
+                  <circle cx="18" cy="18" r="1.6" />
+                </svg>
+              </span>
+              <div>
+                <strong>Nairobi & nationwide delivery</strong>
+                <span>Find us on the store locator</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <SupportShortcuts />
+      {toast && (
+        <div className="home-toast" role="status" aria-live="polite">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          <span>{toast}</span>
+        </div>
+      )}
+
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: productJsonLd }} />
     </div>
   )
 }

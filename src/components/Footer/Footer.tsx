@@ -1,21 +1,24 @@
-import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { useCatalog } from '../../context/CatalogContext'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import '../../styles/components/Footer.css'
 import logo from '../../assets/images/logos/avalogo.jpg'
 import { sortCategoriesByPreferredOrder } from '../../constants/catalog'
-import { NewsletterSubscriptionError, subscribeToNewsletter } from '../../services/newsletterService'
 import { formatPhoneHref, formatWhatsAppHref } from '../../services/siteSettingsService'
+import { faqService } from '../../services/faqService'
 
 function Footer() {
   const currentYear = new Date().getFullYear()
   const { categories } = useCatalog()
   const { settings } = useSiteSettings()
-  const [newsletterEmail, setNewsletterEmail] = useState('')
-  const [newsletterError, setNewsletterError] = useState('')
-  const [newsletterSuccess, setNewsletterSuccess] = useState(false)
-  const [isSubmittingNewsletter, setIsSubmittingNewsletter] = useState(false)
+  const [hasPublishedFAQs, setHasPublishedFAQs] = useState(false)
+
+  useEffect(() => {
+    faqService.listPublished()
+      .then((items) => setHasPublishedFAQs(items.length > 0))
+      .catch(() => setHasPublishedFAQs(false))
+  }, [])
 
   const orderedCategories = sortCategoriesByPreferredOrder(categories).slice(0, 4)
   const normalizedSupportPhone = settings.supportPhone.replace(/\D/g, '')
@@ -36,88 +39,13 @@ function Footer() {
     { name: 'Contact Us', path: '/contact' },
     { name: 'Doctor Consultation', path: '/doctor-consultation' },
     { name: 'Track My Order', path: '/account/orders' },
-    { name: 'FAQs', path: '/help' },
+    ...(hasPublishedFAQs ? [{ name: 'FAQs', path: '/faqs' }] : []),
   ]
-
-  const handleNewsletterSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setNewsletterError('')
-    setNewsletterSuccess(false)
-
-    const email = newsletterEmail.trim()
-    if (!email) {
-      setNewsletterError('Email is required')
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      setNewsletterError('Please enter a valid email address')
-      return
-    }
-
-    try {
-      setIsSubmittingNewsletter(true)
-      await subscribeToNewsletter(email, 'homepage-footer')
-      setNewsletterSuccess(true)
-      setNewsletterEmail('')
-      window.setTimeout(() => setNewsletterSuccess(false), 4000)
-    } catch (error) {
-      setNewsletterError(
-        error instanceof NewsletterSubscriptionError
-          ? error.message
-          : 'Unable to subscribe to the newsletter right now.',
-      )
-    } finally {
-      setIsSubmittingNewsletter(false)
-    }
-  }
 
   return (
     <footer className="footer">
       <div className="footer__main">
         <div className="container">
-          <section className="footer__newsletter" aria-labelledby="footer-newsletter-title">
-            <div className="footer__newsletter-copy">
-              <h2 className="footer__newsletter-title" id="footer-newsletter-title">Subscribe to Our Newsletter</h2>
-              <p className="footer__newsletter-description">
-                Get exclusive offers and new product updates delivered straight to your inbox
-              </p>
-            </div>
-            <form className="footer__newsletter-form" onSubmit={handleNewsletterSubmit}>
-              <div className="footer__newsletter-input-wrap">
-                <input
-                  type="email"
-                  className="footer__newsletter-input"
-                  placeholder="Enter your email address"
-                  value={newsletterEmail}
-                  onChange={(event) => setNewsletterEmail(event.target.value)}
-                  disabled={isSubmittingNewsletter}
-                  aria-label="Email address"
-                  aria-invalid={!!newsletterError}
-                  aria-describedby={newsletterError ? 'footer-newsletter-error' : undefined}
-                />
-                {newsletterError && (
-                  <span className="footer__newsletter-error" id="footer-newsletter-error" role="alert">
-                    {newsletterError}
-                  </span>
-                )}
-                {newsletterSuccess && (
-                  <span className="footer__newsletter-success" role="status">
-                    Subscription confirmed. Check your email.
-                  </span>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="btn btn--primary footer__newsletter-button"
-                disabled={isSubmittingNewsletter}
-              >
-                {isSubmittingNewsletter ? 'Subscribing...' : 'Subscribe'}
-              </button>
-            </form>
-          </section>
-
           <div className="footer__grid">
 
             {/* Brand Column */}
@@ -200,32 +128,27 @@ function Footer() {
               </ul>
             </div>
 
-            {/* Map */}
             <div className="footer__column">
-              <h4 className="footer__title">Find Us</h4>
-              <div className="footer__map-card">
-                <div className="footer__map">
-                  <iframe
-                    title=" location"
-                    src="https://maps.google.com/maps?q=The+Hub+Karen,Nairobi,Kenya&output=embed&z=15"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    allowFullScreen
-                  />
-                </div>
-                <a
-                  href="https://maps.google.com/?q=The+Hub+Karen,Nairobi,Kenya"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="footer__map-cta"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                    <circle cx="12" cy="10" r="3"/>
-                  </svg>
-                  Get Directions
-                </a>
-              </div>
+              <h4 className="footer__title">Location</h4>
+              <p className="footer__location">{settings.supportAddress}</p>
+              <Link to="/contact" className="footer__location-link">Contact Us</Link>
+            </div>
+
+            <div className="footer__column">
+              <h4 className="footer__title">Pharmacy Compliance</h4>
+              <ul className="footer__links footer__links--compliance">
+                <li>Health Safety Code: {settings.healthSafetyCode || 'Pending PPB issue'}</li>
+                <li>Premises Reg: {settings.premisesRegistrationNumber || 'Pending update'}</li>
+                <li>Online License: {settings.onlinePharmacyLicenseNumber || 'Pending update'}</li>
+                <li>Superintendent: {settings.superintendentName || 'Pending update'} {settings.superintendentRegistrationNumber ? `(${settings.superintendentRegistrationNumber})` : ''}</li>
+                <li>Pharmacist available: {settings.pharmacistConsultationHours || settings.supportHours}</li>
+                <li>
+                  <a href={settings.ppbWebsite} target="_blank" rel="noopener noreferrer">
+                    {settings.ppbContactName}
+                  </a>
+                </li>
+                <li>{settings.ppbContactPhone} · {settings.ppbContactEmail}</li>
+              </ul>
             </div>
 
           </div>

@@ -117,7 +117,6 @@ function AccountLabTestsPage() {
 
   return (
     <div className="alt-page">
-      <div className="container">
         <div className="alt-header">
           <div>
             <p className="alt-header__eyebrow">My Account</p>
@@ -326,7 +325,6 @@ function AccountLabTestsPage() {
           </div>
           <Link to="/lab-tests" className="btn btn--primary alt-cta__btn">Browse lab tests</Link>
         </div>
-      </div>
     </div>
   )
 }

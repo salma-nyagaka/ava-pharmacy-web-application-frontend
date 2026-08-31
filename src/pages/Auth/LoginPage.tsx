@@ -1,8 +1,30 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
 import { useAuth } from '../../context/AuthContext'
+import { buildBotPayload, isBotChallengeEnabled } from '../../services/botProtectionService'
 import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/pages/AuthPage.css'
+
+const STAFF_DASHBOARD_BY_ROLE: Record<string, string> = {
+  admin: '/admin/dashboard',
+  doctor: '/doctor/dashboard',
+  pediatrician: '/pediatrician/dashboard',
+  pharmacist: '/pharmacist/dashboard',
+  lab_partner: '/lab/dashboard',
+  lab_technician: '/labtech/dashboard',
+}
+
+function getPostLoginPath(role: string, redirect: string) {
+  const normalizedRole = role.toLowerCase()
+  const staffDashboard = STAFF_DASHBOARD_BY_ROLE[normalizedRole]
+
+  if (staffDashboard) {
+    return staffDashboard
+  }
+
+  return redirect || '/'
+}
 
 function LoginPage() {
   const { login, isLoggedIn, user } = useAuth()
@@ -17,9 +39,13 @@ function LoginPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [website, setWebsite] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [challengeResetKey, setChallengeResetKey] = useState(0)
+  const challengeRequired = isBotChallengeEnabled()
 
-  if (isLoggedIn && user?.role === 'admin') {
-    return <Navigate to="/admin/dashboard" replace />
+  if (isLoggedIn && user) {
+    return <Navigate to={getPostLoginPath(user.role, redirect)} replace />
   }
 
   const clearField = (field: string) =>
@@ -37,26 +63,12 @@ function LoginPage() {
     setFieldErrors({})
 
     try {
-      const loggedInUser = await login(email.trim(), password)
+      const loggedInUser = await login(email.trim(), password, buildBotPayload(website, challengeToken))
 
-      if (redirect) {
-        navigate(redirect)
-      } else if (loggedInUser.role === 'admin') {
-        navigate('/admin/dashboard')
-      } else if (loggedInUser.role === 'pharmacist') {
-        navigate('/pharmacist/dashboard')
-      } else if (loggedInUser.role === 'doctor') {
-        navigate('/doctor/dashboard')
-      } else if (loggedInUser.role === 'pediatrician') {
-        navigate('/pediatrician/dashboard')
-      } else if (loggedInUser.role === 'lab_partner') {
-        navigate('/lab/dashboard')
-      } else if (loggedInUser.role === 'lab_technician') {
-        navigate('/labtech/dashboard')
-      } else {
-        navigate('/')
-      }
+      navigate(getPostLoginPath(loggedInUser.role, redirect), { replace: true })
     } catch (err: unknown) {
+      setChallengeToken('')
+      setChallengeResetKey((key) => key + 1)
       type ApiErr = { response?: { data?: { error?: { message?: string; details?: { errors?: { details?: Record<string, string[]> } } } } } }
       const axiosErr = err as ApiErr
       const details = axiosErr?.response?.data?.error?.details?.errors?.details
@@ -121,8 +133,8 @@ function LoginPage() {
 
           <div className="login-brand__stats">
             <div className="login-brand__stat">
-              <strong>12k+</strong>
-              <span>Patients</span>
+              <strong>Licensed</strong>
+              <span>Pharmacy</span>
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
@@ -147,6 +159,16 @@ function LoginPage() {
           </div>
 
           <form className="login-form" onSubmit={handleSubmit} noValidate>
+            <input
+              type="text"
+              name="website"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
+            />
             <div className="login-field">
               <label htmlFor="login-email">Email address</label>
               <div className="login-field__input-wrap">
@@ -214,6 +236,8 @@ function LoginPage() {
               {fieldErrors.password && <span className="login-field__error">{fieldErrors.password}</span>}
             </div>
 
+            <TurnstileChallenge action="login" onToken={setChallengeToken} resetKey={challengeResetKey} />
+
             {error && (
               <div className="login-error">
                 <svg viewBox="0 0 16 16" fill="currentColor">
@@ -232,7 +256,7 @@ function LoginPage() {
               Remember me
             </label>
 
-            <button type="submit" className="login-submit" disabled={loading}>
+            <button type="submit" className="login-submit" disabled={loading || (challengeRequired && !challengeToken)}>
               {loading ? <><span className="login-spinner" />Signing in…</> : 'Sign in'}
             </button>
 

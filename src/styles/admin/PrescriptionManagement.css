@@ -671,6 +671,18 @@
   margin-top: 0.15rem;
 }
 
+.px-item__variant {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0.35rem 0 0;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  background: #eef7f5;
+  color: #13766f;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
 .px-item__qty {
   font-weight: 700;
   font-size: 0.875rem;

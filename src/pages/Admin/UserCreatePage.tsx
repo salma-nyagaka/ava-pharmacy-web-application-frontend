@@ -19,6 +19,8 @@ function UserCreatePage() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [licenseNumber, setLicenseNumber] = useState('')
+  const [position, setPosition] = useState('')
   const [notes, setNotes] = useState('')
   const [pharmacistPermissions, setPharmacistPermissions] = useState<PharmacistPermission[]>([
     'inventory_add',
@@ -36,8 +38,11 @@ function UserCreatePage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !email.trim() || !phone.trim()) {
-      setFormError('Full name, email, and phone are required.')
+    const nameParts = name.trim().split(/\s+/).filter(Boolean)
+    const firstName = nameParts[0] ?? ''
+    const lastName = nameParts.slice(1).join(' ')
+    if (!firstName || !lastName || !email.trim() || !phone.trim() || !licenseNumber.trim() || !address.trim() || !position.trim()) {
+      setFormError('Full name, email, phone, license number, branch, and position are required.')
       return
     }
     if (pharmacistPermissions.length === 0) {
@@ -48,10 +53,14 @@ function UserCreatePage() {
     setFormError('')
     try {
       await adminUserService.createPharmacist({
-        name: name.trim(),
+        firstName,
+        lastName,
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
-        address: address.trim() || undefined,
+        licenseNumber: licenseNumber.trim(),
+        branchLocation: address.trim(),
+        position: position.trim(),
+        address: address.trim(),
         pharmacistPermissions,
       })
       logAdminAction({
@@ -90,7 +99,7 @@ function UserCreatePage() {
               className="btn btn--outline btn--sm"
               type="button"
               onClick={() => {
-                setSuccess(null); setName(''); setEmail(''); setPhone(''); setAddress(''); setNotes('')
+                setSuccess(null); setName(''); setEmail(''); setPhone(''); setAddress(''); setLicenseNumber(''); setPosition(''); setNotes('')
                 setPharmacistPermissions(['inventory_add', 'prescription_review'])
               }}
             >
@@ -140,8 +149,18 @@ function UserCreatePage() {
                 </div>
               </div>
               <div className="uc-field">
-                <label htmlFor="uc-address">Branch / Location <span className="uc-opt">Optional</span></label>
+                <label htmlFor="uc-address">Branch / Location <span className="uc-req">*</span></label>
                 <input id="uc-address" type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Main Branch, Nairobi" />
+              </div>
+              <div className="uc-row">
+                <div className="uc-field">
+                  <label htmlFor="uc-license">License Number <span className="uc-req">*</span></label>
+                  <input id="uc-license" type="text" value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} placeholder="PPB/PHARM/0000" />
+                </div>
+                <div className="uc-field">
+                  <label htmlFor="uc-position">Role / Position <span className="uc-req">*</span></label>
+                  <input id="uc-position" type="text" value={position} onChange={(e) => setPosition(e.target.value)} placeholder="Senior Pharmacist" />
+                </div>
               </div>
             </div>
           </div>
@@ -216,6 +235,8 @@ function UserCreatePage() {
             {email && <p className="uc-preview-meta">{email}</p>}
             {phone && <p className="uc-preview-meta">{phone}</p>}
             {address && <p className="uc-preview-meta">{address}</p>}
+            {licenseNumber && <p className="uc-preview-meta">License: {licenseNumber}</p>}
+            {position && <p className="uc-preview-meta">{position}</p>}
             {pharmacistPermissions.length > 0 && (
               <div className="uc-preview-perms">
                 {pharmacistPermissions.map((p) => (

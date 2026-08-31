@@ -4,6 +4,7 @@ import { CatalogProvider } from './context/CatalogContext'
 import { SiteSettingsProvider } from './context/SiteSettingsContext'
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import AdminRoute from './components/ProtectedRoute/AdminRoute'
+import RoleRoute from './components/ProtectedRoute/RoleRoute'
 import AdminLayout from './components/AdminLayout/AdminLayout'
 import Layout from './components/Layout/Layout'
 import HomePage from './pages/HomePage/HomePage'
@@ -27,6 +28,7 @@ import ProductManagement from './pages/Admin/ProductManagement'
 import CategoryManagement from './pages/Admin/CategoryManagement'
 import HealthConcernManagement from './pages/Admin/HealthConcernManagement'
 import BrandManagement from './pages/Admin/BrandManagement'
+import BannerManagement from './pages/Admin/BannerManagement'
 import UserManagement from './pages/Admin/UserManagement'
 import UserDetailsPage from './pages/Admin/UserDetailsPage'
 import OrderManagement from './pages/Admin/OrderManagementLive'
@@ -34,7 +36,6 @@ import OrderDetailsPage from './pages/Admin/OrderDetailsLivePage'
 import Reports from './pages/Admin/Reports'
 import Invoices from './pages/Admin/Invoices'
 import DealsManagement from './pages/Admin/DealsManagement'
-import PayoutManagement from './pages/Admin/PayoutManagement'
 import LabTestManagement from './pages/Admin/LabTestManagement'
 import LabRequestManagement from './pages/Admin/LabRequestManagement'
 import LabPartnerManagement from './pages/Admin/LabPartnerManagement'
@@ -44,12 +45,14 @@ import LoginPage from './pages/Auth/LoginPage'
 import RegisterPage from './pages/Auth/RegisterPage'
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage'
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage'
+import VerifyEmailPage from './pages/Auth/VerifyEmailPage'
 import StaffActivatePage from './pages/Auth/StaffActivatePage'
 import OrderTrackingPage from './pages/OrderTracking/OrderTrackingPage'
 import OrderConfirmationPage from './pages/OrderConfirmation/OrderConfirmationPage'
 import WishlistPage from './pages/Wishlist/WishlistPage'
 import ReturnsPage from './pages/Returns/ReturnsPage'
 import HelpPage from './pages/Help/HelpPage'
+import FAQPage from './pages/FAQ/FAQPage'
 import OffersPage from './pages/Offers/OffersPage'
 import StoreLocatorPage from './pages/StoreLocator/StoreLocatorPage'
 import AboutPage from './pages/About/AboutPage'
@@ -75,15 +78,26 @@ import PrescriptionManagement from './pages/Admin/PrescriptionManagement'
 import DoctorManagement from './pages/Admin/DoctorManagement'
 import Settings from './pages/Admin/Settings'
 import ProfessionalRegisterPage from './pages/Professional/ProfessionalRegisterPage'
+import ProfessionalResubmissionPage from './pages/Professional/ProfessionalResubmissionPage'
 import BrandsPage from './pages/Brands/BrandsPage'
 import ConditionsPage from './pages/Conditions/ConditionsPage'
 import HealthServicesPage from './pages/HealthServices/HealthServicesPage'
+import FAQManagement from './pages/Admin/FAQManagement'
 
 
 function LegacyLabDashboardRedirect() {
   const location = useLocation()
   const target = location.pathname.includes('labtech') ? '/labtech/dashboard' : '/lab/dashboard'
   return <Navigate to={target} replace />
+}
+
+function DoctorConsultationEntry() {
+  const location = useLocation()
+  const tab = new URLSearchParams(location.search).get('tab')?.toLowerCase()
+  if (tab === 'paediatric' || tab === 'pediatric') {
+    return <Navigate to="/pediatric-consultation" replace />
+  }
+  return <ProtectedRoute><DoctorConsultation /></ProtectedRoute>
 }
 
 function App() {
@@ -118,13 +132,14 @@ function App() {
               <Route path="prescriptions/history" element={<PrescriptionHistoryPage />} />
               <Route path="consultation" element={<Navigate to="/doctor-consultation" replace />} />
               <Route path="doctor" element={<Navigate to="/doctor-consultation" replace />} />
-              <Route path="doctor-consultation" element={<ProtectedRoute><DoctorConsultation /></ProtectedRoute>} />
+              <Route path="doctor-consultation" element={<DoctorConsultationEntry />} />
               <Route path="pediatrician" element={<Navigate to="/pediatric-consultation" replace />} />
               <Route path="paedetrician" element={<Navigate to="/pediatric-consultation" replace />} />
               <Route path="pediatric-consultation" element={<ProtectedRoute><PediatricianConsultation /></ProtectedRoute>} />
               <Route path="login" element={<LoginPage />} />
               <Route path="register" element={<RegisterPage />} />
               <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="verify-email" element={<VerifyEmailPage />} />
               <Route path="reset-password" element={<ResetPasswordPage />} />
               <Route path="auth/professional/activate" element={<StaffActivatePage />} />
               <Route path="order-confirmation" element={<OrderConfirmationPage />} />
@@ -132,6 +147,7 @@ function App() {
               <Route path="wishlist" element={<WishlistPage />} />
               <Route path="returns" element={<ReturnsPage />} />
               <Route path="help" element={<HelpPage />} />
+              <Route path="faqs" element={<FAQPage />} />
               <Route path="offers" element={<OffersPage />} />
               <Route path="store-locator" element={<StoreLocatorPage />} />
               <Route path="brands" element={<BrandsPage />} />
@@ -147,6 +163,7 @@ function App() {
               <Route path="terms" element={<TermsPage />} />
               <Route path="cookies" element={<CookiesPage />} />
               <Route path="professional/register" element={<ProfessionalRegisterPage />} />
+              <Route path="professional/resubmit" element={<ProfessionalResubmissionPage />} />
               <Route path="doctor/register" element={<ProfessionalRegisterPage />} />
               <Route path="pediatrician/register" element={<ProfessionalRegisterPage />} />
               <Route path="lab-tests" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
@@ -159,17 +176,17 @@ function App() {
               </div>} />
             </Route>
 
-            <Route path="doctor/dashboard" element={<DoctorDashboardPage />} />
-            <Route path="doctor/onboarding" element={<ProtectedRoute><DoctorOnboardingPage /></ProtectedRoute>} />
-            <Route path="pediatrician/dashboard" element={<PediatricianDashboardPage />} />
+            <Route path="doctor/dashboard" element={<RoleRoute allowedRoles={['doctor', 'admin']}><DoctorDashboardPage /></RoleRoute>} />
+            <Route path="doctor/onboarding" element={<RoleRoute allowedRoles={['doctor', 'admin']}><DoctorOnboardingPage /></RoleRoute>} />
+            <Route path="pediatrician/dashboard" element={<RoleRoute allowedRoles={['pediatrician', 'admin']}><PediatricianDashboardPage /></RoleRoute>} />
             <Route path="paedetrician/dashboard" element={<Navigate to="/pediatrician/dashboard" replace />} />
-            <Route path="pharmacist/dashboard" element={<PharmacistDashboardPage />} />
-            <Route path="lab/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
-            <Route path="ab/dashboard" element={<ProtectedRoute><LegacyLabDashboardRedirect /></ProtectedRoute>} />
-            <Route path="laboratory/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
-            <Route path="labaratory/dashboard" element={<ProtectedRoute><LabDashboardPage /></ProtectedRoute>} />
-            <Route path="//ab/dashboard" element={<ProtectedRoute><LegacyLabDashboardRedirect /></ProtectedRoute>} />
-            <Route path="labtech/dashboard" element={<ProtectedRoute><LabTechPortal /></ProtectedRoute>} />
+            <Route path="pharmacist/dashboard" element={<RoleRoute allowedRoles={['pharmacist', 'admin']}><PharmacistDashboardPage /></RoleRoute>} />
+            <Route path="lab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'admin']}><LabDashboardPage /></RoleRoute>} />
+            <Route path="ab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'lab_technician', 'admin']}><LegacyLabDashboardRedirect /></RoleRoute>} />
+            <Route path="laboratory/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'admin']}><LabDashboardPage /></RoleRoute>} />
+            <Route path="labaratory/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'admin']}><LabDashboardPage /></RoleRoute>} />
+            <Route path="//ab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'lab_technician', 'admin']}><LegacyLabDashboardRedirect /></RoleRoute>} />
+            <Route path="labtech/dashboard" element={<RoleRoute allowedRoles={['lab_technician', 'admin']}><LabTechPortal /></RoleRoute>} />
 
             <Route path="admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route index element={<Navigate to="/admin/dashboard" replace />} />
@@ -178,6 +195,8 @@ function App() {
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="health-concerns" element={<HealthConcernManagement />} />
               <Route path="brands" element={<BrandManagement />} />
+              <Route path="banners" element={<BannerManagement />} />
+              <Route path="faqs" element={<FAQManagement />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:id" element={<UserDetailsPage />} />
               <Route path="orders" element={<OrderManagement />} />
@@ -188,7 +207,7 @@ function App() {
               <Route path="reports" element={<Reports />} />
               <Route path="invoices" element={<Invoices />} />
               <Route path="deals" element={<DealsManagement />} />
-              <Route path="payouts" element={<PayoutManagement />} />
+              <Route path="payouts" element={<Navigate to="/admin/invoices?view=payouts" replace />} />
               <Route path="lab-tests" element={<LabTestManagement />} />
               <Route path="lab-requests" element={<LabRequestManagement />} />
               <Route path="lab-partners" element={<LabPartnerManagement />} />

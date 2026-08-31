@@ -66,6 +66,23 @@ export interface ApiPromotion {
   updated_at: string
 }
 
+export interface ApiBanner {
+  id: number
+  title: string
+  message: string
+  link: string
+  image: string | null
+  category: number | null
+  category_slug: string | null
+  category_name: string | null
+  target_url: string
+  placement: string
+  sort_order: number
+  status: 'active' | 'inactive'
+  created_at: string
+  updated_at: string
+}
+
 export interface ApiBrand {
   id: number
   name: string
@@ -95,11 +112,18 @@ export type InventoryLocation = 'branch' | 'warehouse'
 export interface ApiProductInventory {
   id: number
   location: InventoryLocation
+  batch_number: string
+  supplier: string
   source_name: string
   stock_quantity: number
+  reorder_level: number
   low_stock_threshold: number
   allow_backorder: boolean
   max_backorder_quantity: number
+  expiry_date: string | null
+  shelf_location: string
+  status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'expired' | 'damaged'
+  effective_status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'expired' | 'damaged'
   is_pos_synced: boolean
   last_synced_at: string | null
   created_at: string
@@ -107,10 +131,16 @@ export interface ApiProductInventory {
 }
 
 export interface InventoryLocationPayload {
+  batch_number?: string
+  supplier?: string
   stock_quantity?: number
+  reorder_level?: number
   low_stock_threshold?: number
   allow_backorder?: boolean
   max_backorder_quantity?: number
+  expiry_date?: string | null
+  shelf_location?: string
+  status?: string
 }
 
 
@@ -125,8 +155,6 @@ export interface ApiProductPromotion {
 export interface ApiProduct {
   id: number
   name: string
-  sku: string
-  barcode?: string | null
   pos_product_id?: string | null
   slug: string
   strength: string
@@ -135,7 +163,6 @@ export interface ApiProduct {
   dosage_frequency: string
   dosage_notes: string
   price: string
-  cost_price: string | null
   original_price: string | null
   final_price: string
   discount_total: string
@@ -189,13 +216,14 @@ export interface ApiProductVariant {
   original_price: string | null
   effective_price: string
   image: string | null
-  stock_source: StockSource
-  stock_quantity: number
-  low_stock_threshold: number
-  allow_backorder: boolean
-  max_backorder_quantity: number
-  inventory_status: string
-  available_quantity: number
+  stock_source: StockSource | null
+  stock_quantity: number | null
+  low_stock_threshold: number | null
+  allow_backorder: boolean | null
+  max_backorder_quantity: number | null
+  inventory_status: string | null
+  available_quantity: number | null
+  inventories?: ApiProductInventory[]
   is_active: boolean
   sort_order: number
   created_at: string
@@ -203,7 +231,7 @@ export interface ApiProductVariant {
 }
 
 export interface ProductVariantPayload {
-  sku: string
+  sku?: string
   barcode?: string
   pos_product_id?: string
   name: string
@@ -216,18 +244,32 @@ export interface ProductVariantPayload {
   cost_price?: number | null
   original_price?: number | null
   stock_quantity?: number
+  reorder_level?: number
   low_stock_threshold?: number
   allow_backorder?: boolean
   max_backorder_quantity?: number
+  batch_number?: string
+  supplier?: string
+  expiry_date?: string | null
+  shelf_location?: string
+  status?: string
   is_active?: boolean
   sort_order?: number
   image?: File | null
 }
 
-export interface ApiInventoryProduct extends ApiProduct {
-  stock_quantity: number
-  low_stock_threshold: number
-  allow_backorder: boolean
+export interface ApiInventoryProduct extends ApiProductVariant {
+  product_id: number
+  product_name: string
+  product_slug: string
+  brand_name?: string | null
+  brand_slug?: string | null
+  category_name?: string | null
+  category_slug?: string | null
+  short_description?: string | null
+  stock_quantity: number | null
+  low_stock_threshold: number | null
+  allow_backorder: boolean | null
 }
 
 export interface ApiReports {
@@ -254,12 +296,9 @@ export interface ApiOrder {
 export interface ProductCreatePayload {
   name: string
   slug: string
-  sku: string
-  barcode?: string
   pos_product_id?: string
   strength?: string
   price?: number
-  cost_price?: number
   branch_inventory?: InventoryLocationPayload
   warehouse_inventory?: InventoryLocationPayload
   category_id?: number | null
@@ -352,10 +391,38 @@ function normalizePromotion<T extends ApiPromotion>(promotion: T): T {
   }
 }
 
+function normalizeBanner<T extends ApiBanner>(banner: T): T {
+  return {
+    ...banner,
+    image: resolveMediaUrl(banner.image),
+  }
+}
+
 export const adminProductService = {
   async listProducts(params?: Record<string, string>) {
-    const res = await apiClient.get('/admin/products/', { params })
-    return unwrapList<ApiProduct>(res)
+    const res = await apiClient.get('/admin/products/', { params: { page_size: '500', ...params } })
+    const firstPage = res.data
+    const products = unwrapList<ApiProduct>(res)
+    const getNextUrl = (page: unknown): string | null => {
+      const payload = page as { next?: unknown; meta?: { next?: unknown } }
+      if (typeof payload?.next === 'string') return payload.next
+      if (typeof payload?.meta?.next === 'string') return payload.meta.next
+      return null
+    }
+
+    if (!firstPage || Array.isArray(firstPage)) {
+      return products
+    }
+
+    let nextUrl = getNextUrl(firstPage)
+    while (nextUrl) {
+      const response = await apiClient.get(nextUrl)
+      const page = response.data
+      products.push(...unwrapList<ApiProduct>(response))
+      nextUrl = getNextUrl(page)
+    }
+
+    return products
   },
 
   async createProduct(payload: ProductCreatePayload | FormData) {
@@ -376,10 +443,6 @@ export const adminProductService = {
   async updateProduct(id: number, payload: Partial<ProductCreatePayload> | FormData) {
     const res = await apiClient.patch(`/admin/products/${id}/`, payload)
     return unwrap<ApiProduct>(res)
-  },
-
-  async deleteProduct(id: number) {
-    await apiClient.delete(`/admin/products/${id}/`)
   },
 
   async listProductVariants(productId: number) {
@@ -412,41 +475,41 @@ export const adminProductService = {
   },
 
   async listProductCategories() {
-    const res = await apiClient.get('/admin/product-categories/')
+    const res = await apiClient.get('/admin/categories/')
     return unwrapList<ApiProductCategory>(res)
   },
 
   async createProductCategory(payload: FormData | { name: string; description?: string }) {
-    const res = await apiClient.post('/admin/product-categories/', payload)
+    const res = await apiClient.post('/admin/categories/', payload)
     return unwrap<ApiProductCategory>(res)
   },
 
   async updateProductCategory(id: number, payload: FormData | Partial<{ name: string; description: string; is_active: boolean }>) {
-    const res = await apiClient.patch(`/admin/product-categories/${id}/`, payload)
+    const res = await apiClient.patch(`/admin/categories/${id}/`, payload)
     return unwrap<ApiProductCategory>(res)
   },
 
   async deleteProductCategory(id: number) {
-    await apiClient.delete(`/admin/product-categories/${id}/`)
+    await apiClient.delete(`/admin/categories/${id}/`)
   },
 
   async listProductSubcategories(params?: Record<string, string>) {
-    const res = await apiClient.get('/admin/product-subcategories/', { params })
+    const res = await apiClient.get('/admin/sub-categories/', { params })
     return unwrapList<ApiProductSubcategory>(res)
   },
 
   async createProductSubcategory(payload: { name: string; category: number; description?: string }) {
-    const res = await apiClient.post('/admin/product-subcategories/', payload)
+    const res = await apiClient.post('/admin/sub-categories/', payload)
     return unwrap<ApiProductSubcategory>(res)
   },
 
   async updateProductSubcategory(id: number, payload: Partial<{ name: string; category: number; description: string; is_active: boolean }>) {
-    const res = await apiClient.patch(`/admin/product-subcategories/${id}/`, payload)
+    const res = await apiClient.patch(`/admin/sub-categories/${id}/`, payload)
     return unwrap<ApiProductSubcategory>(res)
   },
 
   async deleteProductSubcategory(id: number) {
-    await apiClient.delete(`/admin/product-subcategories/${id}/`)
+    await apiClient.delete(`/admin/sub-categories/${id}/`)
   },
 
   async listBrands(params?: Record<string, string>) {
@@ -547,6 +610,43 @@ export const adminProductService = {
   async listPromotions(params?: Record<string, string>) {
     const res = await apiClient.get('/admin/promotions/', { params })
     return unwrapList<ApiPromotion>(res).map(normalizePromotion)
+  },
+
+  async listBanners(params?: Record<string, string>) {
+    const res = await apiClient.get('/admin/banners/', { params })
+    return unwrapList<ApiBanner>(res).map(normalizeBanner)
+  },
+
+  async createBanner(payload: FormData | {
+    title?: string
+    message: string
+    link?: string
+    category?: number | null
+    placement?: string
+    sort_order?: number
+    status?: 'active' | 'inactive'
+  }) {
+    const isFormData = payload instanceof FormData
+    const res = await apiClient.post('/admin/banners/', payload, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
+    return normalizeBanner(unwrap<ApiBanner>(res))
+  },
+
+  async updateBanner(id: number, payload: FormData | Partial<{
+    title: string
+    message: string
+    link: string
+    category: number | null
+    placement: string
+    sort_order: number
+    status: 'active' | 'inactive'
+  }>) {
+    const isFormData = payload instanceof FormData
+    const res = await apiClient.patch(`/admin/banners/${id}/`, payload, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
+    return normalizeBanner(unwrap<ApiBanner>(res))
+  },
+
+  async deleteBanner(id: number) {
+    await apiClient.delete(`/admin/banners/${id}/`)
   },
 
   async createPromotion(payload: FormData | {

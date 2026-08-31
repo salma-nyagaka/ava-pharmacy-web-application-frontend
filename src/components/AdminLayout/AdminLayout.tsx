@@ -84,6 +84,27 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
+        label: 'Banners',
+        to: '/admin/banners',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
+            <path d="M4 6h16v10H4z" />
+            <path d="M8 16v3l4-3h8" />
+            <path d="M8 10h8" />
+          </svg>
+        ),
+      },
+      {
+        label: 'FAQs',
+        to: '/admin/faqs',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1-1.4 2.1M12 17h.01" />
+          </svg>
+        ),
+      },
+      {
         label: 'Inventory',
         to: '/admin/inventory',
         matchChildren: true,
@@ -120,6 +141,16 @@ const NAV_SECTIONS: AdminNavSection[] = [
   {
     label: 'Health Services',
     items: [
+      {
+        label: 'Pharmacists',
+        to: '/admin/users?role=pharmacist',
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21a8 8 0 0 1 16 0M17.5 4.5l1 1" />
+          </svg>
+        ),
+      },
       {
         label: 'Doctors',
         to: '/admin/doctors?type=Doctor',
@@ -170,16 +201,6 @@ const NAV_SECTIONS: AdminNavSection[] = [
           </svg>
         ),
       },
-      {
-        label: 'Pharmacists',
-        to: '/admin/users?role=pharmacist',
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 21a8 8 0 0 1 16 0M17.5 4.5l1 1" />
-          </svg>
-        ),
-      },
     ],
   },
   {
@@ -196,16 +217,6 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
-        label: 'Payouts',
-        to: '/admin/payouts',
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
-            <rect x="2.5" y="5" width="19" height="14" rx="2" />
-            <path d="M2.5 10h19M7 15h4" />
-          </svg>
-        ),
-      },
-      {
         label: 'Reports',
         to: '/admin/reports',
         icon: (
@@ -215,7 +226,7 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
-        label: 'Invoices',
+        label: 'Invoices & Payments',
         to: '/admin/invoices',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
@@ -251,6 +262,19 @@ const NAV_SECTIONS: AdminNavSection[] = [
     ],
   },
 ]
+
+const ENABLED_NON_STORE_ITEMS = new Set([
+  'Dashboard',
+  'Doctors',
+  'Pediatricians',
+  'Pharmacists',
+  'Customers',
+  'Reports',
+  'Invoices & Payments',
+  'Support',
+  'Settings',
+  'Banners',
+])
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -385,7 +409,7 @@ function AdminLayout() {
                 <p className="admin-layout__section-label">{section.label}</p>
                 <div className="admin-layout__section-links">
                   {section.items.map((item) => {
-                    const isEnabled = section.label === 'Store'
+                    const isEnabled = section.label === 'Store' || ENABLED_NON_STORE_ITEMS.has(item.label)
                     const active = isItemActive(location.pathname, location.search, item)
 
                     if (!isEnabled) {

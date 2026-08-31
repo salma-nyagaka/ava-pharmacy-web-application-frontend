@@ -14,9 +14,33 @@ import '../../styles/pages/InventoryOverviewPage.css'
 type Tab = 'stock' | 'failed_pushes'
 
 function statusPill(item: InventoryItem) {
-  if (item.status === 'in_stock') return <span className="status-pill status-pill--success">In stock</span>
-  if (item.status === 'low_stock') return <span className="status-pill status-pill--warning">Low stock</span>
+  const status = item.effective_status ?? item.status
+  if (status === 'in_stock') return <span className="status-pill status-pill--success">In stock</span>
+  if (status === 'low_stock') return <span className="status-pill status-pill--warning">Low stock</span>
+  if (status === 'expired') return <span className="status-pill status-pill--danger">Expired</span>
+  if (status === 'damaged') return <span className="status-pill status-pill--danger">Damaged</span>
   return <span className="status-pill status-pill--danger">Out of stock</span>
+}
+
+function flattenInventoryRows(items: InventoryItem[]): InventoryItem[] {
+  return items.flatMap((item) => {
+    if (!item.inventories?.length) return [item]
+    return item.inventories.map((inventory) => ({
+      ...item,
+      id: inventory.id,
+      location: inventory.location,
+      batch_number: inventory.batch_number,
+      supplier: inventory.supplier,
+      quantity_on_hand: inventory.stock_quantity,
+      reorder_level: inventory.reorder_level,
+      low_stock_threshold: inventory.low_stock_threshold,
+      status: inventory.status,
+      effective_status: inventory.effective_status,
+      expiry_date: inventory.expiry_date,
+      shelf_location: inventory.shelf_location,
+      last_synced_at: inventory.last_synced_at,
+    }))
+  })
 }
 
 function InventoryOverviewPage() {
@@ -77,7 +101,8 @@ function InventoryOverviewPage() {
     }).finally(() => setRetryingId(null))
   }
 
-  const uniqueLocations = Array.from(new Set(items.map((i) => i.location))).filter(Boolean)
+  const rows = flattenInventoryRows(items)
+  const uniqueLocations = Array.from(new Set(rows.map((i) => i.location))).filter(Boolean)
 
   return (
     <div>
@@ -171,7 +196,7 @@ function InventoryOverviewPage() {
 
               {loading ? (
                 <p className="inv-loading">Loading inventory…</p>
-              ) : items.length === 0 ? (
+              ) : rows.length === 0 ? (
                 <p className="inv-empty">No inventory items found.</p>
               ) : (
                 <table className="table">
@@ -180,21 +205,27 @@ function InventoryOverviewPage() {
                       <th>Product</th>
                       <th>SKU</th>
                       <th>Location</th>
+                      <th>Batch</th>
                       <th>Stock</th>
-                      <th>Threshold</th>
+                      <th>Reorder</th>
+                      <th>Expiry</th>
+                      <th>Shelf</th>
                       <th>Status</th>
                       <th>Last synced</th>
                       <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((item) => (
+                    {rows.map((item) => (
                       <tr key={item.id}>
                         <td>{item.product_name}</td>
                         <td><code>{item.sku}</code></td>
                         <td>{item.location}</td>
+                        <td>{item.batch_number || 'Default'}</td>
                         <td>{item.quantity_on_hand}</td>
-                        <td>{item.low_stock_threshold}</td>
+                        <td>{item.reorder_level ?? item.low_stock_threshold}</td>
+                        <td>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('en-KE') : '—'}</td>
+                        <td>{item.shelf_location || '—'}</td>
                         <td>{statusPill(item)}</td>
                         <td>
                           {item.last_synced_at

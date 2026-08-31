@@ -1,4 +1,4 @@
-import { FormEvent, Fragment, useEffect, useMemo, useState } from 'react'
+import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PrescriptionClarificationMessage, PrescriptionRecord } from '../../data/prescriptions'
 import { resolveMediaUrl } from '../../lib/apiClient'
@@ -6,6 +6,7 @@ import { prescriptionService } from '../../services/prescriptionService'
 import '../../styles/pages/PrescriptionHistoryPage.css'
 
 type SourceFilter = 'all' | 'upload' | 'e_prescription'
+const PAGE_SIZE = 8
 
 function statusPillClass(status: string) {
   if (status === 'Approved') return 'status-pill--success'
@@ -46,33 +47,80 @@ function fallbackClarificationMessages(rx: PrescriptionRecord): PrescriptionClar
   }]
 }
 
+function hasUnpaidApprovedItems(rx: PrescriptionRecord) {
+  return rx.status === 'Approved' && rx.items.some((item) => !item.isPaidFor && item.backendId && (item.productId || item.variantId))
+}
+
 function PrescriptionHistoryPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const targetPrescription = searchParams.get('prescription')
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [message, setMessage] = useState('')
   const [isAddingItemId, setIsAddingItemId] = useState<number | null>(null)
+  const [isAddingPrescriptionId, setIsAddingPrescriptionId] = useState<string | null>(null)
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
+  const [currentPage, setCurrentPage] = useState(1)
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
   const [selectedResubmitFiles, setSelectedResubmitFiles] = useState<Record<string, File[]>>({})
   const [sendingReplyId, setSendingReplyId] = useState<number | null>(null)
   const [resubmittingId, setResubmittingId] = useState<number | null>(null)
 
   useEffect(() => {
-    void prescriptionService.list().then((response) => setPrescriptions(response.data))
+    let isMounted = true
+    setIsLoading(true)
+    setLoadError('')
+    void prescriptionService
+      .list({ scope: 'patient' })
+      .then((response) => {
+        if (isMounted) setPrescriptions(response.data)
+      })
+      .catch(() => {
+        if (isMounted) setLoadError('Unable to load your prescriptions right now.')
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+    const refresh = () => {
+      void prescriptionService.list({ scope: 'patient' }).then((response) => {
+        if (isMounted) setPrescriptions(response.data)
+      }).catch(() => undefined)
+    }
+    const intervalId = window.setInterval(refresh, 10000)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   useEffect(() => {
     if (!prescriptions.length) return
-    const target = searchParams.get('prescription')
-    if (!target) return
-    const match = prescriptions.find((rx) => String(rx.backendId) === target || rx.id === target)
+    if (!targetPrescription) return
+    const match = prescriptions.find((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
     if (!match) return
     setExpandedId(match.id)
     setActiveRx(match)
-  }, [prescriptions, searchParams])
+    window.requestAnimationFrame(() => {
+      rowRefs.current[match.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [prescriptions, targetPrescription])
 
   useEffect(() => {
     if (!activeRx) return
@@ -82,14 +130,41 @@ function PrescriptionHistoryPage() {
     }
   }, [prescriptions, activeRx])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [sourceFilter])
+
   const sortedPrescriptions = useMemo(() => {
     const filtered = prescriptions.filter((rx) => {
-      if (sourceFilter === 'e_prescription') return rx.notes?.toLowerCase().includes('e-prescription') || rx.doctor?.toLowerCase().includes('clinician')
-      if (sourceFilter === 'upload') return !rx.notes?.toLowerCase().includes('e-prescription')
+      if (sourceFilter === 'e_prescription') return rx.source === 'e_prescription'
+      if (sourceFilter === 'upload') return rx.source !== 'e_prescription'
       return true
     })
-    return [...filtered].sort((a, b) => b.id.localeCompare(a.id))
+    return filtered
   }, [prescriptions, sourceFilter])
+
+  const totalPages = Math.max(1, Math.ceil(sortedPrescriptions.length / PAGE_SIZE))
+  const pageStart = (currentPage - 1) * PAGE_SIZE
+  const pagedPrescriptions = sortedPrescriptions.slice(pageStart, pageStart + PAGE_SIZE)
+
+  useEffect(() => {
+    if (!targetPrescription) return
+    const targetIndex = sortedPrescriptions.findIndex((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
+    if (targetIndex >= 0) {
+      setCurrentPage(Math.floor(targetIndex / PAGE_SIZE) + 1)
+    }
+  }, [sortedPrescriptions, targetPrescription])
+
+  useEffect(() => {
+    if (!targetPrescription) return
+    const match = pagedPrescriptions.find((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
+    if (!match) return
+    setExpandedId(match.id)
+    setActiveRx(match)
+    window.requestAnimationFrame(() => {
+      rowRefs.current[match.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [pagedPrescriptions, targetPrescription])
 
   const handleAddApprovedItem = async (prescriptionId: string, itemId?: number, name?: string) => {
     if (!itemId) {
@@ -104,6 +179,27 @@ function PrescriptionHistoryPage() {
       setMessage(error instanceof Error ? error.message : 'Unable to add approved item to cart.')
     } finally {
       setIsAddingItemId(null)
+    }
+  }
+
+  const handleAddApprovedPrescription = async (rx: PrescriptionRecord, proceedToCheckout = false) => {
+    const eligibleItems = rx.items.filter((item) => !item.isPaidFor && item.backendId && (item.productId || item.variantId))
+    if (rx.status !== 'Approved' || eligibleItems.length === 0) {
+      setMessage('This prescription has no approved unpaid medicines available for checkout.')
+      return
+    }
+
+    setIsAddingPrescriptionId(rx.id)
+    try {
+      for (const item of eligibleItems) {
+        await prescriptionService.addApprovedItemToCart(rx.id, item.backendId as number)
+      }
+      setMessage(`${eligibleItems.length} prescribed medicine${eligibleItems.length === 1 ? '' : 's'} added to cart.`)
+      if (proceedToCheckout) navigate(`/cart?prescription=${encodeURIComponent(rx.id)}`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to add the approved prescription to cart.')
+    } finally {
+      setIsAddingPrescriptionId(null)
     }
   }
 
@@ -272,11 +368,15 @@ function PrescriptionHistoryPage() {
     setExpandedId((prev) => (prev === id ? null : id))
   }
 
+  const isTargetPrescription = (rx: PrescriptionRecord) => (
+    Boolean(targetPrescription) && (String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
+  )
+
   return (
     <div className="rx-page">
       <div className="rx-header">
         <div>
-          <h2 className="rx-header__title">Prescription history</h2>
+          <h1 className="rx-header__title">Prescription history</h1>
           <p className="rx-header__sub">Track approvals, clarification requests, and pharmacist feedback for your prescriptions.</p>
         </div>
         <span className="rx-header__badge">Prescriptions</span>
@@ -309,9 +409,29 @@ function PrescriptionHistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {sortedPrescriptions.map((rx) => (
+            {isLoading && (
+              <tr>
+                <td colSpan={7} className="rx-empty-state">Loading your prescriptions…</td>
+              </tr>
+            )}
+            {!isLoading && loadError && (
+              <tr>
+                <td colSpan={7} className="rx-empty-state">{loadError}</td>
+              </tr>
+            )}
+            {!isLoading && !loadError && pagedPrescriptions.length === 0 && (
+              <tr>
+                <td colSpan={7} className="rx-empty-state">No prescriptions found.</td>
+              </tr>
+            )}
+            {pagedPrescriptions.map((rx) => (
               <Fragment key={rx.id}>
-                <tr>
+                <tr
+                  ref={(node) => {
+                    rowRefs.current[rx.id] = node
+                  }}
+                  className={isTargetPrescription(rx) ? 'rx-row--target' : undefined}
+                >
                   <td>
                     <button
                       className="rx-expand-btn"
@@ -335,6 +455,26 @@ function PrescriptionHistoryPage() {
                   <td>
                     <div className="rx-actions">
                       <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(rx)}>View</button>
+                      {hasUnpaidApprovedItems(rx) && (
+                        <>
+                          <button
+                            className="btn btn--outline btn--sm"
+                            type="button"
+                            disabled={isAddingPrescriptionId === rx.id}
+                            onClick={() => void handleAddApprovedPrescription(rx)}
+                          >
+                            {isAddingPrescriptionId === rx.id ? 'Adding…' : 'Add all to cart'}
+                          </button>
+                          <button
+                            className="btn btn--primary btn--sm"
+                            type="button"
+                            disabled={isAddingPrescriptionId === rx.id}
+                            onClick={() => void handleAddApprovedPrescription(rx, true)}
+                          >
+                            Add &amp; checkout
+                          </button>
+                        </>
+                      )}
                       {rx.status === 'Approved' && <span className="status-pill status-pill--success">Approved</span>}
                       {rx.status === 'Clarification' && <span className="status-pill status-pill--warning">Reply needed</span>}
                     </div>
@@ -361,7 +501,9 @@ function PrescriptionHistoryPage() {
                                   <span className="rx-expanded__item-name">{item.productName || item.name}</span>
                                   <span className="rx-expanded__item-meta">{item.dose} · {item.frequency} · Qty {item.qty}</span>
                                 </div>
-                                {rx.status === 'Approved' && item.productId && item.backendId ? (
+                                {item.isPaidFor ? (
+                                  <span className="status-pill status-pill--success">Paid</span>
+                                ) : rx.status === 'Approved' && item.productId && item.backendId ? (
                                   <button
                                     className="btn btn--primary btn--sm"
                                     type="button"
@@ -403,6 +545,23 @@ function PrescriptionHistoryPage() {
         </table>
         {message && <p className="card__meta" style={{ marginTop: '0.75rem' }}>{message}</p>}
       </div>
+
+      {sortedPrescriptions.length > PAGE_SIZE && (
+        <div className="rx-pagination">
+          <span className="rx-pagination__info">
+            Showing {pageStart + 1}-{Math.min(pageStart + PAGE_SIZE, sortedPrescriptions.length)} of {sortedPrescriptions.length}
+          </span>
+          <div className="rx-pagination__controls">
+            <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>Prev</button>
+            <div className="pagination__pages">
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>{page}</button>
+              ))}
+            </div>
+            <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>Next</button>
+          </div>
+        </div>
+      )}
 
       {activeRx && (
         <div className="modal-overlay" onClick={() => setActiveRx(null)}>
@@ -482,17 +641,19 @@ function PrescriptionHistoryPage() {
                   <h3>Approved items</h3>
                   <span>{activeRx.items.length}</span>
                 </div>
-                <div className="rx-approved-items rx-approved-items--modal">
+                <ul className="rx-approved-items rx-approved-items--modal rx-approved-items--simple">
                   {activeRx.items.length === 0 ? (
                     <p className="rx-modal__empty">No fulfilment items have been set yet.</p>
                   ) : (
                     activeRx.items.map((item) => (
-                      <div key={`${item.backendId || item.name}-${item.name}`} className="rx-approved-items__row">
+                      <li key={`${item.backendId || item.name}-${item.name}`} className="rx-approved-items__row">
                         <div>
                           <p className="rx-approved-items__name">{item.productName || item.name}</p>
                           <p className="rx-approved-items__meta">{item.dose} · {item.frequency} · Qty {item.qty}</p>
                         </div>
-                        {activeRx.status === 'Approved' && item.productId && item.backendId ? (
+                        {item.isPaidFor ? (
+                          <span className="status-pill status-pill--success">Paid</span>
+                        ) : activeRx.status === 'Approved' && item.productId && item.backendId ? (
                           <button
                             className="btn btn--primary btn--sm"
                             type="button"
@@ -504,15 +665,22 @@ function PrescriptionHistoryPage() {
                         ) : (
                           <span className="status-pill status-pill--warning">Awaiting mapping</span>
                         )}
-                      </div>
+                      </li>
                     ))
                   )}
-                </div>
+                </ul>
               </section>
             </div>
             <div className="modal__footer rx-modal__footer">
-              {activeRx.status === 'Approved' && (
-                <button className="btn btn--outline btn--sm" type="button" onClick={() => navigate('/cart')}>Open cart</button>
+              {hasUnpaidApprovedItems(activeRx) && (
+                <>
+                  <button className="btn btn--outline btn--sm" type="button" disabled={isAddingPrescriptionId === activeRx.id} onClick={() => void handleAddApprovedPrescription(activeRx)}>
+                    {isAddingPrescriptionId === activeRx.id ? 'Adding…' : 'Add all to cart'}
+                  </button>
+                  <button className="btn btn--primary btn--sm" type="button" disabled={isAddingPrescriptionId === activeRx.id} onClick={() => void handleAddApprovedPrescription(activeRx, true)}>
+                    Add &amp; checkout
+                  </button>
+                </>
               )}
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
             </div>

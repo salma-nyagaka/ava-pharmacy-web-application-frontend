@@ -240,111 +240,119 @@ function UserDetailsPage() {
         </div>
       )}
 
-      <div className="ud-hero">
-        <div className="ud-avatar">{getInitials(displayName)}</div>
-        <div className="ud-hero__info">
-          <h2 className="ud-hero__name">{displayName}</h2>
-          <p className="ud-hero__email">{user.email}</p>
+      <div className="ud-profile-shell">
+        <aside className="ud-profile-rail">
+          <div className="ud-avatar">{getInitials(displayName)}</div>
+          <div className="ud-profile-rail__identity">
+            <h2 className="ud-hero__name">{displayName}</h2>
+            <p className="ud-hero__email">{user.email}</p>
+          </div>
           <div className="ud-hero__badges">
             <span className={`ud-badge ud-badge--role ud-badge--${user.role}`}>{formatAdminRole((user.role ?? 'customer') as CachedAdminUser['role'])}</span>
             <span className={`ud-badge ud-badge--${user.status === 'suspended' ? 'suspended' : 'active'}`}>
               {user.status === 'suspended' ? 'Suspended' : 'Active'}
             </span>
           </div>
-        </div>
-      </div>
-
-      <div className="ud-grid">
-        <section className="form-card">
-          <h2 className="card__title">Contact</h2>
-          <div className="ud-row">
-            <span className="ud-row__label">Phone</span>
-            <span className="ud-row__value">{user.phone || '—'}</span>
-          </div>
-          <div className="ud-row">
-            <span className="ud-row__label">Address</span>
-            <span className="ud-row__value">{user.address || '—'}</span>
-          </div>
-        </section>
-
-        <section className="form-card">
-          <h2 className="card__title">Account</h2>
-          <div className="ud-row">
-            <span className="ud-row__label">Joined</span>
-            <span className="ud-row__value">{formatDate(user.date_joined)}</span>
-          </div>
-          <div className="ud-row">
-            <span className="ud-row__label">Total Orders</span>
-            <span className="ud-row__value">{user.total_orders ?? 0}</span>
-          </div>
-          <div className="ud-row">
-            <span className="ud-row__label">Last Order</span>
-            <span className="ud-row__value">{formatDate(user.last_order_date)}</span>
-          </div>
-          <div className="ud-row">
-            <span className="ud-row__label">Total Spend</span>
-            <span className="ud-row__value">{formatPrice(user.total_spend)}</span>
-          </div>
-        </section>
-
-        <section className="form-card ud-wide">
-          <h2 className="card__title">Login & Access</h2>
-          <div className="ud-form-grid">
-            <div className="form-group">
-              <label htmlFor="ud-email">Email</label>
-              <input id="ud-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          <dl className="ud-profile-rail__stats">
+            <div>
+              <dt>Joined</dt>
+              <dd>{formatDate(user.date_joined)}</dd>
             </div>
-            <div className="form-group">
-              <label htmlFor="ud-password">New password</label>
-              <input id="ud-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Leave blank to keep current password" />
+            <div>
+              <dt>Total orders</dt>
+              <dd>{user.total_orders ?? 0}</dd>
             </div>
-            <div className="form-group">
-              <label htmlFor="ud-password-confirm">Confirm new password</label>
-              <input id="ud-password-confirm" type="password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} placeholder="Re-enter the new password" />
+            <div>
+              <dt>Total spend</dt>
+              <dd>{formatPrice(user.total_spend)}</dd>
             </div>
-          </div>
-          <div className="ud-form-actions">
-            <button className="btn btn--primary btn--sm" type="button" onClick={() => { void handleSave() }} disabled={saving || !hasChanges}>
-              {saving ? 'Saving…' : 'Save changes'}
-            </button>
-          </div>
-        </section>
+          </dl>
+        </aside>
 
-        {user.role === 'pharmacist' && (
-          <section className="form-card ud-wide">
-            <h2 className="card__title">Pharmacist permissions</h2>
-            {user.pharmacist_permissions && user.pharmacist_permissions.length > 0 ? (
-              <ul className="ud-notes">
-                {user.pharmacist_permissions.map((permission) => (
-                  <li key={permission}>{formatPharmacistPermission(permission as PharmacistPermission)}</li>
+        <main className="ud-detail-panel">
+          <section className="ud-section">
+            <div className="ud-section-head">
+              <h2>Contact & account</h2>
+            </div>
+            <div className="ud-detail-list">
+              <div className="ud-row">
+                <span className="ud-row__label">Phone</span>
+                <span className="ud-row__value">{user.phone || '—'}</span>
+              </div>
+              <div className="ud-row">
+                <span className="ud-row__label">Address</span>
+                <span className="ud-row__value">{user.address || '—'}</span>
+              </div>
+              <div className="ud-row">
+                <span className="ud-row__label">Last order</span>
+                <span className="ud-row__value">{formatDate(user.last_order_date)}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="ud-section">
+            <div className="ud-section-head">
+              <h2>Login & access</h2>
+            </div>
+            <div className="ud-form-grid">
+              <div className="form-group">
+                <label htmlFor="ud-email">Email</label>
+                <input id="ud-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+              </div>
+              <div className="form-group">
+                <label htmlFor="ud-password">New password</label>
+                <input id="ud-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Leave blank to keep current password" />
+              </div>
+              <div className="form-group">
+                <label htmlFor="ud-password-confirm">Confirm new password</label>
+                <input id="ud-password-confirm" type="password" value={passwordConfirm} onChange={(event) => setPasswordConfirm(event.target.value)} placeholder="Re-enter the new password" />
+              </div>
+            </div>
+            <div className="ud-form-actions">
+              <button className="btn btn--primary btn--sm" type="button" onClick={() => { void handleSave() }} disabled={saving || !hasChanges}>
+                {saving ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </section>
+
+          {user.role === 'pharmacist' && (
+            <section className="ud-section">
+              <div className="ud-section-head">
+                <h2>Pharmacist permissions</h2>
+              </div>
+              {user.pharmacist_permissions && user.pharmacist_permissions.length > 0 ? (
+                <ul className="ud-notes">
+                  {user.pharmacist_permissions.map((permission) => (
+                    <li key={permission}>{formatPharmacistPermission(permission as PharmacistPermission)}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="ud-muted">No pharmacist permissions assigned.</p>
+              )}
+            </section>
+          )}
+
+          <section className="ud-section">
+            <div className="ud-section-head">
+              <h2>Recent orders</h2>
+              <Link to="/admin/orders" className="ud-section-link">View all orders</Link>
+            </div>
+            {recentOrders.length > 0 ? (
+              <ul className="ud-history">
+                {recentOrders.map((order) => (
+                  <li key={order.id} className="ud-history__item">
+                    <span className="ud-history__id">{order.order_number}</span>
+                    <span className="ud-history__date">{formatDate(order.created_at)}</span>
+                    <span className="ud-history__amount">{formatPrice(order.total)}</span>
+                    <span className="ud-badge ud-badge--delivered">{order.status}</span>
+                  </li>
                 ))}
               </ul>
             ) : (
-              <p className="ud-muted">No pharmacist permissions assigned.</p>
+              <p className="ud-muted">No recent orders yet.</p>
             )}
           </section>
-        )}
-
-        <section className="form-card ud-wide">
-          <div className="ud-section-head">
-            <h2 className="card__title">Recent orders</h2>
-            <Link to="/admin/orders" className="ud-section-link">View all orders</Link>
-          </div>
-          {recentOrders.length > 0 ? (
-            <ul className="ud-history">
-              {recentOrders.map((order) => (
-                <li key={order.id} className="ud-history__item">
-                  <span className="ud-history__id">{order.order_number}</span>
-                  <span className="ud-history__date">{formatDate(order.created_at)}</span>
-                  <span className="ud-history__amount">{formatPrice(order.total)}</span>
-                  <span className="ud-badge ud-badge--delivered">{order.status}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="ud-muted">No recent orders yet.</p>
-          )}
-        </section>
+        </main>
       </div>
     </div>
   )

@@ -122,7 +122,12 @@ function ConditionsPage() {
   const handleAddToCart = (product: typeof products[0]) => {
     if (product.stockSource === 'out') return
     if (product.requiresPrescription) {
-      const prescriptionPath = `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+      const params = new URLSearchParams({
+        product_id: String(product.id),
+        product_name: product.name,
+      })
+      if (product.variantId) params.set('variant_id', String(product.variantId))
+      const prescriptionPath = `/prescriptions?${params.toString()}`
       navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
       return
     }

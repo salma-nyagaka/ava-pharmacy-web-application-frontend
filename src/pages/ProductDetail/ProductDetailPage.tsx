@@ -63,6 +63,14 @@ function ProductDetailPage() {
   const [reviewError, setReviewError] = useState('')
   const [reviewSuccess, setReviewSuccess] = useState('')
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
+  const [otcIntendedUser, setOtcIntendedUser] = useState('self')
+  const [otcAgeGroup, setOtcAgeGroup] = useState('')
+  const [otcReason, setOtcReason] = useState('')
+  const [otcAllergies, setOtcAllergies] = useState('')
+  const [otcCurrentMeds, setOtcCurrentMeds] = useState('')
+  const [otcPregnancy, setOtcPregnancy] = useState('not_applicable')
+  const [otcCounselingAck, setOtcCounselingAck] = useState(false)
+  const [otcError, setOtcError] = useState('')
 
   const parsedId = Number.parseInt(routeId ?? '0', 10) || 0
 
@@ -144,18 +152,32 @@ function ProductDetailPage() {
     }
   }, [parsedId])
 
+  const selectedVariant = useMemo(() => {
+    if (!product?.variants?.length) return null
+    return (
+      product.variants.find((variant) => variant.id === parsedId)
+      ?? product.variants.find((variant) => variant.is_active && (variant.available_quantity ?? 0) > 0)
+      ?? product.variants.find((variant) => variant.is_active)
+      ?? product.variants[0]
+    )
+  }, [parsedId, product])
+
+  const commerceProductId = product?.id ?? parsedId
+  const commerceVariantId = selectedVariant?.id
+  const wishlistItemId = commerceVariantId ?? commerceProductId
+
   useEffect(() => {
-    if (!parsedId) return
+    if (!wishlistItemId) return
 
     const refreshWishlist = () => {
       void favouritesService.list().then((response) => {
-        setIsFavourite(response.data.some((item) => item.id === parsedId))
+        setIsFavourite(response.data.some((item) => item.id === wishlistItemId || item.variantId === wishlistItemId))
       })
     }
 
     refreshWishlist()
     return favouritesService.subscribe(refreshWishlist)
-  }, [parsedId])
+  }, [wishlistItemId])
 
   useEffect(() => {
     const currentUserReview = reviews.find((review) => review.user === user?.id)
@@ -175,30 +197,77 @@ function ProductDetailPage() {
 
   const imageGallery = useMemo(() => {
     if (!product) return []
-    const gallery = [product.image, ...(product.gallery ?? []).map((item) => item.image)].filter(Boolean) as string[]
+    const gallery = [selectedVariant?.image, product.image, ...(product.gallery ?? []).map((item) => item.image)].filter(Boolean) as string[]
     return Array.from(new Set(gallery))
-  }, [product])
+  }, [product, selectedVariant?.image])
 
-  const currentPrice = Number.parseFloat(product?.final_price ?? product?.price ?? '0')
-  const originalPrice = product?.original_price ? Number.parseFloat(product.original_price) : null
+  const currentPrice = Number.parseFloat(selectedVariant?.final_price ?? selectedVariant?.effective_price ?? selectedVariant?.price ?? product?.final_price ?? product?.price ?? '0')
+  const originalPrice = selectedVariant?.original_price
+    ? Number.parseFloat(selectedVariant.original_price)
+    : product?.original_price
+      ? Number.parseFloat(product.original_price)
+      : null
   const averageRating = product?.average_rating ?? 0
   const reviewCount = product?.review_count ?? 0
   const featureList = normalizeFeatures(product?.features ?? [])
 
-  const stockSource: StockSource = liveAvailability?.stock_source === 'warehouse'
+  const stockSource: StockSource = selectedVariant?.stock_source === 'warehouse' || liveAvailability?.stock_source === 'warehouse'
     ? 'warehouse'
-    : liveAvailability?.stock_source === 'out'
+    : selectedVariant?.stock_source === 'out' || liveAvailability?.stock_source === 'out'
       ? 'out'
-      : product?.inventory_status === 'backorder'
+      : selectedVariant?.inventory_status === 'backorder' || product?.inventory_status === 'backorder'
         ? 'warehouse'
-        : product?.inventory_status === 'out_of_stock'
+        : selectedVariant?.inventory_status === 'out_of_stock' || product?.inventory_status === 'out_of_stock'
           ? 'out'
           : 'branch'
-  const inStock = liveAvailability?.is_available ?? Boolean(product?.can_purchase)
+  const inStock = selectedVariant
+    ? (selectedVariant.available_quantity ?? 0) > 0
+    : liveAvailability?.is_available ?? Boolean(product?.can_purchase)
+  const requiresPrescription = selectedVariant?.requires_prescription ?? product?.requires_prescription ?? false
+  const requiresOtcScreening = useMemo(() => {
+    if (!product || requiresPrescription) return false
+    const medicineVariant = selectedVariant as typeof selectedVariant & {
+      warnings?: string
+      dosage_instructions?: string
+      directions?: string
+    }
+    const values = [
+      product.name,
+      selectedVariant?.name,
+      product.category?.name,
+      product.category?.slug,
+      product.description,
+      product.short_description,
+      (product as { warnings?: string }).warnings,
+      medicineVariant?.warnings,
+      medicineVariant?.dosage_instructions,
+      medicineVariant?.directions,
+    ].join(' ').toLowerCase()
+    return ['medicine', 'medicines', 'pain', 'cough', 'cold', 'flu', 'allergy', 'antacid', 'antibiotic']
+      .some((term) => values.includes(term)) || Boolean(medicineVariant?.dosage_instructions || medicineVariant?.directions || medicineVariant?.warnings)
+  }, [product, requiresPrescription, selectedVariant])
+
+  const buildOtcScreening = () => ({
+    intended_user: otcIntendedUser,
+    age_group: otcAgeGroup,
+    symptoms_or_reason: otcReason.trim(),
+    allergies: otcAllergies.trim() || 'None stated',
+    current_medicines: otcCurrentMeds.trim() || 'None stated',
+    pregnant_or_breastfeeding: otcPregnancy,
+    counseling_acknowledged: otcCounselingAck,
+  })
 
   const prescriptionRedirectTarget = useMemo(
-    () => `/prescriptions?product_id=${product?.id ?? 0}&product_name=${encodeURIComponent(product?.name ?? '')}`,
-    [product?.id, product?.name],
+    () => {
+      const params = new URLSearchParams({
+        product_id: String(product?.id ?? 0),
+        product_name: product?.name ?? '',
+      })
+      const selectedVariantId = selectedVariant?.id
+      if (selectedVariantId) params.set('variant_id', String(selectedVariantId))
+      return `/prescriptions?${params.toString()}`
+    },
+    [product?.id, product?.name, selectedVariant?.id],
   )
   const loginForPrescriptionPath = `/login?redirect=${encodeURIComponent(prescriptionRedirectTarget)}`
   const registerForPrescriptionPath = `/register?redirect=${encodeURIComponent(prescriptionRedirectTarget)}`
@@ -231,22 +300,38 @@ function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (!product) return
-    if (product.requires_prescription) {
+    if (requiresPrescription) {
       setCartMessage('Upload a valid prescription first. Approved prescription items can then be requested from your prescription history.')
       return
     }
     if (!inStock) return
+    const otcScreening = requiresOtcScreening ? buildOtcScreening() : undefined
+    if (requiresOtcScreening) {
+      const missing = [
+        !otcAgeGroup ? 'age group' : '',
+        !otcReason.trim() ? 'reason or symptoms' : '',
+        !otcCounselingAck ? 'counseling acknowledgement' : '',
+      ].filter(Boolean)
+      if (missing.length) {
+        setOtcError(`Complete OTC screening: ${missing.join(', ')}.`)
+        return
+      }
+      setOtcError('')
+    }
 
     await cartService.add(
       {
-        id: product.id,
-        name: product.name,
+        id: wishlistItemId,
+        productId: commerceProductId,
+        variantId: commerceVariantId,
+        name: selectedVariant?.name ?? product.name,
         brand: product.brand?.name ?? product.brand_name,
         price: currentPrice,
         image: imageGallery[0] ?? '',
         stockSource: stockSource === 'out' ? undefined : stockSource,
       },
       quantity,
+      otcScreening,
     )
     setCartMessage('Added to cart.')
     window.setTimeout(() => setCartMessage(''), 1500)
@@ -259,8 +344,10 @@ function ProductDetailPage() {
       return
     }
     void favouritesService.toggle({
-      id: product.id,
-      name: product.name,
+      id: wishlistItemId,
+      productId: commerceProductId,
+      variantId: commerceVariantId,
+      name: selectedVariant?.name ?? product.name,
       brand: product.brand?.name ?? product.brand_name,
       price: currentPrice,
       originalPrice,
@@ -306,7 +393,10 @@ function ProductDetailPage() {
     return (
       <div className="pdp">
         <div className="container">
-          <p>Loading product…</p>
+          <div className="pdp-state">
+            <p className="pdp-state__eyebrow">Loading</p>
+            <h1>Loading product</h1>
+          </div>
         </div>
       </div>
     )
@@ -316,7 +406,12 @@ function ProductDetailPage() {
     return (
       <div className="pdp">
         <div className="container">
-          <p>{loadError || 'Product not found.'}</p>
+          <div className="pdp-state">
+            <p className="pdp-state__eyebrow">Product unavailable</p>
+            <h1>{loadError || 'Product not found.'}</h1>
+            <p>Try browsing the catalog or checking the product link again.</p>
+            <Link to="/products" className="btn btn--primary btn--sm">Browse products</Link>
+          </div>
         </div>
       </div>
     )
@@ -369,7 +464,7 @@ function ProductDetailPage() {
               )}
             </div>
 
-            <p className="pdp__sku">SKU: {product.sku}</p>
+            <p className="pdp__sku">SKU: {selectedVariant?.sku ?? product.sku}</p>
 
             <div className="pdp__availability">
               {inStock ? (
@@ -390,7 +485,7 @@ function ProductDetailPage() {
               <p>{product.description || product.short_description}</p>
             </div>
 
-            {product.requires_prescription ? (
+            {requiresPrescription ? (
               <div className="pdp__rx-gate">
                 <div className="pdp__rx-gate-badge">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -428,6 +523,56 @@ function ProductDetailPage() {
               </div>
             ) : (
               <div className="pdp__actions">
+                {requiresOtcScreening && (
+                  <div className="pdp__otc-screening">
+                    <h2>OTC screening</h2>
+                    <div className="pdp__otc-grid">
+                      <label>
+                        Intended user
+                        <select value={otcIntendedUser} onChange={(event) => setOtcIntendedUser(event.target.value)}>
+                          <option value="self">Self</option>
+                          <option value="guardian">Person under my care</option>
+                        </select>
+                      </label>
+                      <label>
+                        Age group
+                        <select value={otcAgeGroup} onChange={(event) => setOtcAgeGroup(event.target.value)}>
+                          <option value="">Select age group</option>
+                          <option value="adult">Adult</option>
+                          <option value="child_12_17">Child 12-17</option>
+                          <option value="child_under_12">Child under 12</option>
+                          <option value="older_adult">Older adult</option>
+                        </select>
+                      </label>
+                      <label>
+                        Pregnant or breastfeeding
+                        <select value={otcPregnancy} onChange={(event) => setOtcPregnancy(event.target.value)}>
+                          <option value="not_applicable">Not applicable</option>
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                          <option value="prefer_not_to_say">Prefer not to say</option>
+                        </select>
+                      </label>
+                      <label className="pdp__otc-wide">
+                        Reason or symptoms
+                        <textarea value={otcReason} onChange={(event) => setOtcReason(event.target.value)} rows={2} />
+                      </label>
+                      <label>
+                        Allergies
+                        <input value={otcAllergies} onChange={(event) => setOtcAllergies(event.target.value)} placeholder="None stated" />
+                      </label>
+                      <label>
+                        Current medicines
+                        <input value={otcCurrentMeds} onChange={(event) => setOtcCurrentMeds(event.target.value)} placeholder="None stated" />
+                      </label>
+                    </div>
+                    <label className="pdp__otc-ack">
+                      <input type="checkbox" checked={otcCounselingAck} onChange={(event) => setOtcCounselingAck(event.target.checked)} />
+                      I have read the product directions, warnings, storage, and disposal advice and understand a pharmacist may contact me before supply.
+                    </label>
+                    {otcError && <p className="pdp__otc-error">{otcError}</p>}
+                  </div>
+                )}
                 <div className="quantity-selector">
                   <button onClick={() => setQuantity(Math.max(1, quantity - 1))} type="button">-</button>
                   <input

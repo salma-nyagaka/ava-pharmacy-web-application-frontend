@@ -6,6 +6,7 @@ import {
   loadPrescriptionRecords,
   savePrescriptionRecords,
 } from '../data/prescriptions'
+import { appendBotPayload } from './botProtectionService'
 import { cartService } from './cartService'
 
 type UploadPayload = {
@@ -13,6 +14,13 @@ type UploadPayload = {
   doctor: string
   notes?: string
   files: File[]
+  botChallengeToken?: string
+  requestedItem?: {
+    name: string
+    productId?: number | null
+    variantId?: number | null
+    quantity?: number
+  }
 }
 
 type ApiPrescriptionFile = {
@@ -27,9 +35,15 @@ type ApiPrescriptionItem = {
   product_name?: string
   product_slug?: string
   product_image?: string | null
+  variant_id?: number | null
+  variant_name?: string
+  variant_sku?: string
   dose: string
   frequency: string
+  duration?: string
   quantity: number
+  quantity_measurement?: string
+  is_paid_for?: boolean
 }
 
 type ApiPrescriptionAudit = {
@@ -52,6 +66,9 @@ type ApiPrescription = {
   patient_name: string
   patient_name_display?: string
   pharmacist_name?: string
+  source?: 'upload' | 'e_prescription'
+  clinician_type?: 'doctor' | 'pediatrician' | ''
+  clinician_prescription?: number | null
   status: string
   dispatch_status: string
   submitted_at: string
@@ -59,9 +76,25 @@ type ApiPrescription = {
   files: ApiPrescriptionFile[]
   items: ApiPrescriptionItem[]
   notes: string
+  pharmacist_notes?: string
   clarification_message?: string
   clarification_messages?: ApiClarificationMessage[]
   audit_logs: ApiPrescriptionAudit[]
+}
+
+export interface PharmacistCatalogVariant {
+  id: number
+  product_id: number
+  product_name: string
+  variant_name: string
+  display_name: string
+  brand_name: string
+  sku: string
+  price: string
+  requires_prescription: boolean
+  inventory_status: string
+  available_quantity: number
+  can_select: boolean
 }
 
 const STATUS_FROM_API: Record<string, PrescriptionRecord['status']> = {
@@ -114,11 +147,37 @@ function currentUserRole() {
   }
 }
 
-function listEndpoint() {
+function currentUserName() {
+  try {
+    const raw = localStorage.getItem('ava_user')
+    if (!raw) return ''
+    const parsed = JSON.parse(raw) as { name?: string }
+    return (parsed.name ?? '').trim().toLowerCase()
+  } catch {
+    return ''
+  }
+}
+
+type PrescriptionListScope = 'role' | 'patient'
+
+function listEndpoint(scope: PrescriptionListScope = 'role') {
+  if (scope === 'patient') return '/prescriptions/'
   const role = currentUserRole()
-  return role === 'admin' || role === 'pharmacist'
+  if (role === 'pharmacist') return '/pharmacist/prescriptions/'
+  return role === 'admin'
     ? '/admin/prescriptions/'
     : '/prescriptions/'
+}
+
+function formatSubmittedDate(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
 }
 
 function mapPrescription(record: ApiPrescription): PrescriptionRecord {
@@ -127,9 +186,13 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
     id: record.reference,
     patient: record.patient_name_display || record.patient_name,
     pharmacist: record.pharmacist_name || 'Unassigned',
+    source: record.source || 'upload',
+    clinicianType: record.clinician_type || '',
+    clinicianPrescriptionId: record.clinician_prescription ?? null,
     status: STATUS_FROM_API[record.status] ?? 'Pending',
     dispatchStatus: DISPATCH_FROM_API[record.dispatch_status] ?? 'Not started',
-    submitted: record.submitted_at ? new Date(record.submitted_at).toISOString().slice(0, 10) : '',
+    submitted: formatSubmittedDate(record.submitted_at),
+    submittedAt: record.submitted_at || '',
     doctor: record.doctor_name || 'Doctor not specified',
     files: (record.files || []).map((file) => file.file || file.filename).filter(Boolean),
     items: (record.items || []).map((item) => ({
@@ -139,11 +202,18 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
       productName: item.product_name || '',
       productSlug: item.product_slug || '',
       productImage: item.product_image || null,
+      variantId: item.variant_id ?? null,
+      variantName: item.variant_name || '',
+      variantSku: item.variant_sku || '',
       dose: item.dose || '-',
       frequency: item.frequency || '-',
+      duration: item.duration || '',
       qty: item.quantity ?? 0,
+      quantityMeasurement: item.quantity_measurement || 'unit(s)',
+      isPaidFor: item.is_paid_for ?? false,
     })),
     notes: record.notes || '',
+    pharmacistNotes: record.pharmacist_notes || '',
     clarificationMessage: record.clarification_message || '',
     clarificationMessages: (record.clarification_messages || []).map((entry) => ({
       id: entry.id,
@@ -160,10 +230,10 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
   }
 }
 
-async function listPrescriptions(): Promise<PrescriptionRecord[]> {
+async function listPrescriptions(scope: PrescriptionListScope = 'role'): Promise<PrescriptionRecord[]> {
   if (!isAuthenticated()) return []
   try {
-    const res = await apiClient.get(listEndpoint())
+    const res = await apiClient.get(listEndpoint(scope))
     const payload = res.data?.data ?? res.data ?? []
     const items = Array.isArray(payload)
       ? payload
@@ -173,7 +243,11 @@ async function listPrescriptions(): Promise<PrescriptionRecord[]> {
     return items.map(mapPrescription)
   } catch (error) {
     if (!shouldUseLocalFallback(error)) throw error
-    return loadPrescriptionRecords()
+    const fallbackRecords = loadPrescriptionRecords()
+    if (scope !== 'patient') return fallbackRecords
+    const accountName = currentUserName()
+    if (!accountName) return []
+    return fallbackRecords.filter((record) => record.patient.trim().toLowerCase() === accountName)
   }
 }
 
@@ -187,8 +261,8 @@ async function resolvePrescription(reference: string): Promise<PrescriptionRecor
 }
 
 export const prescriptionService = {
-  list: async () => {
-    const data = await listPrescriptions()
+  list: async (options: { scope?: PrescriptionListScope } = {}) => {
+    const data = await listPrescriptions(options.scope ?? 'role')
     return { data }
   },
   saveAll: async (records: PrescriptionRecord[]) => {
@@ -200,9 +274,22 @@ export const prescriptionService = {
     formData.append('patient_name', payload.patient)
     formData.append('doctor_name', payload.doctor || '')
     formData.append('notes', payload.notes || '')
+    if (payload.requestedItem?.name) {
+      formData.append('items_json', JSON.stringify([{
+        name: payload.requestedItem.name,
+        product_id: payload.requestedItem.productId ?? null,
+        variant_id: payload.requestedItem.variantId ?? null,
+        dose: '',
+        frequency: '',
+        quantity: payload.requestedItem.quantity ?? 1,
+      }]))
+    }
     payload.files.forEach((file) => formData.append('files', file))
+    appendBotPayload(formData, '', payload.botChallengeToken ?? '')
     try {
-      await apiClient.post('/prescriptions/upload/', formData)
+      const response = await apiClient.post('/prescriptions/upload/', formData)
+      const created = mapPrescription(response.data?.data ?? response.data)
+      return { data: [created] }
     } catch (error) {
       if (!shouldUseLocalFallback(error)) throw error
       const records = loadPrescriptionRecords()
@@ -213,8 +300,8 @@ export const prescriptionService = {
         files: payload.files.map((file) => file.name),
       })
       savePrescriptionRecords(nextRecords)
+      return { data: nextRecords }
     }
-    return prescriptionService.list()
   },
   update: async (prescriptionId: string, updates: Partial<PrescriptionRecord>, auditAction?: string) => {
     const prescription = await resolvePrescription(prescriptionId)
@@ -226,9 +313,12 @@ export const prescriptionService = {
       body.items = updates.items.map((item) => ({
         name: item.name,
         product_id: item.productId ?? null,
+        variant_id: item.variantId ?? null,
         dose: item.dose,
         frequency: item.frequency,
+        duration: item.duration || '',
         quantity: item.qty,
+        quantity_measurement: item.quantityMeasurement || 'unit(s)',
       }))
     }
 
@@ -303,9 +393,24 @@ export const prescriptionService = {
   pharmacistReview: async (backendId: number, payload: {
     action: 'approve' | 'reject' | 'request_clarification'
     notes?: string
+    items?: Array<{
+      name: string
+      product_id?: number | null
+      variant_id?: number | null
+      dose?: string
+      frequency?: string
+      duration?: string
+      quantity: number
+      quantity_measurement?: string
+    }>
   }) => {
     await apiClient.post(`/pharmacist/prescriptions/${backendId}/review/`, payload)
     return prescriptionService.list()
+  },
+  searchCatalogVariants: async (query: string, limit = 500): Promise<PharmacistCatalogVariant[]> => {
+    const res = await apiClient.get('/pharmacist/catalog/variants/', { params: { q: query, limit } })
+    const payload = res.data?.data ?? res.data ?? {}
+    return Array.isArray(payload?.results) ? payload.results : []
   },
   addApprovedItemToCart: async (prescriptionId: string, itemId: number, quantity?: number) => {
     const prescription = await resolvePrescription(prescriptionId)
@@ -315,6 +420,7 @@ export const prescriptionService = {
         throw new Error('LOCAL_FALLBACK')
       }
       const res = await apiClient.post(`/prescriptions/${prescription.backendId}/items/${itemId}/add-to-cart/`, payload)
+      window.dispatchEvent(new Event('ava-cart-updated'))
       return res.data?.data ?? res.data
     } catch (error) {
       if (!shouldUseLocalFallback(error)) throw error

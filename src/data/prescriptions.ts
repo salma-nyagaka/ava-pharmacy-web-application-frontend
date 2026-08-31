@@ -8,9 +8,15 @@ export interface PrescriptionItem {
   productName?: string
   productSlug?: string
   productImage?: string | null
+  variantId?: number | null
+  variantName?: string
+  variantSku?: string
   dose: string
   frequency: string
+  duration?: string
   qty: number
+  quantityMeasurement?: string
+  isPaidFor?: boolean
 }
 
 export interface PrescriptionAuditEntry {
@@ -32,13 +38,18 @@ export interface PrescriptionRecord {
   id: string
   patient: string
   pharmacist: string
+  source?: 'upload' | 'e_prescription'
+  clinicianType?: 'doctor' | 'pediatrician' | ''
+  clinicianPrescriptionId?: number | null
   status: PrescriptionStatus
   dispatchStatus: DispatchStatus
   submitted: string
+  submittedAt?: string
   doctor: string
   files: string[]
   items: PrescriptionItem[]
   notes: string
+  pharmacistNotes?: string
   clarificationMessage: string
   clarificationMessages: PrescriptionClarificationMessage[]
   audit: PrescriptionAuditEntry[]
@@ -167,6 +178,8 @@ export const createUploadedPrescription = (
     doctor: payload.doctor || 'Doctor not specified',
     submitted: toIsoDate(),
     pharmacist: 'Unassigned',
+    source: 'upload',
+    clinicianType: '',
     status: 'Pending',
     dispatchStatus: 'Not started',
     files: payload.files,

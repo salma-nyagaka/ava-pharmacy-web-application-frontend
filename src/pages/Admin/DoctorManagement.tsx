@@ -9,7 +9,13 @@ import {
   DoctorProfile,
   DoctorType,
 } from '../../data/telemedicine'
-import { adminDoctorService, AdminDoctorError, type AdminDoctorApi } from '../../services/adminDoctorService'
+import {
+  adminDoctorService,
+  AdminDoctorError,
+  type AdminDoctorApi,
+  type AdminNotificationApi,
+  type AdminProfessionalType,
+} from '../../services/adminDoctorService'
 
 function getInitials(name: string) {
   const parts = name.replace(/^Dr\.\s*/i, '').trim().split(/\s+/)
@@ -26,8 +32,17 @@ const normalizeDoctorType = (value: unknown): DoctorType => {
 const normalizeDoctorStatus = (value: unknown): DoctorProfile['status'] => {
   const asText = String(value ?? '').toLowerCase()
   if (['approved', 'active', 'verified'].includes(asText)) return 'Active'
-  if (['rejected', 'declined', 'suspended'].includes(asText)) return 'Suspended'
+  if (asText.includes('approved_pending') || asText.includes('pending_activation')) return 'Pending activation'
+  if (['rejected', 'declined'].includes(asText)) return 'Rejected'
+  if (['deactivated', 'inactive'].includes(asText)) return 'Deactivated'
+  if (['suspended'].includes(asText)) return 'Suspended'
   return 'Pending'
+}
+
+const statusClass = (status: DoctorProfile['status']) => {
+  if (status === 'Active') return 'admin-status--success'
+  if (status === 'Pending' || status === 'Pending activation') return 'admin-status--warning'
+  return 'admin-status--danger'
 }
 
 const normalizeDocStatus = (value: unknown): DoctorDocument['status'] => {
@@ -52,6 +67,18 @@ const formatDate = (value?: unknown) => {
   return new Date().toISOString().slice(0, 10)
 }
 
+const formatDateTime = (value?: unknown) => {
+  if (typeof value !== 'string') return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return formatDate(value)
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 const toNumber = (value: unknown, fallback: number) => {
   const numeric = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(numeric) ? numeric : fallback
@@ -68,6 +95,7 @@ const buildDocuments = (api: AdminDoctorApi) => {
         name,
         status: normalizeDocStatus(doc?.status),
         note: doc?.note ? String(doc.note) : undefined,
+        file: typeof doc?.file === 'string' ? doc.file : undefined,
       } as DoctorDocument
     })
   }
@@ -99,6 +127,7 @@ const mapDoctor = (api: AdminDoctorApi): DoctorProfile => {
 
   return {
     id: String(idValue),
+    reference: api.reference ? String(api.reference) : undefined,
     name,
     type: normalizeDoctorType(api.type ?? api.registration_type ?? api.professional_type),
     specialty: String(api.specialty ?? ''),
@@ -121,7 +150,14 @@ const mapDoctor = (api: AdminDoctorApi): DoctorProfile => {
 
 function DoctorManagement() {
   const [searchParams] = useSearchParams()
+  const pageType = useMemo<AdminProfessionalType | 'all'>(() => {
+    const normalized = (searchParams.get('type') || '').toLowerCase()
+    if (normalized === 'pediatrician' || normalized === 'paedetrician') return 'Pediatrician'
+    if (normalized === 'doctor') return 'Doctor'
+    return 'all'
+  }, [searchParams])
   const [doctors, setDoctors] = useState<DoctorProfile[]>([])
+  const [notifications, setNotifications] = useState<AdminNotificationApi[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [detailCache, setDetailCache] = useState<Record<string, DoctorProfile>>({})
@@ -144,6 +180,10 @@ function DoctorManagement() {
 
   // Manage
   const [manageDoctor, setManageDoctor] = useState<DoctorProfile | null>(null)
+  const [manageFee, setManageFee] = useState('')
+  const [manageCommission, setManageCommission] = useState('')
+  const [manageSaving, setManageSaving] = useState(false)
+  const [manageError, setManageError] = useState('')
   const [provisioningId, setProvisioningId] = useState<string | null>(null)
   const [provisionError, setProvisionError] = useState('')
   const [provisionSuccess, setProvisionSuccess] = useState('')
@@ -152,8 +192,20 @@ function DoctorManagement() {
     setLoading(true)
     setLoadError('')
     try {
-      const payload = await adminDoctorService.listDoctors()
+      const professionalPayload = pageType === 'Pediatrician'
+        ? await adminDoctorService.listPediatricians()
+        : pageType === 'Doctor'
+          ? await adminDoctorService.listDoctors()
+          : [
+              ...(await adminDoctorService.listDoctors()),
+              ...(await adminDoctorService.listPediatricians()),
+            ]
+      const [payload, notificationPayload] = await Promise.all([
+        Promise.resolve(professionalPayload),
+        adminDoctorService.listNotifications().catch(() => []),
+      ])
       setDoctors(payload.map(mapDoctor))
+      setNotifications(notificationPayload)
       setDetailCache({})
     } catch (error) {
       const message = error instanceof AdminDoctorError || error instanceof Error
@@ -167,10 +219,12 @@ function DoctorManagement() {
 
   const loadDoctorDetail = async (doctorId: string) => {
     if (!doctorId || detailCache[doctorId]) return
+    const professionalType = doctors.find((doctor) => doctor.id === doctorId)?.type
+      ?? (pageType === 'all' ? 'Doctor' : pageType)
     setDetailLoadingId(doctorId)
     setDetailError('')
     try {
-      const payload = await adminDoctorService.getDoctor(doctorId)
+      const payload = await adminDoctorService.getDoctor(doctorId, professionalType)
       const mapped = mapDoctor(payload)
       setDetailCache((prev) => ({ ...prev, [doctorId]: mapped }))
       setDoctors((prev) => prev.map((doctor) => doctor.id === doctorId ? { ...doctor, ...mapped } : doctor))
@@ -186,20 +240,11 @@ function DoctorManagement() {
 
   useEffect(() => {
     refreshDoctors()
-  }, [])
+  }, [pageType])
 
   useEffect(() => {
-    const typeParam = searchParams.get('type')
-    if (!typeParam) return
-    const normalized = typeParam.toLowerCase()
-    if (normalized === 'doctor') {
-      setSelectedType('Doctor')
-      return
-    }
-    if (normalized === 'pediatrician' || normalized === 'paedetrician') {
-      setSelectedType('Pediatrician')
-    }
-  }, [searchParams])
+    setSelectedType(pageType === 'all' ? 'all' : pageType)
+  }, [pageType])
 
   const specialties = useMemo(
     () => Array.from(new Set(doctors.map((d) => d.specialty).filter(Boolean))),
@@ -225,6 +270,26 @@ function DoctorManagement() {
   const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / PAGE_SIZE))
   const pagedDoctors = filteredDoctors.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const pendingDoctors = doctors.filter((d) => d.status === 'Pending')
+  const pageEntityLabel = pageType === 'Pediatrician' ? 'Pediatrician' : pageType === 'Doctor' ? 'Doctor' : 'Professional'
+  const pageEntityPlural = pageType === 'Pediatrician' ? 'Pediatricians' : pageType === 'Doctor' ? 'Doctors' : 'Doctors & Specialists'
+  const visibleDoctorNotifications = notifications.filter((notification) => {
+    const title = String(notification.title ?? '').toLowerCase()
+    const message = String(notification.message ?? '').toLowerCase()
+    const type = String(notification.type ?? '').toLowerCase()
+    const doctorType = selectedType.toLowerCase()
+    const isProfessionalApplication = type === 'doctor_verified' && (title.includes('application') || message.includes('submitted credentials'))
+    const reference = String(notification.data?.reference ?? '')
+    const hasMatchingPendingApplication = pendingDoctors.some((doctor) => {
+      const notificationText = `${title} ${message}`
+      return (reference && (doctor.reference === reference || doctor.id === reference))
+        || notificationText.includes(doctor.name.toLowerCase())
+    })
+    const matchesSelectedType = selectedType === 'all'
+      || title.includes(doctorType)
+      || message.includes(doctorType)
+      || String(notification.data?.url ?? '').toLowerCase().includes(`type=${doctorType}`)
+    return isProfessionalApplication && hasMatchingPendingApplication && matchesSelectedType
+  })
   const rawSelectedPending = pendingDoctors.find((d) => d.id === selectedPendingId) ?? pendingDoctors[0]
   const selectedPendingDoctor = rawSelectedPending ? (detailCache[rawSelectedPending.id] ?? rawSelectedPending) : null
   const manageDoctorDetails = manageDoctor ? (detailCache[manageDoctor.id] ?? manageDoctor) : null
@@ -238,7 +303,9 @@ function DoctorManagement() {
   const stats = useMemo(() => ({
     active: doctors.filter((d) => d.status === 'Active').length,
     pending: doctors.filter((d) => d.status === 'Pending').length,
+    pendingActivation: doctors.filter((d) => d.status === 'Pending activation').length,
     suspended: doctors.filter((d) => d.status === 'Suspended').length,
+    rejected: doctors.filter((d) => d.status === 'Rejected' || d.status === 'Deactivated').length,
   }), [doctors])
 
   // ── Verify ────────────────────────────────────────────
@@ -262,13 +329,17 @@ function DoctorManagement() {
     setVerifySubmitting(true)
     setVerifyError('')
     try {
-      await adminDoctorService.actionDoctor(selectedPendingDoctor.id, {
-        action: verifyAction,
-        note: verifyNote.trim() || undefined,
-      })
+      await adminDoctorService.actionDoctor(
+        selectedPendingDoctor.id,
+        {
+          action: verifyAction,
+          note: verifyNote.trim() || undefined,
+        },
+        selectedPendingDoctor.type,
+      )
       logAdminAction({
-        action: `Doctor action: ${verifyAction}`,
-        entity: 'Doctor',
+        action: `${selectedPendingDoctor.type} action: ${verifyAction}`,
+        entity: selectedPendingDoctor.type,
         entityId: selectedPendingDoctor.id,
         detail: verifyNote.trim() || selectedPendingDoctor.name,
       })
@@ -287,9 +358,42 @@ function DoctorManagement() {
   // ── Manage ────────────────────────────────────────────
   const openManageModal = (doctor: DoctorProfile) => {
     setManageDoctor(doctor)
+    setManageFee(String(doctor.consultFee || ''))
+    setManageCommission(String(doctor.commission || ''))
+    setManageError('')
     setProvisionError('')
     setProvisionSuccess('')
     loadDoctorDetail(doctor.id)
+  }
+
+  const handleSaveCommercials = async () => {
+    if (!manageDoctor) return
+    const consultFee = Number(manageFee)
+    const commission = Number(manageCommission)
+    if (!Number.isFinite(consultFee) || consultFee < 0 || !Number.isFinite(commission) || commission < 0 || commission > 100) {
+      setManageError('Enter a valid consultation fee and commission percentage.')
+      return
+    }
+    setManageSaving(true)
+    setManageError('')
+    try {
+      const updated = mapDoctor(await adminDoctorService.updateDoctor(
+        manageDoctor.id,
+        { consult_fee: consultFee, commission },
+        manageDoctor.type,
+      ))
+      setManageDoctor(updated)
+      setDoctors((prev) => prev.map((doctor) => doctor.id === updated.id ? { ...doctor, ...updated } : doctor))
+      setDetailCache((prev) => ({ ...prev, [updated.id]: updated }))
+      setProvisionSuccess('Fee and commission saved.')
+    } catch (error) {
+      const message = error instanceof AdminDoctorError || error instanceof Error
+        ? error.message
+        : 'Unable to save fee and commission.'
+      setManageError(message)
+    } finally {
+      setManageSaving(false)
+    }
   }
 
   const handleProvisionAccount = async () => {
@@ -298,8 +402,8 @@ function DoctorManagement() {
     setProvisionError('')
     setProvisionSuccess('')
     try {
-      await adminDoctorService.provisionAccount(manageDoctor.id)
-      logAdminAction({ action: 'Provision doctor account', entity: 'Doctor', entityId: manageDoctor.id, detail: manageDoctor.name })
+      await adminDoctorService.provisionAccount(manageDoctor.id, manageDoctor.type)
+      logAdminAction({ action: `Provision ${manageDoctor.type.toLowerCase()} account`, entity: manageDoctor.type, entityId: manageDoctor.id, detail: manageDoctor.name })
       setProvisionSuccess('Account provisioned successfully.')
       await refreshDoctors()
     } catch (error) {
@@ -312,13 +416,38 @@ function DoctorManagement() {
     }
   }
 
+  const renderDocumentList = (documents: DoctorDocument[]) => (
+    <div className="dm-doc-list">
+      {documents.map((doc) => (
+        <div key={`${doc.name}:${doc.file ?? ''}`} className="dm-doc-item">
+          <div className="dm-doc-item__main">
+            <span className="dm-doc-item__name">{doc.name}</span>
+            {doc.note && <span className="dm-doc-item__note">{doc.note}</span>}
+          </div>
+          <span className={`dm-doc-status dm-doc-status--${doc.status.toLowerCase()}`}>{doc.status}</span>
+          {doc.file ? (
+            <div className="dm-doc-actions">
+              <a className="dm-doc-action" href={doc.file} target="_blank" rel="noreferrer">Open</a>
+              <a className="dm-doc-action dm-doc-action--ghost" href={doc.file} download>Download</a>
+            </div>
+          ) : (
+            <span className="dm-doc-missing-link">No file</span>
+          )}
+        </div>
+      ))}
+      {documents.length === 0 && (
+        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>No documents uploaded.</p>
+      )}
+    </div>
+  )
+
   return (
     <div className="category-management admin-page dm-page">
       {/* Header */}
       <div className="category-management__header">
         <div>
-          <h1>Doctors & Specialists</h1>
-          <p className="dm-subtitle">Manage registered doctors, pediatricians, and their verifications.</p>
+          <h1>{pageEntityPlural}</h1>
+          <p className="dm-subtitle">Manage registered {pageEntityPlural.toLowerCase()} and their verifications.</p>
         </div>
         <div className="dm-header-actions">
           {pendingDoctors.length > 0 && (
@@ -332,6 +461,53 @@ function DoctorManagement() {
         </div>
       </div>
       {loadError && <p className="dm-field-error">{loadError}</p>}
+
+      {visibleDoctorNotifications.length > 0 && (
+        <div className="dm-notification-panel" role="status" aria-live="polite">
+          <div className="dm-notification-panel__head">
+            <span className="dm-notification-panel__icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18" aria-hidden="true">
+                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </span>
+            <div>
+              <p className="dm-notification-panel__title">New professional application alert</p>
+              <p className="dm-notification-panel__meta">
+                {visibleDoctorNotifications.length} admin notification{visibleDoctorNotifications.length !== 1 ? 's' : ''} awaiting review
+              </p>
+            </div>
+          </div>
+          <div className="dm-notification-list">
+            {visibleDoctorNotifications.slice(0, 3).map((notification) => (
+              <div key={notification.id} className={`dm-notification-item ${notification.is_read ? '' : 'dm-notification-item--unread'}`}>
+                <div>
+                  <p className="dm-notification-item__title">{notification.title || 'New application'}</p>
+                  <p className="dm-notification-item__message">{notification.message || 'A professional submitted credentials for admin review.'}</p>
+                  <p className="dm-notification-item__time">{formatDateTime(notification.created_at)}</p>
+                </div>
+                <button
+                  className="dm-notification-item__btn"
+                  type="button"
+                  onClick={() => {
+                    const reference = String(notification.data?.reference ?? '')
+                    const matchingDoctor = pendingDoctors.find((doctor) => doctor.reference === reference || doctor.id === reference)
+                      ?? pendingDoctors.find((doctor) => notification.message?.toLowerCase().includes(doctor.name.toLowerCase()))
+                    setSelectedPendingId(matchingDoctor?.id ?? pendingDoctors[0]?.id ?? null)
+                    setVerifyAction(null)
+                    setVerifyNote('')
+                    setVerifyNoteError(false)
+                    setVerifyError('')
+                    setShowVerifyModal(true)
+                  }}
+                >
+                  Review
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI grid */}
       <div className="cm-kpi-grid">
@@ -364,8 +540,17 @@ function DoctorManagement() {
         </div>
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Suspended</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : stats.suspended}</strong>
+            <span className="cm-kpi-card__label">Pending activation</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{loading ? '—' : stats.pendingActivation}</strong>
+          </div>
+          <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M4 4h16v16H4z"/><path d="m4 7 8 6 8-6"/></svg>
+          </div>
+        </div>
+        <div className="cm-kpi-card">
+          <div className="cm-kpi-card__body">
+            <span className="cm-kpi-card__label">Blocked</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : stats.suspended + stats.rejected}</strong>
           </div>
           <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
@@ -390,11 +575,17 @@ function DoctorManagement() {
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
             <input type="search" placeholder="Search by name, email, specialty…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <select className="cm-filter-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
-            <option value="all">All types</option>
-            <option value="Doctor">Doctors</option>
-            <option value="Pediatrician">Pediatricians</option>
-          </select>
+          {pageType === 'all' ? (
+            <select className="cm-filter-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+              <option value="all">All types</option>
+              <option value="Doctor">Doctors</option>
+              <option value="Pediatrician">Pediatricians</option>
+            </select>
+          ) : (
+            <select className="cm-filter-select" value={pageType} disabled aria-label="Professional type">
+              <option value={pageType}>{pageEntityPlural}</option>
+            </select>
+          )}
           <select className="cm-filter-select" value={selectedSpecialty} onChange={(e) => setSelectedSpecialty(e.target.value)}>
             <option value="all">All specialties</option>
             {specialties.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -403,7 +594,10 @@ function DoctorManagement() {
             <option value="all">All statuses</option>
             <option value="Active">Active</option>
             <option value="Pending">Pending</option>
+            <option value="Pending activation">Pending activation</option>
+            <option value="Rejected">Rejected</option>
             <option value="Suspended">Suspended</option>
+            <option value="Deactivated">Deactivated</option>
           </select>
         </div>
       </div>
@@ -414,7 +608,7 @@ function DoctorManagement() {
         <table className="cm-table">
           <thead>
             <tr>
-              <th>Doctor</th>
+              <th>{pageEntityLabel}</th>
               <th>Type</th>
               <th>Specialty</th>
               <th>Fee · Rating</th>
@@ -424,7 +618,7 @@ function DoctorManagement() {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={6} className="doctor-empty">Loading doctors…</td></tr>
+              <tr><td colSpan={6} className="doctor-empty">Loading {pageEntityPlural.toLowerCase()}…</td></tr>
             )}
             {!loading && pagedDoctors.map((doctor) => (
               <tr key={doctor.id}>
@@ -446,10 +640,10 @@ function DoctorManagement() {
                   {doctor.rating > 0 && <span className="dm-rating">★ {doctor.rating.toFixed(1)}</span>}
                 </td>
                 <td>
-                  <span className={`admin-status ${doctor.status === 'Active' ? 'admin-status--success' : doctor.status === 'Pending' ? 'admin-status--warning' : 'admin-status--danger'}`}>
+                  <span className={`admin-status ${statusClass(doctor.status)}`}>
                     {doctor.status}
                   </span>
-                  {doctor.status === 'Suspended' && (doctor.statusNote || doctor.rejectionNote) && (
+                  {(doctor.status === 'Suspended' || doctor.status === 'Rejected' || doctor.status === 'Deactivated') && (doctor.statusNote || doctor.rejectionNote) && (
                     <p className="dm-suspension-reason">{doctor.statusNote || doctor.rejectionNote}</p>
                   )}
                 </td>
@@ -479,7 +673,7 @@ function DoctorManagement() {
               </tr>
             ))}
             {!loading && filteredDoctors.length === 0 && (
-              <tr><td colSpan={6} className="doctor-empty">No doctors match your filters.</td></tr>
+              <tr><td colSpan={6} className="doctor-empty">No {pageEntityPlural.toLowerCase()} match your filters.</td></tr>
             )}
           </tbody>
         </table>
@@ -549,18 +743,7 @@ function DoctorManagement() {
 
                       {/* Documents */}
                       <p className="dm-section-label" style={{ marginTop: '1rem' }}>Documents</p>
-                      <div className="dm-doc-list">
-                        {selectedPendingDoctor.documents.map((doc) => (
-                          <div key={doc.name} className="dm-doc-item">
-                            <span className="dm-doc-item__name">{doc.name}</span>
-                            <span className={`dm-doc-status dm-doc-status--${doc.status.toLowerCase()}`}>{doc.status}</span>
-                            {doc.note && <span className="dm-doc-item__note">{doc.note}</span>}
-                          </div>
-                        ))}
-                        {selectedPendingDoctor.documents.length === 0 && (
-                          <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>No documents uploaded.</p>
-                        )}
-                      </div>
+                      {renderDocumentList(selectedPendingDoctor.documents)}
 
                       {/* Action choice */}
                       <p className="dm-section-label" style={{ marginTop: '1.25rem' }}>Decision</p>
@@ -610,7 +793,7 @@ function DoctorManagement() {
         <div className="modal-overlay" onClick={() => setManageDoctor(null)}>
           <div className="dm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
-              <h2>Doctor details</h2>
+              <h2>{manageDoctorDetails.type} details</h2>
               <button className="modal__close" type="button" onClick={() => setManageDoctor(null)}>×</button>
             </div>
             <div className="modal__content">
@@ -643,19 +826,40 @@ function DoctorManagement() {
                 </div>
               )}
 
-              <p className="dm-section-label" style={{ marginTop: '1rem' }}>Documents</p>
-              <div className="dm-doc-list">
-                {manageDoctorDetails.documents.map((doc) => (
-                  <div key={doc.name} className="dm-doc-item">
-                    <span className="dm-doc-item__name">{doc.name}</span>
-                    <span className={`dm-doc-status dm-doc-status--${doc.status.toLowerCase()}`}>{doc.status}</span>
-                    {doc.note && <span className="dm-doc-item__note">{doc.note}</span>}
-                  </div>
-                ))}
-                {manageDoctorDetails.documents.length === 0 && (
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>No documents uploaded.</p>
-                )}
+              <p className="dm-section-label" style={{ marginTop: '1rem' }}>Fees & earnings</p>
+              <div className="dm-detail-grid">
+                <div className="form-group">
+                  <label>Consultation fee</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={manageFee}
+                    onChange={(event) => setManageFee(event.target.value)}
+                    placeholder="1500"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Ava commission %</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={manageCommission}
+                    onChange={(event) => setManageCommission(event.target.value)}
+                    placeholder="6.67"
+                  />
+                </div>
               </div>
+              {Number.isFinite(Number(manageFee)) && Number.isFinite(Number(manageCommission)) && (
+                <p className="dm-hint" style={{ marginTop: '0.5rem' }}>
+                  Clinician earns KSh {Math.max(0, Number(manageFee) - (Number(manageFee) * Number(manageCommission) / 100)).toLocaleString()} per paid consultation.
+                </p>
+              )}
+              {manageError && <p className="dm-field-error">{manageError}</p>}
+
+              <p className="dm-section-label" style={{ marginTop: '1rem' }}>Documents</p>
+              {renderDocumentList(manageDoctorDetails.documents)}
               {detailLoadingId === manageDoctorDetails.id && (
                 <p className="dm-hint" style={{ marginTop: '0.5rem' }}>Refreshing application details…</p>
               )}
@@ -663,6 +867,9 @@ function DoctorManagement() {
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setManageDoctor(null)}>Close</button>
+              <button className="btn btn--outline btn--sm" type="button" onClick={handleSaveCommercials} disabled={manageSaving}>
+                {manageSaving ? 'Saving...' : 'Save fee'}
+              </button>
               {manageDoctorDetails.status === 'Active' && (
                 <button className="btn btn--primary btn--sm" type="button" onClick={handleProvisionAccount} disabled={provisioningId === manageDoctorDetails.id}>
                   {provisioningId === manageDoctorDetails.id ? 'Provisioning…' : 'Provision account'}

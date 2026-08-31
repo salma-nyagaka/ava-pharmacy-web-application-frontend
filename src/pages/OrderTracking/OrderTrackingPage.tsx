@@ -89,12 +89,6 @@ function ArrowRightIcon() {
   )
 }
 
-const HERO_TIPS = [
-  'Use the order number from your confirmation email or SMS.',
-  'Enter the phone number or email address used at checkout.',
-  'We refresh active orders automatically while this page is open.',
-]
-
 function getBannerConfig(status: string) {
   if (status === 'delivered') {
     return { className: 'track-banner--delivered', icon: <CheckIcon size={22} /> }
@@ -233,26 +227,33 @@ function OrderTrackingPage() {
           </nav>
 
           <div className="track-page-header">
-            <h1>Track your order</h1>
-            <p>Check your order status, item summary, and delivery progress from one place.</p>
+            <span>Order tracking</span>
+            <h1>Track your AVA Pharmacy order</h1>
+            <p>Enter your order number and checkout contact to see the latest payment, packing, and delivery updates.</p>
           </div>
 
           <div className="track-card track-hero">
             <div className="track-hero__intro">
-              <span className="track-chip">Live order updates</span>
-              <h2>Find an order using the same details used at checkout</h2>
-              <p>Enter your order number together with your phone number or email address. We use both details to show the correct order without forcing sign-in.</p>
-              {searchParams.get('order') && (
-                <p className="track-inline-help">Your order number was pre-filled from the confirmation page.</p>
-              )}
-              <div className="track-hero__tips">
-                {HERO_TIPS.map((tip, index) => (
-                  <div key={tip} className="track-tip">
-                    <span className="track-tip__num">{index + 1}</span>
-                    <p>{tip}</p>
-                  </div>
-                ))}
+              <span className="track-chip">Order lookup</span>
+              <h2>Enter your order details</h2>
+              <p>Use your order number and the phone or email used at checkout.</p>
+              <div className="track-lookup-guide" aria-label="Order tracking help">
+                <div>
+                  <strong>1</strong>
+                  <span>Find your order number in your confirmation email or SMS.</span>
+                </div>
+                <div>
+                  <strong>2</strong>
+                  <span>Use the same phone or email entered at checkout.</span>
+                </div>
+                <div>
+                  <strong>3</strong>
+                  <span>View status, payment, delivery address, and item details.</span>
+                </div>
               </div>
+              {searchParams.get('order') && (
+                <p className="track-inline-help">Order number filled from checkout.</p>
+              )}
             </div>
 
             <form className="track-form" onSubmit={handleSubmit}>
@@ -276,8 +277,8 @@ function OrderTrackingPage() {
 
                 <div className="form-group">
                   <label htmlFor="order-contact">
-                    <span className="form-label__main">Phone number or email</span>
-                    <span className="form-label__hint">Use the same contact detail entered during checkout</span>
+                    <span className="form-label__main">Phone or email</span>
+                    <span className="form-label__hint">Same contact used at checkout</span>
                   </label>
                   <input
                     id="order-contact"
@@ -309,10 +310,10 @@ function OrderTrackingPage() {
                 <span className="track-card__icon">
                   <ClipboardIcon />
                 </span>
-                <h2 className="track-card__title">Where to find your order number</h2>
+                <h2 className="track-card__title">Need the order number?</h2>
               </div>
-              <p className="track-card__subtitle">Check your confirmation email, SMS, or the order confirmation screen after checkout. If you still cannot find it, use the contact page and support can help you locate the order.</p>
-              <Link to="/contact" className="btn btn--outline btn--sm">Go to Contact Us</Link>
+              <p className="track-card__subtitle">Check your confirmation email, SMS, or order confirmation page.</p>
+              <Link to="/contact" className="btn btn--outline btn--sm">Contact support</Link>
             </div>
           )}
 
@@ -372,7 +373,7 @@ function OrderTrackingPage() {
                       </span>
                       <h2 className="track-card__title">Tracking timeline</h2>
                     </div>
-                    <p className="track-card__subtitle">Latest events from your order appear here.</p>
+                    <p className="track-card__subtitle">Latest order events.</p>
                     <div className="timeline">
                       {(tracking.events.length > 0 ? tracking.events : trackingSteps).map((entry, index) => {
                         const isEvent = 'event_type' in entry
@@ -429,7 +430,7 @@ function OrderTrackingPage() {
                       </div>
                       <div>
                         <span>Delivery note</span>
-                        <strong>{order.delivery_notes || 'No delivery note was added for this order.'}</strong>
+                        <strong>{order.delivery_notes || 'None'}</strong>
                       </div>
                     </div>
                   </div>
@@ -490,7 +491,7 @@ function OrderTrackingPage() {
                       </span>
                       <h3 className="track-card__title">Need help?</h3>
                     </div>
-                    <p className="track-card__subtitle">If the details here do not look right, or you need help with delivery, use any of the support options below.</p>
+                    <p className="track-card__subtitle">Contact us if anything looks wrong.</p>
                     <div className="track-help-links">
                       <Link to="/contact" className="track-help-link">
                         <span className="track-help-link__icon"><ClipboardIcon /></span>

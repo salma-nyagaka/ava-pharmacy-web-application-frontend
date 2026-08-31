@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { apiClient, extractAuthTokens, refreshAccessToken, saveTokens, clearTokens } from '../lib/apiClient'
+import { buildBotPayload, type BotProtectionPayload } from '../services/botProtectionService'
 import { cartService } from '../services/cartService'
 
 export type UserRole = 'patient' | 'customer' | 'doctor' | 'pediatrician' | 'pharmacist' | 'admin' | 'lab_partner' | 'lab_technician'
@@ -19,7 +20,7 @@ interface AuthContextType {
   user: User | null
   isLoggedIn: boolean
   isLoading: boolean
-  login: (email: string, password: string) => Promise<User>
+  login: (email: string, password: string, botPayload?: Partial<BotProtectionPayload>) => Promise<User>
   logout: () => Promise<void>
   updateUser: (updates: Partial<User>) => void
 }
@@ -81,10 +82,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string): Promise<User> => {
+  const login = useCallback(async (
+    email: string,
+    password: string,
+    botPayload: Partial<BotProtectionPayload> = {},
+  ): Promise<User> => {
     setIsLoading(true)
     try {
-      const res = await apiClient.post('/auth/login/', { email, password })
+      const res = await apiClient.post('/auth/login/', { email, password, ...buildBotPayload(), ...botPayload })
       const data = res.data?.data ?? res.data
       const { access, refresh } = extractAuthTokens(data)
       saveTokens(access, refresh)

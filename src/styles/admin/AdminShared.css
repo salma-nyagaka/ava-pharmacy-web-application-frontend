@@ -15,11 +15,11 @@
   align-items: flex-start;
   gap: var(--dashboard-space-4);
   flex-wrap: wrap;
-  background: var(--dashboard-surface);
-  border: 1px solid var(--dashboard-border);
-  border-radius: var(--dashboard-radius-lg);
-  box-shadow: var(--dashboard-shadow-sm);
-  padding: var(--dashboard-space-5) var(--dashboard-space-6);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
   margin-bottom: var(--dashboard-space-4);
 }
 
@@ -198,7 +198,7 @@
   }
 
   .admin-page__header {
-    padding: var(--dashboard-space-5);
+    padding: 0;
   }
 
   .admin-page__header h1 {

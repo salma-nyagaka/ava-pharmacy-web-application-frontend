@@ -395,6 +395,10 @@ function Reports() {
   const rxTotal = (data?.prescriptions.pending ?? 0) + (data?.prescriptions.approved ?? 0) + (data?.prescriptions.clarification ?? 0) + (data?.prescriptions.rejected ?? 0)
   const labTotal = (data?.lab.awaiting ?? 0) + (data?.lab.processing ?? 0) + (data?.lab.results_ready ?? 0) + (data?.lab.completed ?? 0)
   const consultTotal = (data?.consultations.waiting ?? 0) + (data?.consultations.in_progress ?? 0) + (data?.consultations.completed ?? 0)
+  const expenses = data?.expenses
+  const expenseCoverage = expenses && expenses.items_total_count > 0
+    ? Math.round((expenses.items_costed_count / expenses.items_total_count) * 100)
+    : 0
 
   const sortedProducts = [...(data?.top_products ?? [])].sort((a, b) =>
     productSort === 'revenue' ? b.revenue - a.revenue : b.quantity_sold - a.quantity_sold
@@ -536,6 +540,107 @@ function Reports() {
 
       {/* ── Main grid ── */}
       <div className="rpt-grid">
+
+        {/* ── Money summary_ full width ── */}
+        <div className="rpt-card rpt-card--full rpt-money">
+          <div className="rpt-card__header">
+            <div>
+              <h2>Money at a Glance</h2>
+              <p>Revenue, estimated expenses and payout movement · last {range} days</p>
+            </div>
+            {!loading && expenses && (
+              <span className={`rpt-badge ${expenses.net_cash >= 0 ? 'rpt-badge--green' : 'rpt-badge--red'}`}>
+                Net {fmtKshFull(expenses.net_cash)}
+              </span>
+            )}
+          </div>
+
+          <div className="rpt-money__summary">
+            {[
+              { label: 'Revenue collected', value: data?.range_revenue ?? 0, tone: 'green' },
+              { label: 'Estimated expenses', value: expenses?.total ?? 0, tone: 'amber' },
+              { label: 'Net after expenses', value: expenses?.net_cash ?? 0, tone: (expenses?.net_cash ?? 0) >= 0 ? 'blue' : 'red' },
+              { label: 'Gross margin', value: expenses?.gross_margin ?? 0, tone: 'teal', sub: `${Math.round(expenses?.gross_margin_percent ?? 0)}%` },
+            ].map((item) => (
+              <div key={item.label} className={`rpt-money-stat rpt-money-stat--${item.tone}`}>
+                <span className="rpt-money-stat__label">{item.label}</span>
+                <strong className="rpt-money-stat__value">{loading ? <Skeleton w={86} /> : fmtKshFull(item.value)}</strong>
+                {item.sub && <span className="rpt-money-stat__sub">{item.sub}</span>}
+              </div>
+            ))}
+          </div>
+
+          <div className="rpt-money__detail">
+            <div className="rpt-money-panel">
+              <div className="rpt-money-panel__head">
+                <h3>Expenses</h3>
+                {!loading && expenses && (
+                  <span>{expenseCoverage}% stock cost coverage</span>
+                )}
+              </div>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => <div key={i} className="rpt-skeleton" style={{ height: 46, marginBottom: 8 }} />)
+              ) : (expenses?.breakdown ?? []).length === 0 ? (
+                <div className="chart-empty"><p>No expense data for this period.</p></div>
+              ) : (
+                <div className="rpt-money-list">
+                  {(expenses?.breakdown ?? []).map((row) => (
+                    <div key={row.key} className="rpt-money-row">
+                      <div className="rpt-money-row__text">
+                        <span className="rpt-money-row__label">{row.label}</span>
+                        <span className="rpt-money-row__note">{row.note}</span>
+                      </div>
+                      <strong className="rpt-money-row__amount">{fmtKshFull(row.amount)}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rpt-money-panel">
+              <div className="rpt-money-panel__head">
+                <h3>Payouts</h3>
+                <Link to="/admin/payouts">Manage</Link>
+              </div>
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => <div key={i} className="rpt-skeleton" style={{ height: 46, marginBottom: 8 }} />)
+              ) : (
+                <div className="rpt-money-list">
+                  <div className="rpt-money-row">
+                    <div className="rpt-money-row__text">
+                      <span className="rpt-money-row__label">Pending payouts</span>
+                      <span className="rpt-money-row__note">{fmt(data?.payouts.pending_count ?? 0)} requests awaiting settlement</span>
+                    </div>
+                    <strong className="rpt-money-row__amount">{fmtKshFull(data?.payouts.pending_amount ?? 0)}</strong>
+                  </div>
+                  <div className="rpt-money-row">
+                    <div className="rpt-money-row__text">
+                      <span className="rpt-money-row__label">Paid this period</span>
+                      <span className="rpt-money-row__note">{fmt(data?.payouts.paid_range_count ?? 0)} payouts completed</span>
+                    </div>
+                    <strong className="rpt-money-row__amount">{fmtKshFull(data?.payouts.paid_range_amount ?? 0)}</strong>
+                  </div>
+                  <div className="rpt-money-row">
+                    <div className="rpt-money-row__text">
+                      <span className="rpt-money-row__label">Paid this month</span>
+                      <span className="rpt-money-row__note">{fmt(data?.payouts.paid_month_count ?? 0)} payouts completed</span>
+                    </div>
+                    <strong className="rpt-money-row__amount">{fmtKshFull(data?.payouts.paid_month_amount ?? 0)}</strong>
+                  </div>
+                  {(data?.payouts.failed_count ?? 0) > 0 && (
+                    <div className="rpt-money-row rpt-money-row--danger">
+                      <div className="rpt-money-row__text">
+                        <span className="rpt-money-row__label">Failed payouts</span>
+                        <span className="rpt-money-row__note">Needs retry or manual review</span>
+                      </div>
+                      <strong className="rpt-money-row__amount">{fmt(data?.payouts.failed_count ?? 0)}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* ── Area chart_ full width ── */}
         <div className="rpt-card rpt-card--full">

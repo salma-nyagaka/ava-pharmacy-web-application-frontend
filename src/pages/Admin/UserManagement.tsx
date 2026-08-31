@@ -27,6 +27,11 @@ function getInitials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
+function getUserJoinedTimestamp(user: AdminUser) {
+  const timestamp = Date.parse(user.joinedDate)
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
 const mapApiUser = (user: import('../../services/adminUserService').AdminUserApi) => ({
   id: user.id,
   name: user.name || `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim() || user.email,
@@ -41,10 +46,24 @@ const mapApiUser = (user: import('../../services/adminUserService').AdminUserApi
   address: user.address ?? 'Not set',
   notes: [],
   pharmacistPermissions: (user.pharmacist_permissions ?? []) as PharmacistPermission[],
+  pharmacistLicenseNumber: user.pharmacist_license_number ?? '',
+  pharmacistBranchLocation: user.pharmacist_branch_location ?? '',
+  pharmacistPosition: user.pharmacist_position ?? '',
 })
 
+const PHARMACIST_MODAL_FIELD_ERROR_KEYS = new Set([
+  'first_name',
+  'last_name',
+  'email',
+  'phone',
+  'pharmacist_license_number',
+  'pharmacist_position',
+  'pharmacist_branch_location',
+  'pharmacist_permissions',
+])
+
 function UserManagement() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState<AdminUserRole | 'all'>(() => getRoleFromSearchParams(searchParams.get('role')))
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -58,19 +77,23 @@ function UserManagement() {
 
   // Modal state
   const [showModal, setShowModal] = useState(false)
-  const [mName, setMName] = useState('')
+  const [mFirstName, setMFirstName] = useState('')
+  const [mLastName, setMLastName] = useState('')
   const [mEmail, setMEmail] = useState('')
   const [mPhone, setMPhone] = useState('')
-  const [mAddress, setMAddress] = useState('')
+  const [mLicense, setMLicense] = useState('')
+  const [mBranch, setMBranch] = useState('')
+  const [mPosition, setMPosition] = useState('')
   const [mPerms, setMPerms] = useState<PharmacistPermission[]>(['inventory_add', 'prescription_review'])
   const [mError, setMError] = useState('')
+  const [mFieldErrors, setMFieldErrors] = useState<Record<string, string>>({})
   const [mSubmitting, setMSubmitting] = useState(false)
   const [mSuccess, setMSuccess] = useState<string | null>(null)
 
   const resetModal = () => {
-    setMName(''); setMEmail(''); setMPhone(''); setMAddress('')
+    setMFirstName(''); setMLastName(''); setMEmail(''); setMPhone(''); setMLicense(''); setMBranch(''); setMPosition('')
     setMPerms(['inventory_add', 'prescription_review'])
-    setMError(''); setMSuccess(null); setMSubmitting(false)
+    setMError(''); setMFieldErrors({}); setMSuccess(null); setMSubmitting(false)
   }
 
   const openModal = () => { resetModal(); setShowModal(true) }
@@ -81,8 +104,8 @@ function UserManagement() {
 
   const handleModalSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!mName.trim() || !mEmail.trim() || !mPhone.trim()) {
-      setMError('Name, email, and phone are required.')
+    if (!mFirstName.trim() || !mLastName.trim() || !mEmail.trim() || !mPhone.trim() || !mLicense.trim() || !mBranch.trim() || !mPosition.trim()) {
+      setMError('First name, last name, email, phone, license, branch, and position are required.')
       return
     }
     if (mPerms.length === 0) {
@@ -91,15 +114,20 @@ function UserManagement() {
     }
     setMSubmitting(true)
     setMError('')
+    setMFieldErrors({})
     try {
       const created = await adminUserService.createPharmacist({
-        name: mName.trim(),
+        firstName: mFirstName.trim(),
+        lastName: mLastName.trim(),
         email: mEmail.trim().toLowerCase(),
         phone: mPhone.trim(),
-        address: mAddress.trim() || undefined,
+        licenseNumber: mLicense.trim(),
+        branchLocation: mBranch.trim(),
+        position: mPosition.trim(),
+        address: mBranch.trim(),
         pharmacistPermissions: mPerms,
       })
-      logAdminAction({ action: 'Create pharmacist', entity: 'User', entityId: 'backend', detail: `${mName.trim()} invite sent` })
+      logAdminAction({ action: 'Create pharmacist', entity: 'User', entityId: 'backend', detail: `${mFirstName.trim()} ${mLastName.trim()} invite sent` })
       setMSuccess(mEmail.trim().toLowerCase())
       // Reload users list
       const fresh = await adminUserService.listUsers()
@@ -108,7 +136,12 @@ function UserManagement() {
       saveAdminUsers(mapped)
       void created
     } catch (err) {
-      setMError(err instanceof AdminUserError ? err.message : 'Unable to create pharmacist. Try again.')
+      if (err instanceof AdminUserError) {
+        setMError(err.message)
+        setMFieldErrors(err.fieldErrors)
+      } else {
+        setMError('Unable to create pharmacist. Try again.')
+      }
     } finally {
       setMSubmitting(false)
     }
@@ -146,7 +179,7 @@ function UserManagement() {
       if (!query) return matchesRole && matchesStatus
       const matchesQuery = [user.name, user.email, user.phone].some((v) => v.toLowerCase().includes(query))
       return matchesRole && matchesStatus && matchesQuery
-    })
+    }).sort((a, b) => getUserJoinedTimestamp(b) - getUserJoinedTimestamp(a) || b.id - a.id)
   }, [users, searchTerm, selectedRole, selectedStatus])
 
   useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedRole, selectedStatus])
@@ -155,14 +188,7 @@ function UserManagement() {
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedUsers = filteredUsers.slice(startIndex, startIndex + PAGE_SIZE)
-
-  const handleRoleChange = (nextRole: AdminUserRole | 'all') => {
-    setSelectedRole(nextRole)
-    const next = new URLSearchParams(searchParams)
-    if (nextRole === 'all') next.delete('role')
-    else next.set('role', nextRole)
-    setSearchParams(next, { replace: true })
-  }
+  const modalOtherErrors = Object.entries(mFieldErrors).filter(([key]) => !PHARMACIST_MODAL_FIELD_ERROR_KEYS.has(key))
 
   const handleToggleStatus = async (userId: number, nextStatus: 'active' | 'suspended') => {
     const targetUser = users.find((user) => user.id === userId)
@@ -257,18 +283,12 @@ function UserManagement() {
         </div>
       </div>
 
-      <div className="cm-toolbar">
-        <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
+      <div className="cm-toolbar user-management__toolbar">
+        <div className="cm-toolbar__right user-management__toolbar-actions">
           <div className="cm-search-box">
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75"/><path d="M13.5 13.5L17 17" strokeLinecap="round"/></svg>
             <input type="search" placeholder="Search by name, email, or phone…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <select className="cm-filter-select" value={selectedRole} onChange={(e) => handleRoleChange(e.target.value as AdminUserRole | 'all')}>
-            <option value="all">All Roles</option>
-            {adminRoleOptions.map((role) => (
-              <option key={role.value} value={role.value}>{role.label}</option>
-            ))}
-          </select>
           <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -317,8 +337,16 @@ function UserManagement() {
                     {user.role === 'pharmacist' && user.pharmacistPermissions?.includes('inventory_add') && (
                       <div className="role-note">Can add inventory</div>
                     )}
+                    {user.role === 'pharmacist' && user.pharmacistLicenseNumber && (
+                      <div className="role-note">License: {user.pharmacistLicenseNumber}</div>
+                    )}
                   </td>
-                  <td><span className={`status status--${user.status}`}>{user.status}</span></td>
+                  <td>
+                    <span className={`status status--${user.status}`}>{user.accountActivated ? user.status : 'pending activation'}</span>
+                    {user.role === 'pharmacist' && user.pharmacistBranchLocation && (
+                      <div className="role-note">{user.pharmacistBranchLocation}</div>
+                    )}
+                  </td>
                   <td>{new Date(user.joinedDate).toLocaleDateString()}</td>
                   <td>{user.totalOrders}</td>
                   <td>
@@ -381,7 +409,7 @@ function UserManagement() {
           <div className="um-modal" role="dialog" aria-modal="true" aria-label="Add Pharmacist">
             <div className="um-modal__header">
               <div>
-                <h2>Add Pharmacist</h2>-
+                <h2>Add Pharmacist</h2>
                 <p>Create a staff account — activation email sent automatically</p>
               </div>
               <button className="um-modal__close" type="button" onClick={closeModal} aria-label="Close">
@@ -405,23 +433,46 @@ function UserManagement() {
               </div>
             ) : (
               <form className="um-modal__body" onSubmit={handleModalSubmit} noValidate>
-                <div className="um-modal__field">
-                  <label htmlFor="m-name">Full Name <span className="um-req">*</span></label>
-                  <input id="m-name" type="text" value={mName} onChange={(e) => setMName(e.target.value)} placeholder="Jane Wanjiku" />
+                <div className="um-modal__row">
+                  <div className="um-modal__field">
+                    <label htmlFor="m-first-name">First Name <span className="um-req">*</span></label>
+                    <input id="m-first-name" type="text" value={mFirstName} onChange={(e) => setMFirstName(e.target.value)} placeholder="Jane" />
+                    {mFieldErrors.first_name && <p className="um-field-error">{mFieldErrors.first_name}</p>}
+                  </div>
+                  <div className="um-modal__field">
+                    <label htmlFor="m-last-name">Last Name <span className="um-req">*</span></label>
+                    <input id="m-last-name" type="text" value={mLastName} onChange={(e) => setMLastName(e.target.value)} placeholder="Wanjiku" />
+                    {mFieldErrors.last_name && <p className="um-field-error">{mFieldErrors.last_name}</p>}
+                  </div>
                 </div>
                 <div className="um-modal__row">
                   <div className="um-modal__field">
-                    <label htmlFor="m-email">Email <span className="um-req">*</span></label>
+                    <label htmlFor="m-email">Email Address <span className="um-req">*</span></label>
                     <input id="m-email" type="email" value={mEmail} onChange={(e) => setMEmail(e.target.value)} placeholder="jane@avapharmacy.co.ke" />
+                    {mFieldErrors.email && <p className="um-field-error">{mFieldErrors.email}</p>}
                   </div>
                   <div className="um-modal__field">
-                    <label htmlFor="m-phone">Phone <span className="um-req">*</span></label>
+                    <label htmlFor="m-phone">Phone Number <span className="um-req">*</span></label>
                     <input id="m-phone" type="text" value={mPhone} onChange={(e) => setMPhone(e.target.value)} placeholder="+254 700 000 000" />
+                    {mFieldErrors.phone && <p className="um-field-error">{mFieldErrors.phone}</p>}
+                  </div>
+                </div>
+                <div className="um-modal__row">
+                  <div className="um-modal__field">
+                    <label htmlFor="m-license">License Number <span className="um-req">*</span></label>
+                    <input id="m-license" type="text" value={mLicense} onChange={(e) => setMLicense(e.target.value)} placeholder="PPB/PHARM/0000" />
+                    {mFieldErrors.pharmacist_license_number && <p className="um-field-error">{mFieldErrors.pharmacist_license_number}</p>}
+                  </div>
+                  <div className="um-modal__field">
+                    <label htmlFor="m-position">Role / Position <span className="um-req">*</span></label>
+                    <input id="m-position" type="text" value={mPosition} onChange={(e) => setMPosition(e.target.value)} placeholder="Senior Pharmacist" />
+                    {mFieldErrors.pharmacist_position && <p className="um-field-error">{mFieldErrors.pharmacist_position}</p>}
                   </div>
                 </div>
                 <div className="um-modal__field">
-                  <label htmlFor="m-addr">Branch / Location <span className="um-opt">Optional</span></label>
-                  <input id="m-addr" type="text" value={mAddress} onChange={(e) => setMAddress(e.target.value)} placeholder="Main Branch, Nairobi" />
+                  <label htmlFor="m-branch">Pharmacy Branch / Location <span className="um-req">*</span></label>
+                  <input id="m-branch" type="text" value={mBranch} onChange={(e) => setMBranch(e.target.value)} placeholder="Main Branch, Nairobi" />
+                  {mFieldErrors.pharmacist_branch_location && <p className="um-field-error">{mFieldErrors.pharmacist_branch_location}</p>}
                 </div>
                 <div className="um-modal__field">
                   <label>Permissions <span className="um-req">*</span></label>
@@ -443,7 +494,15 @@ function UserManagement() {
                       )
                     })}
                   </div>
+                  {mFieldErrors.pharmacist_permissions && <p className="um-field-error">{mFieldErrors.pharmacist_permissions}</p>}
                 </div>
+                {modalOtherErrors.length > 0 && (
+                  <div className="um-modal__field-errors" role="alert">
+                    {modalOtherErrors.map(([key, message]) => (
+                      <p key={key}>{message}</p>
+                    ))}
+                  </div>
+                )}
                 {mError && (
                   <p className="um-modal__error">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>

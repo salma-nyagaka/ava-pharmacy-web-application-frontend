@@ -1,4 +1,5 @@
 import { apiClient } from '../lib/apiClient'
+import { buildBotPayload } from './botProtectionService'
 
 export interface OrderItem {
   id: number
@@ -9,6 +10,9 @@ export interface OrderItem {
   quantity: number
   unit_price: string
   discount_total: string
+  prescription_id?: string | null
+  prescription?: number | null
+  prescription_item?: number | null
   subtotal: string
 }
 
@@ -153,10 +157,11 @@ export interface CheckoutDraftPayload {
   save_address?: boolean
   address_label?: string
   set_default_address?: boolean
-  payment_method: 'mpesa_stk' | 'mpesa_paybill' | 'card' | 'cash_on_delivery'
+  payment_method: 'mpesa_stk' | 'mpesa_paybill' | 'card'
   delivery_method?: string
   shipping_method_id?: number | null
   delivery_notes?: string
+  prescription_reference?: string
 }
 
 export async function fetchOrders(params: Record<string, unknown> = {}): Promise<{ data: Order[]; meta: Record<string, unknown> }> {
@@ -189,8 +194,8 @@ export async function fetchShippingMethods(): Promise<ShippingMethod[]> {
   return res.data?.data ?? res.data ?? []
 }
 
-export async function createCheckoutDraft(payload: CheckoutDraftPayload): Promise<Order> {
-  const res = await apiClient.post('/checkout/draft/', payload)
+export async function createCheckoutDraft(payload: CheckoutDraftPayload, challengeToken = ''): Promise<Order> {
+  const res = await apiClient.post('/checkout/draft/', { ...payload, ...buildBotPayload('', challengeToken) })
   return res.data?.data ?? res.data
 }
 

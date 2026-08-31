@@ -7,6 +7,7 @@ const CART_EVENT = 'ava-cart-updated'
 type WishlistApiItem = {
   id: number
   product?: Record<string, unknown>
+  variant?: Record<string, unknown>
   product_id?: number
 }
 
@@ -28,8 +29,9 @@ function emitCartUpdate() {
 
 function mapApiItem(item: WishlistApiItem): FavouriteItem {
   const product = (item.product ?? {}) as Record<string, unknown>
-  const rawPrice = product.final_price ?? product.price ?? '0'
-  const rawOriginalPrice = product.original_price ?? null
+  const variant = (item.variant ?? {}) as Record<string, unknown>
+  const rawPrice = variant.final_price ?? variant.effective_price ?? variant.price ?? product.final_price ?? product.price ?? '0'
+  const rawOriginalPrice = variant.original_price ?? product.original_price ?? null
   const inventoryStatus = String(product.inventory_status ?? '')
   const stockSource = inventoryStatus === 'out_of_stock'
     ? 'out'
@@ -38,13 +40,15 @@ function mapApiItem(item: WishlistApiItem): FavouriteItem {
       : 'branch'
 
   return {
-    id: Number(product.id ?? item.product_id ?? 0),
+    id: Number(variant.id ?? product.id ?? item.product_id ?? 0),
+    productId: Number(product.id ?? item.product_id ?? 0) || undefined,
+    variantId: Number(variant.id ?? 0) || undefined,
     serverWishlistId: Number(item.id),
-    name: String(product.name ?? ''),
+    name: String(variant.name ?? product.name ?? ''),
     brand: String(product.brand_name ?? ((product.brand as Record<string, unknown> | undefined)?.name ?? '')),
     price: Number.parseFloat(String(rawPrice)) || 0,
     originalPrice: rawOriginalPrice == null ? null : Number.parseFloat(String(rawOriginalPrice)) || null,
-    image: resolveMediaUrl(String(product.image ?? '')) ?? '',
+    image: resolveMediaUrl(String(variant.image ?? product.image ?? '')) ?? '',
     stockSource,
   }
 }
@@ -58,7 +62,12 @@ async function listRemote(): Promise<FavouriteItem[]> {
 
 async function findRemoteWishlistItem(productId: number): Promise<FavouriteItem | undefined> {
   const items = await listRemote()
-  return items.find((item) => item.id === productId)
+  return items.find((item) => item.id === productId || item.productId === productId || item.variantId === productId)
+}
+
+function wishlistPayload(item: FavouriteItem) {
+  if (item.variantId) return { variant_id: item.variantId }
+  return { product_id: item.productId ?? item.id }
 }
 
 export const favouritesService = {
@@ -69,7 +78,7 @@ export const favouritesService = {
 
   add: async (item: FavouriteItem): Promise<{ data: FavouriteItem[] }> => {
     if (!isAuthenticated()) return { data: [] }
-    await apiClient.post('/wishlist/', { product_id: item.id })
+    await apiClient.post('/wishlist/', wishlistPayload(item))
     emitFavouritesUpdate()
     return favouritesService.list()
   },
@@ -90,7 +99,7 @@ export const favouritesService = {
     if (existing?.serverWishlistId) {
       await apiClient.delete(`/wishlist/${existing.serverWishlistId}/`)
     } else {
-      await apiClient.post('/wishlist/', { product_id: item.id })
+      await apiClient.post('/wishlist/', wishlistPayload(item))
     }
     emitFavouritesUpdate()
     return favouritesService.list()

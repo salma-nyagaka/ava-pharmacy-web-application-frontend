@@ -9,6 +9,7 @@ import '../../styles/admin/BrandManagement.css'
 
 const PAGE_SIZE = 8
 type SortDirection = 'asc' | 'desc'
+type SortField = 'name' | 'status' | 'created_at'
 
 function formatDate(value?: string): string {
   if (!value) return '—'
@@ -27,17 +28,14 @@ function compareCreatedAt(left?: string, right?: string): number {
   return leftTime - rightTime
 }
 
-function sortBrands(items: ApiBrand[]) {
-  return [...items].sort((a, b) => a.name.localeCompare(b.name))
-}
-
 function BrandManagement() {
   const [brands, setBrands] = useState<ApiBrand[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
-  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
@@ -55,8 +53,7 @@ function BrandManagement() {
     setLoading(true)
     setError('')
     try {
-      const results = await adminProductService.listBrands()
-      setBrands(sortBrands(results))
+      setBrands(await adminProductService.listBrands())
     } catch {
       setError('Unable to load brands. Check your connection and try again.')
     } finally {
@@ -161,7 +158,7 @@ function BrandManagement() {
               }
 
         const updated = await adminProductService.updateBrand(editing.id, payload)
-        setBrands((prev) => sortBrands(prev.map((brand) => (brand.id === editing.id ? updated : brand))))
+        setBrands((prev) => prev.map((brand) => (brand.id === editing.id ? updated : brand)))
       } else {
         const payload = new FormData()
         payload.append('name', trimmedName)
@@ -169,7 +166,7 @@ function BrandManagement() {
         payload.append('logo', formLogoFile!)
 
         const created = await adminProductService.createBrand(payload)
-        setBrands((prev) => sortBrands([...prev, created]))
+        setBrands((prev) => [created, ...prev])
       }
 
       resetForm()
@@ -187,7 +184,7 @@ function BrandManagement() {
     setTogglingIds((prev) => new Set(prev).add(brand.id))
     try {
       const updated = await adminProductService.updateBrand(brand.id, { is_active: !brand.is_active })
-      setBrands((prev) => sortBrands(prev.map((item) => (item.id === brand.id ? updated : item))))
+      setBrands((prev) => prev.map((item) => (item.id === brand.id ? updated : item)))
       window.dispatchEvent(new Event('ava:catalog-updated'))
     } catch {
       // silent
@@ -220,15 +217,18 @@ function BrandManagement() {
   const sortedBrands = useMemo(() => {
     const items = [...filtered]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (sortField === 'name') comparison = left.name.localeCompare(right.name)
+      else if (sortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filtered, createdAtSortDirection])
+  }, [filtered, sortField, sortDirection])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, selectedStatus, createdAtSortDirection])
+  }, [search, selectedStatus, sortField, sortDirection])
 
   const totalPages = Math.max(1, Math.ceil(sortedBrands.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
@@ -249,12 +249,24 @@ function BrandManagement() {
     setSelectedStatus('all')
   }
 
-  const toggleCreatedAtSort = () => {
-    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
   }
 
+  const sortIndicator = (field: SortField) => sortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+  const renderSortButton = (field: SortField, label: string) => (
+    <button type="button" className="cm-th-sort" onClick={() => handleSort(field)}>
+      {label} {sortIndicator(field)}
+    </button>
+  )
+
   return (
-    <div className="category-management">
+    <div className="category-management bm-page">
       <div className="category-management__header">
         <div className="category-management__title">
           <div className="cm-title-group">
@@ -264,7 +276,10 @@ function BrandManagement() {
         </div>
         <div className="category-management__actions">
           <button className="btn btn--primary btn--sm" type="button" onClick={openAddModal}>
-            + Brand
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+              <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+            </svg>
+            Brand
           </button>
         </div>
       </div>
@@ -275,26 +290,9 @@ function BrandManagement() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Total Brands</span>
+            <span className="cm-kpi-card__label">Brands</span>
             <strong className="cm-kpi-card__value">{loading ? '—' : brands.length}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Active</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeCount}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Inactive</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : brands.length - activeCount}</strong>
+            <span className="cm-kpi-card__delta">{loading ? '' : `${activeCount} active · ${brands.length - activeCount} inactive`}</span>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -304,6 +302,7 @@ function BrandManagement() {
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">With Logo</span>
             <strong className="cm-kpi-card__value">{loading ? '—' : withLogosCount}</strong>
+            <span className="cm-kpi-card__delta">{loading ? '' : `${brands.length - withLogosCount} missing`}</span>
           </div>
         </div>
       </div>
@@ -389,30 +388,29 @@ function BrandManagement() {
               </p>
               {!search && (
                 <button className="btn btn--primary btn--sm" type="button" onClick={openAddModal}>
-                  + Add Brand
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+                    <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+                  </svg>
+                  Add Brand
                 </button>
               )}
             </div>
           ) : (
             <div className="cm-table-wrap">
-              <table className="cm-table">
+              <table className="cm-table brands-compact-table">
                 <thead>
                   <tr>
-                    <th>Brand</th>
+                    <th>{renderSortButton('name', 'Brand')}</th>
                     <th>Description</th>
-                    <th>Status</th>
-                    <th>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                      </button>
-                    </th>
+                    <th>{renderSortButton('status', 'Status')}</th>
+                    <th>{renderSortButton('created_at', 'Created At')}</th>
                     <th>Created By</th>
-                    <th>Updated By</th>
-                    <th className="cm-th-actions"></th>
+                    <th className="cm-th-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pagedBrands.map((brand) => (
+                  {pagedBrands.map((brand) => {
+                    return (
                     <tr key={brand.id}>
                       <td>
                         <div className="cm-brand-identity">
@@ -435,7 +433,7 @@ function BrandManagement() {
                       </td>
                       <td>
                         {brand.description ? (
-                          <span className="cm-name-cell__desc" style={{ maxWidth: 340 }}>
+                          <span className="cm-cell-desc">
                             {brand.description}
                           </span>
                         ) : (
@@ -454,9 +452,8 @@ function BrandManagement() {
                           <span className="cm-toggle__knob" />
                         </button>
                       </td>
-                      <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(brand.created_at)}</td>
-                      <td style={{ color: '#6b7280' }}>{brand.created_by_name || '—'}</td>
-                      <td style={{ color: '#6b7280' }}>—</td>
+                      <td className="cm-cell-date">{formatDate(brand.created_at)}</td>
+                      <td className="cm-cell-by">{brand.created_by_name || '—'}</td>
                       <td>
                         <div className="cm-row-actions">
                           <button
@@ -474,7 +471,8 @@ function BrandManagement() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -555,7 +553,7 @@ function BrandManagement() {
                 <span>Description <em className="cm-field__optional">optional</em></span>
                 <textarea
                   value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
+                  onChange={(e) => { setFormDescription(e.target.value); setFormError('') }}
                   placeholder="Short description visible to shoppers"
                   disabled={saving}
                   rows={3}
@@ -571,7 +569,6 @@ function BrandManagement() {
                   accept="image/*"
                   onChange={(e) => { void handleLogoFileChange(e.currentTarget.files?.[0] ?? null) }}
                   disabled={saving}
-                  required={!editing}
                 />
                 <label htmlFor="brand-logo-input" className={`cm-file-input${saving ? ' cm-file-input--disabled' : ''}`}>
                   <span className="cm-file-input__button">

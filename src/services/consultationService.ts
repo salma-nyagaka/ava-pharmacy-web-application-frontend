@@ -25,6 +25,29 @@ export interface ConsultationMessage {
   sentAt: string
 }
 
+export interface ConsultationPrescriptionItemSummary {
+  drugName: string
+  dose: string
+  frequency: string
+  duration: string
+  quantity_measurement?: string
+  quantity: number
+  notes: string
+  catalogName: string
+  sku: string
+}
+
+export interface ConsultationPrescriptionSummary {
+  id: number
+  reference: string
+  status: 'draft' | 'sent' | 'dispensed'
+  itemsCount: number
+  items: ConsultationPrescriptionItemSummary[]
+  notes: string
+  sentAt: string | null
+  createdAt: string
+}
+
 export interface ConsultationRecord {
   id: number
   reference: string
@@ -32,6 +55,7 @@ export interface ConsultationRecord {
   pediatrician: number | null
   doctorName: string
   doctorSpecialty: string
+  requestedSpecialty: string
   patient: number | null
   patientName: string
   patientEmail: string
@@ -43,14 +67,20 @@ export interface ConsultationRecord {
   channel: string
   scheduledAt: string | null
   isPediatric: boolean
+  childPatient: number | null
   guardianName: string
   childName: string
   childAge: number | null
   weightKg: string | null
+  heightCm: string | null
+  bmi: string | null
+  muacCm: string | null
+  bloodGlucoseMmolL: string | null
   consentStatus: ConsultationConsentStatus
   dosageAlert: boolean
   lastMessageAt: string | null
   messages: ConsultationMessage[]
+  prescriptions: ConsultationPrescriptionSummary[]
   createdAt: string
   updatedAt: string
 }
@@ -63,13 +93,81 @@ export interface CreateConsultationPayload {
   patient_phone?: string
   patient_age?: number | null
   issue: string
+  requested_specialty?: string
   priority?: ConsultationPriority
   scheduled_at?: string | null
   is_pediatric?: boolean
+  child_patient_id?: number | null
   guardian_name?: string
   child_name?: string
   child_age?: number | null
   weight_kg?: number | null
+  height_cm?: number | null
+  bmi?: number | null
+  muac_cm?: number | null
+  blood_glucose_mmol_l?: number | null
+}
+
+export type ConsultationPaymentProvider = 'mpesa' | 'paybill'
+export type ConsultationPaymentStatus = 'pending' | 'requires_action' | 'succeeded' | 'failed' | 'cancelled'
+
+export interface ConsultationPaymentIntent {
+  id: number
+  provider: ConsultationPaymentProvider
+  status: ConsultationPaymentStatus
+  reference: string
+  providerReference: string
+  externalReference: string
+  phoneNumber: string
+  checkoutRequestId: string
+  amount: number
+  currency: string
+  clientSecret: string
+  lastError: string
+  consultation: number | null
+  paybillNumber: string
+  paybillAccountReference: string
+  paybillAccountLabel: string
+  paybillInstructions: string
+}
+
+export interface ChildPatient {
+  id: number
+  reference: string
+  firstName: string
+  lastName: string
+  fullName: string
+  dateOfBirth: string | null
+  ageYears: number | null
+  gender: string
+  weightKg: string | null
+  heightCm: string | null
+  bmi: string | null
+  muacCm: string | null
+  bloodGlucoseMmolL: string | null
+  allergies: string[]
+  chronicConditions: string[]
+  currentMedications: string[]
+  vaccinationNotes: string
+  notes: string
+}
+
+export interface ChildPatientPayload {
+  first_name?: string
+  last_name?: string
+  age_years?: number | null
+  date_of_birth?: string | null
+  gender?: string
+  weight_kg?: string | number | null
+  height_cm?: string | number | null
+  bmi?: string | number | null
+  muac_cm?: string | number | null
+  blood_glucose_mmol_l?: string | number | null
+  allergies?: string[]
+  chronic_conditions?: string[]
+  current_medications?: string[]
+  vaccination_notes?: string
+  notes?: string
 }
 
 type StoredUser = {
@@ -80,7 +178,7 @@ type StoredUser = {
 }
 
 const LOCAL_CONSULTATIONS_KEY = 'ava_consultation_service_records'
-const USE_LOCAL_CONSULTATION_FLOW = true
+const USE_LOCAL_CONSULTATION_FLOW = false
 
 function unwrap<T>(value: unknown, fallback: T): T {
   if (value && typeof value === 'object' && 'data' in (value as Record<string, unknown>)) {
@@ -178,13 +276,7 @@ function pickFallbackClinicianForRecord(record: ConsultationRecord): ClinicianSu
   const exactMatch = assignedId ? clinicians.find((clinician) => clinician.id === assignedId) : null
   if (exactMatch) return exactMatch
 
-  const specialty = normalizeText(record.doctorSpecialty)
-  if (specialty) {
-    const specialtyMatch = clinicians.find((clinician) => normalizeText(clinician.specialty) === specialty)
-    if (specialtyMatch) return specialtyMatch
-  }
-
-  return clinicians[0] ?? null
+  return null
 }
 
 function createSystemMessage(id: number, senderName: string, message: string, sentAt: string): ConsultationMessage {
@@ -243,6 +335,7 @@ function ensureLocalConsultationConnected(record: ConsultationRecord, baseMessag
   const now = new Date().toISOString()
   return {
     ...record,
+    prescriptions: record.prescriptions ?? [],
     doctor: assignedDoctorId,
     pediatrician: assignedPediatricianId,
     doctorName: clinicianName,
@@ -306,7 +399,7 @@ function createLocalConsultation(payload: CreateConsultationPayload): Consultati
   const user = getStoredUser()
   const isPediatric = Boolean(payload.is_pediatric || payload.pediatrician)
   const clinicianId = isPediatric ? payload.pediatrician ?? null : payload.doctor ?? null
-  const clinician = findFallbackClinician(clinicianId, isPediatric) ?? mapFallbackClinicians(isPediatric ? 'Pediatrician' : 'Doctor')[0] ?? null
+  const clinician = clinicianId ? findFallbackClinician(clinicianId, isPediatric) : null
   const now = new Date().toISOString()
   const nextId = nextConsultationId(records)
 
@@ -317,6 +410,7 @@ function createLocalConsultation(payload: CreateConsultationPayload): Consultati
     pediatrician: isPediatric ? clinician?.id ?? clinicianId : null,
     doctorName: clinician?.name ?? '',
     doctorSpecialty: clinician?.specialty ?? (isPediatric ? 'Paediatrics' : 'General medicine'),
+    requestedSpecialty: payload.requested_specialty?.trim() ?? '',
     patient: user?.id ?? null,
     patientName: payload.patient_name?.trim() ?? user?.name?.trim() ?? '',
     patientEmail: payload.patient_email?.trim() ?? user?.email?.trim() ?? '',
@@ -328,14 +422,20 @@ function createLocalConsultation(payload: CreateConsultationPayload): Consultati
     channel: 'chat',
     scheduledAt: payload.scheduled_at ?? now,
     isPediatric,
+    childPatient: payload.child_patient_id ?? null,
     guardianName: payload.guardian_name?.trim() ?? '',
     childName: payload.child_name?.trim() ?? '',
     childAge: payload.child_age ?? null,
     weightKg: payload.weight_kg == null ? null : String(payload.weight_kg),
+    heightCm: payload.height_cm == null ? null : String(payload.height_cm),
+    bmi: payload.bmi == null ? null : String(payload.bmi),
+    muacCm: payload.muac_cm == null ? null : String(payload.muac_cm),
+    bloodGlucoseMmolL: payload.blood_glucose_mmol_l == null ? null : String(payload.blood_glucose_mmol_l),
     consentStatus: isPediatric ? 'pending' : 'granted',
     dosageAlert: false,
     lastMessageAt: null,
     messages: [],
+    prescriptions: [],
     createdAt: now,
     updatedAt: now,
   }
@@ -369,8 +469,41 @@ function mapMessage(raw: Record<string, unknown>): ConsultationMessage {
   }
 }
 
+function mapConsultationPrescriptionItem(raw: Record<string, unknown>): ConsultationPrescriptionItemSummary {
+  const quantity = normalizeNumber(raw.quantity)
+  return {
+    drugName: String(raw.drug_name ?? raw.name ?? raw.catalog_name ?? ''),
+    dose: String(raw.dose ?? raw.dosage ?? ''),
+    frequency: String(raw.frequency ?? ''),
+    duration: String(raw.duration ?? ''),
+    quantity: quantity > 0 ? quantity : 1,
+    notes: String(raw.notes ?? raw.note ?? ''),
+    catalogName: String(raw.catalog_name ?? ''),
+    sku: String(raw.sku ?? ''),
+  }
+}
+
+function mapConsultationPrescription(raw: Record<string, unknown>): ConsultationPrescriptionSummary {
+  const items = Array.isArray(raw.items)
+    ? raw.items.map((item) => mapConsultationPrescriptionItem(item as Record<string, unknown>))
+    : []
+  return {
+    id: Number(raw.id ?? 0),
+    reference: String(raw.reference ?? ''),
+    status: String(raw.status ?? 'draft') as ConsultationPrescriptionSummary['status'],
+    itemsCount: normalizeNumber(raw.items_count) || items.length,
+    items,
+    notes: String(raw.notes ?? ''),
+    sentAt: raw.sent_at ? String(raw.sent_at) : null,
+    createdAt: String(raw.created_at ?? ''),
+  }
+}
+
 function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
   const messages = Array.isArray(raw.messages) ? raw.messages.map((item) => mapMessage(item as Record<string, unknown>)) : []
+  const prescriptions = Array.isArray(raw.prescriptions)
+    ? raw.prescriptions.map((item) => mapConsultationPrescription(item as Record<string, unknown>))
+    : []
   return {
     id: Number(raw.id ?? 0),
     reference: String(raw.reference ?? ''),
@@ -378,6 +511,7 @@ function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
     pediatrician: raw.pediatrician == null ? null : Number(raw.pediatrician),
     doctorName: String(raw.doctor_name ?? ''),
     doctorSpecialty: String(raw.doctor_specialty ?? ''),
+    requestedSpecialty: String(raw.requested_specialty ?? ''),
     patient: raw.patient == null ? null : Number(raw.patient),
     patientName: String(raw.patient_name ?? ''),
     patientEmail: String(raw.patient_email ?? ''),
@@ -389,16 +523,68 @@ function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
     channel: String(raw.channel ?? 'chat'),
     scheduledAt: raw.scheduled_at ? String(raw.scheduled_at) : null,
     isPediatric: Boolean(raw.is_pediatric),
+    childPatient: raw.child_patient == null ? null : Number(raw.child_patient),
     guardianName: String(raw.guardian_name ?? ''),
     childName: String(raw.child_name ?? ''),
     childAge: raw.child_age == null ? null : Number(raw.child_age),
     weightKg: raw.weight_kg == null ? null : String(raw.weight_kg),
+    heightCm: raw.height_cm == null ? null : String(raw.height_cm),
+    bmi: raw.bmi == null ? null : String(raw.bmi),
+    muacCm: raw.muac_cm == null ? null : String(raw.muac_cm),
+    bloodGlucoseMmolL: raw.blood_glucose_mmol_l == null ? null : String(raw.blood_glucose_mmol_l),
     consentStatus: String(raw.consent_status ?? 'pending') as ConsultationConsentStatus,
     dosageAlert: Boolean(raw.dosage_alert),
     lastMessageAt: raw.last_message_at ? String(raw.last_message_at) : null,
     messages,
+    prescriptions,
     createdAt: String(raw.created_at ?? ''),
     updatedAt: String(raw.updated_at ?? ''),
+  }
+}
+
+
+function mapChildPatient(raw: Record<string, unknown>): ChildPatient {
+  return {
+    id: normalizeNumber(raw.id),
+    reference: String(raw.reference ?? ''),
+    firstName: String(raw.first_name ?? ''),
+    lastName: String(raw.last_name ?? ''),
+    fullName: String(raw.full_name ?? `${String(raw.first_name ?? '')} ${String(raw.last_name ?? '')}`.trim()),
+    dateOfBirth: raw.date_of_birth ? String(raw.date_of_birth) : null,
+    ageYears: raw.age_years == null ? null : normalizeNumber(raw.age_years),
+    gender: String(raw.gender ?? ''),
+    weightKg: raw.weight_kg == null ? null : String(raw.weight_kg),
+    heightCm: raw.height_cm == null ? null : String(raw.height_cm),
+    bmi: raw.bmi == null ? null : String(raw.bmi),
+    muacCm: raw.muac_cm == null ? null : String(raw.muac_cm),
+    bloodGlucoseMmolL: raw.blood_glucose_mmol_l == null ? null : String(raw.blood_glucose_mmol_l),
+    allergies: Array.isArray(raw.allergies) ? raw.allergies.map(String) : [],
+    chronicConditions: Array.isArray(raw.chronic_conditions) ? raw.chronic_conditions.map(String) : [],
+    currentMedications: Array.isArray(raw.current_medications) ? raw.current_medications.map(String) : [],
+    vaccinationNotes: String(raw.vaccination_notes ?? ''),
+    notes: String(raw.notes ?? ''),
+  }
+}
+
+function mapConsultationPaymentIntent(raw: Record<string, unknown>): ConsultationPaymentIntent {
+  return {
+    id: normalizeNumber(raw.id),
+    provider: String(raw.provider ?? 'mpesa') as ConsultationPaymentProvider,
+    status: String(raw.status ?? 'pending') as ConsultationPaymentStatus,
+    reference: String(raw.reference ?? ''),
+    providerReference: String(raw.provider_reference ?? ''),
+    externalReference: String(raw.external_reference ?? ''),
+    phoneNumber: String(raw.phone_number ?? ''),
+    checkoutRequestId: String(raw.checkout_request_id ?? ''),
+    amount: normalizeNumber(raw.amount),
+    currency: String(raw.currency ?? 'KES'),
+    clientSecret: String(raw.client_secret ?? ''),
+    lastError: String(raw.last_error ?? ''),
+    consultation: raw.consultation == null ? null : normalizeNumber(raw.consultation),
+    paybillNumber: String(raw.paybill_number ?? ''),
+    paybillAccountReference: String(raw.paybill_account_reference ?? ''),
+    paybillAccountLabel: String(raw.paybill_account_label ?? 'Account Number'),
+    paybillInstructions: String(raw.paybill_instructions ?? ''),
   }
 }
 
@@ -456,6 +642,30 @@ export async function fetchMyConsultations(): Promise<ConsultationRecord[]> {
   }
 }
 
+async function fetchClinicianConsultations(endpoint: string): Promise<ConsultationRecord[]> {
+  try {
+    const res = await apiClient.get(endpoint)
+    const payload = unwrap<unknown>(res.data, [])
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as { results?: unknown[] })?.results)
+        ? (payload as { results: unknown[] }).results
+        : []
+    return list.map((item) => mapConsultation(item as Record<string, unknown>))
+  } catch (error) {
+    if (!shouldUseLocalFallback(error)) throw error
+    return []
+  }
+}
+
+export async function fetchDoctorConsultations(): Promise<ConsultationRecord[]> {
+  return fetchClinicianConsultations('/doctor/consultations/')
+}
+
+export async function fetchPediatricianConsultations(): Promise<ConsultationRecord[]> {
+  return fetchClinicianConsultations('/pediatrician/consultations/')
+}
+
 export async function fetchConsultation(id: number): Promise<ConsultationRecord> {
   if (USE_LOCAL_CONSULTATION_FLOW) {
     return getLocalConsultation(id)
@@ -480,6 +690,47 @@ export async function createConsultation(payload: CreateConsultationPayload): Pr
     if (!shouldUseLocalFallback(error)) throw error
     return createLocalConsultation(payload)
   }
+}
+
+export async function createConsultationPaymentIntent(payload: {
+  provider: ConsultationPaymentProvider
+  phone?: string
+  consultation: CreateConsultationPayload
+}): Promise<ConsultationPaymentIntent> {
+  const res = await apiClient.post('/consultations/payments/intents/', payload)
+  return mapConsultationPaymentIntent(unwrap<Record<string, unknown>>(res.data, {}))
+}
+
+export async function syncConsultationPaymentIntent(id: number): Promise<ConsultationPaymentIntent> {
+  const res = await apiClient.post(`/consultations/payments/intents/${id}/sync/`)
+  return mapConsultationPaymentIntent(unwrap<Record<string, unknown>>(res.data, {}))
+}
+
+export async function finalizePaidConsultation(paymentIntentId: number): Promise<ConsultationRecord> {
+  const res = await apiClient.post('/consultations/payments/finalize/', { payment_intent_id: paymentIntentId })
+  return mapConsultation(unwrap<Record<string, unknown>>(res.data, {}))
+}
+
+
+export async function fetchGuardianChildren(): Promise<ChildPatient[]> {
+  const res = await apiClient.get('/guardian/children/')
+  const payload = unwrap<unknown>(res.data, [])
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as { results?: unknown[] })?.results)
+      ? (payload as { results: unknown[] }).results
+      : []
+  return list.map((item) => mapChildPatient(item as Record<string, unknown>))
+}
+
+export async function createChildPatient(payload: ChildPatientPayload & { first_name: string }): Promise<ChildPatient> {
+  const res = await apiClient.post('/guardian/children/', payload)
+  return mapChildPatient(unwrap<Record<string, unknown>>(res.data, {}))
+}
+
+export async function updateChildPatient(id: number, payload: ChildPatientPayload): Promise<ChildPatient> {
+  const res = await apiClient.patch(`/guardian/children/${id}/`, payload)
+  return mapChildPatient(unwrap<Record<string, unknown>>(res.data, {}))
 }
 
 export async function updateConsultation(id: number, payload: Partial<Pick<ConsultationRecord, 'status' | 'consentStatus' | 'dosageAlert'>>): Promise<ConsultationRecord> {
@@ -648,22 +899,56 @@ export interface ClinicianPrescriptionItem {
   dose: string
   frequency: string
   duration: string
+  quantity_measurement?: string
+  variant_id?: number | null
+  product_variant_id?: number | null
+  product_id?: number | null
+  sku?: string
+  catalog_name?: string
+  catalog_fallback?: boolean
+  quantity?: number
   notes?: string
+}
+
+export interface ClinicianCatalogVariant {
+  id: number
+  product_id: number
+  product_name: string
+  variant_name: string
+  display_name: string
+  brand_name: string
+  sku: string
+  price: string
+  requires_prescription: boolean
+  inventory_status: string
+  available_quantity: number
+  can_prescribe: boolean
 }
 
 export interface ClinicianPrescription {
   id: number
   reference: string
-  consultation_id: number | null
+  consultation: number | null
+  consultation_id?: number | null
   patient_name: string
   status: 'draft' | 'sent' | 'dispensed'
+  is_paid_for?: boolean
   items: ClinicianPrescriptionItem[]
   digital_signature: string | null
+  notes?: string
   created_at: string
 }
 
-export async function fetchClinicianPrescriptions(): Promise<ClinicianPrescription[]> {
-  const res = await apiClient.get('/doctor/prescriptions/')
+export interface ClinicianEarningRecord {
+  id: number
+  consultation: number | null
+  amount: string
+  description: string
+  earned_at: string
+}
+
+async function fetchPrescriptionsFor(endpoint: string): Promise<ClinicianPrescription[]> {
+  const res = await apiClient.get(endpoint)
   const payload = unwrap<unknown>(res.data, [])
   const list = Array.isArray(payload)
     ? payload
@@ -673,28 +958,101 @@ export async function fetchClinicianPrescriptions(): Promise<ClinicianPrescripti
   return list as ClinicianPrescription[]
 }
 
+export async function fetchClinicianPrescriptions(): Promise<ClinicianPrescription[]> {
+  return fetchPrescriptionsFor('/doctor/prescriptions/')
+}
+
+export async function fetchPediatricianPrescriptions(): Promise<ClinicianPrescription[]> {
+  return fetchPrescriptionsFor('/pediatrician/prescriptions/')
+}
+
+export async function fetchClinicianEarnings(): Promise<ClinicianEarningRecord[]> {
+  const res = await apiClient.get('/clinician/earnings/')
+  const payload = unwrap<unknown>(res.data, [])
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as { results?: unknown[] })?.results)
+      ? (payload as { results: unknown[] }).results
+      : []
+  return list as ClinicianEarningRecord[]
+}
+
+async function createPrescriptionFor(endpoint: string, payload: {
+  patient_name: string
+  consultation_id?: number | null
+  notes?: string
+  items: ClinicianPrescriptionItem[]
+}): Promise<ClinicianPrescription> {
+  const res = await apiClient.post(endpoint, {
+    patient_name: payload.patient_name,
+    consultation: payload.consultation_id ?? null,
+    notes: payload.notes ?? '',
+    items: payload.items,
+  })
+  return unwrap<ClinicianPrescription>(res.data, {} as ClinicianPrescription)
+}
+
 export async function createClinicianPrescription(payload: {
   patient_name: string
   consultation_id?: number | null
+  notes?: string
   items: ClinicianPrescriptionItem[]
 }): Promise<ClinicianPrescription> {
-  const res = await apiClient.post('/doctor/prescriptions/', payload)
+  return createPrescriptionFor('/doctor/prescriptions/', payload)
+}
+
+export async function createPediatricianPrescription(payload: {
+  patient_name: string
+  consultation_id?: number | null
+  notes?: string
+  items: ClinicianPrescriptionItem[]
+}): Promise<ClinicianPrescription> {
+  return createPrescriptionFor('/pediatrician/prescriptions/', payload)
+}
+
+async function searchCatalogVariantsFor(endpoint: string, query: string, limit = 12): Promise<ClinicianCatalogVariant[]> {
+  const res = await apiClient.get(endpoint, { params: { q: query, limit } })
+  const payload = unwrap<{ results?: ClinicianCatalogVariant[] }>(res.data, { results: [] })
+  return payload.results ?? []
+}
+
+export async function searchClinicianCatalogVariants(query: string, limit = 12): Promise<ClinicianCatalogVariant[]> {
+  return searchCatalogVariantsFor('/doctor/catalog/variants/', query, limit)
+}
+
+export async function searchPediatricianCatalogVariants(query: string, limit = 12): Promise<ClinicianCatalogVariant[]> {
+  return searchCatalogVariantsFor('/pediatrician/catalog/variants/', query, limit)
+}
+
+async function sendPrescriptionFor(endpoint: string): Promise<ClinicianPrescription> {
+  const res = await apiClient.post(endpoint)
   return unwrap<ClinicianPrescription>(res.data, {} as ClinicianPrescription)
 }
 
 export async function sendClinicianPrescription(id: number): Promise<ClinicianPrescription> {
-  const res = await apiClient.post(`/doctor/prescriptions/${id}/send/`)
-  return unwrap<ClinicianPrescription>(res.data, {} as ClinicianPrescription)
+  return sendPrescriptionFor(`/doctor/prescriptions/${id}/send/`)
 }
 
-export async function downloadClinicianPrescriptionPdf(id: number): Promise<void> {
-  const res = await apiClient.get(`/doctor/prescriptions/${id}/pdf/`, { responseType: 'blob' })
+export async function sendPediatricianPrescription(id: number): Promise<ClinicianPrescription> {
+  return sendPrescriptionFor(`/pediatrician/prescriptions/${id}/send/`)
+}
+
+async function downloadPrescriptionPdfFor(endpoint: string, id: number): Promise<void> {
+  const res = await apiClient.get(endpoint, { responseType: 'blob' })
   const url = URL.createObjectURL(res.data as Blob)
   const a = document.createElement('a')
   a.href = url
   a.download = `prescription-${id}.pdf`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+export async function downloadClinicianPrescriptionPdf(id: number): Promise<void> {
+  return downloadPrescriptionPdfFor(`/doctor/prescriptions/${id}/pdf/`, id)
+}
+
+export async function downloadPediatricianPrescriptionPdf(id: number): Promise<void> {
+  return downloadPrescriptionPdfFor(`/pediatrician/prescriptions/${id}/pdf/`, id)
 }
 
 export async function grantConsultationConsent(id: number): Promise<void> {

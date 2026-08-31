@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { CatalogProduct, productCatalog } from '../../data/products'
-import { PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
-import { prescriptionService } from '../../services/prescriptionService'
-import { cartService } from '../../services/cartService'
-import { addAdminOrderNote, listAdminOrders, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
+import { PrescriptionClarificationMessage, PrescriptionItem, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
+import { prescriptionService, type PharmacistCatalogVariant } from '../../services/prescriptionService'
+import { listAdminOrders, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/PrescriptionManagement.css'
 import '../../styles/portals/PharmacistDashboardPage.css'
+import '../../styles/portals/PharmacistDashboardRedesign.css'
 
 const statusClass = (status: PrescriptionStatus) =>
   status === 'Approved' ? 'admin-status--success'
@@ -24,12 +24,17 @@ const isPdfFile = (f: string) =>
   f.startsWith('data:application/pdf') || /\.pdf$/i.test(f)
 
 function TimeElapsed({ since }: { since: string | undefined }) {
-  const hours = since ? Math.floor((Date.now() - new Date(since).getTime()) / 3600000) : 0
-  const mins = since ? Math.floor((Date.now() - new Date(since).getTime()) / 60000) % 60 : 0
+  const submittedAt = since ? new Date(since).getTime() : Number.NaN
+  if (!Number.isFinite(submittedAt)) return null
+
+  const elapsedMs = Math.max(0, Date.now() - submittedAt)
+  const totalMins = Math.floor(elapsedMs / 60000)
+  const hours = Math.floor(totalMins / 60)
+  const mins = totalMins % 60
   const isOverdue = hours >= 2
   return (
     <span className={`pharm-age ${isOverdue ? 'pharm-age--overdue' : ''}`}>
-      {hours > 0 ? `${hours}h ${mins}m` : `${mins}m`} ago
+      {totalMins < 1 ? 'just now' : `${hours > 0 ? `${hours}h ${mins}m` : `${mins}m`} ago`}
     </span>
   )
 }
@@ -76,9 +81,95 @@ function formatOrderDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '—'
 }
 
+function formatSubmittedDateTime(value?: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('en-KE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function formatCurrency(value?: string | null) {
   const amount = Number(value ?? 0)
   return `KSh ${Number.isFinite(amount) ? amount.toLocaleString() : '0'}`
+}
+
+function formatThreadTime(value: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('en-KE', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function timestampValue(value?: string | null) {
+  if (!value) return 0
+  const timestamp = new Date(value).getTime()
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+function sortOrdersByCreatedDesc(orders: AdminOrder[]) {
+  return [...orders].sort((left, right) =>
+    timestampValue(right.created_at || right.placed_at || right.updated_at) -
+    timestampValue(left.created_at || left.placed_at || left.updated_at),
+  )
+}
+
+function prescriptionSubmittedValue(rx: PrescriptionRecord) {
+  return timestampValue(rx.submittedAt || rx.submitted)
+}
+
+function buildClarificationThread(rx: PrescriptionRecord): PrescriptionClarificationMessage[] {
+  const messages = [...rx.clarificationMessages]
+  const hasPharmacyMessage = messages.some((entry) => entry.senderRole === 'pharmacist' || entry.senderRole === 'admin' || entry.senderRole === 'system')
+  if (hasPharmacyMessage) return messages
+
+  const auditGuidance = rx.audit.find((entry) => entry.action.toLowerCase().includes('clarification requested'))
+  if (auditGuidance) {
+    const [, senderPart = '', messagePart = ''] = auditGuidance.action.match(/^Clarification requested by ([^:]+):?\s*(.*)$/i) || []
+    messages.unshift({
+      id: -1,
+      senderRole: 'pharmacist',
+      senderName: senderPart || rx.pharmacist,
+      senderDisplay: senderPart || rx.pharmacist || 'Pharmacist',
+      message: messagePart || auditGuidance.action,
+      createdAt: auditGuidance.time,
+    })
+  } else if (rx.clarificationMessage) {
+    messages.unshift({
+      id: -1,
+      senderRole: 'pharmacist',
+      senderName: rx.pharmacist,
+      senderDisplay: rx.pharmacist || 'Pharmacist',
+      message: rx.clarificationMessage,
+      createdAt: rx.submittedAt || rx.submitted,
+    })
+  }
+
+  return messages
+}
+
+function orderCustomerName(order: AdminOrder) {
+  return `${order.shipping_first_name ?? ''} ${order.shipping_last_name ?? ''}`.trim()
+    || order.customer_name
+    || 'Walk-in customer'
+}
+
+function orderCustomerEmail(order: AdminOrder) {
+  return order.shipping_email || order.customer_email || 'Email not provided'
+}
+
+function orderCustomerPhone(order: AdminOrder) {
+  return order.shipping_phone || order.customer_phone || 'Phone not provided'
 }
 
 function formatOrderItemsPreview(order: AdminOrder) {
@@ -89,19 +180,26 @@ function formatOrderItemsPreview(order: AdminOrder) {
   return `${names[0]}, ${names[1]} +${names.length - 2} more`
 }
 
-function buildOrderTrackingSteps(order: AdminOrder) {
-  const flow = ['pending', 'processing', 'shipped', 'delivered']
-  const currentIndex = flow.indexOf(order.status)
-  return flow.map((status, index) => {
-    const event = order.events.find((item) => item.event_type === `status_${status}`)
-    return {
-      status,
-      label: ORDER_STATUS_LABELS[status] ?? status,
-      isDone: currentIndex > index || order.status === 'delivered' && index === flow.length - 1,
-      isCurrent: currentIndex === index && order.status !== 'delivered',
-      at: event?.created_at ?? (index === 0 ? order.created_at : null),
-    }
-  })
+function orderPrescriptionReferences(order: AdminOrder) {
+  return Array.from(new Set(order.items.map((item) => item.prescription_id).filter(Boolean) as string[]))
+}
+
+function formatOrderPrescriptionReferences(order: AdminOrder) {
+  const references = orderPrescriptionReferences(order)
+  if (references.length === 0) return ''
+  if (references.length === 1) return references[0]
+  return `${references[0]} +${references.length - 1} more`
+}
+
+function formatOrderLineItems(order: AdminOrder) {
+  if (order.items.length === 0) return 'No item details available'
+  return order.items
+    .slice(0, 3)
+    .map((item) => {
+      const unitText = Number(item.quantity) > 1 ? ` @ ${formatCurrency(item.unit_price)}` : ''
+      return `${item.quantity}x ${item.product_name} - ${formatCurrency(item.subtotal)}${unitText}`
+    })
+    .join(' · ')
 }
 
 function nextOrderStatus(order: AdminOrder) {
@@ -111,10 +209,55 @@ function nextOrderStatus(order: AdminOrder) {
   return null
 }
 
+function isPaidOrder(order: AdminOrder) {
+  return order.payment_status === 'paid' && !['cancelled', 'refunded'].includes(order.status)
+}
+
+function buildPaidPrescriptionEvidence(orders: AdminOrder[]) {
+  const itemKeys = new Set<string>()
+  const prescriptionReferences = new Set<string>()
+
+  orders.filter(isPaidOrder).forEach((order) => {
+    order.items.forEach((item) => {
+      if (item.prescription_id) {
+        prescriptionReferences.add(String(item.prescription_id))
+      }
+      if (item.prescription && item.prescription_item) {
+        itemKeys.add(`${item.prescription}:${item.prescription_item}`)
+      }
+      if (item.prescription_id && item.prescription_item) {
+        itemKeys.add(`${item.prescription_id}:${item.prescription_item}`)
+      }
+    })
+  })
+
+  return { itemKeys, prescriptionReferences }
+}
+
+function isPrescriptionItemPaidByOrder(
+  rx: PrescriptionRecord,
+  item: PrescriptionItem,
+  paidEvidence: ReturnType<typeof buildPaidPrescriptionEvidence>,
+) {
+  if (item.isPaidFor) return true
+  if (rx.backendId && item.backendId && paidEvidence.itemKeys.has(`${rx.backendId}:${item.backendId}`)) return true
+  if (item.backendId && paidEvidence.itemKeys.has(`${rx.id}:${item.backendId}`)) return true
+  if (paidEvidence.prescriptionReferences.has(rx.id) && rx.items.length === 1) return true
+  return false
+}
+
+function unpaidPrescriptionItemsForFollowUp(
+  rx: PrescriptionRecord,
+  paidEvidence: ReturnType<typeof buildPaidPrescriptionEvidence>,
+) {
+  return rx.items.filter((item) => !isPrescriptionItemPaidByOrder(rx, item, paidEvidence))
+}
+
 type WorkspaceView = 'prescriptions' | 'orders'
 
 function PharmacistDashboardPage() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView>('prescriptions')
   const [searchTerm, setSearchTerm] = useState('')
@@ -128,10 +271,14 @@ function PharmacistDashboardPage() {
   const [showClarificationInput, setShowClarificationInput] = useState(false)
   const [clarificationNote, setClarificationNote] = useState('')
   const [cartAddedMsg, setCartAddedMsg] = useState<string | null>(null)
+  const [brokenDocImages, setBrokenDocImages] = useState<Record<string, boolean>>({})
   const [itemSelections, setItemSelections] = useState<Record<string, boolean>>({})
-  const [manualItems, setManualItems] = useState<Array<{ product: CatalogProduct; qty: number }>>([])
+  const [manualItems, setManualItems] = useState<Array<{ variant: PharmacistCatalogVariant; qty: number }>>([])
   const [productSearch, setProductSearch] = useState('')
+  const [variantSuggestions, setVariantSuggestions] = useState<PharmacistCatalogVariant[]>([])
+  const [variantSearchLoading, setVariantSearchLoading] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
+  const [showCatalogPicker, setShowCatalogPicker] = useState(false)
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [rejectionTemplate, setRejectionTemplate] = useState('')
   const [rejectionCustom, setRejectionCustom] = useState('')
@@ -139,30 +286,80 @@ function PharmacistDashboardPage() {
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [ordersError, setOrdersError] = useState('')
   const [activeOrder, setActiveOrder] = useState<AdminOrder | null>(null)
-  const [orderNote, setOrderNote] = useState('')
   const [orderSaving, setOrderSaving] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<{ order: AdminOrder; nextStatus: string } | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const latestPrescriptionRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    void prescriptionService.list().then((r) => setPrescriptions(r.data))
+  const refreshPrescriptions = useCallback(async () => {
+    const response = await prescriptionService.list()
+    const latestId = response.data[0]?.id ?? null
+    if (latestPrescriptionRef.current && latestId && latestPrescriptionRef.current !== latestId) {
+      setCurrentPage(1)
+    }
+    latestPrescriptionRef.current = latestId
+    setPrescriptions(response.data)
   }, [])
 
-  useEffect(() => {
-    const loadOrders = async () => {
+  const refreshOrders = useCallback(async (background = false) => {
+    if (!background) {
       setOrdersLoading(true)
-      setOrdersError('')
-      try {
-        setOrders(await listAdminOrders({ ordering: '-created_at' }))
-      } catch {
-        setOrdersError('Unable to load staff order updates right now.')
-      } finally {
+    }
+    setOrdersError('')
+    try {
+      const latestOrders = await listAdminOrders({ ordering: '-created_at' })
+      setOrders(sortOrdersByCreatedDesc(latestOrders))
+    } catch {
+      setOrdersError('Unable to load staff order updates right now.')
+    } finally {
+      if (!background) {
         setOrdersLoading(false)
       }
     }
-
-    void loadOrders()
   }, [])
+
+  useEffect(() => {
+    void refreshPrescriptions()
+  }, [refreshPrescriptions])
+
+  useEffect(() => {
+    if (activeWorkspace !== 'prescriptions') return undefined
+    const timer = window.setInterval(() => {
+      void refreshPrescriptions().catch(() => undefined)
+    }, 10000)
+    return () => window.clearInterval(timer)
+  }, [activeWorkspace, refreshPrescriptions])
+
+  useEffect(() => {
+    if (!activeRx) return undefined
+    setBrokenDocImages({})
+    const timer = window.setInterval(() => {
+      void refreshPrescriptions().catch(() => undefined)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [activeRx?.id, refreshPrescriptions])
+
+  useEffect(() => {
+    void refreshOrders()
+  }, [refreshOrders])
+
+  useEffect(() => {
+    if (activeWorkspace !== 'orders') return undefined
+    void refreshPrescriptions().catch(() => undefined)
+    const timer = window.setInterval(() => {
+      void refreshOrders(true)
+      void refreshPrescriptions().catch(() => undefined)
+    }, 10000)
+    return () => window.clearInterval(timer)
+  }, [activeWorkspace, refreshOrders, refreshPrescriptions])
+
+  useEffect(() => {
+    if (!activeOrder) return undefined
+    const timer = window.setInterval(() => {
+      void refreshOrders(true)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [activeOrder?.id, refreshOrders])
 
   useEffect(() => { setCurrentPage(1) }, [searchTerm, selectedStatus])
   useEffect(() => { setOrderCurrentPage(1) }, [orderSearchTerm, selectedOrderStatus, selectedOrderPaymentStatus])
@@ -174,6 +371,12 @@ function PharmacistDashboardPage() {
   }, [prescriptions]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!activeOrder) return
+    const updated = orders.find((order) => order.id === activeOrder.id)
+    setActiveOrder(updated ?? null)
+  }, [orders]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (!activeRx) { return }
     setShowClarificationInput(false)
     setClarificationNote('')
@@ -181,28 +384,29 @@ function PharmacistDashboardPage() {
     setManualItems([])
     setProductSearch('')
     setShowDropdown(false)
+    setShowCatalogPicker(false)
     setShowRejectInput(false)
     setRejectionTemplate('')
     setRejectionCustom('')
     const initial: Record<string, boolean> = {}
-    activeRx.items.forEach((item) => { initial[item.name] = true })
+    activeRx.items.forEach((item) => { initial[item.name] = Boolean(item.variantId) })
     setItemSelections(initial)
   }, [activeRx?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keyboard shortcuts
+  // Modal keyboard shortcuts
   useEffect(() => {
     if (!activeRx) return
     const handleKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      if (e.code === 'KeyA') { void handleApprove() }
-      if (e.code === 'KeyR') { setShowRejectInput((p) => !p) }
-      if (e.code === 'KeyC') { setShowClarificationInput((p) => !p) }
+      if (activeWorkspace === 'prescriptions' && e.code === 'KeyA') { void handleApprove() }
+      if (activeWorkspace === 'prescriptions' && e.code === 'KeyR') { setShowRejectInput((p) => !p) }
+      if (activeWorkspace === 'prescriptions' && e.code === 'KeyC') { setShowClarificationInput((p) => !p) }
       if (e.code === 'Escape') { setActiveRx(null) }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activeRx]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeRx, activeWorkspace]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const actor = user?.name ?? 'Pharmacist'
 
@@ -211,55 +415,113 @@ function PharmacistDashboardPage() {
     setPrescriptions(r.data)
   }
 
-  const productSuggestions = useMemo(() => {
-    const q = productSearch.trim().toLowerCase()
-    if (q.length < 2) return []
-    return productCatalog
-      .filter((p) => p.name.toLowerCase().includes(q) && !manualItems.some((m) => m.product.id === p.id))
-      .slice(0, 6)
-  }, [productSearch, manualItems])
+  useEffect(() => {
+    if (!showDropdown) {
+      setVariantSearchLoading(false)
+      return
+    }
+    const q = productSearch.trim()
+    let cancelled = false
+    setVariantSearchLoading(true)
+    const timer = window.setTimeout(() => {
+      void prescriptionService.searchCatalogVariants(q, 500)
+        .then((items) => {
+          if (!cancelled) {
+            const selectedIds = new Set(manualItems.map((item) => item.variant.id))
+            setVariantSuggestions(items.filter((item) => !selectedIds.has(item.id)))
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setVariantSuggestions([])
+        })
+        .finally(() => {
+          if (!cancelled) setVariantSearchLoading(false)
+        })
+    }, 220)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [productSearch, manualItems, showDropdown])
 
-  const addManualItem = (product: CatalogProduct) => {
-    setManualItems((prev) => [...prev, { product, qty: 1 }])
+  const addManualItem = (variant: PharmacistCatalogVariant) => {
+    setManualItems((prev) => [...prev, { variant, qty: 1 }])
     setProductSearch('')
+    setVariantSuggestions([])
     setShowDropdown(false)
+    setShowCatalogPicker(false)
   }
 
-  const removeManualItem = (productId: number) =>
-    setManualItems((prev) => prev.filter((m) => m.product.id !== productId))
+  const removeManualItem = (variantId: number) =>
+    setManualItems((prev) => prev.filter((m) => m.variant.id !== variantId))
 
-  const updateManualQty = (productId: number, qty: number) =>
-    setManualItems((prev) => prev.map((m) => m.product.id === productId ? { ...m, qty: Math.max(1, qty) } : m))
+  const updateManualQty = (variantId: number, qty: number) =>
+    setManualItems((prev) => prev.map((m) => {
+      if (m.variant.id !== variantId) return m
+      const maxQty = Math.max(1, m.variant.available_quantity || 1)
+      return { ...m, qty: Math.min(maxQty, Math.max(1, qty)) }
+    }))
 
   const handleApprove = async () => {
     if (!activeRx) return
-    await updateRx(activeRx.id, { status: 'Approved', pharmacist: actor }, `Approved by ${actor}`)
-    const toAdd = activeRx.items.filter((item) => itemSelections[item.name])
-    for (const item of toAdd) {
-      const stableId = item.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-      await cartService.add(
-        { id: stableId, name: item.name, brand: 'Prescribed', price: 0, prescriptionId: activeRx.id },
-        item.qty,
-      )
+    const toAdd = activeRx.items.filter((item) => itemSelections[item.name] && item.variantId)
+    const reviewItems = [
+      ...toAdd.map((item) => ({
+        name: item.name,
+        product_id: item.productId ?? null,
+        variant_id: item.variantId ?? null,
+        dose: item.dose,
+        frequency: item.frequency,
+        quantity: item.qty,
+      })),
+      ...manualItems.map(({ variant, qty }) => ({
+        name: variant.display_name,
+        product_id: variant.product_id,
+        variant_id: variant.id,
+        dose: '',
+        frequency: '',
+        quantity: qty,
+      })),
+    ]
+    if (reviewItems.length === 0) {
+      setCartAddedMsg('Select at least one catalog variant before approving this prescription.')
+      window.setTimeout(() => setCartAddedMsg(null), 6000)
+      return
     }
-    for (const { product, qty } of manualItems) {
-      await cartService.add(
-        { id: product.id, name: product.name, brand: product.brand, price: product.price, image: product.image, stockSource: product.stockSource === 'out' ? undefined : product.stockSource, prescriptionId: activeRx.id },
-        qty,
-      )
+    if (activeRx.backendId) {
+      const response = await prescriptionService.pharmacistReview(activeRx.backendId, {
+        action: 'approve',
+        notes: `Approved by ${actor}`,
+        items: reviewItems,
+      })
+      setPrescriptions(response.data)
+    } else {
+      await updateRx(activeRx.id, { status: 'Approved', pharmacist: actor, items: reviewItems.map((item) => ({
+        name: item.name,
+        productId: item.product_id,
+        variantId: item.variant_id,
+        dose: item.dose || '-',
+        frequency: item.frequency || '-',
+        qty: item.quantity,
+      })) }, `Approved by ${actor}`)
     }
-    const totalAdded = toAdd.length + manualItems.length
     const skipped = activeRx.items.length - toAdd.length
-    const msg = totalAdded > 0
-      ? `${totalAdded} item${totalAdded !== 1 ? 's' : ''} added to patient's cart${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`
-      : 'Prescription approved. No items added.'
-    setCartAddedMsg(msg)
-    setTimeout(() => setCartAddedMsg(null), 6000)
+    setCartAddedMsg(`Prescription approved with ${reviewItems.length} mapped item${reviewItems.length !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`)
+    window.setTimeout(() => setCartAddedMsg(null), 6000)
   }
 
-  const handleClarification = (note: string) => {
+  const handleClarification = async (note: string) => {
     if (!activeRx) return
-    void updateRx(activeRx.id, { status: 'Clarification', dispatchStatus: 'Not started', pharmacist: actor }, `Clarification requested by ${actor}${note ? ': ' + note : ''}`)
+    const trimmed = note.trim()
+    if (activeRx.backendId) {
+      const response = await prescriptionService.pharmacistReview(activeRx.backendId, {
+        action: 'request_clarification',
+        notes: trimmed,
+      })
+      setPrescriptions(response.data)
+    } else {
+      await updateRx(activeRx.id, { status: 'Clarification', dispatchStatus: 'Not started', pharmacist: actor }, `Clarification requested by ${actor}${trimmed ? ': ' + trimmed : ''}`)
+    }
     setShowClarificationInput(false)
     setClarificationNote('')
   }
@@ -302,7 +564,7 @@ function PharmacistDashboardPage() {
 
   const filteredOrderRecords = useMemo(() => {
     const query = orderSearchTerm.trim().toLowerCase()
-    return orders.filter((order) => {
+    return sortOrdersByCreatedDesc(orders).filter((order) => {
       if (selectedOrderStatus !== 'all' && order.status !== selectedOrderStatus) return false
       if (selectedOrderPaymentStatus !== 'all' && order.payment_status !== selectedOrderPaymentStatus) return false
       if (!query) return true
@@ -319,13 +581,36 @@ function PharmacistDashboardPage() {
     })
   }, [orders, orderSearchTerm, selectedOrderStatus, selectedOrderPaymentStatus])
 
+  const paidPrescriptionEvidence = useMemo(() => buildPaidPrescriptionEvidence(orders), [orders])
+
+  const approvedPrescriptionsAwaitingCheckout = useMemo(() => {
+    if (selectedOrderStatus !== 'all' && selectedOrderStatus !== 'pending') return []
+    if (selectedOrderPaymentStatus !== 'all' && selectedOrderPaymentStatus !== 'pending') return []
+
+    const query = orderSearchTerm.trim().toLowerCase()
+    return prescriptions
+      .filter((rx) => rx.status === 'Approved' && rx.dispatchStatus === 'Not started' && unpaidPrescriptionItemsForFollowUp(rx, paidPrescriptionEvidence).length > 0)
+      .filter((rx) => {
+        const awaitingItems = unpaidPrescriptionItemsForFollowUp(rx, paidPrescriptionEvidence)
+        if (!query) return true
+        return [
+          rx.id,
+          rx.patient,
+          rx.doctor,
+          rx.pharmacist,
+          awaitingItems.map((item) => `${item.qty}x ${item.name}`).join(' · '),
+        ].join(' ').toLowerCase().includes(query)
+      })
+      .sort((left, right) => prescriptionSubmittedValue(right) - prescriptionSubmittedValue(left))
+  }, [orderSearchTerm, paidPrescriptionEvidence, prescriptions, selectedOrderPaymentStatus, selectedOrderStatus])
+
   const ORDER_PAGE_SIZE = 8
   const totalOrderPages = Math.max(1, Math.ceil(filteredOrderRecords.length / ORDER_PAGE_SIZE))
   const pagedOrderRecords = filteredOrderRecords.slice((orderCurrentPage - 1) * ORDER_PAGE_SIZE, orderCurrentPage * ORDER_PAGE_SIZE)
+  const orderFollowUpCount = orders.length + approvedPrescriptionsAwaitingCheckout.length
 
   const openOrderModal = (order: AdminOrder) => {
     setActiveOrder(order)
-    setOrderNote('')
     setOrdersError('')
   }
 
@@ -338,26 +623,9 @@ function PharmacistDashboardPage() {
     setActiveOrder((prev) => (prev?.id === updated.id ? updated : prev))
   }
 
-  const handleOrderUpdate = async (status?: string) => {
+  const handleOrderUpdate = async (status: string) => {
     if (!activeOrder) return
-    if (status) {
-      promptOrderStatusUpdate(activeOrder, status)
-      return
-    }
-    setOrderSaving(true)
-    setOrdersError('')
-    try {
-      let updated = activeOrder
-      if (orderNote.trim()) {
-        updated = await addAdminOrderNote(activeOrder.id, orderNote.trim())
-      }
-      syncOrder(updated)
-      setOrderNote('')
-    } catch {
-      setOrdersError('Unable to update the order right now.')
-    } finally {
-      setOrderSaving(false)
-    }
+    promptOrderStatusUpdate(activeOrder, status)
   }
 
   const confirmOrderStatusUpdate = async () => {
@@ -392,7 +660,7 @@ function PharmacistDashboardPage() {
     {
       id: 'orders',
       label: 'Order Follow-up',
-      badge: orders.length,
+      badge: orderFollowUpCount,
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -406,7 +674,7 @@ function PharmacistDashboardPage() {
 
   return (
     <ProfessionalPortalShell
-      accentColor="#be3455"
+      accentColor="#0EA5E9"
       activeItemId={activeWorkspace}
       navItems={navigationItems}
       onNavChange={(itemId) => {
@@ -421,19 +689,26 @@ function PharmacistDashboardPage() {
           setOrderCurrentPage(1)
         }
       }}
-      onLogout={() => { void logout() }}
+      onLogout={async () => {
+        await logout()
+        navigate('/login', { replace: true })
+      }}
       roleLabel="Pharmacist"
       sidebarHeaderContent={(
         <div className="portal-shell__meta-card">
           <span className="portal-shell__meta-label">Workspace</span>
           <p className="portal-shell__meta-value">{activeWorkspace === 'prescriptions' ? 'Prescription operations' : 'Order follow-up'}</p>
-          <p className="portal-shell__meta-value">{activeWorkspace === 'prescriptions' ? `${stats.pending} awaiting action` : `${orders.length} total orders`}</p>
+          <p className="portal-shell__meta-value">
+            {activeWorkspace === 'prescriptions'
+              ? `${stats.pending} awaiting action`
+              : `${orders.length} orders${approvedPrescriptionsAwaitingCheckout.length ? ` · ${approvedPrescriptionsAwaitingCheckout.length} awaiting checkout` : ''}`}
+          </p>
         </div>
       )}
       userMeta={activeWorkspace === 'prescriptions' ? 'Prescription Operations' : 'Order Follow-up'}
       userName={user?.name || 'Pharmacist'}
     >
-      <div className="admin-page">
+      <div className="admin-page pharm-portal">
       {/* Workspace */}
       {activeWorkspace === 'prescriptions' ? (
         <>
@@ -538,6 +813,9 @@ function PharmacistDashboardPage() {
                         <td>
                           <div className="pharm-cell-stack">
                             <span className="px-rx-id">{rx.id}</span>
+                            <span className={`pharm-source-badge pharm-source-badge--${rx.source === 'e_prescription' ? 'e-prescription' : 'upload'}`}>
+                              {rx.source === 'e_prescription' ? 'E-prescription' : 'Uploaded'}
+                            </span>
                             <span className="pharm-cell-muted">
                               {rx.items.length} item{rx.items.length === 1 ? '' : 's'}
                             </span>
@@ -556,8 +834,8 @@ function PharmacistDashboardPage() {
                         <td><span className="admin-status admin-status--info">{rx.dispatchStatus}</span></td>
                         <td className="px-date">
                           <div className="pharm-cell-stack">
-                            <span>{rx.submitted}</span>
-                            {rx.status === 'Pending' && <TimeElapsed since={rx.submitted} />}
+                            <span>{formatSubmittedDateTime(rx.submittedAt || rx.submitted)}</span>
+                            {rx.status === 'Pending' && <TimeElapsed since={rx.submittedAt || rx.submitted} />}
                           </div>
                         </td>
                         <td>
@@ -593,7 +871,7 @@ function PharmacistDashboardPage() {
           <div className="admin-page__header">
             <div>
               <h1>Order Follow-up</h1>
-              <p className="px-subtitle">Display every order, filter using backend statuses, and confirm each operational change before it updates the live order.</p>
+              <p className="px-subtitle">Display every order by latest creation time, plus approved prescriptions waiting for customer checkout.</p>
             </div>
           </div>
 
@@ -603,8 +881,8 @@ function PharmacistDashboardPage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
               </div>
               <div className="cm-kpi-card__body">
-                <span className="cm-kpi-card__label">All orders</span>
-                <strong className="cm-kpi-card__value">{orders.length}</strong>
+                <span className="cm-kpi-card__label">All follow-ups</span>
+                <strong className="cm-kpi-card__value">{orderFollowUpCount}</strong>
               </div>
             </div>
             <div className="cm-kpi-card" onClick={() => setSelectedOrderStatus('pending')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
@@ -613,7 +891,9 @@ function PharmacistDashboardPage() {
               </div>
               <div className="cm-kpi-card__body">
                 <span className="cm-kpi-card__label">Pending</span>
-                <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{orderStatusCounts.pending ?? 0}</strong>
+                <strong className="cm-kpi-card__value cm-kpi-card__value--amber">
+                  {(orderStatusCounts.pending ?? 0) + approvedPrescriptionsAwaitingCheckout.length}
+                </strong>
               </div>
             </div>
             <div className="cm-kpi-card" onClick={() => setSelectedOrderStatus('processing')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
@@ -675,11 +955,88 @@ function PharmacistDashboardPage() {
           </div>
 
           <div className="pharm-dashboard-layout">
+            {approvedPrescriptionsAwaitingCheckout.length > 0 && (
+              <section className="pharm-table-panel pharm-table-panel--awaiting-checkout">
+                <div className="pharm-table-panel__header">
+                  <div>
+                    <h2>Approved prescriptions awaiting checkout</h2>
+                    <p>These prescriptions passed pharmacist review and are waiting for the customer to complete checkout and payment.</p>
+                  </div>
+                  <span className="pharm-table-panel__badge">{approvedPrescriptionsAwaitingCheckout.length} records</span>
+                </div>
+                <div className="cm-table-wrap">
+                  <table className="cm-table pharm-table pharm-table--orders">
+                    <thead>
+                      <tr>
+                        <th>Prescription</th>
+                        <th>Patient</th>
+                        <th>Items</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th className="cm-th-actions">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {approvedPrescriptionsAwaitingCheckout.map((rx) => {
+                        const unpaidItems = unpaidPrescriptionItemsForFollowUp(rx, paidPrescriptionEvidence)
+                        return (
+                          <tr key={`awaiting-${rx.id}`}>
+                            <td>
+                              <div className="pharm-cell-stack">
+                                <strong className="pharm-table__primary">{rx.id}</strong>
+                                <span className="pharm-cell-muted">{rx.source === 'e_prescription' ? 'E-prescription' : 'Uploaded prescription'}</span>
+                                <span className="pharm-cell-muted">
+                                  {unpaidItems.length} item{unpaidItems.length === 1 ? '' : 's'} awaiting checkout
+                                </span>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="pharm-cell-stack">
+                                <strong className="pharm-table__primary">{rx.patient}</strong>
+                                <span className="pharm-cell-muted">Doctor: {rx.doctor || 'Not provided'}</span>
+                                <span className="pharm-cell-muted">{rx.pharmacist === 'Unassigned' ? 'Approved by pharmacy' : `Approved by ${rx.pharmacist}`}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="pharm-cell-stack pharm-cell-stack--items">
+                                <span>
+                                  {unpaidItems.length > 0
+                                    ? unpaidItems.slice(0, 3).map((item) => `${item.qty}x ${item.name}`).join(' · ')
+                                    : 'No unpaid item details available'}
+                                </span>
+                                {unpaidItems.length > 3 && <span className="pharm-cell-muted">+{unpaidItems.length - 3} more line{unpaidItems.length - 3 === 1 ? '' : 's'}</span>}
+                              </div>
+                            </td>
+                            <td>
+                              <span className="admin-status admin-status--warning">Awaiting checkout</span>
+                            </td>
+                            <td>
+                              <div className="pharm-cell-stack">
+                                <span>{formatSubmittedDateTime(rx.submittedAt || rx.submitted)}</span>
+                                <TimeElapsed since={rx.submittedAt || rx.submitted} />
+                              </div>
+                            </td>
+                            <td>
+                              <div className="cm-row-actions pharm-row-actions">
+                                <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => setActiveRx(rx)}>
+                                  View prescription
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
             <section className="pharm-table-panel pharm-table-panel--orders">
               <div className="pharm-table-panel__header">
                 <div>
                   <h2>All orders</h2>
-                  <p>Review all orders, narrow by backend status or payment state, and use the action flow only after confirming the next status.</p>
+                  <p>Review all orders by latest creation time, narrow by backend status or payment state, and confirm each next status.</p>
                 </div>
                 <span className="pharm-table-panel__badge">{filteredOrderRecords.length} records</span>
               </div>
@@ -697,38 +1054,51 @@ function PharmacistDashboardPage() {
                       <tr>
                         <th>Order</th>
                         <th>Customer</th>
+                        <th>Items</th>
+                        <th>Total</th>
                         <th>Status</th>
-                        <th>Payment</th>
+                        <th>Payment status</th>
                         <th>Updated</th>
                         <th className="cm-th-actions">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {pagedOrderRecords.map((order) => {
-                        const customerName = order.customer_name || `${order.shipping_first_name} ${order.shipping_last_name}`.trim()
                         const upcomingStatus = nextOrderStatus(order)
+                        const prescriptionReference = formatOrderPrescriptionReferences(order)
                         return (
                           <tr key={order.id}>
                             <td>
                               <div className="pharm-cell-stack">
                                 <strong className="pharm-table__primary">{order.order_number}</strong>
+                                {prescriptionReference && (
+                                  <span className="pharm-cell-muted">Rx {prescriptionReference}</span>
+                                )}
                                 <span className="pharm-cell-muted">
-                                  {order.items.length} item{order.items.length === 1 ? '' : 's'} · {formatCurrency(order.total)}
+                                  {order.items.length} item{order.items.length === 1 ? '' : 's'}
                                 </span>
                                 <span className="pharm-order-items-preview">{formatOrderItemsPreview(order)}</span>
                               </div>
                             </td>
                             <td>
                               <div className="pharm-cell-stack">
-                                <strong className="pharm-table__primary">{customerName || 'Walk-in customer'}</strong>
-                                <span className="pharm-cell-muted">{order.shipping_city || order.shipping_county || 'Delivery details pending'}</span>
+                                <strong className="pharm-table__primary">{orderCustomerName(order)}</strong>
+                                <span className="pharm-cell-muted">{orderCustomerEmail(order)}</span>
+                                <span className="pharm-cell-muted">{orderCustomerPhone(order)}</span>
                               </div>
                             </td>
+                            <td>
+                              <div className="pharm-cell-stack pharm-cell-stack--items">
+                                <span>{formatOrderLineItems(order)}</span>
+                                {order.items.length > 3 && <span className="pharm-cell-muted">+{order.items.length - 3} more line{order.items.length - 3 === 1 ? '' : 's'}</span>}
+                              </div>
+                            </td>
+                            <td><strong className="pharm-table__primary">{formatCurrency(order.total)}</strong></td>
                             <td><span className={`admin-status status--${order.status}`}>{ORDER_STATUS_LABELS[order.status] ?? order.status}</span></td>
                             <td>
                               <div className="pharm-cell-stack">
+                                <span className={`admin-status status--${order.payment_status}`}>{order.payment_status.replace(/_/g, ' ')}</span>
                                 <span className="pharm-cell-muted">{order.payment_method.replace(/_/g, ' ')}</span>
-                                <span className="pharm-cell-muted">{order.payment_status.replace(/_/g, ' ')}</span>
                               </div>
                             </td>
                             <td>
@@ -793,13 +1163,12 @@ function PharmacistDashboardPage() {
                 )}
               </div>
               <div className="px-modal__header-right">
-                <span className="px-modal__submitted">Submitted {activeRx.submitted}</span>
+                <span className="px-modal__submitted">Submitted {formatSubmittedDateTime(activeRx.submittedAt || activeRx.submitted)}</span>
                 <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
               </div>
             </div>
 
-            {/* Two-panel body */}
-            <div className="px-modal__body">
+            <div className={`px-modal__body${activeWorkspace === 'orders' ? ' px-modal__body--details-only' : ''}`}>
 
               {/* Left: prescription content */}
               <div className="px-modal__left">
@@ -822,9 +1191,15 @@ function PharmacistDashboardPage() {
                     <p className="px-section-label">Prescription document{activeRx.files.length > 1 ? 's' : ''}</p>
                     <div className="px-doc-viewer">
                       {activeRx.files.map((f, i) =>
-                        isImageFile(f) ? (
+                        isImageFile(f) && !brokenDocImages[f] ? (
                           <div key={i} className="px-doc-viewer__frame">
-                            <img src={f} alt={`Document ${i + 1}`} className="px-doc-viewer__img" />
+                            <img
+                              src={f}
+                              alt={`Document ${i + 1}`}
+                              className="px-doc-viewer__img"
+                              loading="lazy"
+                              onError={() => setBrokenDocImages((current) => ({ ...current, [f]: true }))}
+                            />
                             <a href={f} download={`prescription-doc-${i + 1}`} className="px-doc-viewer__dl">↓ Download</a>
                           </div>
                         ) : isPdfFile(f) && f.startsWith('data:') ? (
@@ -853,70 +1228,145 @@ function PharmacistDashboardPage() {
                         {Object.values(itemSelections).filter(Boolean).length} / {activeRx.items.length} in stock
                       </span>
                     </div>
-                    <p className="px-item-picker-hint">Uncheck items that are out of stock_ only checked items will be added to the patient's cart.</p>
+                    <p className="px-item-picker-hint">Only catalog-matched variants can be approved. For handwritten or unmatched lines, select the exact variant below.</p>
                     <div className="px-items-list">
-                      {activeRx.items.map((item) => (
-                        <label key={item.name} className={`px-item px-item--selectable${!itemSelections[item.name] ? ' px-item--oos' : ''}`}>
+                      {activeRx.items.map((item) => {
+                        const hasCatalogVariant = Boolean(item.variantId)
+                        return (
+                        <label key={item.name} className={`px-item px-item--selectable${!itemSelections[item.name] ? ' px-item--oos' : ''}${!hasCatalogVariant ? ' px-item--unmatched' : ''}`}>
                           <input
                             type="checkbox"
                             className="px-item__check"
                             checked={itemSelections[item.name] ?? true}
+                            disabled={!hasCatalogVariant}
                             onChange={(e) => setItemSelections((prev) => ({ ...prev, [item.name]: e.target.checked }))}
                           />
                           <div className="px-item__info">
                             <p className="px-item__name">{item.name}</p>
                             <p className="px-item__meta">{item.dose} · {item.frequency}</p>
+                            {hasCatalogVariant ? (
+                              <p className="px-item__variant">
+                                Patient requested catalog item · {item.variantName || 'Selected variant'}{item.variantSku ? ` · SKU ${item.variantSku}` : ''}
+                              </p>
+                            ) : (
+                              <p className="px-item__variant px-item__variant--unmatched">
+                                Select exact catalog variant below
+                              </p>
+                            )}
                           </div>
                           <div className="px-item__right">
                             <span className="px-item__qty">Qty {item.qty}</span>
                             {!itemSelections[item.name] && <span className="px-item__oos-tag">Out of stock</span>}
                           </div>
                         </label>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 )}
 
-                {/* Manual medication search */}
                 <div className="px-modal__section">
-                  <p className="px-section-label">Add medications from catalog</p>
-                  <p className="px-item-picker-hint">For handwritten or unclear prescriptions, search and add medications directly.</p>
-                  <div className="px-med-search" ref={dropdownRef}>
-                    <div className="px-med-search__wrap">
-                      <svg className="px-med-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                      <input
-                        type="text"
-                        className="px-med-search__input"
-                        placeholder="Search e.g. Paracetamol, Amoxicillin…"
-                        value={productSearch}
-                        onChange={(e) => { setProductSearch(e.target.value); setShowDropdown(true) }}
-                        onFocus={() => setShowDropdown(true)}
-                      />
-                      {productSearch && (
-                        <button className="px-med-search__clear" type="button" onClick={() => { setProductSearch(''); setShowDropdown(false) }}>×</button>
-                      )}
-                    </div>
-                    {showDropdown && productSuggestions.length > 0 && (
-                      <div className="px-med-dropdown">
-                        {productSuggestions.map((p) => (
-                          <button key={p.id} className="px-med-dropdown__item" type="button" onMouseDown={() => addManualItem(p)}>
-                            <span className="px-med-dropdown__name">{p.name}</span>
-                            <span className="px-med-dropdown__meta">{p.brand} · KSh {p.price.toLocaleString()}</span>
-                          </button>
-                        ))}
+                  <button
+                    className="px-catalog-toggle"
+                    type="button"
+                    onClick={() => {
+                      setShowCatalogPicker((open) => {
+                        const next = !open
+                        if (!next) {
+                          setProductSearch('')
+                          setVariantSuggestions([])
+                          setShowDropdown(false)
+                        }
+                        return next
+                      })
+                    }}
+                    aria-expanded={showCatalogPicker}
+                  >
+                    <span>
+                      <span className="px-section-label">Add medications from catalog</span>
+                      <span className="px-item-picker-hint">List and select from Ava Pharmacy variants only.</span>
+                    </span>
+                    <span className={`px-catalog-toggle__chevron ${showCatalogPicker ? 'px-catalog-toggle__chevron--open' : ''}`}>⌄</span>
+                  </button>
+
+                  {showCatalogPicker && (
+                    <div className="px-catalog-picker">
+                      <p className="px-catalog-picker__note">Showing active catalog variants. Search by medicine, variant, SKU, brand, or strength to narrow the list.</p>
+                      <div className="px-med-search" ref={dropdownRef}>
+                        <div className="px-med-search__wrap">
+                          <svg className="px-med-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                          <input
+                            type="text"
+                            className="px-med-search__input"
+                            placeholder="Search medicine, variant, SKU, or brand…"
+                            value={productSearch}
+                            onChange={(e) => { setProductSearch(e.target.value); setShowDropdown(true) }}
+                            onFocus={() => setShowDropdown(true)}
+                            autoFocus
+                          />
+                          {(productSearch || showDropdown) && (
+                            <button
+                              className="px-med-search__clear"
+                              type="button"
+                              onClick={() => { setProductSearch(''); setVariantSuggestions([]); setShowDropdown(false) }}
+                              aria-label="Close catalog search"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        {showDropdown && (variantSearchLoading || variantSuggestions.length > 0 || productSearch.trim().length > 0) && (
+                          <div className="px-med-dropdown">
+                            {variantSearchLoading && (
+                              <div className="px-med-dropdown--empty">Loading catalog variants…</div>
+                            )}
+                            {!variantSearchLoading && variantSuggestions.length > 0 && (
+                              <div className="px-med-dropdown__summary">
+                                {variantSuggestions.length} variant{variantSuggestions.length === 1 ? '' : 's'} available
+                              </div>
+                            )}
+                            {!variantSearchLoading && variantSuggestions.map((variant) => (
+                              <button
+                                key={variant.id}
+                                className="px-med-dropdown__item"
+                                type="button"
+                                disabled={!variant.can_select}
+                                onMouseDown={() => { if (variant.can_select) addManualItem(variant) }}
+                              >
+                                <span>
+                                  <span className="px-med-dropdown__name">{variant.display_name}</span>
+                                  <span className="px-med-dropdown__meta">
+                                    {variant.brand_name || 'Ava Pharmacy'} · SKU {variant.sku || 'N/A'} · KSh {Number(variant.price || 0).toLocaleString()}
+                                    {variant.requires_prescription ? ' · Prescription' : ' · Non-prescription'}
+                                  </span>
+                                </span>
+                                <span className={`px-med-dropdown__stock ${variant.can_select ? '' : 'px-med-dropdown__stock--out'}`}>
+                                  {variant.can_select ? `${variant.available_quantity} in stock` : 'Out of stock'}
+                                </span>
+                              </button>
+                            ))}
+                            {!variantSearchLoading && variantSuggestions.length === 0 && (
+                              <div className="px-med-dropdown--empty">No matching catalog variants.</div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {showDropdown && productSearch.trim().length >= 2 && productSuggestions.length === 0 && (
-                      <div className="px-med-dropdown px-med-dropdown--empty">No matching products found.</div>
-                    )}
-                  </div>
+                      <button className="btn btn--outline btn--sm px-catalog-picker__close" type="button" onClick={() => { setProductSearch(''); setVariantSuggestions([]); setShowDropdown(false); setShowCatalogPicker(false) }}>
+                        Close catalog
+                      </button>
+                    </div>
+                  )}
                   {manualItems.length > 0 && (
                     <div className="px-manual-items">
-                      {manualItems.map(({ product, qty }) => (
-                        <div key={product.id} className="px-manual-item">
+                      <p className="px-selected-variants-title">Selected catalog variants</p>
+                      {manualItems.map(({ variant, qty }) => (
+                        <div key={variant.id} className="px-manual-item">
                           <div className="px-item__info">
-                            <p className="px-item__name">{product.name}</p>
-                            <p className="px-item__meta">{product.brand} · KSh {product.price.toLocaleString()}</p>
+                            <p className="px-item__name">{variant.display_name}</p>
+                            <p className="px-item__meta">{variant.brand_name || 'Ava Pharmacy'} · KSh {Number(variant.price || 0).toLocaleString()}</p>
+                            <p className="px-item__variant">
+                              {variant.variant_name || 'Selected variant'}{variant.sku ? ` · SKU ${variant.sku}` : ''}
+                            </p>
                           </div>
                           <div className="px-manual-item__controls">
                             <label className="px-manual-item__qty-label">Qty</label>
@@ -925,9 +1375,10 @@ function PharmacistDashboardPage() {
                               className="px-manual-item__qty"
                               value={qty}
                               min={1}
-                              onChange={(e) => updateManualQty(product.id, parseInt(e.target.value) || 1)}
+                              max={variant.available_quantity || undefined}
+                              onChange={(e) => updateManualQty(variant.id, parseInt(e.target.value) || 1)}
                             />
-                            <button className="px-manual-item__remove" type="button" onClick={() => removeManualItem(product.id)} aria-label="Remove">×</button>
+                            <button className="px-manual-item__remove" type="button" onClick={() => removeManualItem(variant.id)} aria-label="Remove">×</button>
                           </div>
                         </div>
                       ))}
@@ -943,113 +1394,81 @@ function PharmacistDashboardPage() {
                   </div>
                 )}
 
-              </div>
-
-              {/* Right: decision panel */}
-              <div className="px-modal__right">
-                {cartAddedMsg && (
-                  <div className="px-cart-added-msg">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-                    {cartAddedMsg}
+                {buildClarificationThread(activeRx).length > 0 && (
+                  <div className="px-modal__section pharm-thread-section">
+                    <div className="pharm-thread-section__head">
+                      <p className="px-section-label">Clarification messages</p>
+                      <span>{buildClarificationThread(activeRx).length} message{buildClarificationThread(activeRx).length === 1 ? '' : 's'}</span>
+                    </div>
+                    <div className="pharm-thread">
+                      {buildClarificationThread(activeRx).map((entry) => (
+                        <article
+                          key={`${activeRx.id}-${entry.id}-${entry.createdAt}`}
+                          className={`pharm-thread__message ${entry.senderRole === 'patient' ? 'pharm-thread__message--patient' : 'pharm-thread__message--staff'}`}
+                        >
+                          <div className="pharm-thread__meta">
+                            <strong>{entry.senderRole === 'patient' ? 'Customer' : (entry.senderDisplay || entry.senderName || 'Pharmacy team')}</strong>
+                            <span>{formatThreadTime(entry.createdAt)}</span>
+                          </div>
+                          <p>{entry.message}</p>
+                        </article>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <div className="px-workflow-section">
-                  <p className="px-section-label">Decision</p>
-                  <div className="pharm-action-bar">
-                    <button
-                      className={`px-decision-btn px-decision-btn--approve ${activeRx.status === 'Approved' ? 'px-decision-btn--active' : ''}`}
-                      type="button"
-                      onClick={handleApprove}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      <span>Approve</span>
-                    </button>
-                    <button
-                      className={`px-decision-btn px-decision-btn--clarify ${activeRx.status === 'Clarification' ? 'px-decision-btn--active' : ''}`}
-                      type="button"
-                      onClick={() => setShowClarificationInput((p) => !p)}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      <span>Clarify</span>
-                    </button>
-                    <button
-                      className={`px-decision-btn px-decision-btn--reject ${activeRx.status === 'Rejected' ? 'px-decision-btn--active' : ''}`}
-                      type="button"
-                      onClick={() => setShowRejectInput((p) => !p)}
-                    >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      <span>Reject</span>
-                    </button>
-                  </div>
 
-                  {/* Rejection reason template picker */}
-                  {showRejectInput && (
-                    <div className="px-clarification-box">
-                      <p className="px-section-label">Rejection reason</p>
-                      <select
-                        className="px-reject-select"
-                        value={rejectionTemplate}
-                        onChange={(e) => setRejectionTemplate(e.target.value)}
-                        autoFocus
-                      >
-                        <option value="">Select a reason…</option>
-                        {REJECTION_REASONS.map((r) => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </select>
-                      {rejectionTemplate === 'Other' && (
-                        <textarea
-                          className="px-clarification-textarea"
-                          placeholder="Describe the rejection reason…"
-                          value={rejectionCustom}
-                          onChange={(e) => setRejectionCustom(e.target.value)}
-                          rows={3}
-                          style={{ marginTop: '0.5rem' }}
-                        />
-                      )}
-                      <div className="px-clarification-actions">
-                        <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowRejectInput(false); setRejectionTemplate(''); setRejectionCustom('') }}>
-                          Cancel
-                        </button>
-                        <button
-                          className="btn btn--sm px-decision-btn--reject"
-                          type="button"
-                          onClick={handleReject}
-                          disabled={!rejectionTemplate || (rejectionTemplate === 'Other' && !rejectionCustom.trim())}
-                        >
-                          Confirm rejection
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {showClarificationInput && (
-                    <div className="px-clarification-box">
-                      <textarea
-                        className="px-clarification-textarea"
-                        placeholder="Enter the clarification message for the patient…"
-                        value={clarificationNote}
-                        onChange={(e) => setClarificationNote(e.target.value)}
-                        rows={3}
-                        autoFocus
-                      />
-                      <div className="px-clarification-actions">
-                        <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowClarificationInput(false); setClarificationNote('') }}>
-                          Cancel
-                        </button>
-                        <button
-                          className="btn btn--sm px-decision-btn--clarify-confirm"
-                          type="button"
-                          onClick={() => handleClarification(clarificationNote)}
-                          disabled={!clarificationNote.trim()}
-                        >
-                          Send clarification
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
+
+              {activeWorkspace === 'prescriptions' && (
+                <div className="px-modal__right">
+                  {cartAddedMsg && <div className="px-cart-added-msg">{cartAddedMsg}</div>}
+                  <div className="px-workflow-section">
+                    <p className="px-section-label">Decision</p>
+                    <div className="pharm-action-bar">
+                      <button className={`px-decision-btn px-decision-btn--approve ${activeRx.status === 'Approved' ? 'px-decision-btn--active' : ''}`} type="button" onClick={handleApprove}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Approve</span>
+                      </button>
+                      <button className={`px-decision-btn px-decision-btn--clarify ${activeRx.status === 'Clarification' ? 'px-decision-btn--active' : ''}`} type="button" onClick={() => setShowClarificationInput((current) => !current)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>Clarify</span>
+                      </button>
+                      <button className={`px-decision-btn px-decision-btn--reject ${activeRx.status === 'Rejected' ? 'px-decision-btn--active' : ''}`} type="button" onClick={() => setShowRejectInput((current) => !current)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <span>Reject</span>
+                      </button>
+                    </div>
+
+                    {showRejectInput && (
+                      <div className="px-clarification-box">
+                        <p className="px-section-label">Rejection reason</p>
+                        <select className="px-reject-select" value={rejectionTemplate} onChange={(event) => setRejectionTemplate(event.target.value)} autoFocus>
+                          <option value="">Select a reason…</option>
+                          {REJECTION_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
+                        </select>
+                        {rejectionTemplate === 'Other' && (
+                          <textarea className="px-clarification-textarea" placeholder="Describe the rejection reason…" value={rejectionCustom} onChange={(event) => setRejectionCustom(event.target.value)} rows={3} />
+                        )}
+                        <div className="px-clarification-actions">
+                          <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowRejectInput(false); setRejectionTemplate(''); setRejectionCustom('') }}>Cancel</button>
+                          <button className="btn btn--sm px-decision-btn--reject" type="button" onClick={handleReject} disabled={!rejectionTemplate || (rejectionTemplate === 'Other' && !rejectionCustom.trim())}>Confirm rejection</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {showClarificationInput && (
+                      <div className="px-clarification-box">
+                        <textarea className="px-clarification-textarea" placeholder="Enter the clarification message for the patient…" value={clarificationNote} onChange={(event) => setClarificationNote(event.target.value)} rows={3} autoFocus />
+                        <div className="px-clarification-actions">
+                          <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowClarificationInput(false); setClarificationNote('') }}>Cancel</button>
+                          <button className="btn btn--sm px-decision-btn--clarify-confirm" type="button" onClick={() => handleClarification(clarificationNote)} disabled={!clarificationNote.trim()}>Send clarification</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
 
             {/* Footer */}
@@ -1072,6 +1491,7 @@ function PharmacistDashboardPage() {
                 <span className="px-modal__submitted">Updated {formatOrderDate(activeOrder.updated_at)}</span>
                 <button className="modal__close" type="button" onClick={() => setActiveOrder(null)}>×</button>
               </div>
+
             </div>
 
             <div className="px-modal__body">
@@ -1079,7 +1499,9 @@ function PharmacistDashboardPage() {
                 <div className="pharm-order-modal__summary">
                   <div>
                     <span>Customer</span>
-                    <strong>{activeOrder.customer_name || `${activeOrder.shipping_first_name} ${activeOrder.shipping_last_name}`}</strong>
+                    <strong>{orderCustomerName(activeOrder)}</strong>
+                    <p>{orderCustomerEmail(activeOrder)}</p>
+                    <p>{orderCustomerPhone(activeOrder)}</p>
                   </div>
                   <div>
                     <span>Address</span>
@@ -1089,6 +1511,12 @@ function PharmacistDashboardPage() {
                     <span>Payment</span>
                     <strong>{activeOrder.payment_method.replace(/_/g, ' ')} · {activeOrder.payment_status.replace(/_/g, ' ')}</strong>
                   </div>
+                  {formatOrderPrescriptionReferences(activeOrder) && (
+                    <div>
+                      <span>Prescription</span>
+                      <strong>{formatOrderPrescriptionReferences(activeOrder)}</strong>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pharm-pack-list">
@@ -1103,6 +1531,7 @@ function PharmacistDashboardPage() {
                         <div className="pharm-pack-list__details">
                           <strong>{item.product_name}</strong>
                           <span>SKU: {item.product_sku || 'Not available'}</span>
+                          {item.prescription_id && <span>Rx: {item.prescription_id}</span>}
                         </div>
                         <div className="pharm-pack-list__pricing">
                           <span>{formatCurrency(item.unit_price)} each</span>
@@ -1114,36 +1543,6 @@ function PharmacistDashboardPage() {
                   <p className="pharm-pack-list__hint">Verify the SKU and quantity for each line before moving the order to the next status.</p>
                 </div>
 
-                <div className="pharm-order-track">
-                  {buildOrderTrackingSteps(activeOrder).map((step, index) => (
-                    <div
-                      key={step.status}
-                      className={`pharm-order-track__step ${step.isDone ? 'pharm-order-track__step--done' : ''} ${step.isCurrent ? 'pharm-order-track__step--current' : ''}`}
-                    >
-                      <div className="pharm-order-track__dot">
-                        {step.isDone ? '✓' : step.isCurrent ? '●' : index + 1}
-                      </div>
-                      <div>
-                        <strong>{step.label}</strong>
-                        <span>{formatOrderDate(step.at)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="pharm-order-events">
-                  {activeOrder.events.length === 0 ? (
-                    <p className="pharm-order-events__empty">No order events recorded yet.</p>
-                  ) : activeOrder.events.map((event) => (
-                    <div key={event.id} className="pharm-order-events__item">
-                      <div>
-                        <strong>{event.event_type.replace(/_/g, ' ')}</strong>
-                        <p>{event.message}</p>
-                      </div>
-                      <span>{formatOrderDate(event.created_at)}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               <div className="px-modal__right">
@@ -1161,25 +1560,6 @@ function PharmacistDashboardPage() {
                   ) : (
                     <p className="pharm-order-actions__hint">No further operational status change is needed for this order.</p>
                   )}
-
-                  <div className="form-group" style={{ marginTop: '1rem' }}>
-                    <label htmlFor="pharm-order-note">Order note</label>
-                    <textarea
-                      id="pharm-order-note"
-                      rows={4}
-                      value={orderNote}
-                      onChange={(event) => setOrderNote(event.target.value)}
-                      placeholder="Add a fulfilment or courier handoff note…"
-                    />
-                  </div>
-                  <button
-                    className="btn btn--outline btn--sm"
-                    type="button"
-                    disabled={orderSaving || !orderNote.trim()}
-                    onClick={() => void handleOrderUpdate()}
-                  >
-                    Save note
-                  </button>
                 </div>
               </div>
             </div>
@@ -1224,16 +1604,9 @@ function PharmacistDashboardPage() {
                   </div>
                 </div>
 
-                <div className="pharm-order-events">
-                  <div className="pharm-order-events__item">
-                    <div>
-                      <strong>Status transition confirmation</strong>
-                      <p>
-                        You are updating this order from {ORDER_STATUS_LABELS[statusConfirm.order.status] ?? statusConfirm.order.status} to {ORDER_STATUS_LABELS[statusConfirm.nextStatus] ?? statusConfirm.nextStatus}. Confirm only if that fulfilment step is complete.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <p className="pharm-order-actions__hint">
+                  You are updating this order from {ORDER_STATUS_LABELS[statusConfirm.order.status] ?? statusConfirm.order.status} to {ORDER_STATUS_LABELS[statusConfirm.nextStatus] ?? statusConfirm.nextStatus}. Confirm only if that fulfilment step is complete.
+                </p>
               </div>
 
               <div className="px-modal__right">

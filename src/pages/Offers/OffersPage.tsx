@@ -151,12 +151,19 @@ function OffersPage() {
 
   const handleAddToCart = (deal: typeof allDeals[number]) => {
     if (deal.requiresPrescription) {
-      const prescriptionPath = `/prescriptions?product_id=${deal.id}&product_name=${encodeURIComponent(deal.name)}`
+      const params = new URLSearchParams({
+        product_id: String(deal.id),
+        product_name: deal.name,
+      })
+      if (deal.variantId) params.set('variant_id', String(deal.variantId))
+      const prescriptionPath = `/prescriptions?${params.toString()}`
       navigate(isLoggedIn ? prescriptionPath : `/login?redirect=${encodeURIComponent(prescriptionPath)}`)
       return
     }
     void cartService.add({
       id: deal.id,
+      productId: deal.productId,
+      variantId: deal.variantId,
       name: deal.name,
       brand: deal.brand,
       price: deal.price,

@@ -6,6 +6,77 @@ import { logAdminAction } from '../../data/adminAudit'
 import { kenyaCounties } from '../../data/kenyaLocations'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 
+const SUPPORT_DAY_OPTIONS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const SUPPORT_TIME_OPTIONS = [
+  '06:00am',
+  '06:30am',
+  '07:00am',
+  '07:30am',
+  '08:00am',
+  '08:30am',
+  '09:00am',
+  '09:30am',
+  '10:00am',
+  '10:30am',
+  '11:00am',
+  '11:30am',
+  '12:00pm',
+  '12:30pm',
+  '01:00pm',
+  '01:30pm',
+  '02:00pm',
+  '02:30pm',
+  '03:00pm',
+  '03:30pm',
+  '04:00pm',
+  '04:30pm',
+  '05:00pm',
+  '05:30pm',
+  '06:00pm',
+  '06:30pm',
+  '07:00pm',
+  '07:30pm',
+  '08:00pm',
+  '08:30pm',
+  '09:00pm',
+  '09:30pm',
+  '10:00pm',
+]
+
+function normalizeSupportTime(value: string) {
+  return value.replace(/^0(\d:)/, '$1').replace(':00', '')
+}
+
+function formatSupportHours(fromDay: string, toDay: string, opensAt: string, closesAt: string) {
+  return `${fromDay} – ${toDay}: ${normalizeSupportTime(opensAt)} – ${normalizeSupportTime(closesAt)}`
+}
+
+function parseSupportHours(value: string) {
+  const match = value.match(/^([A-Za-z]{3})\s*[–-]\s*([A-Za-z]{3}):\s*([0-9]{1,2}(?::[0-9]{2})?(?:am|pm))\s*[–-]\s*([0-9]{1,2}(?::[0-9]{2})?(?:am|pm))$/i)
+  if (!match) {
+    return {
+      fromDay: 'Mon',
+      toDay: 'Sun',
+      opensAt: '09:00am',
+      closesAt: '05:00pm',
+    }
+  }
+
+  const [, fromDay, toDay, opensAt, closesAt] = match
+  const normalizeParsedTime = (time: string) => {
+    const [rawHour, rawMinute = '00'] = time.replace(/am|pm/i, '').split(':')
+    const suffix = time.toLowerCase().endsWith('pm') ? 'pm' : 'am'
+    return `${rawHour.padStart(2, '0')}:${rawMinute.padStart(2, '0')}${suffix}`
+  }
+
+  return {
+    fromDay,
+    toDay,
+    opensAt: normalizeParsedTime(opensAt),
+    closesAt: normalizeParsedTime(closesAt),
+  }
+}
+
 function CountyPicker({
   options,
   selected,
@@ -166,6 +237,19 @@ function Settings() {
   )
   const [supportAddress, setSupportAddress] = useState(settings.supportAddress)
   const [supportHours, setSupportHours] = useState(settings.supportHours)
+  const [postalAddress, setPostalAddress] = useState(settings.postalAddress)
+  const [healthSafetyCode, setHealthSafetyCode] = useState(settings.healthSafetyCode)
+  const [premisesRegistrationNumber, setPremisesRegistrationNumber] = useState(settings.premisesRegistrationNumber)
+  const [onlinePharmacyLicenseNumber, setOnlinePharmacyLicenseNumber] = useState(settings.onlinePharmacyLicenseNumber)
+  const [superintendentName, setSuperintendentName] = useState(settings.superintendentName)
+  const [superintendentRegistrationNumber, setSuperintendentRegistrationNumber] = useState(settings.superintendentRegistrationNumber)
+  const [pharmacistConsultationHours, setPharmacistConsultationHours] = useState(settings.pharmacistConsultationHours)
+  const [ppbWebsite, setPpbWebsite] = useState(settings.ppbWebsite)
+  const initialSupportSchedule = parseSupportHours(settings.supportHours)
+  const [supportFromDay, setSupportFromDay] = useState(initialSupportSchedule.fromDay)
+  const [supportToDay, setSupportToDay] = useState(initialSupportSchedule.toDay)
+  const [supportOpensAt, setSupportOpensAt] = useState(initialSupportSchedule.opensAt)
+  const [supportClosesAt, setSupportClosesAt] = useState(initialSupportSchedule.closesAt)
   const [baseFee, setBaseFee] = useState(String(settings.baseDeliveryFee))
   const [freeThreshold, setFreeThreshold] = useState(String(settings.freeDeliveryThreshold))
   const [selectedZones, setSelectedZones] = useState(settings.activeDeliveryZones)
@@ -189,6 +273,19 @@ function Settings() {
     setUseSeparateWhatsapp(hasSeparateWhatsapp)
     setSupportAddress(settings.supportAddress)
     setSupportHours(settings.supportHours)
+    setPostalAddress(settings.postalAddress)
+    setHealthSafetyCode(settings.healthSafetyCode)
+    setPremisesRegistrationNumber(settings.premisesRegistrationNumber)
+    setOnlinePharmacyLicenseNumber(settings.onlinePharmacyLicenseNumber)
+    setSuperintendentName(settings.superintendentName)
+    setSuperintendentRegistrationNumber(settings.superintendentRegistrationNumber)
+    setPharmacistConsultationHours(settings.pharmacistConsultationHours)
+    setPpbWebsite(settings.ppbWebsite)
+    const nextSupportSchedule = parseSupportHours(settings.supportHours)
+    setSupportFromDay(nextSupportSchedule.fromDay)
+    setSupportToDay(nextSupportSchedule.toDay)
+    setSupportOpensAt(nextSupportSchedule.opensAt)
+    setSupportClosesAt(nextSupportSchedule.closesAt)
     setBaseFee(String(settings.baseDeliveryFee))
     setFreeThreshold(String(settings.freeDeliveryThreshold))
     setSelectedZones(settings.activeDeliveryZones)
@@ -212,6 +309,27 @@ function Settings() {
 
   const clearCounties = () => {
     setSelectedZones([])
+    markDirty()
+  }
+
+  const updateSupportSchedule = (
+    nextValues: Partial<{
+      fromDay: string
+      toDay: string
+      opensAt: string
+      closesAt: string
+    }>,
+  ) => {
+    const nextFromDay = nextValues.fromDay ?? supportFromDay
+    const nextToDay = nextValues.toDay ?? supportToDay
+    const nextOpensAt = nextValues.opensAt ?? supportOpensAt
+    const nextClosesAt = nextValues.closesAt ?? supportClosesAt
+
+    setSupportFromDay(nextFromDay)
+    setSupportToDay(nextToDay)
+    setSupportOpensAt(nextOpensAt)
+    setSupportClosesAt(nextClosesAt)
+    setSupportHours(formatSupportHours(nextFromDay, nextToDay, nextOpensAt, nextClosesAt))
     markDirty()
   }
 
@@ -260,6 +378,21 @@ function Settings() {
         whatsappPhone: effectiveWhatsappPhone,
         supportAddress,
         supportHours,
+        postalAddress,
+        healthSafetyCode,
+        premisesRegistrationNumber,
+        onlinePharmacyLicenseNumber,
+        superintendentName,
+        superintendentRegistrationNumber,
+        pharmacistConsultationHours,
+        ppbContactName: settings.ppbContactName,
+        ppbContactAddress: settings.ppbContactAddress,
+        ppbContactPhone: settings.ppbContactPhone,
+        ppbContactEmail: settings.ppbContactEmail,
+        ppbWebsite,
+        complaintPolicyUrl: settings.complaintPolicyUrl,
+        privacyPolicyUrl: settings.privacyPolicyUrl,
+        returnsPolicyUrl: settings.returnsPolicyUrl,
         baseDeliveryFee: normalizedBaseFee,
         freeDeliveryThreshold: normalizedFreeThreshold,
         activeDeliveryZones: selectedZones,
@@ -287,6 +420,14 @@ function Settings() {
       || useSeparateWhatsapp !== (settings.supportPhone.replace(/\D/g, '') !== settings.whatsappPhone.replace(/\D/g, ''))
       || supportAddress.trim() !== settings.supportAddress
       || supportHours.trim() !== settings.supportHours
+      || postalAddress.trim() !== settings.postalAddress
+      || healthSafetyCode.trim() !== settings.healthSafetyCode
+      || premisesRegistrationNumber.trim() !== settings.premisesRegistrationNumber
+      || onlinePharmacyLicenseNumber.trim() !== settings.onlinePharmacyLicenseNumber
+      || superintendentName.trim() !== settings.superintendentName
+      || superintendentRegistrationNumber.trim() !== settings.superintendentRegistrationNumber
+      || pharmacistConsultationHours.trim() !== settings.pharmacistConsultationHours
+      || ppbWebsite.trim() !== settings.ppbWebsite
       || baseFee.trim() !== String(settings.baseDeliveryFee)
       || freeThreshold.trim() !== String(settings.freeDeliveryThreshold)
       || JSON.stringify(normalizedSelectedZones) !== JSON.stringify(normalizedSavedZones)
@@ -296,12 +437,28 @@ function Settings() {
       freeThreshold,
       normalizedSavedZones,
       normalizedSelectedZones,
+      onlinePharmacyLicenseNumber,
+      pharmacistConsultationHours,
+      ppbWebsite,
+      postalAddress,
+      premisesRegistrationNumber,
       settings.baseDeliveryFee,
       settings.freeDeliveryThreshold,
+      settings.healthSafetyCode,
+      settings.onlinePharmacyLicenseNumber,
+      settings.pharmacistConsultationHours,
+      settings.postalAddress,
+      settings.ppbWebsite,
+      settings.premisesRegistrationNumber,
       settings.supportAddress,
       settings.supportEmail,
       settings.supportHours,
       settings.supportPhone,
+      settings.superintendentName,
+      settings.superintendentRegistrationNumber,
+      healthSafetyCode,
+      superintendentName,
+      superintendentRegistrationNumber,
       settings.whatsappPhone,
       supportAddress,
       supportEmail,
@@ -450,15 +607,57 @@ function Settings() {
           </div>
           <div className="form-group">
             <label htmlFor="support-hours">Support hours</label>
-            <input
-              id="support-hours"
-              type="text"
-              value={supportHours}
-              onChange={(e) => {
-                setSupportHours(e.target.value)
-                markDirty()
-              }}
-            />
+            <div className="settings-support-hours" id="support-hours">
+              <div className="settings-support-hours__field">
+                <span>From</span>
+                <select
+                  aria-label="Support starts on"
+                  value={supportFromDay}
+                  onChange={(e) => updateSupportSchedule({ fromDay: e.target.value })}
+                >
+                  {SUPPORT_DAY_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-support-hours__field">
+                <span>To</span>
+                <select
+                  aria-label="Support ends on"
+                  value={supportToDay}
+                  onChange={(e) => updateSupportSchedule({ toDay: e.target.value })}
+                >
+                  {SUPPORT_DAY_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-support-hours__field">
+                <span>Opens</span>
+                <select
+                  aria-label="Support opening time"
+                  value={supportOpensAt}
+                  onChange={(e) => updateSupportSchedule({ opensAt: e.target.value })}
+                >
+                  {SUPPORT_TIME_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="settings-support-hours__field">
+                <span>Closes</span>
+                <select
+                  aria-label="Support closing time"
+                  value={supportClosesAt}
+                  onChange={(e) => updateSupportSchedule({ closesAt: e.target.value })}
+                >
+                  {SUPPORT_TIME_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <span className="settings-support-hours__preview">{supportHours}</span>
           </div>
           <div className="settings-inline-link">
             <span>Promotions are managed in</span>
@@ -467,6 +666,43 @@ function Settings() {
           <div className="settings-inline-link">
             <span>Escalated issues are handled in</span>
             <Link to="/admin/support">Support & Escalations</Link>
+          </div>
+        </div>
+
+        <div className="form-card settings-card">
+          <h2 className="card__title">PPB Internet Pharmacy</h2>
+          <p className="card__subtitle">These details are displayed publicly for PPB internet-pharmacy compliance.</p>
+          <div className="form-group">
+            <label htmlFor="health-safety-code">Health Safety Code</label>
+            <input id="health-safety-code" value={healthSafetyCode} onChange={(e) => { setHealthSafetyCode(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="premises-registration">Premises registration number</label>
+            <input id="premises-registration" value={premisesRegistrationNumber} onChange={(e) => { setPremisesRegistrationNumber(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="online-license">Online pharmacy license number</label>
+            <input id="online-license" value={onlinePharmacyLicenseNumber} onChange={(e) => { setOnlinePharmacyLicenseNumber(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="postal-address">Postal address</label>
+            <input id="postal-address" value={postalAddress} onChange={(e) => { setPostalAddress(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="superintendent-name">Superintendent pharmacist / technologist</label>
+            <input id="superintendent-name" value={superintendentName} onChange={(e) => { setSuperintendentName(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="superintendent-reg">Superintendent registration number</label>
+            <input id="superintendent-reg" value={superintendentRegistrationNumber} onChange={(e) => { setSuperintendentRegistrationNumber(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="pharmacist-hours">Pharmacist consultation hours</label>
+            <input id="pharmacist-hours" value={pharmacistConsultationHours} onChange={(e) => { setPharmacistConsultationHours(e.target.value); markDirty() }} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="ppb-website">PPB website</label>
+            <input id="ppb-website" value={ppbWebsite} onChange={(e) => { setPpbWebsite(e.target.value); markDirty() }} />
           </div>
         </div>
       </div>

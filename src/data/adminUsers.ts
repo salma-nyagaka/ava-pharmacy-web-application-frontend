@@ -26,6 +26,9 @@ export interface AdminUser {
   address: string
   notes: string[]
   pharmacistPermissions?: PharmacistPermission[]
+  pharmacistLicenseNumber?: string
+  pharmacistBranchLocation?: string
+  pharmacistPosition?: string
 }
 
 const STORAGE_KEY = 'ava_admin_users'

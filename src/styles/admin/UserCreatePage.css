@@ -522,6 +522,25 @@
   font-weight: 500;
 }
 
+.staff-activate-terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0.25rem 0 1rem;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.staff-activate-terms input {
+  margin-top: 0.15rem;
+  width: 15px;
+  height: 15px;
+  accent-color: #e81750;
+  flex-shrink: 0;
+}
+
 .staff-activate-btn {
   display: flex;
   align-items: center;

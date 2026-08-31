@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { adminProductService, ApiInventoryProduct, ApiPosProductOption, ApiProductVariant } from '../../services/adminProductService'
+import { adminProductService, ApiInventoryProduct, ApiPosProductOption, ApiProduct, ApiProductVariant } from '../../services/adminProductService'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/InventoryManagement.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
@@ -29,18 +29,27 @@ type VariantDraft = {
   low_stock_threshold: string
   allow_backorder: boolean
   max_backorder_quantity: string
+  has_stock_information: boolean
+  batch_summary: string
 }
 
-function generateVariantSku(product: ApiInventoryProduct, variantName: string) {
-  const base = `${product.sku}-${variantName}`
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 36)
-  const suffix = Date.now().toString(36).toUpperCase().slice(-4)
-  return `${base || product.sku}-${suffix}`
-}
+type NewStockFieldErrorKey =
+  | 'product'
+  | 'name'
+  | 'sku'
+  | 'barcode'
+  | 'strength'
+  | 'pos_product_id'
+  | 'image'
+  | 'dose'
+  | 'frequency'
+  | 'directions'
+  | 'warnings'
+  | 'price'
+  | 'stock_quantity'
+  | 'low_stock_threshold'
+
+type AdjustFieldErrorKey = 'branchStock' | 'branchThreshold' | 'branchMaxBackorder' | string
 
 function getInventoryItem(product: ApiInventoryProduct, location: 'branch' | 'warehouse') {
   return product.inventories?.find((inventory) => inventory.location === location)
@@ -62,12 +71,12 @@ function getInventoryMaxBackorder(product: ApiInventoryProduct, location: 'branc
   return getInventoryItem(product, location)?.max_backorder_quantity ?? 0
 }
 
-function isVariantManaged(product: ApiInventoryProduct) {
-  return Boolean(product.has_variants || (product.variants?.length ?? 0) > 0)
+function isVariantManaged(_product: ApiInventoryProduct) {
+  return true
 }
 
 function getInventoryStatus(product: ApiInventoryProduct) {
-  return product.inventory_status ?? 'out_of_stock'
+  return product.inventory_status ?? 'no_stock_info'
 }
 
 function formatStatusLabel(status: string): string {
@@ -75,22 +84,26 @@ function formatStatusLabel(status: string): string {
   if (status === 'low_stock') return 'Low Stock'
   if (status === 'backorder') return 'Backorder'
   if (status === 'inactive') return 'Inactive'
+  if (status === 'no_stock_info') return 'No Stock Info'
   return 'Out of Stock'
 }
 
 function getStatusClass(status: string): string {
   if (status === 'in_stock') return 'admin-status admin-status--success'
   if (status === 'low_stock' || status === 'backorder') return 'admin-status admin-status--warning'
+  if (status === 'no_stock_info') return 'admin-status'
   return 'admin-status admin-status--danger'
 }
 
 function formatStockSource(value: ApiInventoryProduct['stock_source']): string {
+  if (!value) return 'No stock info'
   if (value === 'branch') return 'Main Shop'
   if (value === 'warehouse') return 'POS Store'
   return 'Out of Stock'
 }
 
 function formatVariantStockSource(value: ApiProductVariant['stock_source']): string {
+  if (!value) return 'No stock info'
   if (value === 'branch') return 'Main Shop'
   if (value === 'warehouse') return 'POS-backed'
   return 'Out of Stock'
@@ -102,36 +115,38 @@ function formatDateTime(value?: string | null): string {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
 }
 
-function formatPosSync(product: ApiInventoryProduct): string {
-  if (isVariantManaged(product)) return 'Variant POS sync'
-  const posInventory = getInventoryItem(product, 'warehouse')
-  if (!posInventory) return 'Not synced'
-  const sourceName = posInventory.source_name || 'POS Store'
-  if (!posInventory.is_pos_synced && !posInventory.last_synced_at) {
-    return sourceName === 'POS Store' ? 'Not synced' : sourceName
-  }
-  if (!posInventory.last_synced_at) return sourceName
-  return `${sourceName} · ${formatDateTime(posInventory.last_synced_at)}`
+function formatDate(value?: string | null): string {
+  if (!value) return 'No expiry'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'No expiry' : date.toLocaleDateString('en-KE')
 }
 
-function getActiveVariantCount(product: ApiInventoryProduct): number {
-  return (product.variants ?? []).filter((variant) => variant.is_active).length
+function formatVariantBatchSummary(variant: ApiProductVariant): string {
+  const batches = variant.inventories ?? []
+  if (batches.length === 0) return 'No stock information saved'
+  return batches
+    .filter((inventory) => inventory.stock_quantity > 0 || inventory.batch_number || inventory.expiry_date)
+    .slice(0, 3)
+    .map((inventory) => {
+      const label = inventory.batch_number || 'Default batch'
+      const location = inventory.location === 'branch' ? 'Main Shop' : 'POS Store'
+      return `${label} · ${inventory.stock_quantity} at ${location} · exp ${formatDate(inventory.expiry_date)}`
+    })
+    .join(' | ') || 'No stock in batches'
+}
+
+function formatPosSync(product: ApiInventoryProduct): string {
+  if (product.stock_source !== 'warehouse') return 'Not POS-backed'
+  const lastSync = product.inventories?.find((inventory) => inventory.location === 'warehouse')?.last_synced_at
+  return lastSync ? `Synced · ${formatDateTime(lastSync)}` : 'POS-backed variant'
 }
 
 function getManagedStock(product: ApiInventoryProduct): number {
-  if (isVariantManaged(product)) {
-    return (product.variants ?? []).reduce((total, variant) => total + (variant.stock_quantity ?? 0), 0)
-  }
-  return getInventoryQuantity(product, 'branch')
+  return product.stock_quantity ?? 0
 }
 
 function getPosManagedQuantity(product: ApiInventoryProduct): number {
-  if (isVariantManaged(product)) {
-    return (product.variants ?? [])
-      .filter((variant) => variant.stock_source === 'warehouse')
-      .reduce((total, variant) => total + (variant.stock_quantity ?? 0), 0)
-  }
-  return getInventoryQuantity(product, 'warehouse')
+  return product.stock_source === 'warehouse' ? product.stock_quantity ?? 0 : 0
 }
 
 function getSellableQuantity(product: ApiInventoryProduct): number {
@@ -139,22 +154,13 @@ function getSellableQuantity(product: ApiInventoryProduct): number {
 }
 
 function formatBackorderSummary(product: ApiInventoryProduct): string {
-  if (isVariantManaged(product)) {
-    const variants = product.variants ?? []
-    const enabled = variants.filter((variant) => variant.allow_backorder)
-    if (enabled.length === 0) return 'No'
-    return `${enabled.length} variant${enabled.length === 1 ? '' : 's'} enabled`
-  }
-
-  const parts = [
-    getInventoryAllowBackorder(product, 'branch') ? `Main Shop · Max ${getInventoryMaxBackorder(product, 'branch')}` : null,
-    getInventoryAllowBackorder(product, 'warehouse') ? `POS Store · Max ${getInventoryMaxBackorder(product, 'warehouse')}` : null,
-  ].filter((value): value is string => Boolean(value))
-
-  return parts.length > 0 ? parts.join(' · ') : 'No'
+  if (product.allow_backorder === null) return 'No stock info'
+  if (!product.allow_backorder) return 'No'
+  return `Yes · Max ${product.max_backorder_quantity ?? 0}`
 }
 
 function createVariantDraft(variant: ApiProductVariant): VariantDraft {
+  const hasStockInformation = Boolean((variant.inventories ?? []).length)
   return {
     id: variant.id,
     name: variant.name,
@@ -169,15 +175,86 @@ function createVariantDraft(variant: ApiProductVariant): VariantDraft {
     attributes: variant.attributes ?? {},
     stock_source: variant.stock_source,
     is_active: Boolean(variant.is_active),
-    stock_quantity: String(variant.stock_quantity ?? 0),
-    low_stock_threshold: String(variant.low_stock_threshold ?? 0),
+    stock_quantity: variant.stock_quantity === null ? '' : String(variant.stock_quantity ?? 0),
+    low_stock_threshold: variant.low_stock_threshold === null ? '' : String(variant.low_stock_threshold ?? 0),
     allow_backorder: Boolean(variant.allow_backorder),
     max_backorder_quantity: String(variant.max_backorder_quantity ?? 0),
+    has_stock_information: hasStockInformation,
+    batch_summary: formatVariantBatchSummary(variant),
   }
 }
 
 function parseNonNegativeInteger(value: string): number {
   return Math.max(0, Number.parseInt(value, 10) || 0)
+}
+
+function isNonNegativeIntegerInput(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  const numberValue = Number(trimmed)
+  return Number.isInteger(numberValue) && numberValue >= 0
+}
+
+function isPositiveIntegerInput(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  const numberValue = Number(trimmed)
+  return Number.isInteger(numberValue) && numberValue > 0
+}
+
+function isPositiveNumberInput(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  const numberValue = Number(trimmed)
+  return Number.isFinite(numberValue) && numberValue > 0
+}
+
+function isNonNegativeNumberInput(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  const numberValue = Number(trimmed)
+  return Number.isFinite(numberValue) && numberValue >= 0
+}
+
+function getApiFieldDetails(error: unknown): Record<string, string[] | string> | null {
+  type ApiErr = {
+    response?: {
+      data?: {
+        error?: {
+          message?: string
+          details?: unknown
+        }
+        errors?: {
+          details?: unknown
+        }
+      }
+    }
+  }
+
+  const responseData = (error as ApiErr)?.response?.data
+  const candidates = [
+    responseData?.error?.details,
+    responseData?.errors?.details,
+    responseData?.error?.details &&
+      typeof responseData.error.details === 'object' &&
+      !Array.isArray(responseData.error.details) &&
+      'errors' in responseData.error.details
+      ? (responseData.error.details as { errors?: { details?: unknown } }).errors?.details
+      : null,
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+      return candidate as Record<string, string[] | string>
+    }
+  }
+
+  return null
+}
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  type ApiErr = { response?: { data?: { error?: { message?: string }; message?: string } } }
+  return (error as ApiErr)?.response?.data?.error?.message ?? (error as ApiErr)?.response?.data?.message ?? fallback
 }
 
 function getVariantDraftQuantity(draft: VariantDraft): number {
@@ -199,6 +276,7 @@ function getVariantDraftAvailableQuantity(draft: VariantDraft): number {
 }
 
 function getVariantDraftStatus(draft: VariantDraft): string {
+  if (!draft.has_stock_information) return 'no_stock_info'
   if (!draft.is_active) return 'inactive'
   const stockQuantity = getVariantDraftQuantity(draft)
   if (stockQuantity === 0) return draft.allow_backorder ? 'backorder' : 'out_of_stock'
@@ -216,6 +294,7 @@ function InventoryManagement() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [inventory, setInventory] = useState<ApiInventoryProduct[]>([])
+  const [parentProducts, setParentProducts] = useState<ApiProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -230,21 +309,25 @@ function InventoryManagement() {
   const [branchMaxBackorder, setBranchMaxBackorder] = useState('0')
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([])
   const [adjustError, setAdjustError] = useState('')
+  const [adjustFieldErrors, setAdjustFieldErrors] = useState<Partial<Record<AdjustFieldErrorKey, string>>>({})
   const [adjustSaving, setAdjustSaving] = useState(false)
-  const [showProductPicker, setShowProductPicker] = useState(false)
   const [showNewStockModal, setShowNewStockModal] = useState(false)
   const [newStockProductId, setNewStockProductId] = useState<number | ''>('')
   const [newVariantName, setNewVariantName] = useState('')
+  const [newVariantSku, setNewVariantSku] = useState('')
+  const [newVariantBarcode, setNewVariantBarcode] = useState('')
   const [newVariantStrength, setNewVariantStrength] = useState('')
   const [newVariantDosageAmount, setNewVariantDosageAmount] = useState('')
   const [newVariantDosageQuantity, setNewVariantDosageQuantity] = useState('')
   const [newVariantDirections, setNewVariantDirections] = useState('')
   const [newVariantWarnings, setNewVariantWarnings] = useState('')
   const [newVariantPosProductId, setNewVariantPosProductId] = useState('')
+  const [newVariantImageFile, setNewVariantImageFile] = useState<File | null>(null)
   const [newVariantPrice, setNewVariantPrice] = useState('')
   const [newVariantStockQuantity, setNewVariantStockQuantity] = useState('0')
   const [newVariantLowStockThreshold, setNewVariantLowStockThreshold] = useState('5')
   const [newStockError, setNewStockError] = useState('')
+  const [newStockFieldErrors, setNewStockFieldErrors] = useState<Partial<Record<NewStockFieldErrorKey, string>>>({})
   const [newStockSaving, setNewStockSaving] = useState(false)
   const [posOptions, setPosOptions] = useState<ApiPosProductOption[]>([])
   const [posSyncingIds, setPosSyncingIds] = useState<Record<number, boolean>>({})
@@ -257,20 +340,20 @@ function InventoryManagement() {
     if (adjustSaving) return
     setAdjustItem(null)
     setVariantDrafts([])
-    setShowProductPicker(false)
     setAdjustError('')
+    setAdjustFieldErrors({})
     setPosSyncError('')
   }
 
-  const populateAdjustForm = (item: ApiInventoryProduct, options?: { showPicker?: boolean }) => {
+  const populateAdjustForm = (item: ApiInventoryProduct) => {
     setAdjustItem(item)
     setBranchStock(String(getInventoryQuantity(item, 'branch')))
     setBranchThreshold(String(getInventoryThreshold(item, 'branch')))
     setBranchAllowBackorder(getInventoryAllowBackorder(item, 'branch'))
     setBranchMaxBackorder(String(getInventoryMaxBackorder(item, 'branch')))
-    setVariantDrafts((item.variants ?? []).map(createVariantDraft))
-    setShowProductPicker(options?.showPicker ?? false)
+    setVariantDrafts([createVariantDraft(item)])
     setAdjustError('')
+    setAdjustFieldErrors({})
     setPosSyncError('')
   }
 
@@ -287,9 +370,18 @@ function InventoryManagement() {
   }, [filterProductId])
 
   useEffect(() => {
-    void adminProductService.listPosProductOptions()
-      .then(setPosOptions)
-      .catch(() => setPosOptions([]))
+    void Promise.all([
+      adminProductService.listPosProductOptions(),
+      adminProductService.listProducts(),
+    ])
+      .then(([options, products]) => {
+        setPosOptions(options)
+        setParentProducts(products.filter((product) => product.is_active))
+      })
+      .catch(() => {
+        setPosOptions([])
+        setParentProducts([])
+      })
   }, [])
 
   async function loadInventory() {
@@ -302,7 +394,7 @@ function InventoryManagement() {
 
       if (filterProductId) {
         const targetId = Number(filterProductId)
-        const match = items.find((product) => product.id === targetId)
+        const match = items.find((product) => product.product_id === targetId || product.id === targetId)
         if (match && autoOpenedProductId !== targetId) {
           populateAdjustForm(match)
           setAutoOpenedProductId(targetId)
@@ -317,31 +409,33 @@ function InventoryManagement() {
 
   async function refreshInventoryItem(productId: number) {
     const items = await adminProductService.listInventory({ product_id: String(productId) })
-    const refreshed = items[0] ?? null
-    if (!refreshed) return null
+    if (items.length === 0) return []
 
     setInventory((prev) => {
-      if (filterProductId) return [refreshed]
-      const exists = prev.some((item) => item.id === productId)
-      if (!exists) return [refreshed, ...prev]
-      return prev.map((item) => (item.id === productId ? refreshed : item))
+      if (filterProductId) return items
+      const productIds = new Set(items.map((item) => item.product_id))
+      return [...items, ...prev.filter((item) => !productIds.has(item.product_id))]
     })
 
-    return refreshed
+    return items
   }
 
   const resetNewStockForm = () => {
     setNewVariantName('')
+    setNewVariantSku('')
+    setNewVariantBarcode('')
     setNewVariantStrength('')
     setNewVariantDosageAmount('')
     setNewVariantDosageQuantity('')
     setNewVariantDirections('')
     setNewVariantWarnings('')
     setNewVariantPosProductId('')
+    setNewVariantImageFile(null)
     setNewVariantPrice('')
     setNewVariantStockQuantity('0')
     setNewVariantLowStockThreshold('5')
     setNewStockError('')
+    setNewStockFieldErrors({})
   }
 
   const filteredInventory = useMemo(() => {
@@ -349,14 +443,11 @@ function InventoryManagement() {
 
     return inventory.filter((item) => {
       const matchSearch = query === ''
+        || item.product_name.toLowerCase().includes(query)
         || item.name.toLowerCase().includes(query)
         || item.sku.toLowerCase().includes(query)
-        || (item.variants ?? []).some((variant) =>
-          variant.name.toLowerCase().includes(query)
-          || variant.sku.toLowerCase().includes(query)
-          || (variant.barcode ?? '').toLowerCase().includes(query)
-          || (variant.pos_product_id ?? '').toLowerCase().includes(query),
-        )
+        || (item.barcode ?? '').toLowerCase().includes(query)
+        || (item.pos_product_id ?? '').toLowerCase().includes(query)
 
       const status = getInventoryStatus(item)
       const matchStatus = selectedStatus === 'all' || status === selectedStatus
@@ -405,7 +496,35 @@ function InventoryManagement() {
   }
 
   const handleVariantDraftChange = (variantId: number, patch: Partial<VariantDraft>) => {
-    setVariantDrafts((prev) => prev.map((draft) => (draft.id === variantId ? { ...draft, ...patch } : draft)))
+    const stockFields: Array<keyof VariantDraft> = ['stock_quantity', 'low_stock_threshold', 'allow_backorder', 'max_backorder_quantity']
+    const touchesStock = stockFields.some((field) => Object.prototype.hasOwnProperty.call(patch, field))
+    setVariantDrafts((prev) => prev.map((draft) => (draft.id === variantId ? { ...draft, ...patch, has_stock_information: touchesStock ? true : draft.has_stock_information } : draft)))
+    setAdjustFieldErrors((prev) => {
+      const next = { ...prev }
+      if ('stock_quantity' in patch) delete next[`variant-${variantId}-stock_quantity`]
+      if ('low_stock_threshold' in patch) delete next[`variant-${variantId}-low_stock_threshold`]
+      if ('max_backorder_quantity' in patch) delete next[`variant-${variantId}-max_backorder_quantity`]
+      if ('allow_backorder' in patch) delete next[`variant-${variantId}-max_backorder_quantity`]
+      return next
+    })
+  }
+
+  const clearNewStockFieldError = (field: NewStockFieldErrorKey) => {
+    setNewStockFieldErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }
+
+  const clearAdjustFieldError = (field: AdjustFieldErrorKey) => {
+    setAdjustFieldErrors((prev) => {
+      if (!prev[field]) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
   }
 
   const handleAdjustOpen = (item: ApiInventoryProduct) => {
@@ -421,31 +540,63 @@ function InventoryManagement() {
 
   const handleNewStockOpen = (item?: ApiInventoryProduct | null) => {
     const initialItem = item ?? focusedProduct ?? sortedInventory[0] ?? inventory[0] ?? null
-    if (!initialItem) return
-    setNewStockProductId(initialItem.id)
+    setNewStockProductId(initialItem?.product_id ?? parentProducts[0]?.id ?? '')
     resetNewStockForm()
     setShowNewStockModal(true)
   }
 
   const handleNewStockSave = async () => {
-    const selectedProduct = inventory.find((item) => item.id === Number(newStockProductId))
+    const selectedProduct = parentProducts.find((item) => item.id === Number(newStockProductId))
+    const fieldErrors: Partial<Record<NewStockFieldErrorKey, string>> = {}
+
     if (!selectedProduct) {
-      setNewStockError('Select a product first.')
-      return
+      fieldErrors.product = 'Select a parent product.'
     }
     if (!newVariantName.trim()) {
-      setNewStockError('Variant name is required.')
-      return
+      fieldErrors.name = 'Variant name is required.'
+    }
+    if (!newVariantBarcode.trim()) {
+      fieldErrors.barcode = 'Barcode is required.'
+    }
+    if (!newVariantStrength.trim()) {
+      fieldErrors.strength = 'Strength is required.'
+    }
+    if (!newVariantImageFile) {
+      fieldErrors.image = 'Variant image is required.'
+    }
+    if (!isPositiveNumberInput(newVariantDosageAmount)) {
+      fieldErrors.dose = 'Enter a dose greater than 0.'
+    }
+    if (!isPositiveNumberInput(newVariantDosageQuantity)) {
+      fieldErrors.frequency = 'Enter a frequency greater than 0.'
+    }
+    if (!newVariantDirections.trim()) {
+      fieldErrors.directions = 'Directions are required.'
+    }
+    if (!newVariantWarnings.trim()) {
+      fieldErrors.warnings = 'Warnings are required.'
     }
 
     const priceValue = Number(newVariantPrice)
-    if (!newVariantPrice.trim() || !Number.isFinite(priceValue) || priceValue < 0) {
-      setNewStockError('Enter a valid variant price.')
+    if (!isNonNegativeNumberInput(newVariantPrice)) {
+      fieldErrors.price = 'Enter a valid selling price.'
+    }
+    if (!isNonNegativeIntegerInput(newVariantStockQuantity)) {
+      fieldErrors.stock_quantity = 'Enter a valid opening stock quantity.'
+    }
+    if (!isNonNegativeIntegerInput(newVariantLowStockThreshold)) {
+      fieldErrors.low_stock_threshold = 'Enter a valid low stock threshold.'
+    }
+
+    if (Object.keys(fieldErrors).length > 0 || !selectedProduct) {
+      setNewStockFieldErrors(fieldErrors)
+      setNewStockError('')
       return
     }
 
     setNewStockSaving(true)
     setNewStockError('')
+    setNewStockFieldErrors({})
     try {
       const dosageInstructionValue = (() => {
         const amount = newVariantDosageAmount.trim()
@@ -456,26 +607,72 @@ function InventoryManagement() {
         return ''
       })()
 
-      await adminProductService.createProductVariant(selectedProduct.id, {
-        name: newVariantName.trim(),
-        sku: generateVariantSku(selectedProduct, newVariantName),
-        pos_product_id: newVariantPosProductId,
-        strength: newVariantStrength.trim(),
-        dosage_instructions: dosageInstructionValue,
-        directions: newVariantDirections.trim(),
-        warnings: newVariantWarnings.trim(),
-        price: priceValue,
-        stock_quantity: parseNonNegativeInteger(newVariantStockQuantity),
-        low_stock_threshold: parseNonNegativeInteger(newVariantLowStockThreshold),
-        is_active: true,
-      })
-      const refreshed = await refreshInventoryItem(selectedProduct.id)
-      if (refreshed && adjustItem?.id === selectedProduct.id) {
-        populateAdjustForm(refreshed)
+      const payload = new FormData()
+      payload.append('name', newVariantName.trim())
+      if (newVariantSku.trim()) {
+        payload.append('sku', newVariantSku.trim())
       }
+      payload.append('barcode', newVariantBarcode.trim())
+      payload.append('pos_product_id', newVariantPosProductId)
+      payload.append('strength', newVariantStrength.trim())
+      payload.append('dosage_instructions', dosageInstructionValue)
+      payload.append('directions', newVariantDirections.trim())
+      payload.append('warnings', newVariantWarnings.trim())
+      payload.append('price', String(priceValue))
+      payload.append('stock_quantity', String(parseNonNegativeInteger(newVariantStockQuantity)))
+      payload.append('low_stock_threshold', String(parseNonNegativeInteger(newVariantLowStockThreshold)))
+      payload.append('is_active', 'true')
+      if (newVariantImageFile) {
+        payload.append('image', newVariantImageFile)
+      }
+
+      await adminProductService.createProductVariant(selectedProduct.id, payload)
+      const refreshed = await refreshInventoryItem(selectedProduct.id)
+      const refreshedVariant = refreshed.find((item) => item.product_id === selectedProduct.id)
+      if (refreshedVariant && adjustItem?.product_id === selectedProduct.id) {
+        populateAdjustForm(refreshedVariant)
+      }
+      setSearchTerm('')
+      setSelectedStatus('all')
+      setSortField('sellable_quantity')
+      setSortDirection('desc')
+      setCurrentPage(1)
       closeNewStockModal()
-    } catch {
-      setNewStockError('Failed to create stock for this variant.')
+    } catch (err: unknown) {
+      const apiDetails = getApiFieldDetails(err)
+      if (apiDetails) {
+        const aliases: Record<string, NewStockFieldErrorKey> = {
+          product: 'product',
+          product_id: 'product',
+          name: 'name',
+          barcode: 'barcode',
+          strength: 'strength',
+          pos_product_id: 'pos_product_id',
+          image: 'image',
+          dosage_instructions: 'dose',
+          dosage_amount: 'dose',
+          dose: 'dose',
+          dosage_quantity: 'frequency',
+          frequency: 'frequency',
+          directions: 'directions',
+          warnings: 'warnings',
+          price: 'price',
+          stock_quantity: 'stock_quantity',
+          low_stock_threshold: 'low_stock_threshold',
+        }
+        const apiFieldErrors: Partial<Record<NewStockFieldErrorKey, string>> = {}
+        const genericMessages: string[] = []
+        Object.entries(apiDetails).forEach(([field, value]) => {
+          const message = Array.isArray(value) ? value.join(', ') : String(value)
+          const fieldKey = aliases[field]
+          if (fieldKey) apiFieldErrors[fieldKey] = message
+          else genericMessages.push(`${field}: ${message}`)
+        })
+        setNewStockFieldErrors(apiFieldErrors)
+        setNewStockError(genericMessages.join(' · '))
+      } else {
+        setNewStockError(getApiErrorMessage(err, 'Failed to create stock for this variant.'))
+      }
     } finally {
       setNewStockSaving(false)
     }
@@ -487,19 +684,30 @@ function InventoryManagement() {
     if (isVariantManaged(adjustItem)) {
       if (variantDrafts.length === 0) {
         setAdjustError('Use New Stock to create a variant before managing stock here.')
+        setAdjustFieldErrors({})
         return
       }
 
+      const nextFieldErrors: Partial<Record<AdjustFieldErrorKey, string>> = {}
       const variantUpdates = []
       for (const draft of variantDrafts) {
+        const stockKey = `variant-${draft.id}-stock_quantity`
+        const thresholdKey = `variant-${draft.id}-low_stock_threshold`
+        const backorderKey = `variant-${draft.id}-max_backorder_quantity`
+
+        if (!isNonNegativeIntegerInput(draft.stock_quantity)) {
+          nextFieldErrors[stockKey] = 'Enter a valid available stock quantity.'
+        }
+        if (!isNonNegativeIntegerInput(draft.low_stock_threshold)) {
+          nextFieldErrors[thresholdKey] = 'Enter a valid low stock threshold.'
+        }
+        if (draft.allow_backorder && !isPositiveIntegerInput(draft.max_backorder_quantity)) {
+          nextFieldErrors[backorderKey] = 'Enter a max backorder quantity greater than 0.'
+        }
+
         const stockQuantity = getVariantDraftQuantity(draft)
         const lowStockThreshold = getVariantDraftThreshold(draft)
         const maxBackorderQuantity = draft.allow_backorder ? getVariantDraftMaxBackorder(draft) : 0
-
-        if (draft.allow_backorder && maxBackorderQuantity === 0) {
-          setAdjustError(`Set a max backorder quantity greater than 0 for ${draft.name}.`)
-          return
-        }
 
         variantUpdates.push({
           variantId: draft.id,
@@ -512,21 +720,45 @@ function InventoryManagement() {
         })
       }
 
+      if (Object.keys(nextFieldErrors).length > 0) {
+        setAdjustFieldErrors(nextFieldErrors)
+        setAdjustError('')
+        return
+      }
+
       setAdjustSaving(true)
       setAdjustError('')
+      setAdjustFieldErrors({})
       try {
         await Promise.all(
           variantUpdates.map((update) =>
-            adminProductService.updateProductVariant(adjustItem.id, update.variantId, update.payload),
+            adminProductService.updateProductVariant(adjustItem.product_id, update.variantId, update.payload),
           ),
         )
-        await refreshInventoryItem(adjustItem.id)
+        await refreshInventoryItem(adjustItem.product_id)
         closeAdjustModal()
-      } catch {
-        setAdjustError('Failed to save variant stock changes.')
+      } catch (err: unknown) {
+        setAdjustError(getApiErrorMessage(err, 'Failed to save variant stock changes.'))
       } finally {
         setAdjustSaving(false)
       }
+      return
+    }
+
+    const branchFieldErrors: Partial<Record<AdjustFieldErrorKey, string>> = {}
+    if (!isNonNegativeIntegerInput(branchStock)) {
+      branchFieldErrors.branchStock = 'Enter a valid available stock quantity.'
+    }
+    if (!isNonNegativeIntegerInput(branchThreshold)) {
+      branchFieldErrors.branchThreshold = 'Enter a valid low stock threshold.'
+    }
+    if (branchAllowBackorder && !isPositiveIntegerInput(branchMaxBackorder)) {
+      branchFieldErrors.branchMaxBackorder = 'Enter a max backorder quantity greater than 0.'
+    }
+
+    if (Object.keys(branchFieldErrors).length > 0) {
+      setAdjustFieldErrors(branchFieldErrors)
+      setAdjustError('')
       return
     }
 
@@ -537,13 +769,9 @@ function InventoryManagement() {
       max_backorder_quantity: branchAllowBackorder ? parseNonNegativeInteger(branchMaxBackorder) : 0,
     }
 
-    if (branchAllowBackorder && branchPayload.max_backorder_quantity === 0) {
-      setAdjustError('Set a main shop max backorder quantity greater than 0 when backorder is enabled.')
-      return
-    }
-
     setAdjustSaving(true)
     setAdjustError('')
+    setAdjustFieldErrors({})
     try {
       const updated = await adminProductService.adjustInventory(adjustItem.id, {
         branch_inventory: branchPayload,
@@ -553,8 +781,8 @@ function InventoryManagement() {
         return prev.map((product) => (product.id === adjustItem.id ? updated : product))
       })
       closeAdjustModal()
-    } catch {
-      setAdjustError('Failed to save inventory changes.')
+    } catch (err: unknown) {
+      setAdjustError(getApiErrorMessage(err, 'Failed to save inventory changes.'))
     } finally {
       setAdjustSaving(false)
     }
@@ -564,29 +792,12 @@ function InventoryManagement() {
     setPosSyncingIds((prev) => ({ ...prev, [item.id]: true }))
     setPosSyncError('')
     try {
-      if (isVariantManaged(item)) {
-        const variantIds = (item.variants ?? []).map((variant) => variant.id)
-        if (variantIds.length === 0) {
-          setPosSyncError('Use New Stock to create a variant before syncing POS stock for this item.')
-          return
-        }
-        await adminProductService.refreshVariantPosInventory(variantIds, true)
-        const refreshed = await refreshInventoryItem(item.id)
-        if (refreshed && adjustItem?.id === item.id) {
-          populateAdjustForm(refreshed)
-        }
-        return
-      }
-
-      const updated = await adminProductService.refreshPosInventory([item.id], true)
-      const updatedItem = updated[0] ?? await refreshInventoryItem(item.id)
-      if (updatedItem) {
-        setInventory((prev) => {
-          if (filterProductId) return [updatedItem]
-          return prev.map((row) => (row.id === updatedItem.id ? updatedItem : row))
-        })
-        if (adjustItem?.id === updatedItem.id) {
-          populateAdjustForm(updatedItem)
+      await adminProductService.refreshVariantPosInventory([item.id], true)
+      const refreshed = await refreshInventoryItem(item.product_id)
+      if (adjustItem?.id === item.id) {
+        const refreshedVariant = refreshed.find((row) => row.id === item.id)
+        if (refreshedVariant) {
+          populateAdjustForm(refreshedVariant)
         }
       }
     } catch {
@@ -618,7 +829,7 @@ function InventoryManagement() {
             className="btn btn--primary btn--sm"
             type="button"
             onClick={() => handleNewStockOpen()}
-            disabled={loading || (!focusedProduct && sortedInventory.length === 0 && inventory.length === 0)}
+            disabled={loading || parentProducts.length === 0}
           >
             New Stock
           </button>
@@ -632,15 +843,11 @@ function InventoryManagement() {
         <div className="inventory-focus-banner">
           <div className="inventory-focus-banner__copy">
             <span className="inventory-focus-banner__label">Focused product</span>
-            <strong>{focusedProduct.name}</strong>
-            <span className="inventory-focus-banner__meta">
-              {isVariantManaged(focusedProduct)
-                ? `Variant-managed · ${getActiveVariantCount(focusedProduct)} active variants`
-                : `Single SKU · Main Shop ${getInventoryQuantity(focusedProduct, 'branch')} · POS ${getInventoryQuantity(focusedProduct, 'warehouse')}`}
-            </span>
+            <strong>{focusedProduct.product_name}</strong>
+            <span className="inventory-focus-banner__meta">Showing variants for this product</span>
           </div>
           <span className={`inventory-model-chip${isVariantManaged(focusedProduct) ? ' inventory-model-chip--variant' : ''}`}>
-            {isVariantManaged(focusedProduct) ? 'Variant-managed' : 'Single SKU'}
+            Variant row
           </span>
         </div>
       )}
@@ -660,7 +867,7 @@ function InventoryManagement() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Tracked Products</span>
+            <span className="cm-kpi-card__label">Tracked Variants</span>
             <strong className="cm-kpi-card__value">{loading ? '—' : inventory.length}</strong>
           </div>
         </div>
@@ -694,7 +901,7 @@ function InventoryManagement() {
       </div>
 
       <div className="cm-toolbar">
-        <div className="cm-search-box">
+        <div className="cm-search-box inventory-search-box">
           <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
             <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
           </svg>
@@ -758,11 +965,11 @@ function InventoryManagement() {
         )}
         {!loading && sortedInventory.length > 0 && (
           <div className="cm-table-wrap">
-            <table className="cm-table">
+            <table className="cm-table inventory-products-table">
               <thead>
                 <tr>
                   <th>Product</th>
-                  <th>Stock Model</th>
+                  <th>Variant</th>
                   <th>
                     <button type="button" className="btn btn--ghost btn--sm" onClick={() => handleSort('managed_stock')}>
                       Managed Stock {getSortIndicator('managed_stock')}
@@ -787,47 +994,43 @@ function InventoryManagement() {
               <tbody>
                 {pagedInventory.map((item) => {
                   const status = getInventoryStatus(item)
-                  const variantMode = isVariantManaged(item)
-                  const warehouseVariants = (item.variants ?? []).filter((variant) => variant.stock_source === 'warehouse')
-                  const variantPosQuantity = warehouseVariants.reduce((total, variant) => total + variant.stock_quantity, 0)
+                  const variantPosQuantity = getPosManagedQuantity(item)
+                  const hasStockInformation = Boolean((item.inventories ?? []).length)
 
                   return (
                     <tr key={item.id}>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                          <span>{item.product_name}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                           <span>{item.name}</span>
-                          <span className="cm-name-cell__id">{item.sku}</span>
+                          <span className="cm-name-cell__id">SKU {item.sku || '—'}</span>
+                          <span className="cm-name-cell__id">Barcode {item.barcode || '—'}</span>
                         </div>
                       </td>
                       <td>
-                        <span className={`inventory-model-chip${variantMode ? ' inventory-model-chip--variant' : ''}`}>
-                          {variantMode ? 'Variant-managed' : 'Single SKU'}
-                        </span>
-                      </td>
-                      <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                          <span>{getManagedStock(item)}</span>
+                          <span>{hasStockInformation ? getManagedStock(item) : 'No stock info'}</span>
                           <span className="cm-name-cell__id">
-                            {variantMode
-                              ? `${getActiveVariantCount(item)} active variants`
-                              : `Main Shop · Threshold ${getInventoryThreshold(item, 'branch')}`}
+                            {hasStockInformation ? `${(item.inventories ?? []).length} batch rows · Threshold ${item.low_stock_threshold ?? 0}` : 'No inventory rows saved'}
                           </span>
                         </div>
                       </td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                          <span>{variantMode ? variantPosQuantity : getInventoryQuantity(item, 'warehouse')}</span>
+                          <span>{hasStockInformation ? variantPosQuantity : 'No stock info'}</span>
                           <span className="cm-name-cell__id">
-                            {variantMode
-                              ? `${warehouseVariants.length} variants currently POS-backed`
-                              : `POS Store · ${formatDateTime(getInventoryItem(item, 'warehouse')?.last_synced_at)}`}
+                            {hasStockInformation ? (item.stock_source === 'warehouse' ? 'This variant is POS-backed' : 'Not POS-backed') : 'No POS stock row saved'}
                           </span>
                         </div>
                       </td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                          <span>{getSellableQuantity(item)}</span>
-                          <span className="cm-name-cell__id">{variantMode ? 'Across all sellable variants' : formatStockSource(item.stock_source)}</span>
+                          <span>{hasStockInformation ? getSellableQuantity(item) : 'No stock info'}</span>
+                          <span className="cm-name-cell__id">{formatStockSource(item.stock_source)}</span>
                         </div>
                       </td>
                       <td>{formatBackorderSummary(item)}</td>
@@ -842,16 +1045,13 @@ function InventoryManagement() {
                           <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => handleAdjustOpen(item)}>
                             Adjust Stock
                           </button>
-                          <button className="cm-row-btn" type="button" onClick={() => handleNewStockOpen(item)}>
-                            New Variant
-                          </button>
                           <button
                             className="cm-row-btn cm-row-btn--warn"
                             type="button"
                             onClick={() => handlePosSync(item)}
                             disabled={Boolean(posSyncingIds[item.id])}
                           >
-                            {posSyncingIds[item.id] ? 'Syncing…' : variantMode ? 'Sync Variants' : 'POS Sync'}
+                            {posSyncingIds[item.id] ? 'Syncing…' : 'POS Sync'}
                           </button>
                         </div>
                       </td>
@@ -889,6 +1089,7 @@ function InventoryManagement() {
               <button className="modal__close" onClick={closeNewStockModal}>×</button>
             </div>
             <div className="modal__content">
+              {newStockError && <p className="adjust-error adjust-error--top">{newStockError}</p>}
               <div className="adjust-section stock-form__section">
                 <div className="adjust-section__title">Variant Details</div>
                 <div className="stock-form__section-copy">
@@ -896,36 +1097,78 @@ function InventoryManagement() {
                 </div>
                 <div className="adjust-grid stock-form__core-grid">
                   <div className="adjust-field">
-                    <label>Product</label>
-                    <select value={newStockProductId} onChange={(e) => setNewStockProductId(Number(e.target.value))}>
-                      {sortedInventory.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name} · {item.sku}
+                    <label>Parent product <span className="adjust-required">*</span></label>
+                    <select value={newStockProductId} onChange={(e) => {
+                      setNewStockProductId(Number(e.target.value) || '')
+                      clearNewStockFieldError('product')
+                    }}>
+                      <option value="">Select active parent product</option>
+                      {parentProducts.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.name}
                         </option>
                       ))}
                     </select>
+                    {newStockFieldErrors.product && <span className="adjust-field__error">{newStockFieldErrors.product}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Variant name</label>
+                    <label>Variant name <span className="adjust-required">*</span></label>
                     <input
                       type="text"
                       value={newVariantName}
-                      onChange={(e) => setNewVariantName(e.target.value)}
+                      onChange={(e) => {
+                        setNewVariantName(e.target.value)
+                        clearNewStockFieldError('name')
+                      }}
                       placeholder="e.g. Tablets, Cough Syrup, Capsules"
                     />
+                    {newStockFieldErrors.name && <span className="adjust-field__error">{newStockFieldErrors.name}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Strength</label>
+                    <label>SKU <span className="adjust-optional">optional</span></label>
+                    <input
+                      type="text"
+                      value={newVariantSku}
+                      onChange={(e) => {
+                        setNewVariantSku(e.target.value)
+                        clearNewStockFieldError('sku')
+                      }}
+                      placeholder="Leave blank to auto-generate"
+                    />
+                    {newStockFieldErrors.sku && <span className="adjust-field__error">{newStockFieldErrors.sku}</span>}
+                  </div>
+                  <div className="adjust-field">
+                    <label>Barcode <span className="adjust-required">*</span></label>
+                    <input
+                      type="text"
+                      value={newVariantBarcode}
+                      onChange={(e) => {
+                        setNewVariantBarcode(e.target.value)
+                        clearNewStockFieldError('barcode')
+                      }}
+                      placeholder="Scan or enter variant barcode"
+                    />
+                    {newStockFieldErrors.barcode && <span className="adjust-field__error">{newStockFieldErrors.barcode}</span>}
+                  </div>
+                  <div className="adjust-field">
+                    <label>Strength <span className="adjust-required">*</span></label>
                     <input
                       type="text"
                       value={newVariantStrength}
-                      onChange={(e) => setNewVariantStrength(e.target.value)}
+                      onChange={(e) => {
+                        setNewVariantStrength(e.target.value)
+                        clearNewStockFieldError('strength')
+                      }}
                       placeholder="e.g. 500mg"
                     />
+                    {newStockFieldErrors.strength && <span className="adjust-field__error">{newStockFieldErrors.strength}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>POS item</label>
-                    <select value={newVariantPosProductId} onChange={(e) => setNewVariantPosProductId(e.target.value)}>
+                    <label>POS item <span className="adjust-optional">optional</span></label>
+                    <select value={newVariantPosProductId} onChange={(e) => {
+                      setNewVariantPosProductId(e.target.value)
+                      clearNewStockFieldError('pos_product_id')
+                    }}>
                       <option value="">No POS ID selected</option>
                       {posOptions.map((option) => (
                         <option key={option.pos_product_id} value={option.pos_product_id}>
@@ -933,7 +1176,21 @@ function InventoryManagement() {
                         </option>
                       ))}
                     </select>
+                    {newStockFieldErrors.pos_product_id && <span className="adjust-field__error">{newStockFieldErrors.pos_product_id}</span>}
                     <span className="adjust-hint">Shows POS IDs already linked inside the system.</span>
+                  </div>
+                  <div className="adjust-field">
+                    <label>Variant image <span className="adjust-required">*</span></label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        setNewVariantImageFile(e.target.files?.[0] ?? null)
+                        clearNewStockFieldError('image')
+                      }}
+                    />
+                    {newStockFieldErrors.image && <span className="adjust-field__error">{newStockFieldErrors.image}</span>}
+                    <span className="adjust-hint">This is the customer-facing product image on the ecommerce side.</span>
                   </div>
                 </div>
               </div>
@@ -946,45 +1203,61 @@ function InventoryManagement() {
                 <div className="stock-form__editor-block">
                   <div className="adjust-grid stock-form__dosage-grid">
                     <div className="adjust-field">
-                      <label>Dose</label>
+                      <label>Dose <span className="adjust-required">*</span></label>
                       <input
                         type="number"
                         min={0}
                         step="0.01"
                         value={newVariantDosageAmount}
-                        onChange={(e) => setNewVariantDosageAmount(e.target.value)}
+                        onChange={(e) => {
+                          setNewVariantDosageAmount(e.target.value)
+                          clearNewStockFieldError('dose')
+                        }}
                         placeholder="e.g. 1"
                       />
+                      {newStockFieldErrors.dose && <span className="adjust-field__error">{newStockFieldErrors.dose}</span>}
                     </div>
                     <div className="adjust-field">
-                      <label>Frequency per day</label>
+                      <label>Frequency per day <span className="adjust-required">*</span></label>
                       <input
                         type="number"
                         min={0}
                         step="0.01"
                         value={newVariantDosageQuantity}
-                        onChange={(e) => setNewVariantDosageQuantity(e.target.value)}
+                        onChange={(e) => {
+                          setNewVariantDosageQuantity(e.target.value)
+                          clearNewStockFieldError('frequency')
+                        }}
                         placeholder="e.g. 2"
                       />
+                      {newStockFieldErrors.frequency && <span className="adjust-field__error">{newStockFieldErrors.frequency}</span>}
                     </div>
                   </div>
                   <div className="adjust-field">
-                    <label>Directions</label>
+                    <label>Directions <span className="adjust-required">*</span></label>
                     <textarea
                       rows={3}
                       value={newVariantDirections}
-                      onChange={(e) => setNewVariantDirections(e.target.value)}
+                      onChange={(e) => {
+                        setNewVariantDirections(e.target.value)
+                        clearNewStockFieldError('directions')
+                      }}
                       placeholder="How the customer should use this medication"
                     />
+                    {newStockFieldErrors.directions && <span className="adjust-field__error">{newStockFieldErrors.directions}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Warnings</label>
+                    <label>Warnings <span className="adjust-required">*</span></label>
                     <textarea
                       rows={3}
                       value={newVariantWarnings}
-                      onChange={(e) => setNewVariantWarnings(e.target.value)}
+                      onChange={(e) => {
+                        setNewVariantWarnings(e.target.value)
+                        clearNewStockFieldError('warnings')
+                      }}
                       placeholder="Safety warnings, contraindications, or cautions"
                     />
+                    {newStockFieldErrors.warnings && <span className="adjust-field__error">{newStockFieldErrors.warnings}</span>}
                   </div>
                 </div>
               </div>
@@ -996,38 +1269,48 @@ function InventoryManagement() {
                 </div>
                 <div className="adjust-grid stock-form__pricing-grid">
                   <div className="adjust-field">
-                    <label>Selling price</label>
+                    <label>Selling price <span className="adjust-required">*</span></label>
                     <input
                       type="number"
                       min={0}
                       step="0.01"
                       value={newVariantPrice}
-                      onChange={(e) => setNewVariantPrice(e.target.value)}
+                      onChange={(e) => {
+                        setNewVariantPrice(e.target.value)
+                        clearNewStockFieldError('price')
+                      }}
                       placeholder="0.00"
                     />
+                    {newStockFieldErrors.price && <span className="adjust-field__error">{newStockFieldErrors.price}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Opening stock quantity</label>
+                    <label>Opening stock quantity <span className="adjust-required">*</span></label>
                     <input
                       type="number"
                       min={0}
                       value={newVariantStockQuantity}
-                      onChange={(e) => setNewVariantStockQuantity(e.target.value)}
+                      onChange={(e) => {
+                        setNewVariantStockQuantity(e.target.value)
+                        clearNewStockFieldError('stock_quantity')
+                      }}
                     />
+                    {newStockFieldErrors.stock_quantity && <span className="adjust-field__error">{newStockFieldErrors.stock_quantity}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Low stock threshold</label>
+                    <label>Low stock threshold <span className="adjust-required">*</span></label>
                     <input
                       type="number"
                       min={0}
                       value={newVariantLowStockThreshold}
-                      onChange={(e) => setNewVariantLowStockThreshold(e.target.value)}
+                      onChange={(e) => {
+                        setNewVariantLowStockThreshold(e.target.value)
+                        clearNewStockFieldError('low_stock_threshold')
+                      }}
                     />
+                    {newStockFieldErrors.low_stock_threshold && <span className="adjust-field__error">{newStockFieldErrors.low_stock_threshold}</span>}
                   </div>
                 </div>
               </div>
-
-              {newStockError && <p className="adjust-error">{newStockError}</p>}
             </div>
             <div className="modal__footer modal__footer--stock">
               <button className="btn btn--outline btn--sm" onClick={closeNewStockModal}>Cancel</button>
@@ -1051,36 +1334,12 @@ function InventoryManagement() {
                 <p className="adjust-title">{adjustItem.name}</p>
                 <p className="adjust-subtitle">{adjustItem.sku} · {isVariantManaged(adjustItem) ? 'Variant-managed parent product' : 'Single SKU product'}</p>
               </div>
-
-              {showProductPicker && !filterProductId && (
-                <div className="adjust-section">
-                  <div className="adjust-section__title">Product</div>
-                  <div className="adjust-grid adjust-grid--single">
-                    <div className="adjust-field">
-                      <label>Choose product</label>
-                      <select
-                        value={adjustItem.id}
-                        onChange={(e) => {
-                          const selected = inventory.find((item) => item.id === Number(e.target.value))
-                          if (selected) populateAdjustForm(selected, { showPicker: true })
-                        }}
-                      >
-                        {sortedInventory.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name} · {item.sku}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="adjust-hint">Select the product whose stock you want to update.</span>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {adjustError && <p className="adjust-error adjust-error--top">{adjustError}</p>}
 
               {isVariantManaged(adjustItem) ? (
                 <>
                   <div className="adjust-section">
-                    <div className="adjust-section__title">Stock Model</div>
+                    <div className="adjust-section__title">Variant Stock Model</div>
                     <div className="adjust-callout">
                       Base-product stock is read-only for variant-managed products. Each variant below is a separate sellable item with its own SKU, POS link, and stock rules.
                     </div>
@@ -1089,7 +1348,7 @@ function InventoryManagement() {
                   <div className="adjust-section">
                     <div className="adjust-section__title">Variant Stock</div>
                     {variantDrafts.length === 0 ? (
-                      <div className="inventory-empty">No variants exist yet. Use New Stock to create the first sellable variant for this product.</div>
+                      <div className="inventory-empty">No stock row exists for this variant yet.</div>
                     ) : (
                       <div className="adjust-variant-list">
                         {variantDrafts.map((draft) => {
@@ -1117,28 +1376,35 @@ function InventoryManagement() {
                                     <div className="adjust-variant-card__meta">Warnings: {draft.warnings}</div>
                                   )}
                                   <div className="adjust-variant-card__meta">{formatVariantAttributes(draft.attributes)}</div>
+                                  <div className="adjust-variant-card__meta">Batches: {draft.batch_summary}</div>
                                 </div>
                                 <span className={getStatusClass(status)}>{formatStatusLabel(status)}</span>
                               </div>
 
                               <div className="adjust-grid">
                                 <div className="adjust-field">
-                                  <label>Available stock</label>
+                                  <label>Available stock <span className="adjust-required">*</span></label>
                                   <input
                                     type="number"
                                     min={0}
                                     value={draft.stock_quantity}
                                     onChange={(e) => handleVariantDraftChange(draft.id, { stock_quantity: e.target.value })}
                                   />
+                                  {adjustFieldErrors[`variant-${draft.id}-stock_quantity`] && (
+                                    <span className="adjust-field__error">{adjustFieldErrors[`variant-${draft.id}-stock_quantity`]}</span>
+                                  )}
                                 </div>
                                 <div className="adjust-field">
-                                  <label>Low stock threshold</label>
+                                  <label>Low stock threshold <span className="adjust-required">*</span></label>
                                   <input
                                     type="number"
                                     min={0}
                                     value={draft.low_stock_threshold}
                                     onChange={(e) => handleVariantDraftChange(draft.id, { low_stock_threshold: e.target.value })}
                                   />
+                                  {adjustFieldErrors[`variant-${draft.id}-low_stock_threshold`] && (
+                                    <span className="adjust-field__error">{adjustFieldErrors[`variant-${draft.id}-low_stock_threshold`]}</span>
+                                  )}
                                 </div>
                               </div>
 
@@ -1155,20 +1421,25 @@ function InventoryManagement() {
                                 </div>
                                 {draft.allow_backorder && (
                                   <div className="adjust-field">
-                                    <label>Max backorder quantity</label>
+                                    <label>Max backorder quantity <span className="adjust-required">*</span></label>
                                     <input
                                       type="number"
                                       min={0}
                                       value={draft.max_backorder_quantity}
                                       onChange={(e) => handleVariantDraftChange(draft.id, { max_backorder_quantity: e.target.value })}
                                     />
+                                    {adjustFieldErrors[`variant-${draft.id}-max_backorder_quantity`] && (
+                                      <span className="adjust-field__error">{adjustFieldErrors[`variant-${draft.id}-max_backorder_quantity`]}</span>
+                                    )}
                                   </div>
                                 )}
                               </div>
 
                               <div className="adjust-variant-card__footer">
                                 <span className="adjust-hint">
-                                  Source: {formatVariantStockSource(draft.stock_source)} · Sellable quantity: {getVariantDraftAvailableQuantity(draft)}
+                                  {draft.has_stock_information
+                                    ? `Source: ${formatVariantStockSource(draft.stock_source)} · Sellable quantity: ${getVariantDraftAvailableQuantity(draft)}`
+                                    : 'No stock information has been saved for this variant yet.'}
                                 </span>
                               </div>
                             </div>
@@ -1184,13 +1455,13 @@ function InventoryManagement() {
                       <div>
                         <div className="adjust-pos-row">
                           <span>POS-backed quantity</span>
-                          <strong>{getPosManagedQuantity(adjustItem)}</strong>
+                          <strong>{(adjustItem.inventories ?? []).length ? getPosManagedQuantity(adjustItem) : 'No stock info'}</strong>
                         </div>
                         <div className="adjust-pos-row">
                           <span>Variants currently POS-backed</span>
-                          <span>{(adjustItem.variants ?? []).filter((variant) => variant.stock_source === 'warehouse').length}</span>
-                        </div>
-                        <p className="adjust-hint">Syncing here refreshes all variants from the POS and replaces the current values shown above.</p>
+                        <span>{(adjustItem.inventories ?? []).length ? (adjustItem.stock_source === 'warehouse' ? 1 : 0) : 'No stock info'}</span>
+                      </div>
+                        <p className="adjust-hint">Syncing here refreshes this variant from the POS and replaces the current values shown above.</p>
                       </div>
                       <button
                         className="cm-row-btn cm-row-btn--warn"
@@ -1198,7 +1469,7 @@ function InventoryManagement() {
                         onClick={() => handlePosSync(adjustItem)}
                         disabled={Boolean(posSyncingIds[adjustItem.id])}
                       >
-                        {posSyncingIds[adjustItem.id] ? 'Syncing…' : 'Sync All Variants'}
+                        {posSyncingIds[adjustItem.id] ? 'Syncing…' : 'Sync Variant'}
                       </button>
                     </div>
                   </div>
@@ -1216,25 +1487,40 @@ function InventoryManagement() {
                     </div>
                     <div className="adjust-grid">
                       <div className="adjust-field">
-                        <label>Available stock</label>
-                        <input type="number" min={0} value={branchStock} onChange={(e) => setBranchStock(e.target.value)} />
+                        <label>Available stock <span className="adjust-required">*</span></label>
+                        <input type="number" min={0} value={branchStock} onChange={(e) => {
+                          setBranchStock(e.target.value)
+                          clearAdjustFieldError('branchStock')
+                        }} />
+                        {adjustFieldErrors.branchStock && <span className="adjust-field__error">{adjustFieldErrors.branchStock}</span>}
                       </div>
                       <div className="adjust-field">
-                        <label>Low stock threshold</label>
-                        <input type="number" min={0} value={branchThreshold} onChange={(e) => setBranchThreshold(e.target.value)} />
+                        <label>Low stock threshold <span className="adjust-required">*</span></label>
+                        <input type="number" min={0} value={branchThreshold} onChange={(e) => {
+                          setBranchThreshold(e.target.value)
+                          clearAdjustFieldError('branchThreshold')
+                        }} />
+                        {adjustFieldErrors.branchThreshold && <span className="adjust-field__error">{adjustFieldErrors.branchThreshold}</span>}
                       </div>
                     </div>
                     <div className="adjust-grid adjust-grid--single">
                       <div className="adjust-field">
                         <label className="adjust-checkbox">
-                          <input type="checkbox" checked={branchAllowBackorder} onChange={(e) => setBranchAllowBackorder(e.target.checked)} />
+                          <input type="checkbox" checked={branchAllowBackorder} onChange={(e) => {
+                            setBranchAllowBackorder(e.target.checked)
+                            clearAdjustFieldError('branchMaxBackorder')
+                          }} />
                           Allow backorders
                         </label>
                       </div>
                       {branchAllowBackorder && (
                         <div className="adjust-field">
-                          <label>Max backorder quantity</label>
-                          <input type="number" min={0} value={branchMaxBackorder} onChange={(e) => setBranchMaxBackorder(e.target.value)} />
+                          <label>Max backorder quantity <span className="adjust-required">*</span></label>
+                          <input type="number" min={0} value={branchMaxBackorder} onChange={(e) => {
+                            setBranchMaxBackorder(e.target.value)
+                            clearAdjustFieldError('branchMaxBackorder')
+                          }} />
+                          {adjustFieldErrors.branchMaxBackorder && <span className="adjust-field__error">{adjustFieldErrors.branchMaxBackorder}</span>}
                         </div>
                       )}
                     </div>
@@ -1271,7 +1557,6 @@ function InventoryManagement() {
                 </>
               )}
 
-              {adjustError && <p className="adjust-error">{adjustError}</p>}
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" onClick={closeAdjustModal}>Cancel</button>

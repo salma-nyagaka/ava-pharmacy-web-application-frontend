@@ -1,0 +1,125 @@
+/* ─────────────────────────────────────────
+   Health Concern Management — scoped polish
+   (overrides shared AdminEntityManagement.css
+   for this page only, via the .hcm-page wrapper)
+───────────────────────────────────────── */
+
+/* ── Header ── */
+.hcm-page .cm-title-group h1 {
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.hcm-page .category-management__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* ── KPI Cards ── */
+.hcm-page .cm-kpi-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.hcm-page .cm-kpi-card {
+  border-left: none;
+  padding: 0.85rem 1rem;
+  min-height: 72px;
+}
+
+.hcm-page .cm-kpi-card__label {
+  font-size: 0.72rem;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: #64748b;
+}
+
+.hcm-page .cm-kpi-card__value {
+  font-size: 1.5rem;
+}
+
+.hcm-page .cm-kpi-card__icon {
+  width: 28px;
+  height: 28px;
+}
+
+.hcm-page .cm-kpi-card__delta {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #16a34a;
+  line-height: 1.2;
+}
+
+@media (max-width: 1100px) {
+  .hcm-page .cm-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .hcm-page .cm-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Toggle: unify to brand accent ── */
+.hcm-page .cm-toggle--on {
+  background: var(--color-primary, #dc2626);
+}
+
+/* ── Sort header buttons ── */
+.hcm-page .cm-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hcm-page .cm-th-sort:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* ── Actions column header ── */
+.hcm-page .cm-th-actions {
+  text-align: right;
+}
+
+/* ── Table cell helpers (replaces inline styles) ── */
+.hcm-page .cm-cell-link {
+  color: var(--color-primary, #dc2626);
+  font-size: 0.8125rem;
+  text-decoration: underline;
+}
+
+.hcm-page .cm-cell-link:hover {
+  color: #b91c1c;
+}
+
+.hcm-page .cm-cell-muted {
+  color: #9ca3af;
+  font-size: 0.8125rem;
+}
+
+.hcm-page .cm-cell-date {
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.hcm-page .cm-cell-desc {
+  color: #4b5563;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}

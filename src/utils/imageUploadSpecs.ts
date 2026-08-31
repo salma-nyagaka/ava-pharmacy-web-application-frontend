@@ -1,4 +1,4 @@
-export type ImageUploadSpecKey = 'category' | 'brand' | 'product'
+export type ImageUploadSpecKey = 'category' | 'brand' | 'product' | 'banner'
 
 export interface ImageUploadSpec {
   label: string
@@ -17,6 +17,10 @@ export const IMAGE_UPLOAD_SPECS: Record<ImageUploadSpecKey, ImageUploadSpec> = {
   product: {
     label: 'Product image',
     hint: 'Use the main product image or packshot you want customers to see.',
+  },
+  banner: {
+    label: 'Banner image',
+    hint: 'Use a wide, high-quality banner image that works well on the storefront hero area.',
   },
 }
 

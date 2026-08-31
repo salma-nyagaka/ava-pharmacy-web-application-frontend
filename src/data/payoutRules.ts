@@ -1,6 +1,7 @@
 export type PayoutRuleRole = 'Doctor' | 'Pediatrician' | 'Lab Technician' | 'Lab Partner' | 'Pharmacist'
 
 export interface PayoutRule {
+  backendId?: number
   role: PayoutRuleRole
   amount: number
   currency: 'KSh'

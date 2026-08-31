@@ -17,6 +17,8 @@ function formatDate(value?: string): string {
 type ViewMode = 'categories' | 'subcategories'
 type ModalMode = 'create-category' | 'create-subcategory' | 'edit-category' | 'edit-subcategory'
 type SortDirection = 'asc' | 'desc'
+type CategorySortField = 'name' | 'status' | 'subcategories' | 'created_at'
+type SubcategorySortField = 'name' | 'parent' | 'status' | 'created_at'
 
 const PAGE_SIZE = 8
 
@@ -40,7 +42,9 @@ function CategoryManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>('all')
-  const [createdAtSortDirection, setCreatedAtSortDirection] = useState<SortDirection>('desc')
+  const [categorySortField, setCategorySortField] = useState<CategorySortField>('created_at')
+  const [subcategorySortField, setSubcategorySortField] = useState<SubcategorySortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
 
   const [showModal, setShowModal] = useState(false)
@@ -179,9 +183,7 @@ function CategoryManagement() {
             })
           )
         )
-        setSubcategories((prev) =>
-          [...prev, ...created].sort((a, b) => a.category_name.localeCompare(b.category_name) || a.name.localeCompare(b.name))
-        )
+        setSubcategories((prev) => [...created, ...prev])
         setCategories((prev) =>
           prev.map((c) =>
             c.id === Number(formParentId)
@@ -204,7 +206,10 @@ function CategoryManagement() {
     const isSubcategoryModal = modalMode === 'edit-subcategory'
     if (isSubcategoryModal && formParentId === '') { setFormError('Select a parent category.'); return }
     if (isCategoryModal && !formDescription.trim()) { setFormError('Category description is required.'); return }
-    if (isCategoryModal && modalMode === 'create-category' && !formImageFile) { setFormError('Category image is required.'); return }
+    const existingCategoryImage = modalMode === 'edit-category'
+      ? categories.find((category) => category.id === editingId)?.image || ''
+      : ''
+    if (isCategoryModal && !formImageFile && !existingCategoryImage) { setFormError('Category image is required.'); return }
 
     // Uniqueness check for edit-subcategory
     if (modalMode === 'edit-subcategory' && editingId !== null) {
@@ -226,7 +231,7 @@ function CategoryManagement() {
         if (formDescription.trim()) payload.append('description', formDescription.trim())
         if (formImageFile) payload.append('image', formImageFile)
         const created = await adminProductService.createProductCategory(payload)
-        setCategories((prev) => [...prev, { ...created, subcategories: [] }].sort((a, b) => a.name.localeCompare(b.name)))
+        setCategories((prev) => [{ ...created, subcategories: [] }, ...prev])
       } else if (modalMode === 'edit-category' && editingId !== null) {
         const payload = new FormData()
         payload.append('name', formName.trim())
@@ -311,24 +316,32 @@ function CategoryManagement() {
   const sortedCategories = useMemo(() => {
     const items = [...filteredCategories]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (categorySortField === 'name') comparison = left.name.localeCompare(right.name)
+      else if (categorySortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
+      else if (categorySortField === 'subcategories') comparison = left.subcategories.length - right.subcategories.length
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filteredCategories, createdAtSortDirection])
+  }, [filteredCategories, categorySortField, sortDirection])
 
   const sortedSubcategories = useMemo(() => {
     const items = [...filteredSubcategories]
     items.sort((left, right) => {
-      const comparison = compareCreatedAt(left.created_at, right.created_at)
-      return createdAtSortDirection === 'asc' ? comparison : -comparison
+      let comparison = 0
+      if (subcategorySortField === 'name') comparison = left.name.localeCompare(right.name)
+      else if (subcategorySortField === 'parent') comparison = left.category_name.localeCompare(right.category_name)
+      else if (subcategorySortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
+      else comparison = compareCreatedAt(left.created_at, right.created_at)
+      return sortDirection === 'asc' ? comparison : -comparison
     })
     return items
-  }, [filteredSubcategories, createdAtSortDirection])
+  }, [filteredSubcategories, subcategorySortField, sortDirection])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [viewMode, searchTerm, selectedStatus, selectedParentCategory, createdAtSortDirection])
+  }, [viewMode, searchTerm, selectedStatus, selectedParentCategory, categorySortField, subcategorySortField, sortDirection])
 
   const visibleRows = viewMode === 'categories' ? sortedCategories : sortedSubcategories
   const totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE))
@@ -352,6 +365,10 @@ function CategoryManagement() {
 
   const isCreateMode = modalMode === 'create-category' || modalMode === 'create-subcategory'
   const isSubcategoryModal = modalMode === 'create-subcategory' || modalMode === 'edit-subcategory'
+  const currentCategoryImage = modalMode === 'edit-category'
+    ? categories.find((category) => category.id === editingId)?.image || ''
+    : ''
+  const isCategoryImageRequired = !isSubcategoryModal && !currentCategoryImage
 
   const clearFilters = () => {
     setSearchTerm('')
@@ -359,9 +376,40 @@ function CategoryManagement() {
     setSelectedParentCategory('all')
   }
 
-  const toggleCreatedAtSort = () => {
-    setCreatedAtSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+  const handleCategorySort = (field: CategorySortField) => {
+    if (categorySortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setCategorySortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
   }
+
+  const handleSubcategorySort = (field: SubcategorySortField) => {
+    if (subcategorySortField === field) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSubcategorySortField(field)
+    setSortDirection(field === 'created_at' ? 'desc' : 'asc')
+  }
+
+  const categorySortIndicator = (field: CategorySortField) => categorySortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+  const subcategorySortIndicator = (field: SubcategorySortField) => subcategorySortField === field ? (sortDirection === 'asc' ? '↑' : '↓') : '↕'
+
+  const sortButtonClass = 'cm-th-sort'
+
+  const renderCategorySortButton = (field: CategorySortField, label: string) => (
+    <button type="button" className={sortButtonClass} onClick={() => handleCategorySort(field)}>
+      {label} {categorySortIndicator(field)}
+    </button>
+  )
+
+  const renderSubcategorySortButton = (field: SubcategorySortField, label: string) => (
+    <button type="button" className={sortButtonClass} onClick={() => handleSubcategorySort(field)}>
+      {label} {subcategorySortIndicator(field)}
+    </button>
+  )
 
   return (
     <div className="category-management">
@@ -376,7 +424,10 @@ function CategoryManagement() {
         </div>
         <div className="category-management__actions">
           <button className="btn btn--primary btn--sm" type="button" onClick={() => openCreateModal('category')}>
-            + Category
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+              <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+            </svg>
+            Category
           </button>
           <button
             className="btn btn--secondary btn--sm"
@@ -384,9 +435,11 @@ function CategoryManagement() {
             onClick={() => openCreateModal('subcategory')}
             disabled={categories.length === 0}
           >
-            + Subcategory
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" strokeLinecap="round">
+              <line x1="10" y1="3.5" x2="10" y2="16.5" /><line x1="3.5" y1="10" x2="16.5" y2="10" />
+            </svg>
+            Subcategory
           </button>
-     
         </div>
       </div>
 
@@ -399,8 +452,9 @@ function CategoryManagement() {
             </svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Total Categories</span>
+            <span className="cm-kpi-card__label">Categories</span>
             <strong className="cm-kpi-card__value">{loading ? '—' : categories.length}</strong>
+            <span className="cm-kpi-card__delta">{loading ? '' : `${activeCategories} active · ${categories.length - activeCategories} inactive`}</span>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -410,30 +464,9 @@ function CategoryManagement() {
             </svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Total Subcategories</span>
+            <span className="cm-kpi-card__label">Subcategories</span>
             <strong className="cm-kpi-card__value">{loading ? '—' : subcategories.length}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
-              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Active Categories</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeCategories}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
-              <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-            </svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Active Subcategories</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : activeSubcategories}</strong>
+            <span className="cm-kpi-card__delta">{loading ? '' : `${activeSubcategories} active · ${subcategories.length - activeSubcategories} inactive`}</span>
           </div>
         </div>
       </div>
@@ -561,22 +594,16 @@ function CategoryManagement() {
             </div>
           ) : (
             <div className="cm-table-wrap">
-              <table className="cm-table">
+              <table className="cm-table category-compact-table">
                 <thead>
                   <tr>
-                    <th>Category</th>
+                    <th>{renderCategorySortButton('name', 'Category')}</th>
                     <th>Description</th>
                     <th>Image</th>
-                    <th>Status</th>
-                    <th>Subcategories</th>
-                    <th>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                      </button>
-                    </th>
-                    <th>Created By</th>
-                    <th>Updated By</th>
-                    <th className="cm-th-actions"></th>
+                    <th>{renderCategorySortButton('status', 'Status')}</th>
+                    <th>{renderCategorySortButton('subcategories', 'Subcategories')}</th>
+                    <th>{renderCategorySortButton('created_at', 'Created At')}</th>
+                    <th className="cm-th-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -596,22 +623,15 @@ function CategoryManagement() {
                           </div>
                         </td>
                         <td>
-                          <span style={{ color: '#4b5563', fontSize: '0.875rem', lineHeight: 1.5 }}>
-                            {cat.description || '—'}
-                          </span>
+                          <span className="cm-cell-desc">{cat.description || '—'}</span>
                         </td>
                         <td>
                           {cat.image ? (
-                            <a
-                              href={cat.image}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ color: '#2563eb', fontSize: '0.875rem', textDecoration: 'underline' }}
-                            >
+                            <a className="cm-cell-link" href={cat.image} target="_blank" rel="noreferrer">
                               View image
                             </a>
                           ) : (
-                            <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>—</span>
+                            <span className="cm-cell-muted">—</span>
                           )}
                         </td>
                         <td>
@@ -649,9 +669,7 @@ function CategoryManagement() {
                             )}
                           </div>
                         </td>
-                        <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(cat.created_at)}</td>
-                        <td style={{ color: '#6b7280' }}>—</td>
-                        <td style={{ color: '#6b7280' }}>—</td>
+                        <td className="cm-cell-date">{formatDate(cat.created_at)}</td>
                         <td>
                           <div className="cm-row-actions">
                             <button
@@ -705,20 +723,14 @@ function CategoryManagement() {
             </div>
           ) : (
             <div className="cm-table-wrap">
-              <table className="cm-table">
+              <table className="cm-table category-compact-table">
                 <thead>
                   <tr>
-                    <th>Subcategory</th>
-                    <th>Parent Category</th>
-                    <th>Status</th>
-                    <th>
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={toggleCreatedAtSort}>
-                        Created At {createdAtSortDirection === 'asc' ? '↑' : '↓'}
-                      </button>
-                    </th>
-                    <th>Created By</th>
-                    <th>Updated By</th>
-                    <th className="cm-th-actions"></th>
+                    <th>{renderSubcategorySortButton('name', 'Subcategory')}</th>
+                    <th>{renderSubcategorySortButton('parent', 'Parent Category')}</th>
+                    <th>{renderSubcategorySortButton('status', 'Status')}</th>
+                    <th>{renderSubcategorySortButton('created_at', 'Created At')}</th>
+                    <th className="cm-th-actions">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -749,9 +761,7 @@ function CategoryManagement() {
                             <span className="cm-toggle__knob" />
                           </button>
                         </td>
-                        <td style={{ color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(sub.created_at)}</td>
-                        <td style={{ color: '#6b7280' }}>—</td>
-                        <td style={{ color: '#6b7280' }}>—</td>
+                        <td className="cm-cell-date">{formatDate(sub.created_at)}</td>
                         <td>
                           <div className="cm-row-actions">
                             <button
@@ -864,7 +874,7 @@ function CategoryManagement() {
                 <p>
                   {isSubcategoryModal
                     ? 'A subcategory belongs to a parent category.'
-                    : 'Top-level grouping for your product catalog.'}
+                    : 'Used to group products at the top level.'}
                 </p>
               </div>
               <button type="button" className="cm-modal__close" onClick={closeModal} disabled={formSaving} aria-label="Close">
@@ -981,13 +991,13 @@ function CategoryManagement() {
 
               {!isSubcategoryModal && (
                 <label className="cm-field">
-                  <span>Category Image</span>
+                  <span>Category Image <span className="cm-required">*</span></span>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => { void handleCategoryImageChange(e.target.files?.[0] ?? null) }}
                     disabled={formSaving}
-                    required={modalMode === 'create-category'}
+                    required={isCategoryImageRequired}
                   />
                   <span className="cm-upload-note">{getImageUploadHint('category')}</span>
                   {formImagePreview && (

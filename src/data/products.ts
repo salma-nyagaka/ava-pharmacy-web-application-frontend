@@ -14,6 +14,8 @@ import { categoryData } from './categories'
 
 export type CatalogProduct = {
   id: number
+  productId?: number
+  variantId?: number
   slug: string
   sku: string
   name: string

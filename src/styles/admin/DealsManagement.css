@@ -130,6 +130,60 @@
   color: var(--color-text-muted);
 }
 
+.dm-products-table th,
+.dm-products-table td {
+  padding: 0.42rem 0.52rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.dm-products-table th {
+  font-size: 0.64rem;
+  letter-spacing: 0.045em;
+}
+
+.dm-products-table .dm-offer-cell {
+  gap: 0.5rem;
+}
+
+.dm-products-table .dm-offer-cell__media {
+  width: 30px;
+  height: 30px;
+  border-radius: 0.35rem;
+}
+
+.dm-products-table .cm-name-cell {
+  gap: 0.1rem;
+}
+
+.dm-products-table .cm-name-cell__name {
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+
+.dm-products-table .cm-name-cell__id {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.dm-products-table .cm-chip,
+.dm-products-table .cm-status {
+  padding: 0.12rem 0.38rem;
+  font-size: 0.66rem;
+}
+
+.dm-products-table .cm-row-actions {
+  gap: 0.3rem;
+}
+
+.dm-products-table .cm-row-btn,
+.dm-products-table .btn--sm {
+  min-height: 28px;
+  padding: 0.25rem 0.42rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+}
+
 /* ── Pagination ────────────────────────── */
 .deals-pagination {
   display: flex;

@@ -22,15 +22,14 @@
 
 /* ── Stats bar ──────────────────────────── */
 .dm-stats {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1.25rem;
-  flex-wrap: wrap;
 }
 
 .dm-stat {
-  flex: 1;
-  min-width: 120px;
+  min-width: 0;
   background: #fff;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -107,6 +106,114 @@
   font-size: 0.875rem;
   font-weight: 600;
   color: #92400e;
+}
+
+/* ── Application notifications ─────────── */
+.dm-notification-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(216, 36, 87, 0.2);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #fff7fa 0%, #ffffff 72%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.dm-notification-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dm-notification-panel__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  background: rgba(216, 36, 87, 0.1);
+}
+
+.dm-notification-panel__title,
+.dm-notification-item__title,
+.dm-notification-item__message,
+.dm-notification-item__time {
+  margin: 0;
+}
+
+.dm-notification-panel__title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.dm-notification-panel__meta {
+  margin: 0.18rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.dm-notification-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.dm-notification-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #eef0f5;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.dm-notification-item--unread {
+  border-color: rgba(216, 36, 87, 0.25);
+  background: #fff;
+}
+
+.dm-notification-item__title {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.dm-notification-item__message {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.dm-notification-item__time {
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+.dm-notification-item__btn {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.dm-notification-item__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(216, 36, 87, 0.22);
 }
 
 /* ── Avatar ─────────────────────────────── */
@@ -734,6 +841,7 @@
 
   .dm-stats {
     gap: 0.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dm-detail-value {
@@ -742,5 +850,175 @@
 
   .dm-verify-btn {
     min-width: 0;
+  }
+}
+
+/* ── Doctor review polish ───────────────── */
+.dm-page .category-management__header,
+.dm-page .cm-panel,
+.dm-page .cm-kpi-card {
+  border-color: #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.dm-page .category-management__header {
+  background: #fff;
+  padding: 1rem 1.1rem;
+}
+
+.dm-page .cm-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.dm-modal {
+  max-width: 620px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+}
+
+.dm-avatar {
+  border-radius: 10px;
+  background: #111827;
+}
+
+.dm-pending-banner {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  border-radius: 10px;
+}
+
+.dm-type-badge--doctor {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.dm-type-badge--pediatrician {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.dm-verify-header,
+.dm-manage-header {
+  padding: 0.85rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.dm-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.dm-detail-row {
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #eef2f7;
+  border-radius: 9px;
+  background: #fff;
+  min-width: 0;
+}
+
+.dm-detail-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dm-detail-row > span:first-child {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.dm-doc-list {
+  gap: 0.5rem;
+}
+
+.dm-doc-item {
+  padding: 0.65rem 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+}
+
+.dm-doc-item__main {
+  display: flex;
+  flex: 1 1 220px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.16rem;
+}
+
+.dm-doc-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.dm-doc-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 0.65rem;
+  border-radius: 7px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.dm-doc-action--ghost {
+  background: #fff;
+  color: var(--color-primary);
+  border: 1px solid rgba(216, 36, 87, 0.24);
+}
+
+.dm-doc-missing-link {
+  margin-left: auto;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.dm-doc-status {
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #f8fafc;
+}
+
+.dm-doc-status--submitted { color: #b45309; background: #fff7ed; }
+.dm-doc-status--verified  { color: #047857; background: #ecfdf5; }
+.dm-doc-status--missing   { color: #b91c1c; background: #fef2f2; }
+
+.dm-verify-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.dm-verify-btn {
+  border-radius: 9px;
+  min-width: 0;
+}
+
+.dm-verify-btn--approve.dm-verify-btn--selected {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
+}
+
+.dm-verify-btn--docs.dm-verify-btn--selected {
+  background: #fff7ed;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+@media (max-width: 768px) {
+  .dm-detail-grid,
+  .dm-verify-actions {
+    grid-template-columns: 1fr;
   }
 }

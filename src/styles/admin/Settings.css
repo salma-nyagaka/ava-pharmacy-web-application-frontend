@@ -557,6 +557,37 @@
   font-family: inherit;
 }
 
+.settings-support-hours {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.settings-support-hours__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.settings-support-hours__field span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.settings-support-hours__preview {
+  display: inline-flex;
+  margin-top: 0.6rem;
+  color: #64748b;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .settings-support-hours {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 
 .settings-checkbox {
   display: inline-flex !important;

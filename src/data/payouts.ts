@@ -6,10 +6,11 @@ import { loadPayoutRules } from './payoutRules'
 
 export type PayoutRole = 'Doctor' | 'Pediatrician' | 'Lab Technician' | 'Lab Partner' | 'Pharmacist'
 export type PayoutMethod = 'Bank Transfer' | 'M-Pesa' | 'Card' | 'Cheque' | 'Cash'
-export type PayoutStatus = 'Pending' | 'Paid' | 'Failed'
+export type PayoutStatus = 'Draft' | 'Pending' | 'Approved' | 'Processing' | 'Paid' | 'Failed' | 'On hold' | 'Reversed' | 'Cancelled'
 export type PayoutTaskType = 'Consultation' | 'Lab Result' | 'Lab Delivery' | 'Prescription'
 
 export interface AdminPayout {
+  backendId?: number
   id: string
   recipientId?: string
   recipientName: string
@@ -26,6 +27,13 @@ export interface AdminPayout {
   taskType?: PayoutTaskType
   taskId?: string
   completedAt?: string
+  reconciliationStatus?: 'Unmatched' | 'Matched' | 'Exception'
+  grossAmount?: number
+  commissionAmount?: number
+  withholdingAmount?: number
+  deductionAmount?: number
+  providerTransactionId?: string
+  retryCount?: number
 }
 
 const STORAGE_KEY = 'ava_admin_payouts'

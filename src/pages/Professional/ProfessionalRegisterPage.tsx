@@ -4,6 +4,8 @@ import {
   ProfessionalRegistrationError,
   type ProfessionalRegistrationType,
 } from '../../services/professionalRegistrationService'
+import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
+import { appendBotPayload, isBotChallengeEnabled } from '../../services/botProtectionService'
 import '../../styles/pages/ProfessionalRegisterPage.css'
 
 type ProfType = 'Doctor' | 'Pediatrician' | 'Lab Partner'
@@ -40,6 +42,7 @@ const LAB_PARTNER_DOCS = [
   'Company registration', 'Professional indemnity insurance',
   'Quality assurance policy',
 ]
+const CV_RESUME_DOC = 'CV / Resume'
 
 const LANGUAGES = [
   'Afrikaans', 'Akan', 'Albanian', 'Amharic', 'Arabic', 'Armenian', 'Assamese', 'Azerbaijani',
@@ -74,6 +77,7 @@ const API_TO_FORM_ERROR_MAP: Record<string, string> = {
   name: 'name',
   email: 'email',
   phone: 'phone',
+  phone_number: 'phone',
   license: 'license',
   license_number: 'license',
   licenseBoard: 'licenseBoard',
@@ -115,6 +119,11 @@ const mergeFiles = (current: File[], incoming: File[]) => {
   return [...current, ...incoming.filter((f) => !seen.has(`${f.name}:${f.size}`))]
 }
 
+const formatFileSize = (size: number) => {
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
 const blank = () => ({
   name: '', email: '', phone: '',
   license: '', licenseBoard: '', licenseCountry: 'Kenya', licenseExpiry: '', idNumber: '',
@@ -132,7 +141,7 @@ const blank = () => ({
 
 const STEPS = ['Role', 'Personal', 'Credentials', 'Practice', 'References', 'Documents', 'Confirm']
 const TOTAL_STEPS = STEPS.length
-const UI_TEST_MODE = true
+const UI_TEST_MODE = false
 
 const ROLE_CARDS: Array<{ type: ProfType; icon: React.ReactNode; tagline: string; perks: string[] }> = [
   {
@@ -201,14 +210,17 @@ function Field({ label, required, optional, error, hint, children }: {
 function ProfessionalRegisterPage() {
   const [type, setType] = useState<ProfType | null>(null)
   const [form, setForm] = useState(blank())
-  const [uploadedDocs, setUploadedDocs] = useState<File[]>([])
-  const [cvUploads, setCvUploads] = useState<File[]>([])
+  const [documentUploads, setDocumentUploads] = useState<Record<string, File[]>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [successDetail, setSuccessDetail] = useState('')
   const [successSteps, setSuccessSteps] = useState<string[]>([])
+  const [website, setWebsite] = useState('')
+  const [challengeToken, setChallengeToken] = useState('')
+  const [challengeResetKey, setChallengeResetKey] = useState(0)
+  const challengeRequired = isBotChallengeEnabled()
   const [currentStep, setCurrentStep] = useState(1)
   const [langOpen, setLangOpen] = useState(false)
   const [langQuery, setLangQuery] = useState('')
@@ -256,9 +268,22 @@ function ProfessionalRegisterPage() {
   const requiredDocs = type === 'Doctor' ? DOCTOR_DOCS
     : type === 'Pediatrician' ? PEDIATRICIAN_DOCS
     : LAB_PARTNER_DOCS
+  const applicationDocs = [...requiredDocs, CV_RESUME_DOC]
 
-  const set = <K extends keyof ReturnType<typeof blank>>(key: K, value: ReturnType<typeof blank>[K]) =>
+  const clearFieldError = (key: string) => {
+    setErrors((prev) => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+    setSubmitError('')
+  }
+
+  const set = <K extends keyof ReturnType<typeof blank>>(key: K, value: ReturnType<typeof blank>[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
+    clearFieldError(key as string)
+  }
 
   const toggleLanguage = (lang: string) =>
     set('languages', form.languages.includes(lang)
@@ -301,6 +326,37 @@ function ProfessionalRegisterPage() {
       ? form.docChecklist.filter((d) => d !== doc)
       : [...form.docChecklist, doc])
 
+  const addDocumentFiles = (doc: string, files: File[]) => {
+    if (files.length === 0) return
+    setDocumentUploads((current) => ({
+      ...current,
+      [doc]: mergeFiles(current[doc] ?? [], files),
+    }))
+    if (!form.docChecklist.includes(doc)) {
+      set('docChecklist', [...form.docChecklist, doc])
+    }
+  }
+
+  const removeDocumentFile = (doc: string, file: File) => {
+    const remainingForDoc = (documentUploads[doc] ?? []).filter((entry) => entry !== file)
+    setDocumentUploads((current) => {
+      const remaining = (current[doc] ?? []).filter((entry) => entry !== file)
+      const next = { ...current }
+      if (remaining.length > 0) {
+        next[doc] = remaining
+      } else {
+        delete next[doc]
+      }
+      return next
+    })
+    if (remainingForDoc.length === 0) {
+      setForm((prev) => ({
+        ...prev,
+        docChecklist: prev.docChecklist.filter((entry) => entry !== doc),
+      }))
+    }
+  }
+
   const toPayoutMethod = (value: (typeof PAYOUT_METHODS)[number]) =>
     value === 'M-Pesa' ? 'mpesa' : 'bank_transfer'
 
@@ -333,6 +389,11 @@ function ProfessionalRegisterPage() {
     } else if (step === 5) {
       if (!form.backgroundConsent) e.backgroundConsent = 'Background check consent is required.'
       if (!form.complianceDeclaration) e.complianceDeclaration = 'Compliance declaration is required.'
+    } else if (step === 6) {
+      const missingDocuments = applicationDocs.filter((doc) => (documentUploads[doc] ?? []).length === 0)
+      if (missingDocuments.length > 0) {
+        e.docChecklist = `Upload all required documents: ${missingDocuments.join(', ')}.`
+      }
     } else if (step === 7) {
       if (!form.agreedToTerms) e.terms = 'You must agree to the terms to proceed.'
     }
@@ -363,6 +424,7 @@ function ProfessionalRegisterPage() {
   })()
 
   const goNext = () => {
+    setSubmitError('')
     if (validateStep(currentStep)) {
       setCurrentStep((s) => Math.min(TOTAL_STEPS, s + 1))
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -371,6 +433,7 @@ function ProfessionalRegisterPage() {
 
   const goBack = () => {
     setErrors({})
+    setSubmitError('')
     setCurrentStep((s) => Math.max(1, s - 1))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -413,9 +476,14 @@ function ProfessionalRegisterPage() {
     formData.append('compliance_declaration', String(form.complianceDeclaration))
     formData.append('agreed_to_terms', String(form.agreedToTerms))
     formData.append('languages', JSON.stringify(form.languages))
-    formData.append('doc_checklist', JSON.stringify(form.docChecklist))
-    uploadedDocs.forEach((file) => formData.append('documents', file))
-    cvUploads.forEach((file) => formData.append('cv_files', file))
+    const uploadedDocNames = applicationDocs.filter((doc) => (documentUploads[doc] ?? []).length > 0)
+    formData.append('doc_checklist', JSON.stringify(uploadedDocNames))
+    Object.entries(documentUploads).forEach(([doc, files]) => {
+      files.forEach((file) => {
+        formData.append(doc === CV_RESUME_DOC ? 'cv_files' : 'documents', file)
+      })
+    })
+    appendBotPayload(formData, website, challengeToken)
 
     setSubmitting(true)
     try {
@@ -425,13 +493,15 @@ function ProfessionalRegisterPage() {
       setSubmitted(true)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (error) {
+      setChallengeToken('')
+      setChallengeResetKey((key) => key + 1)
       if (error instanceof ProfessionalRegistrationError) {
         const mapped = Object.entries(error.fieldErrors).reduce<Record<string, string>>((acc, [k, v]) => {
           acc[API_TO_FORM_ERROR_MAP[k] ?? k] = v
           return acc
         }, {})
         setErrors((prev) => ({ ...prev, ...mapped }))
-        setSubmitError(error.message)
+        setSubmitError(Object.keys(mapped).length > 0 ? '' : error.message)
         setCurrentStep(stepForErrors(mapped))
         window.scrollTo({ top: 0, behavior: 'smooth' })
       } else {
@@ -457,8 +527,11 @@ function ProfessionalRegisterPage() {
           </p>
           <div className="pr-success__timeline">
             {((successSteps?.length ?? 0) > 0 ? successSteps : [
-              'Application received', 'Document review (24–48 hrs)',
-              'Background & credentials check', 'Onboarding call scheduled', 'Go live on AVA Health',
+              'Application received and confirmation email sent',
+              'Admin reviews documents and credentials',
+              'Approval email with activation link is sent',
+              'You verify email and create your password',
+              'Account activates and dashboard access opens',
             ]).map((label, i) => (
               <div key={label} className={`pr-tl-step ${i === 0 ? 'pr-tl-step--done' : ''}`}>
                 <div className="pr-tl-dot">{i === 0 ? <CheckIcon /> : i + 1}</div>
@@ -886,7 +959,7 @@ function ProfessionalRegisterPage() {
                     ))}
                   </div>
                 </Field>
-                <Field label={form.payoutMethod === 'M-Pesa' ? 'M-Pesa number' : 'Bank account / Paybill'} required error={errors.payoutAccount}>
+                <Field label={form.payoutMethod === 'M-Pesa' ? 'M-Pesa number' : 'Bank account'} required error={errors.payoutAccount}>
                   <input
                     type="text"
                     placeholder={form.payoutMethod === 'M-Pesa' ? '0700 000 000' : 'Account number'}
@@ -996,88 +1069,60 @@ function ProfessionalRegisterPage() {
           <div className="pr-step">
             <div className="pr-step__head">
               <h2 className="pr-step__title">Supporting documents</h2>
-              <p className="pr-step__sub">Check off what you're submitting and upload your files.</p>
+              <p className="pr-step__sub">Upload every required credential document, including your CV or resume.</p>
             </div>
             <div className="pr-fields">
-              <p className="pr-doc-section-label">Documents included in this application</p>
+              <p className="pr-doc-section-label">
+                Documents included in this application <span className="pr-field__req">All required</span>
+              </p>
               <div className="pr-doc-grid">
-                {requiredDocs.map((doc) => (
-                  <label key={doc} className={`pr-doc-check ${form.docChecklist.includes(doc) ? 'pr-doc-check--on' : ''}`}>
-                    <input type="checkbox" checked={form.docChecklist.includes(doc)} onChange={() => toggleDoc(doc)} />
-                    <span className="pr-doc-check__box">{form.docChecklist.includes(doc) && <CheckIcon />}</span>
-                    <span>{doc}</span>
-                  </label>
-                ))}
+                {applicationDocs.map((doc) => {
+                  const files = documentUploads[doc] ?? []
+                  const inputId = `document-upload-${doc.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`
+                  const isCv = doc === CV_RESUME_DOC
+                  return (
+                    <div key={doc} className={`pr-doc-upload-card ${form.docChecklist.includes(doc) ? 'pr-doc-upload-card--on' : ''}`}>
+                      <label className="pr-doc-check">
+                        <input type="checkbox" checked={form.docChecklist.includes(doc)} onChange={() => toggleDoc(doc)} />
+                        <span className="pr-doc-check__box">{form.docChecklist.includes(doc) && <CheckIcon />}</span>
+                        <span>{doc}</span>
+                      </label>
+                      <input
+                        id={inputId}
+                        type="file"
+                        multiple
+                        accept={isCv ? '.pdf,.doc,.docx' : '.pdf,.jpg,.jpeg,.png'}
+                        className="pr-doc-upload-card__input"
+                        onChange={(e) => {
+                          addDocumentFiles(doc, Array.from(e.target.files ?? []))
+                          e.currentTarget.value = ''
+                        }}
+                      />
+                      <label className="pr-doc-upload-card__button" htmlFor={inputId}>
+                        Upload
+                      </label>
+                      <span className="pr-doc-upload-card__hint">
+                        {isCv ? 'PDF, DOC, DOCX' : 'PDF, JPG, PNG'}
+                      </span>
+                      {files.length > 0 && (
+                        <div className="pr-doc-upload-card__files">
+                          {files.map((file) => (
+                            <div key={`${file.name}:${file.size}`} className="pr-file-item">
+                              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15">
+                                <path d="M13 2H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5l-2-3z"/>
+                                <path d="M13 2v3h2"/>
+                              </svg>
+                              <span>{file.name} · {formatFileSize(file.size)}</span>
+                              <button type="button" onClick={() => removeDocumentFile(doc, file)}>Remove</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-
-              <div className="pr-upload-section">
-                <p className="pr-doc-section-label">Upload credentials &amp; certificates</p>
-                <label className="pr-file-zone">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="28" height="28" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
-                  </svg>
-                  <span className="pr-file-zone__text">Click to upload or drag &amp; drop</span>
-                  <span className="pr-file-zone__hint">PDF, JPG, PNG_ max 10 MB each</span>
-                  <input
-                    type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="pr-file-zone__input"
-                    onChange={(e) => {
-                      setUploadedDocs((prev) => mergeFiles(prev, Array.from(e.target.files ?? [])))
-                      e.currentTarget.value = ''
-                    }}
-                  />
-                </label>
-                {uploadedDocs.length > 0 && (
-                  <div className="pr-file-list">
-                    {uploadedDocs.map((file) => (
-                      <div key={`${file.name}:${file.size}`} className="pr-file-item">
-                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15">
-                          <path d="M13 2H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5l-2-3z"/>
-                          <path d="M13 2v3h2"/>
-                        </svg>
-                        <span>{file.name}</span>
-                        <button type="button" onClick={() => setUploadedDocs((prev) => prev.filter((f) => f !== file))}>Remove</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="pr-upload-section">
-                <p className="pr-doc-section-label">Upload CV / profile <span className="pr-field__opt">Optional</span></p>
-                <label className="pr-file-zone pr-file-zone--sm">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="22" height="22" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="9" y1="13" x2="15" y2="13"/>
-                    <line x1="9" y1="17" x2="13" y2="17"/>
-                  </svg>
-                  <span className="pr-file-zone__text">Upload CV or profile</span>
-                  <span className="pr-file-zone__hint">PDF, DOC, DOCX</span>
-                  <input
-                    type="file" multiple accept=".pdf,.doc,.docx" className="pr-file-zone__input"
-                    onChange={(e) => {
-                      setCvUploads((prev) => mergeFiles(prev, Array.from(e.target.files ?? [])))
-                      e.currentTarget.value = ''
-                    }}
-                  />
-                </label>
-                {cvUploads.length > 0 && (
-                  <div className="pr-file-list">
-                    {cvUploads.map((file) => (
-                      <div key={`${file.name}:${file.size}`} className="pr-file-item">
-                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15">
-                          <path d="M13 2H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5l-2-3z"/>
-                          <path d="M13 2v3h2"/>
-                        </svg>
-                        <span>{file.name}</span>
-                        <button type="button" onClick={() => setCvUploads((prev) => prev.filter((f) => f !== file))}>Remove</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {errors.docChecklist && <p className="pr-field__err">{errors.docChecklist}</p>}
             </div>
           </div>
         )}
@@ -1109,14 +1154,14 @@ function ProfessionalRegisterPage() {
                   <span>Payout</span><strong>{form.payoutMethod} · {form.payoutAccount || '—'}</strong>
                 </div>
                 <div className="pr-summary-row">
-                  <span>Documents</span><strong>{uploadedDocs.length + cvUploads.length} file{uploadedDocs.length + cvUploads.length !== 1 ? 's' : ''} uploaded</strong>
+                  <span>Documents</span><strong>{Object.values(documentUploads).flat().length} file{Object.values(documentUploads).flat().length !== 1 ? 's' : ''} uploaded</strong>
                 </div>
               </div>
 
               <div className="pr-what-next">
                 <p className="pr-what-next__title">What happens next?</p>
                 <div className="pr-what-next__steps">
-                  {['Application received & logged', 'Team reviews your documents (24–48 hrs)', 'Background & credentials check', 'Onboarding call scheduled', 'Profile goes live on AVA Health'].map((s, i) => (
+                  {['Application received and confirmation email sent', 'Admin reviews documents and credentials', 'Approval email with activation link is sent', 'You verify your email and create a password', 'Account activates and dashboard access opens'].map((s, i) => (
                     <div key={s} className="pr-what-next__step">
                       <span className="pr-what-next__num">{i + 1}</span>
                       <span>{s}</span>
@@ -1126,6 +1171,16 @@ function ProfessionalRegisterPage() {
               </div>
 
               <form onSubmit={handleSubmit}>
+                <input
+                  type="text"
+                  name="website"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
+                />
                 <label className={`pr-consent pr-consent--terms ${errors.terms ? 'pr-consent--err' : ''}`}>
                   <input
                     type="checkbox"
@@ -1141,8 +1196,9 @@ function ProfessionalRegisterPage() {
                   </span>
                 </label>
                 {errors.terms && <p className="pr-field__err">{errors.terms}</p>}
+                <TurnstileChallenge action="professional_register" onToken={setChallengeToken} resetKey={challengeResetKey} />
                 {submitError && <p className="pr-submit-error">{submitError}</p>}
-                <button type="submit" className="pr-submit-btn" disabled={submitting}>
+                <button type="submit" className="pr-submit-btn" disabled={submitting || (challengeRequired && !challengeToken)}>
                   {submitting
                     ? <><span className="pr-spinner" />Submitting application…</>
                     : <>Submit application<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" width="15" height="15"><path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round"/></svg></>

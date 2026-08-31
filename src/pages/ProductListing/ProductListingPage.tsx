@@ -59,7 +59,10 @@ function ProductListingPage() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
   const [minRating, setMinRating] = useState(0)
   const [availability, setAvailability] = useState<'all' | 'in_stock' | 'out_of_stock'>('all')
-  const [sortBy, setSortBy] = useState('recommended')
+  const SORT_OPTIONS = ['recommended', 'price-low', 'price-high', 'rating', 'newest'] as const
+  const initialSort = searchParams.get('sort')
+  const validInitialSort = initialSort && (SORT_OPTIONS as readonly string[]).includes(initialSort) ? initialSort : 'recommended'
+  const [sortBy, setSortBy] = useState(validInitialSort)
   const [restockAlerts, setRestockAlerts] = useState<Record<number, boolean>>({})
   const [addedProductId, setAddedProductId] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -76,7 +79,7 @@ function ProductListingPage() {
     })
   }
 
-  const { products } = useProducts({
+  const { products, loading: productsLoading } = useProducts({
     category: categorySlug !== 'all' ? categorySlug : undefined,
     subcategory: activeSubcategorySlug || undefined,
     brand: brandParam,
@@ -134,8 +137,14 @@ function ProductListingPage() {
     setCurrentPage(1)
   }, [queryFromUrl, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
 
-  const prescriptionPathFor = (product: Pick<ListingProduct, 'id' | 'name'>) =>
-    `/prescriptions?product_id=${product.id}&product_name=${encodeURIComponent(product.name)}`
+  const prescriptionPathFor = (product: Pick<ListingProduct, 'id' | 'name' | 'variantId'>) => {
+    const params = new URLSearchParams({
+      product_id: String(product.id),
+      product_name: product.name,
+    })
+    if (product.variantId) params.set('variant_id', String(product.variantId))
+    return `/prescriptions?${params.toString()}`
+  }
 
   const toggleWishlist = (product: ListingProduct) => {
     if (!isLoggedIn) {
@@ -144,6 +153,8 @@ function ProductListingPage() {
     }
     void favouritesService.toggle({
       id: product.id,
+      productId: product.productId,
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,
@@ -256,6 +267,8 @@ function ProductListingPage() {
     }
     void cartService.add({
       id: product.id,
+      productId: product.productId,
+      variantId: product.variantId,
       name: product.name,
       brand: product.brand,
       price: product.price,
@@ -445,7 +458,9 @@ function ProductListingPage() {
           <main className="plp__main">
             <div className="plp__toolbar">
               <p className="plp__results-count">
-                {sortedProducts.length === 0
+                {productsLoading
+                  ? 'Loading products…'
+                  : sortedProducts.length === 0
                   ? 'No products found'
                   : `Showing ${startItem}–${endItem} of ${sortedProducts.length} product${sortedProducts.length !== 1 ? 's' : ''}`}
               </p>
@@ -509,7 +524,13 @@ function ProductListingPage() {
             </div>
 
             <div className={`products-grid ${viewMode === 'list' ? 'products-grid--list' : ''}`}>
-              {paginatedProducts.map((product) => (
+              {productsLoading && (
+                <div className="products-loading" role="status" aria-live="polite">
+                  <span className="products-loading__spinner" aria-hidden="true" />
+                  <p>Loading products…</p>
+                </div>
+              )}
+              {!productsLoading && paginatedProducts.map((product) => (
                 <article key={product.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
                   <Link to={`/product/${product.id}`} className="product-card__image">
                     {product.badge && (
@@ -573,7 +594,7 @@ function ProductListingPage() {
                   </div>
                 </article>
               ))}
-              {sortedProducts.length === 0 && (
+              {!productsLoading && sortedProducts.length === 0 && (
                 <div className="empty-state">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
                     <circle cx="11" cy="11" r="8"/>
@@ -590,7 +611,7 @@ function ProductListingPage() {
               )}
             </div>
 
-            {totalPages > 1 && (
+            {!productsLoading && totalPages > 1 && (
               <div className="pagination-wrap">
                 <p className="pagination-info">
                   Showing <strong>{startItem}–{endItem}</strong> of <strong>{sortedProducts.length}</strong> results

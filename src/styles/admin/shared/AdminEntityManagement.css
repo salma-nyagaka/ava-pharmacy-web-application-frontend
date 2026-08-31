@@ -75,24 +75,26 @@
 /* ── KPI card grid ── */
 .cm-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .cm-kpi-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.55rem;
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-left: 3px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
+  min-width: 0;
+  border-radius: 10px;
+  padding: 0.58rem 0.75rem;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
   transition: box-shadow 0.15s, transform 0.15s;
   min-width: 0;
+  min-height: 58px;
 }
 
 .cm-kpi-card:hover {
@@ -104,13 +106,13 @@
   order: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.15rem;
   min-width: 0;
 }
 
 
 .cm-kpi-card__label {
-  font-size: 0.67rem;
+  font-size: 0.58rem;
   font-weight: 600;
   color: #94a3b8;
   text-transform: uppercase;
@@ -120,7 +122,7 @@
 }
 
 .cm-kpi-card__value {
-  font-size: 1.5rem;
+  font-size: 1.12rem;
   font-weight: 800;
   color: #0f172a;
   line-height: 1;
@@ -136,10 +138,10 @@
 
 .cm-kpi-card__icon {
   order: 2;
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -420,11 +422,12 @@
 
 .cm-table th,
 .cm-table td {
-  padding: 0.8rem 1rem;
+  padding: 0.42rem 0.52rem;
   text-align: left;
   border: 1px solid #e5e7eb;
   vertical-align: middle;
-  font-size: 0.8125rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
 }
 
 .cm-table th {
@@ -432,7 +435,7 @@
   top: 0;
   z-index: 1;
   background: #f1f5f9;
-  font-size: 0.7rem;
+  font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -454,6 +457,56 @@
 
 .cm-table tbody tr:hover td {
   background: #f0fdf8 !important;
+}
+
+.health-concerns-compact-table th,
+.health-concerns-compact-table td {
+  padding: 0.42rem 0.52rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.health-concerns-compact-table th {
+  font-size: 0.64rem;
+  letter-spacing: 0.045em;
+}
+
+.health-concerns-compact-table .cm-name-cell {
+  gap: 0.1rem;
+}
+
+.health-concerns-compact-table .cm-name-cell__name {
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.health-concerns-compact-table .cm-name-cell__id,
+.health-concerns-compact-table .cm-name-cell__desc {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.health-concerns-compact-table .cm-toggle {
+  transform: scale(0.86);
+  transform-origin: left center;
+}
+
+.health-concerns-compact-table .cm-row-actions {
+  gap: 0.3rem;
+}
+
+.health-concerns-compact-table .cm-row-btn,
+.health-concerns-compact-table .btn--sm {
+  min-height: 28px;
+  padding: 0.25rem 0.42rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+}
+
+.health-concerns-compact-table th .btn--sm {
+  min-height: 26px;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.64rem;
 }
 
 .cm-name-cell {
@@ -607,6 +660,63 @@
 .cm-row-btn--warn:hover { background: #fffbeb; border-color: #fcd34d; }
 .cm-row-btn--warn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.banners-table {
+  min-width: 980px;
+}
+
+.banners-table th,
+.banners-table td {
+  white-space: nowrap;
+}
+
+.banners-table__banner-col {
+  width: 52%;
+  min-width: 520px;
+}
+
+.banners-row-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.banners-row-banner__img {
+  width: 220px;
+  height: 124px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.banners-row-banner__copy {
+  min-width: 0;
+  gap: 0.18rem;
+}
+
+.banners-row-banner__message {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.banners-row-banner__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.banners-row-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.banners-pagination {
+  justify-content: space-between;
+}
+
 .cm-overlay {
   position: fixed;
   inset: 0;
@@ -691,6 +801,12 @@
   flex-direction: column;
   gap: 1rem;
   padding: 1.25rem;
+}
+
+.cm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 .cm-field {
@@ -850,6 +966,12 @@
   padding: 0 1.25rem 1.25rem;
 }
 
+@media (max-width: 640px) {
+  .cm-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .cm-spinner {
   display: inline-block;
   width: 0.95rem;
@@ -997,23 +1119,23 @@
 }
 
 .cm-stat-item {
-  padding: 1rem 1.6rem;
+  padding: 0.65rem 1rem;
 }
 
 .cm-stat-item__value {
-  font-size: 1.875rem;
+  font-size: 1.2rem;
   line-height: 1;
   color: var(--dashboard-text-title);
 }
 
 .cm-stat-item__label {
-  font-size: var(--dashboard-font-sm);
+  font-size: var(--dashboard-font-xs);
   font-weight: var(--dashboard-weight-medium);
   color: var(--dashboard-text-faint);
 }
 
 .cm-toolbar {
-  padding: var(--dashboard-space-4) var(--dashboard-space-5);
+  padding: var(--dashboard-space-2) var(--dashboard-space-3);
   background: var(--dashboard-surface);
 }
 
@@ -1028,6 +1150,121 @@
   border-radius: var(--dashboard-radius-sm);
   background: var(--dashboard-surface-muted);
   color: var(--dashboard-text-title);
+}
+
+.cm-table th,
+.cm-table td {
+  padding: 0.42rem 0.52rem;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.cm-table th {
+  font-size: 0.64rem;
+  letter-spacing: 0.045em;
+}
+
+.cm-row-actions {
+  gap: 0.3rem;
+}
+
+.cm-row-btn,
+.cm-table .btn--sm {
+  min-height: 28px;
+  padding: 0.25rem 0.42rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+}
+
+/* Unified compact table typography for admin workspace tables. */
+.admin-page .cm-table,
+.admin-page .admin-table,
+.admin-dashboard .ad-table,
+.category-management .cm-table,
+.product-management .cm-table {
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.admin-page .cm-table th,
+.admin-page .admin-table th,
+.admin-dashboard .ad-table th,
+.category-management .cm-table th,
+.product-management .cm-table th {
+  font-size: 0.64rem;
+  line-height: 1.2;
+  letter-spacing: 0.045em;
+}
+
+.admin-page .cm-table td,
+.admin-page .admin-table td,
+.admin-dashboard .ad-table td,
+.category-management .cm-table td,
+.product-management .cm-table td {
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.admin-page .cm-table td a,
+.admin-page .cm-table td span,
+.admin-page .admin-table td span,
+.category-management .cm-table td a,
+.category-management .cm-table td span,
+.product-management .cm-table td span {
+  line-height: 1.25;
+}
+
+.admin-page .cm-table .cm-name-cell__name,
+.admin-page .cm-table .customer-name,
+.admin-page .cm-table .order-id,
+.admin-page .cm-table .order-total,
+.admin-page .admin-table .inv-row__number,
+.admin-dashboard .ad-table__order-num,
+.admin-dashboard .ad-table__amount,
+.category-management .cm-table .cm-name-cell__name,
+.product-management .cm-table .cm-name-cell__name {
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.admin-page .cm-table .cm-name-cell__id,
+.admin-page .cm-table .cm-name-cell__desc,
+.admin-page .cm-table .customer-email,
+.admin-page .admin-table .inv-row__email,
+.admin-page .admin-table .inv-row__date,
+.category-management .cm-table .cm-name-cell__id,
+.category-management .cm-table .cm-name-cell__desc,
+.category-management .cm-table .cm-chips__empty,
+.product-management .cm-table .cm-name-cell__id {
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.admin-page .cm-table .cm-chip,
+.admin-page .cm-table .cm-status,
+.admin-page .cm-table .admin-status,
+.admin-page .cm-table .status,
+.admin-page .admin-table .inv-badge,
+.admin-dashboard .ad-status,
+.category-management .cm-table .cm-chip,
+.category-management .cm-table .cm-parent-badge,
+.product-management .cm-table .cm-chip,
+.product-management .cm-table .cm-status {
+  font-size: 0.66rem;
+  line-height: 1.2;
+}
+
+.admin-page .cm-table .cm-row-btn,
+.admin-page .cm-table .btn-sm,
+.admin-page .cm-table .btn--sm,
+.admin-page .admin-table button,
+.admin-dashboard .ad-table__view,
+.category-management .cm-table .cm-row-btn,
+.category-management .cm-table .btn--sm,
+.product-management .cm-table .cm-row-btn,
+.product-management .cm-table .btn--sm {
+  font-size: 0.7rem;
+  line-height: 1.2;
 }
 
 .cm-search-box input,

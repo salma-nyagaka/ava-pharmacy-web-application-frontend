@@ -3,9 +3,9 @@ import '../../styles/pages/StoreLocatorPage.css'
 
 function StoreLocatorPage() {
   const branches = [
-    { name: 'Nairobi CBD', address: 'Kimathi St, Nairobi', hours: '8:00 AM - 9:00 PM', phone: '+254 700 000 001' },
-    { name: 'Westlands', address: 'Parklands Rd, Nairobi', hours: '8:00 AM - 10:00 PM', phone: '+254 700 000 002' },
-    { name: 'Karen', address: 'Karen Rd, Nairobi', hours: '9:00 AM - 8:00 PM', phone: '+254 700 000 003' },
+    { name: 'Karen Hub', address: 'The Hub Karen, Nairobi', hours: '9:00 AM - 8:00 PM', phone: '0715 737 330 / 0733 737 330 / 0724 282 282' },
+    { name: 'GTC Westlands', address: 'GTC, Westlands, Nairobi', hours: '8:00 AM - 10:00 PM', phone: '0713 444 999 / 0101 444 999' },
+    { name: 'Nyali Ava Promenade Mall', address: 'Promenade Mall, Nyali, Mombasa', hours: '8:00 AM - 10:00 PM', phone: '0723 888 835' },
   ]
 
   return (

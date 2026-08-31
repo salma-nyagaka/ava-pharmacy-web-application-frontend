@@ -34,9 +34,15 @@ export function mapApiProduct(p: Product | ProductDetail): CatalogProduct {
   const brandSlug = p.brand_slug ?? detail.brand?.slug ?? ''
   const categoryName = p.category_name ?? detail.category?.name ?? ''
   const categorySlug = p.category_slug ?? detail.category?.slug ?? ''
+  const basePrice = parseFloat(p.price ?? '0')
+  const finalPrice = parseFloat(p.final_price ?? p.price ?? '0')
+  const explicitOriginalPrice = p.original_price ? parseFloat(p.original_price) : null
+  const originalPrice = explicitOriginalPrice ?? (finalPrice < basePrice ? basePrice : null)
 
   return {
     id: p.id,
+    productId: p.product_id ?? p.id,
+    variantId: p.product_id ? p.id : p.variant_id,
     slug: p.slug,
     sku: p.sku,
     name: p.name,
@@ -45,8 +51,8 @@ export function mapApiProduct(p: Product | ProductDetail): CatalogProduct {
     category: categoryName,
     categorySlug,
     subcategorySlugs: [],
-    price: parseFloat(p.final_price ?? p.price ?? '0'),
-    originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+    price: finalPrice,
+    originalPrice,
     image: p.image ?? '',
     gallery,
     rating: p.average_rating ?? 0,

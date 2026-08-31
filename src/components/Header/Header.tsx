@@ -8,6 +8,7 @@ import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { useAuth } from '../../context/AuthContext'
+import { faqService } from '../../services/faqService'
 
 function Header() {
   const ALL_CATEGORIES_KEY = 'all'
@@ -25,6 +26,7 @@ function Header() {
   const [searchQuery, setSearchQuery] = useState('')
   const [cartCount, setCartCount] = useState(0)
   const [favCount, setFavCount] = useState(0)
+  const [hasPublishedFAQs, setHasPublishedFAQs] = useState(false)
 
   const toggleMenu = () => {
     setIsMenuOpen((prev) => !prev)
@@ -42,6 +44,12 @@ function Header() {
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    faqService.listPublished()
+      .then((items) => setHasPublishedFAQs(items.length > 0))
+      .catch(() => setHasPublishedFAQs(false))
   }, [])
 
   useEffect(() => {
@@ -126,6 +134,14 @@ function Header() {
 
   const closeActiveMenu = () => setActiveMenu(null)
 
+  const staffDashboard = user?.role === 'admin'
+    ? { label: 'Dashboard', path: '/admin/dashboard' }
+    : user?.role === 'doctor'
+      ? { label: 'Dashboard', path: '/doctor/dashboard' }
+      : user?.role === 'pharmacist'
+        ? { label: 'Dashboard', path: '/pharmacist/dashboard' }
+        : null
+
   const closeMenus = () => {
     setActiveMenu(null)
     setIsMenuOpen(false)
@@ -180,7 +196,7 @@ function Header() {
             </div>
             <div className="header__topbar-right">
               <Link to="/about" className="header__topbar-link">About Us</Link>
-              <Link to="/help" className="header__topbar-link">FAQ</Link>
+              {hasPublishedFAQs && <Link to="/faqs" className="header__topbar-link">FAQ</Link>}
               <Link to="/track-order" className="header__topbar-link">Track Order</Link>
               <Link to="/contact" className="header__topbar-link">Contact Us</Link>
               <Link to="/professional/register" className="header__topbar-link header__topbar-link--pro">Professional Registration</Link>
@@ -222,18 +238,6 @@ function Header() {
 
             {/* Actions */}
             <div className="header__actions">
-              {isLoggedIn && user?.role === 'admin' && (
-                <Link to="/admin" className="header__action-btn header__action-btn--admin">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="7" height="7" rx="1"/>
-                    <rect x="14" y="3" width="7" height="7" rx="1"/>
-                    <rect x="3" y="14" width="7" height="7" rx="1"/>
-                    <rect x="14" y="14" width="7" height="7" rx="1"/>
-                  </svg>
-                  <span className="header__action-text">Admin Dashboard</span>
-                </Link>
-              )}
-
               <button className="header__action-btn header__action-btn--search-mobile" onClick={toggleSearch}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"/>
@@ -255,6 +259,17 @@ function Header() {
                       {user?.name?.split(' ')[0] || 'Account'}
                     </span>
                   </button>
+                  {staffDashboard && (
+                    <Link to={staffDashboard.path} className="header__action-btn header__action-btn--dashboard">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1"/>
+                      </svg>
+                      <span className="header__action-text">{staffDashboard.label}</span>
+                    </Link>
+                  )}
                   <div className="header__accounts-dropdown">
                     <nav className="had-links">
                       <Link to="/account" className="had-link">
@@ -526,6 +541,11 @@ function Header() {
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
               <Link to="/health-services" className={`header__nav-link${isActive('/health-services') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>Health Services</Link>
             </li>
+            {hasPublishedFAQs && (
+              <li className="header__nav-item" onMouseEnter={closeActiveMenu}>
+                <Link to="/faqs" className={`header__nav-link${isActive('/faqs') ? ' header__nav-link--active' : ''}`} onClick={closeMenus}>FAQs</Link>
+              </li>
+            )}
           </ul>
         </div>
       </nav>
