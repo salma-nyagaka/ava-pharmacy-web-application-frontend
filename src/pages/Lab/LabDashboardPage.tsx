@@ -1,15 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import { labPartnerDashboardService, LabPartnerDashboardData, LabPartnerDashboardError } from '../../services/labPartnerDashboardService'
 import { adminLabPartnerService, AdminLabPartnerApi } from '../../services/adminLabPartnerService'
+import { fetchLabTests, type LabTest } from '../../services/labService'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/portals/DoctorDashboardPage.css'
 import '../../styles/pages/LabDashboardPage.css'
 
 const blankTech = { name: '', email: '', phone: '', specialty: '' }
-type LabDashboardTab = 'overview' | 'team' | 'requests'
+const blankFacility = {
+  name: '', email: '', phone: '', county: '', address: '', accreditation: '',
+  licenseNumber: '', licenseExpiry: '', supportedCounties: '', pickupInstructions: '',
+  weekdayHours: '08:00-17:00', saturdayHours: '08:00-13:00',
+  homeCollection: true, physicalPickup: false, testIds: [] as number[], technicianIds: [] as number[],
+  offeringOverrides: {} as Record<number, { price: string; turnaround: string }>,
+}
+type LabDashboardTab = 'overview' | 'facilities' | 'team' | 'requests'
 
 const statusToneClass = (status: string) => {
   const normalized = status.toLowerCase()
@@ -39,6 +47,8 @@ const mapAdminPartnerPreview = (partner?: AdminLabPartnerApi): LabPartnerDashboa
       documents: Array.isArray(partner?.documents) ? partner.documents.map((doc) => doc.name || 'Document') : [],
     },
     stats: {
+      facilitiesTotal: 0,
+      facilitiesVerified: 0,
       techniciansTotal: techs.length,
       techniciansActive: techs.filter((tech) => (tech.status || '').toLowerCase() === 'active').length,
       techniciansPending: techs.filter((tech) => !tech.status || (tech.status || '').toLowerCase() === 'pending').length,
@@ -56,6 +66,7 @@ const mapAdminPartnerPreview = (partner?: AdminLabPartnerApi): LabPartnerDashboa
       accountProvisioned: Boolean(tech.user || tech.user_email),
       note: tech.status_note || tech.rejection_note || '',
     })),
+    facilities: [],
     recentRequests: [],
   }
 }
@@ -67,6 +78,11 @@ function LabDashboardPage() {
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [showAddTech, setShowAddTech] = useState(false)
+  const [showAddFacility, setShowAddFacility] = useState(false)
+  const [editingFacilityId, setEditingFacilityId] = useState<number | null>(null)
+  const [facilityDraft, setFacilityDraft] = useState(blankFacility)
+  const [facilityDocument, setFacilityDocument] = useState<File | null>(null)
+  const [labTests, setLabTests] = useState<LabTest[]>([])
   const [techDraft, setTechDraft] = useState(blankTech)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -76,7 +92,7 @@ function LabDashboardPage() {
   const isAdminPreview = user?.role === 'admin'
   const isPartner = user?.role === 'lab_partner'
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -92,7 +108,7 @@ function LabDashboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isAdminPreview])
 
   useEffect(() => {
     if (isPartner || isAdminPreview) {
@@ -100,7 +116,12 @@ function LabDashboardPage() {
     } else {
       setLoading(false)
     }
-  }, [isPartner, isAdminPreview])
+  }, [isPartner, isAdminPreview, loadDashboard])
+
+  useEffect(() => {
+    if (!isPartner) return
+    fetchLabTests().then(setLabTests).catch(() => setLabTests([]))
+  }, [isPartner])
 
   const handleApiError = (err: unknown, fallback: string) => {
     if (err instanceof LabPartnerDashboardError) {
@@ -133,6 +154,105 @@ function LabDashboardPage() {
     }
   }
 
+  const handleAddFacility = async () => {
+    if (!editingFacilityId && !facilityDocument) {
+      setFieldErrors({ documents: 'Upload the facility licence or accreditation document.' })
+      return
+    }
+    const validationErrors: Record<string, string> = {}
+    if (!facilityDraft.name.trim()) validationErrors.name = 'Laboratory name is required.'
+    if (!facilityDraft.licenseNumber.trim()) validationErrors.license_number = 'Facility licence number is required.'
+    if (!facilityDraft.phone.trim()) validationErrors.phone = 'A facility contact phone is required.'
+    if (!facilityDraft.county.trim()) validationErrors.county = 'County is required.'
+    if (!facilityDraft.address.trim()) validationErrors.address = 'Physical address is required.'
+    if (facilityDraft.testIds.length === 0) validationErrors.test_ids = 'Select at least one test this laboratory can perform.'
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors)
+      return
+    }
+    setSubmitting(true)
+    setFieldErrors({})
+    setError('')
+    try {
+      const payload = {
+        name: facilityDraft.name.trim(),
+        email: facilityDraft.email.trim(),
+        phone: facilityDraft.phone.trim(),
+        county: facilityDraft.county.trim(),
+        address: facilityDraft.address.trim(),
+        accreditation: facilityDraft.accreditation.trim(),
+        license_number: facilityDraft.licenseNumber.trim(),
+        license_expiry: facilityDraft.licenseExpiry || null,
+        supported_counties: facilityDraft.supportedCounties.split(',').map((item) => item.trim()).filter(Boolean),
+        operating_hours: {
+          monday_friday: facilityDraft.weekdayHours.trim(),
+          saturday: facilityDraft.saturdayHours.trim(),
+        },
+        home_collection_enabled: facilityDraft.homeCollection,
+        physical_result_pickup_enabled: facilityDraft.physicalPickup,
+        pickup_instructions: facilityDraft.pickupInstructions.trim(),
+        test_ids: facilityDraft.testIds,
+        test_offerings: facilityDraft.testIds.map((testId) => {
+          const test = labTests.find((item) => item.id === testId)
+          const override = facilityDraft.offeringOverrides[testId]
+          return {
+            test: testId,
+            price: Number(override?.price ?? test?.price ?? 0),
+            turnaround: override?.turnaround ?? test?.turnaround ?? '',
+            home_collection_available: facilityDraft.homeCollection,
+          }
+        }),
+        technician_ids: facilityDraft.technicianIds,
+      }
+      const saved = editingFacilityId
+        ? await labPartnerDashboardService.updateFacility(editingFacilityId, payload)
+        : await labPartnerDashboardService.addFacility(payload)
+      if (facilityDocument && saved.id) {
+        await labPartnerDashboardService.uploadFacilityDocument(saved.id, facilityDocument)
+      }
+      setShowAddFacility(false)
+      setEditingFacilityId(null)
+      setFacilityDraft(blankFacility)
+      setFacilityDocument(null)
+      setFeedback(editingFacilityId ? 'Laboratory updated and submitted for re-verification.' : 'Laboratory submitted for Ava verification.')
+      await loadDashboard()
+    } catch (err) {
+      handleApiError(err, 'Unable to register the laboratory.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const openFacility = (facilityId?: number) => {
+    const facility = dashboard?.facilities.find((item) => item.id === facilityId)
+    setEditingFacilityId(facility?.id ?? null)
+    setFacilityDraft(facility ? {
+      name: facility.name,
+      email: facility.email,
+      phone: facility.phone,
+      county: facility.county,
+      address: facility.address,
+      accreditation: facility.accreditation,
+      licenseNumber: facility.licenseNumber,
+      licenseExpiry: facility.licenseExpiry ?? '',
+      supportedCounties: facility.supportedCounties.filter((county) => county !== facility.county).join(', '),
+      pickupInstructions: facility.pickupInstructions,
+      weekdayHours: facility.operatingHours.monday_friday ?? '08:00-17:00',
+      saturdayHours: facility.operatingHours.saturday ?? '08:00-13:00',
+      homeCollection: facility.homeCollectionEnabled,
+      physicalPickup: facility.physicalResultPickupEnabled,
+      testIds: facility.offerings.map((offering) => offering.testId),
+      technicianIds: facility.technicianIds,
+      offeringOverrides: Object.fromEntries(facility.offerings.map((offering) => [offering.testId, {
+        price: String(offering.price), turnaround: offering.turnaround,
+      }])),
+    } : blankFacility)
+    setFieldErrors({})
+    setFacilityDocument(null)
+    setFeedback('')
+    setShowAddFacility(true)
+  }
+
   const handleProvision = async (id: number) => {
     setRowLoadingId(id)
     setError('')
@@ -162,6 +282,8 @@ function LabDashboardPage() {
   }
 
   const stats = useMemo(() => dashboard?.stats ?? {
+    facilitiesTotal: 0,
+    facilitiesVerified: 0,
     techniciansTotal: 0,
     techniciansActive: 0,
     techniciansPending: 0,
@@ -183,6 +305,16 @@ function LabDashboardPage() {
           <rect x="14" y="3" width="7" height="7" rx="1.5" />
           <rect x="14" y="14" width="7" height="7" rx="1.5" />
           <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+      ),
+    },
+    {
+      id: 'facilities',
+      label: 'Laboratories',
+      badge: Math.max(0, stats.facilitiesTotal - stats.facilitiesVerified),
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 21h18M5 21V7l7-4 7 4v14M9 10h2m2 0h2M9 14h2m2 0h2" />
         </svg>
       ),
     },
@@ -389,6 +521,45 @@ function LabDashboardPage() {
           </section>
         )}
 
+        {!loading && dashboard && activeTab === 'facilities' && (
+          <section className="dd-table-card lpd-panel">
+            <div className="dd-toolbar lpd-toolbar">
+              <div>
+                <h2 className="dd-toolbar__title">Laboratory facilities</h2>
+                <p className="dd-count">Register each physical branch, its collection capabilities, technicians, and test catalogue.</p>
+              </div>
+              {!isAdminPreview && <button className="btn btn--primary btn--sm" type="button" onClick={() => openFacility()}>Add laboratory</button>}
+            </div>
+            <div className="lpd-onboarding-note">
+              <span className="lpd-onboarding-note__number">1</span><span>Register the physical laboratory and its licence.</span>
+              <span className="lpd-onboarding-note__number">2</span><span>Set its tests, collection coverage, and technicians.</span>
+              <span className="lpd-onboarding-note__number">3</span><span>AVA verifies the facility before patient requests can be assigned.</span>
+            </div>
+            <div className="cm-panel cm-table-wrap dd-table-wrap">
+              <table className="cm-table dd-table">
+                <thead><tr><th>Laboratory</th><th>Location</th><th>Capabilities</th><th>Tests</th><th>Technicians</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>
+                  {dashboard.facilities.map((facility) => (
+                    <tr key={facility.id}>
+                      <td><strong>{facility.name}</strong><br /><small>{facility.reference}</small><br /><small>Licence: {facility.licenseNumber}</small></td>
+                      <td>{facility.county}<br /><small>{facility.address}</small></td>
+                      <td>
+                        {facility.homeCollectionEnabled ? 'Home collection' : 'Lab visits only'}
+                        <br /><small>{facility.physicalResultPickupEnabled ? 'Physical result pickup available' : 'Digital results only'}</small>
+                      </td>
+                      <td>{facility.offerings.length}<br /><small>{facility.offerings.slice(0, 2).map((item) => item.testName).join(', ')}</small></td>
+                      <td>{facility.technicianIds.length}</td>
+                      <td><span className={statusToneClass(facility.status)}>{facility.status}</span>{facility.statusNote && <><br /><small>{facility.statusNote}</small></>}</td>
+                      <td>{!isAdminPreview && <button className="btn btn--outline btn--sm" type="button" onClick={() => openFacility(facility.id)}>Edit</button>}</td>
+                    </tr>
+                  ))}
+                  {dashboard.facilities.length === 0 && <tr><td colSpan={7} className="cm-empty-state">No laboratory facilities registered yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {!loading && dashboard && activeTab === 'requests' && (
           <section className="dd-table-card lpd-panel">
             <div className="dd-toolbar lpd-toolbar">
@@ -454,6 +625,80 @@ function LabDashboardPage() {
                 <button className="btn btn--primary" type="button" onClick={() => { void handleAddTechnician() }} disabled={submitting}>
                   {submitting ? 'Adding…' : 'Add technician'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isAdminPreview && showAddFacility && (
+        <div className="modal-overlay" onClick={() => { setShowAddFacility(false); setEditingFacilityId(null) }}>
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal__header">
+              <h2>{editingFacilityId ? 'Edit laboratory facility' : 'Register laboratory facility'}</h2>
+              <button className="modal__close" onClick={() => { setShowAddFacility(false); setEditingFacilityId(null) }}>×</button>
+            </div>
+            <div className="modal__content">
+              <div className="lpd-facility-form-intro">
+                <strong>{editingFacilityId ? 'Update this laboratory record' : 'Register a physical laboratory branch'}</strong>
+                <span>Legal partner approval does not automatically approve a laboratory. Submit the branch licence, services, coverage, and responsible team for review.</span>
+              </div>
+              <p className="lpd-form-section-title">1. Identity and compliance</p>
+              <div className="form-grid form-grid--2">
+                <div className="form-group"><label>Laboratory name <span aria-hidden="true">*</span></label><input value={facilityDraft.name} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, name: event.target.value }))} />{fieldErrors.name && <p className="pr-field__err">{fieldErrors.name}</p>}</div>
+                <div className="form-group"><label>Facility licence number <span aria-hidden="true">*</span></label><input value={facilityDraft.licenseNumber} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, licenseNumber: event.target.value }))} />{fieldErrors.license_number && <p className="pr-field__err">{fieldErrors.license_number}</p>}</div>
+                <div className="form-group"><label>Licence expiry</label><input type="date" value={facilityDraft.licenseExpiry} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, licenseExpiry: event.target.value }))} /></div>
+                <div className="form-group"><label>Accreditation</label><input value={facilityDraft.accreditation} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, accreditation: event.target.value }))} /></div>
+                <div className="form-group"><label>Phone</label><input value={facilityDraft.phone} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, phone: event.target.value }))} />{fieldErrors.phone && <p className="pr-field__err">{fieldErrors.phone}</p>}</div>
+                <div className="form-group"><label>Email</label><input type="email" value={facilityDraft.email} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, email: event.target.value }))} /></div>
+                <div className="form-group"><label>County</label><input value={facilityDraft.county} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, county: event.target.value }))} />{fieldErrors.county && <p className="pr-field__err">{fieldErrors.county}</p>}</div>
+                <div className="form-group"><label>Other supported counties</label><input value={facilityDraft.supportedCounties} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, supportedCounties: event.target.value }))} placeholder="Kajiado, Kiambu" /></div>
+                <div className="form-group"><label>Monday–Friday hours</label><input value={facilityDraft.weekdayHours} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, weekdayHours: event.target.value }))} placeholder="08:00-17:00" /></div>
+                <div className="form-group"><label>Saturday hours</label><input value={facilityDraft.saturdayHours} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, saturdayHours: event.target.value }))} placeholder="08:00-13:00" /></div>
+              </div>
+              <div className="form-group"><label>Physical address <span aria-hidden="true">*</span></label><textarea rows={2} value={facilityDraft.address} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, address: event.target.value }))} />{fieldErrors.address && <p className="pr-field__err">{fieldErrors.address}</p>}</div>
+              <div className="form-group"><label>Facility licence/accreditation document (PDF, JPG or PNG){!editingFacilityId && <span aria-hidden="true"> *</span>}</label><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setFacilityDocument(event.target.files?.[0] ?? null)} />{fieldErrors.documents && <p className="pr-field__err">{fieldErrors.documents}</p>}</div>
+              <p className="lpd-form-section-title">2. Services and collection coverage</p>
+              <div className="form-group">
+                <label>Tests offered</label>
+                <div className="lpd-chip-row">
+                  {labTests.map((test) => (
+                    <label key={test.id} className="status-pill status-pill--info">
+                      <input type="checkbox" checked={facilityDraft.testIds.includes(test.id)} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, testIds: event.target.checked ? [...prev.testIds, test.id] : prev.testIds.filter((id) => id !== test.id) }))} /> {test.name}
+                    </label>
+                  ))}
+                </div>
+                {fieldErrors.test_ids && <p className="pr-field__err">{fieldErrors.test_ids}</p>}
+                {fieldErrors.test_offerings && <p className="pr-field__err">{fieldErrors.test_offerings}</p>}
+              </div>
+              {facilityDraft.testIds.map((testId) => {
+                const test = labTests.find((item) => item.id === testId)
+                if (!test) return null
+                const override = facilityDraft.offeringOverrides[testId]
+                return (
+                  <div className="form-grid form-grid--2" key={testId}>
+                    <div className="form-group"><label>{test.name} price (KSh)</label><input type="number" min="1" value={override?.price ?? String(test.price)} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: event.target.value, turnaround: prev.offeringOverrides[testId]?.turnaround ?? test.turnaround } } }))} /></div>
+                    <div className="form-group"><label>{test.name} turnaround</label><input value={override?.turnaround ?? test.turnaround} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: prev.offeringOverrides[testId]?.price ?? String(test.price), turnaround: event.target.value } } }))} /></div>
+                  </div>
+                )
+              })}
+              <p className="lpd-form-section-title">3. Team and result fulfilment</p>
+              <div className="form-group">
+                <label>Technicians assigned to this facility</label>
+                <div className="lpd-chip-row">
+                  {dashboard?.technicians.filter((tech) => tech.status === 'Active').map((tech) => (
+                    <label key={tech.id} className="status-pill status-pill--info">
+                      <input type="checkbox" checked={facilityDraft.technicianIds.includes(tech.id)} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, technicianIds: event.target.checked ? [...prev.technicianIds, tech.id] : prev.technicianIds.filter((id) => id !== tech.id) }))} /> {tech.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <label><input type="checkbox" checked={facilityDraft.homeCollection} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, homeCollection: event.target.checked }))} /> Supports home sample collection</label>
+              <label><input type="checkbox" checked={facilityDraft.physicalPickup} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, physicalPickup: event.target.checked }))} /> Supports physical result pickup</label>
+              {facilityDraft.physicalPickup && <div className="form-group"><label>Pickup instructions</label><textarea rows={2} value={facilityDraft.pickupInstructions} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, pickupInstructions: event.target.value }))} /></div>}
+              <div className="modal__actions">
+                <button className="btn btn--ghost" type="button" onClick={() => { setShowAddFacility(false); setEditingFacilityId(null) }}>Cancel</button>
+                <button className="btn btn--primary" type="button" onClick={() => { void handleAddFacility() }} disabled={submitting}>{submitting ? 'Submitting…' : editingFacilityId ? 'Save and resubmit' : 'Submit for verification'}</button>
               </div>
             </div>
           </div>

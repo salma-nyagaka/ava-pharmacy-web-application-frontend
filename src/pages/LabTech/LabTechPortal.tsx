@@ -1,1033 +1,315 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import { useAuth } from '../../context/AuthContext'
 import {
+  downloadLabResultFile,
+  fetchStaffLabRequests,
   LabRequest,
   LabRequestStatus,
-  LabResult,
-  assignLabTechnician,
-  cancelLabRequest,
-  getNextLabStatus,
-  loadLabCategoryDefs,
-  loadLabRequests,
-  loadLabResults,
-  loadLabTests,
-  saveLabRequests,
-  saveLabResults,
-  updateLabRequestStatus,
-  upsertLabResult,
-} from '../../data/labs'
-import { loadLabPartners } from '../../data/labPartners'
-import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
+  updateLabRequest,
+  uploadLabResult,
+  verifyLabCollectionCode,
+} from '../../services/labService'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/portals/LabTechPortal.css'
 
 type Tab = 'overview' | 'queue' | 'mine'
 
-const STATUS_STEPS: LabRequestStatus[] = [
-  'Awaiting sample',
-  'Sample collected',
-  'Processing',
-  'Result ready',
-  'Completed',
+const STATUS_OPTIONS: Array<{ value: LabRequestStatus; label: string }> = [
+  { value: 'awaiting_sample', label: 'Awaiting sample' },
+  { value: 'sample_collected', label: 'Sample collected' },
+  { value: 'processing', label: 'Processing' },
+  { value: 'result_ready', label: 'Result ready' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
 ]
 
-const STATUS_DOT: Record<LabRequestStatus, string> = {
-  'Awaiting sample': 'dot--awaiting',
-  'Sample collected': 'dot--collected',
-  Processing: 'dot--processing',
-  'Result ready': 'dot--ready',
-  Completed: 'dot--completed',
-  Cancelled: 'dot--cancelled',
+function errorMessage(error: unknown) {
+  const detail = (error as { response?: { data?: { detail?: string; message?: string; code?: string | string[]; error?: { details?: { detail?: string; code?: string | string[] } } } } })?.response?.data
+  const nested = detail?.error?.details
+  const codeValue = detail?.code ?? nested?.code
+  const codeError = Array.isArray(codeValue) ? codeValue[0] : codeValue
+  return detail?.detail ?? detail?.message ?? nested?.detail ?? codeError ?? 'The request could not be completed. Please try again.'
 }
 
-const LAB_STEPS = ['Received', 'Processing', 'Resulted', 'Released']
-const LAB_STEP_STATUS_MAP: Record<string, number> = {
-  'awaiting sample': 0,
-  'sample collected': 0,
-  processing: 1,
-  'result ready': 2,
-  completed: 3,
-  released: 3,
+function formatDate(value: string | null) {
+  if (!value) return 'Not scheduled'
+  return new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
-function LabStepper({ currentStatus }: { currentStatus: string }) {
-  const activeStep = LAB_STEP_STATUS_MAP[currentStatus.toLowerCase()] ?? 0
-  return (
-    <div className="lab-stepper">
-      {LAB_STEPS.map((step, i) => (
-        <div
-          key={step}
-          className={`lab-stepper__step ${i < activeStep ? 'lab-stepper__step--done' : ''} ${i === activeStep ? 'lab-stepper__step--active' : ''}`}
-        >
-          <div className="lab-stepper__circle">
-            {i < activeStep ? (
-              <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
-                <path d="M3 8l3.5 3.5L13 5" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            ) : <span>{i + 1}</span>}
-          </div>
-          {i < LAB_STEPS.length - 1 && <div className="lab-stepper__line" />}
-          <span className="lab-stepper__label">{step}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function triageSort(requests: LabRequest[]) {
-  return [...requests].sort((a, b) => {
-    const urgencyScore = (r: LabRequest) => {
-      if (r.priority === 'Priority') return 3
-      return 1
-    }
-    const ageScore = (r: LabRequest) => {
-      const created = r.scheduledAt
-      if (!created) return 0
-      return Date.now() - new Date(created).getTime()
-    }
-    const urgencyDiff = urgencyScore(b) - urgencyScore(a)
-    if (urgencyDiff !== 0) return urgencyDiff
-    return ageScore(b) - ageScore(a)
-  })
-}
-
-const CRITICAL_THRESHOLDS: Record<string, { low: number; high: number; unit: string }> = {
-  potassium: { low: 3.0, high: 6.0, unit: 'mmol/L' },
-  sodium: { low: 125, high: 155, unit: 'mmol/L' },
-  glucose: { low: 2.5, high: 25, unit: 'mmol/L' },
-  hemoglobin: { low: 6, high: 20, unit: 'g/dL' },
-  creatinine: { low: 0, high: 500, unit: 'μmol/L' },
-}
-
-function isCriticalValue(testName: string, value: number): boolean {
-  const key = testName.toLowerCase()
-  const threshold = Object.entries(CRITICAL_THRESHOLDS).find(([k]) => key.includes(k))?.[1]
-  if (!threshold) return false
-  return value < threshold.low || value > threshold.high
-}
-
-function ProductivityStats({ myRequests }: { myRequests: LabRequest[] }) {
-  const today = new Date().toDateString()
-  const completedToday = myRequests.filter(r =>
-    (r.status === 'Completed') &&
-    r.scheduledAt && new Date(r.scheduledAt).toDateString() === today
-  ).length
-  const pending = myRequests.filter(r => !['Completed', 'Cancelled'].includes(r.status)).length
-  const completed = myRequests.filter(r => ['Completed'].includes(r.status)).length
-  const total = pending + completed || 1
-  const avgHours = (() => {
-    const timed = myRequests.filter(r => r.status === 'Completed' && r.scheduledAt)
-    if (!timed.length) return null
-    const avg = timed.reduce((s, r) => {
-      const base = new Date(r.scheduledAt).getTime()
-      return s + (Date.now() - base)
-    }, 0) / timed.length
-    return (avg / 3600000).toFixed(1)
-  })()
-  return (
-    <div className="lab-productivity">
-      <div className="lab-productivity__stat">
-        <span className="lab-productivity__num">{completedToday}</span>
-        <span className="lab-productivity__label">Completed Today</span>
-      </div>
-      <div className="lab-productivity__stat">
-        <span className="lab-productivity__num">{avgHours ?? '—'}</span>
-        <span className="lab-productivity__label">Avg Turnaround (hrs)</span>
-      </div>
-      <div className="lab-productivity__stat">
-        <span className="lab-productivity__num">{pending}</span>
-        <span className="lab-productivity__label">Pending</span>
-      </div>
-      <div className="lab-productivity__ratio">
-        <div className="lab-productivity__ratio-bar">
-          <div className="lab-productivity__ratio-fill" style={{ width: `${(completed / total) * 100}%` }} />
-        </div>
-        <span>{completed} done / {total} total</span>
-      </div>
-    </div>
-  )
-}
-
-const PAGE_SIZE = 10
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .map((w) => w[0] ?? '')
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
-}
-
-function LabTechPortal() {
+export default function LabTechPortal() {
   const { user, logout } = useAuth()
-  const actorName = user?.name ?? 'Lab Technician'
-
   const [tab, setTab] = useState<Tab>('overview')
-  const [requests, setRequests] = useState<LabRequest[]>(() => loadLabRequests())
-  const [results, setResults] = useState<LabResult[]>(() => loadLabResults())
-  const tests = useMemo(() => loadLabTests(), [])
-  const categoryDefs = useMemo(() => loadLabCategoryDefs(), [])
-  const labPartners = useMemo(() => loadLabPartners(), [])
-  const labTechLookup = useMemo(() => {
-    const entries = labPartners.flatMap((partner) =>
-      partner.techs.map((tech) => ({ ...tech, partnerId: partner.id }))
-    )
-    return new Map(entries.map((tech) => [tech.name.toLowerCase(), tech]))
-  }, [labPartners])
-
-  const activePartner = useMemo(() => {
-    if (user?.labPartnerId) {
-      return labPartners.find((partner) => partner.id === user.labPartnerId)
-    }
-    if (user?.labTechId) {
-      return labPartners.find((partner) => partner.techs.some((tech) => tech.id === user.labTechId))
-    }
-    return undefined
-  }, [labPartners, user?.labPartnerId, user?.labTechId])
-
-  const partnerName = user?.labPartnerName ?? activePartner?.name
-
-  const [panelId, setPanelId] = useState<string | null>(null)
+  const [requests, setRequests] = useState<LabRequest[]>([])
+  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | LabRequestStatus>('all')
-  const [priorityFilter, setPriorityFilter] = useState('all')
-  const [page, setPage] = useState(1)
+  const [status, setStatus] = useState<'all' | LabRequestStatus>('all')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [summary, setSummary] = useState('')
+  const [flags, setFlags] = useState('')
+  const [recommendation, setRecommendation] = useState('')
+  const [abnormal, setAbnormal] = useState(false)
+  const [resultFile, setResultFile] = useState<File | null>(null)
+  const [collectionCode, setCollectionCode] = useState('')
 
-  const [resultSummary, setResultSummary] = useState('')
-  const [resultFile, setResultFile] = useState('')
-  const [resultFlags, setResultFlags] = useState('')
-  const [resultRec, setResultRec] = useState('')
-  const [resultAbnormal, setResultAbnormal] = useState(false)
-  const [resultError, setResultError] = useState('')
-  const [criticalWarning, setCriticalWarning] = useState(false)
-  const [criticalAcknowledged, setCriticalAcknowledged] = useState(false)
+  const loadRequests = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setRequests(await fetchStaffLabRequests())
+    } catch (requestError) {
+      setError(errorMessage(requestError))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  useEffect(() => { saveLabRequests(requests) }, [requests])
-  useEffect(() => { saveLabResults(results) }, [results])
-  useEffect(() => { setPage(1) }, [search, statusFilter, priorityFilter, tab])
+  useEffect(() => { void loadRequests() }, [loadRequests])
 
-  const testMap = useMemo(
-    () => Object.fromEntries(tests.map((t) => [t.id, t])),
-    [tests]
-  )
-
-  const catColorMap = useMemo(
-    () => Object.fromEntries(categoryDefs.map((c) => [c.name, c.color])),
-    [categoryDefs]
-  )
-
-  const resultMap = useMemo(
-    () => results.reduce<Record<string, LabResult>>((acc, r) => { acc[r.requestId] = r; return acc }, {}),
-    [results]
-  )
-
-  const panelRequest = useMemo(
-    () => requests.find((r) => r.id === panelId) ?? null,
-    [requests, panelId]
+  const selected = useMemo(
+    () => requests.find((request) => request.id === selectedId) ?? null,
+    [requests, selectedId],
   )
 
   useEffect(() => {
-    if (!panelRequest) return
-    const existing = resultMap[panelRequest.id]
-    setResultSummary(existing?.summary ?? '')
-    setResultFile(existing?.fileName ?? '')
-    setResultFlags(existing?.flags.join(', ') ?? '')
-    setResultRec(existing?.recommendation ?? '')
-    setResultAbnormal(existing?.abnormal ?? false)
-    setResultError('')
-    setCriticalWarning(false)
-    setCriticalAcknowledged(false)
-  }, [panelRequest, resultMap])
+    setSummary('')
+    setFlags('')
+    setRecommendation('')
+    setAbnormal(false)
+    setResultFile(null)
+    setCollectionCode('')
+  }, [selectedId])
+
+  const visibleRequests = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return requests
+      .filter((request) => tab !== 'mine' || request.assignedTechnician === user?.id)
+      .filter((request) => status === 'all' || request.status === status)
+      .filter((request) => !query || [request.reference, request.patientName, request.patientPhone, request.testName]
+        .some((value) => value.toLowerCase().includes(query)))
+      .sort((a, b) => {
+        if (a.priority !== b.priority) return a.priority === 'priority' ? -1 : 1
+        return new Date(a.scheduledAt ?? a.requestedAt).getTime() - new Date(b.scheduledAt ?? b.requestedAt).getTime()
+      })
+  }, [requests, search, status, tab, user?.id])
 
   const stats = useMemo(() => ({
-    awaiting: requests.filter((r) => r.status === 'Awaiting sample').length,
-    collected: requests.filter((r) => r.status === 'Sample collected').length,
-    processing: requests.filter((r) => r.status === 'Processing').length,
-    ready: requests.filter((r) => r.status === 'Result ready').length,
-    completed: requests.filter((r) => r.status === 'Completed').length,
-    mine: requests.filter((r) => r.assignedTechnician === actorName && !['Completed', 'Cancelled'].includes(r.status)).length,
-  }), [requests, actorName])
+    queue: requests.filter((item) => !['completed', 'cancelled'].includes(item.status)).length,
+    mine: requests.filter((item) => item.assignedTechnician === user?.id && !['completed', 'cancelled'].includes(item.status)).length,
+    processing: requests.filter((item) => item.status === 'processing').length,
+    ready: requests.filter((item) => item.status === 'result_ready').length,
+  }), [requests, user?.id])
 
-  const actionQueue = useMemo(() =>
-    [...requests]
-      .filter((r) => ['Awaiting sample', 'Sample collected', 'Processing'].includes(r.status))
-      .sort((a, b) => {
-        if (a.priority !== b.priority) return a.priority === 'Priority' ? -1 : 1
-        return a.scheduledAt.localeCompare(b.scheduledAt)
-      })
-      .slice(0, 8),
-    [requests]
-  )
-
-  const recentCompleted = useMemo(() =>
-    [...requests]
-      .filter((r) => r.status === 'Completed' || r.status === 'Result ready')
-      .sort((a, b) => b.id.localeCompare(a.id))
-      .slice(0, 5),
-    [requests]
-  )
-
-  const filteredBase = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return [...requests]
-      .sort((a, b) => b.id.localeCompare(a.id))
-      .filter((r) => {
-        if (statusFilter !== 'all' && r.status !== statusFilter) return false
-        if (priorityFilter !== 'all' && r.priority !== priorityFilter) return false
-        if (!q) return true
-        const testName = testMap[r.testId]?.name ?? ''
-        return [r.id, r.patientName, r.patientPhone, testName].some((v) =>
-          v.toLowerCase().includes(q))
-      })
-  }, [requests, search, statusFilter, priorityFilter, testMap])
-
-  const mineFiltered = useMemo(
-    () => filteredBase.filter((r) => r.assignedTechnician === actorName),
-    [filteredBase, actorName]
-  )
-
-  const activeList = tab === 'mine' ? triageSort(mineFiltered) : tab === 'queue' ? triageSort(filteredBase) : filteredBase
-  const totalPages = Math.max(1, Math.ceil(activeList.length / PAGE_SIZE))
-  const paged = activeList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-
-  const handleProgress = (requestId: string) => {
-    const req = requests.find((r) => r.id === requestId)
-    if (!req) return
-    const next = getNextLabStatus(req.status)
-    if (!next) return
-    setRequests((prev) => updateLabRequestStatus(prev, requestId, next, actorName))
+  const saveUpdate = async (request: LabRequest, payload: Parameters<typeof updateLabRequest>[1]) => {
+    setSaving(true)
+    setError('')
+    try {
+      const updated = await updateLabRequest(request.id, payload)
+      setRequests((current) => current.map((item) => item.id === updated.id ? updated : item))
+    } catch (requestError) {
+      setError(errorMessage(requestError))
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleAssignSelf = (requestId: string) => {
-    const tech = labTechLookup.get(actorName.toLowerCase())
-    setRequests((prev) => assignLabTechnician(prev, requestId, actorName, tech?.id, tech?.partnerId))
+  const assignToMe = async (request: LabRequest) => {
+    if (!user) return
+    await saveUpdate(request, { assigned_technician: user.id })
   }
 
-  const handleCancel = (requestId: string) => {
-    setRequests((prev) => cancelLabRequest(prev, requestId, actorName))
-    if (panelId === requestId) setPanelId(null)
+  const advanceRequest = async (request: LabRequest) => {
+    const nextStatus: Partial<Record<LabRequestStatus, LabRequestStatus>> = {
+      awaiting_sample: 'sample_collected',
+      sample_collected: 'processing',
+      result_ready: 'completed',
+    }
+    const next = nextStatus[request.status]
+    if (next) await saveUpdate(request, { status: next })
   }
 
-  const handlePublishResult = () => {
-    if (!panelRequest || !resultSummary.trim()) {
-      setResultError('Result summary is required.')
+  const publishResult = async () => {
+    if (!selected || !summary.trim()) {
+      setError('Enter a result summary before publishing.')
       return
     }
-    if (criticalWarning && !criticalAcknowledged) {
-      setResultError('You must acknowledge the critical value before publishing.')
+    if (selected.assignedTechnician !== user?.id || selected.status !== 'processing') {
+      setError('Assign this processing request to yourself before publishing its result.')
       return
     }
-    const flags = resultFlags.split(',').map((f) => f.trim()).filter(Boolean)
-    const payload = upsertLabResult(requests, results, {
-      requestId: panelRequest.id,
-      summary: resultSummary,
-      fileName: resultFile,
-      flags,
-      abnormal: resultAbnormal,
-      recommendation: resultRec,
-      reviewedBy: actorName,
-    })
-    setRequests(payload.requests)
-    setResults(payload.results)
-    setResultError('')
+    setSaving(true)
+    setError('')
+    try {
+      await uploadLabResult(selected.id, {
+        summary: summary.trim(),
+        file: resultFile,
+        flags: flags.split(',').map((item) => item.trim()).filter(Boolean),
+        is_abnormal: abnormal,
+        recommendation: recommendation.trim(),
+      })
+      await loadRequests()
+    } catch (requestError) {
+      setError(errorMessage(requestError))
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const stepIndex = (status: LabRequestStatus) =>
-    STATUS_STEPS.indexOf(status)
+  const verifyCollection = async () => {
+    if (!selected || !collectionCode.trim()) {
+      setError('Enter the six-digit code shown by the patient.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const updated = await verifyLabCollectionCode(selected.id, collectionCode.trim())
+      setRequests((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setCollectionCode('')
+    } catch (requestError) {
+      setError(errorMessage(requestError))
+    } finally {
+      setSaving(false)
+    }
+  }
 
-  const canPublishResult = panelRequest &&
-    (panelRequest.status === 'Processing' || panelRequest.status === 'Result ready')
-  const navigationItems = [
-    {
-      id: 'overview',
-      label: 'Overview',
-      badge: 0,
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="3" width="7" height="7" />
-          <rect x="14" y="3" width="7" height="7" />
-          <rect x="3" y="14" width="7" height="7" />
-          <rect x="14" y="14" width="7" height="7" />
-        </svg>
-      ),
-    },
-    {
-      id: 'queue',
-      label: 'Request queue',
-      badge: stats.awaiting + stats.collected + stats.processing,
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="8" y1="6" x2="21" y2="6" />
-          <line x1="8" y1="12" x2="21" y2="12" />
-          <line x1="8" y1="18" x2="21" y2="18" />
-          <circle cx="3" cy="6" r="1" fill="currentColor" />
-          <circle cx="3" cy="12" r="1" fill="currentColor" />
-          <circle cx="3" cy="18" r="1" fill="currentColor" />
-        </svg>
-      ),
-    },
-    {
-      id: 'mine',
-      label: 'My assignments',
-      badge: stats.mine,
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-      ),
-    },
-  ] as const
-
-  const renderTable = (list: LabRequest[]) => (
-    <div className="cm-panel cm-table-wrap ltp-table-wrap">
-      <table className="cm-table ltp-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Patient</th>
-            <th>Test</th>
-            <th>Scheduled</th>
-            <th>Technician</th>
-            <th>Status</th>
-            <th>Priority</th>
-            <th>Result</th>
-            <th className="cm-th-actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {list.map((r) => {
-            const test = testMap[r.testId]
-            const catColor = test ? (catColorMap[test.category] ?? '#6b7280') : '#6b7280'
-            const nextStatus = getNextLabStatus(r.status)
-            const hasResult = Boolean(resultMap[r.id])
-            return (
-              <tr
-                key={r.id}
-                className={panelId === r.id ? 'ltp-row--active' : ''}
-                onClick={() => setPanelId(r.id)}
-              >
-                <td>
-                  <span className="ltp-td-id">{r.id}</span>
-                </td>
-                <td className="ltp-td-patient">
-                  <p className="ltp-td-patient__name">{r.patientName}</p>
-                  <p className="ltp-td-patient__phone">{r.patientPhone}</p>
-                </td>
-                <td className="ltp-td-test">
-                  {test ? (
-                    <>
-                      <p className="ltp-td-test__name">{test.name}</p>
-                      <span
-                        className="ltp-td-test__cat"
-                        style={{ '--cat': catColor } as React.CSSProperties}
-                      >{test.category}</span>
-                    </>
-                  ) : r.testId}
-                </td>
-                <td className="ltp-td-sched">{r.scheduledAt}</td>
-                <td className="ltp-td-tech">
-                  {r.assignedTechnician
-                    ? r.assignedTechnician
-                    : <span className="ltp-td-tech--unassigned">Unassigned</span>
-                  }
-                </td>
-                <td>
-                  <div className="ltp-status-cell">
-                    <span className={`ltp-status-dot ${STATUS_DOT[r.status]}`} />
-                    <span className="ltp-status-text">{r.status}</span>
-                  </div>
-                </td>
-                <td>
-                  <span className={`ltp-td-priority ${r.priority === 'Priority' ? 'ltp-td-priority--high' : ''}`}>
-                    {r.priority === 'Priority' && <span className="ltp-priority-dot" />}
-                    {r.priority}
-                  </span>
-                </td>
-                <td>
-                  <span className={`ltp-result-badge ${hasResult ? 'ltp-result-badge--done' : ''}`}>
-                    {hasResult ? 'Uploaded' : 'Pending'}
-                  </span>
-                </td>
-                <td className="ltp-actions-cell" onClick={(e) => e.stopPropagation()}>
-                  {!r.assignedTechnician && (
-                    <button className="btn btn--outline btn--sm" type="button" onClick={() => handleAssignSelf(r.id)}>
-                      Assign me
-                    </button>
-                  )}
-                  {nextStatus && nextStatus !== 'Completed' && (
-                    <button className="btn btn--outline btn--sm ltp-progress-btn" type="button" onClick={() => handleProgress(r.id)}>
-                      → {nextStatus}
-                    </button>
-                  )}
-                  {['Awaiting sample', 'Sample collected', 'Processing'].includes(r.status) && (
-                    <button className="btn btn--secondary btn--sm" type="button" onClick={() => handleCancel(r.id)}>
-                      Cancel
-                    </button>
-                  )}
-                </td>
-              </tr>
-            )
-          })}
-          {list.length === 0 && (
-            <tr>
-              <td colSpan={9} className="ltp-empty">No requests match the current filters.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  )
+  const navItems = [
+    { id: 'overview', label: 'Overview', badge: stats.queue },
+    { id: 'queue', label: 'Partner queue', badge: stats.processing },
+    { id: 'mine', label: 'My work', badge: stats.mine },
+  ]
 
   return (
     <ProfessionalPortalShell
-      accentColor="#0d9488"
       activeItemId={tab}
-      navItems={navigationItems}
-      onNavChange={(itemId) => setTab(itemId as Tab)}
+      navItems={navItems}
+      onNavChange={(id) => setTab(id as Tab)}
       onLogout={() => { void logout() }}
-      roleLabel="Lab Tech"
-      sidebarHeaderContent={(
-        <div className="portal-shell__meta-card">
-          <span className="portal-shell__meta-label">Assignment</span>
-          <p className="portal-shell__meta-value">{partnerName || 'AVA Lab Network'}</p>
-          {user?.labTechId ? <p className="portal-shell__meta-value">Tech ID: {user.labTechId}</p> : null}
-        </div>
-      )}
-      userInitials={initials(actorName)}
-      userMeta={partnerName || 'Laboratory Operations'}
-      userName={actorName}
+      roleLabel="Lab Technician Portal"
+      userName={user?.name ?? 'Lab Technician'}
+      userMeta="Laboratory operations"
+      accentColor="#0f766e"
     >
-      <div className="ltp-content">
+      <div className="admin-entity-page">
+        <header className="admin-entity-header">
+          <div>
+            <p className="admin-entity-eyebrow">Laboratory operations</p>
+            <h1>{tab === 'mine' ? 'My assigned work' : tab === 'queue' ? 'Partner request queue' : 'Lab workflow'}</h1>
+            <p>Receive home-collection samples, process assigned tests, and release results securely.</p>
+          </div>
+          <button className="btn btn--outline" type="button" onClick={() => void loadRequests()} disabled={loading}>Refresh</button>
+        </header>
 
-        {/* ── OVERVIEW ── */}
-        {tab === 'overview' && (
-          <>
-            <div className="ltp-welcome">
-              <div>
-                <h1 className="ltp-welcome__title">Good morning, {actorName.split(' ')[0]}.</h1>
-                <p className="ltp-welcome__sub">Here's your lab workload summary for today.</p>
-              </div>
-              <p className="ltp-welcome__date">{new Date().toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
-            </div>
+        {error && <div className="admin-entity-alert admin-entity-alert--error" role="alert">{error}</div>}
 
-            <div className="cm-kpi-grid">
-              <div className="cm-kpi-card">
-                <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
-                </div>
-                <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Awaiting Sample</span>
-                  <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.awaiting}</strong>
-                </div>
-              </div>
-              <div className="cm-kpi-card">
-                <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                </div>
-                <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Sample Collected</span>
-                  <strong className="cm-kpi-card__value">{stats.collected}</strong>
-                </div>
-              </div>
-              <div className="cm-kpi-card">
-                <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-                </div>
-                <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Processing</span>
-                  <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{stats.processing}</strong>
-                </div>
-              </div>
-              <div className="cm-kpi-card">
-                <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><polyline points="20,6 9,17 4,12"/></svg>
-                </div>
-                <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Results Ready</span>
-                  <strong className="cm-kpi-card__value">{stats.ready}</strong>
-                </div>
-              </div>
-              <div className="cm-kpi-card">
-                <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
-                </div>
-                <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">Completed</span>
-                  <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.completed}</strong>
-                </div>
-              </div>
-              <div className="cm-kpi-card">
-                <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </div>
-                <div className="cm-kpi-card__body">
-                  <span className="cm-kpi-card__label">My Active</span>
-                  <strong className="cm-kpi-card__value">{stats.mine}</strong>
-                </div>
-              </div>
-            </div>
+        <section className="admin-entity-stats" aria-label="Lab request summary">
+          <article><strong>{stats.queue}</strong><span>Open queue</span></article>
+          <article><strong>{stats.mine}</strong><span>Assigned to me</span></article>
+          <article><strong>{stats.processing}</strong><span>Processing</span></article>
+          <article><strong>{stats.ready}</strong><span>Results ready</span></article>
+        </section>
 
-            <div className="ltp-overview-grid">
-              {/* Action queue */}
-              <div className="ltp-panel">
-                <div className="ltp-panel__header">
-                  <div>
-                    <p className="ltp-panel__title">Needs action</p>
-                    <p className="ltp-panel__sub">Requests awaiting processing - sorted by priority and schedule</p>
-                  </div>
-                  <button
-                    className="btn btn--outline btn--sm"
-                    type="button"
-                    onClick={() => setTab('queue')}
-                  >
-                    View all
-                  </button>
-                </div>
-                <div className="ltp-queue">
-                  {actionQueue.length === 0 && (
-                    <div className="ltp-queue-empty">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <polyline points="22,4 12,14.01 9,11.01"/>
-                      </svg>
-                      <p>No pending actions - all clear!</p>
-                    </div>
-                  )}
-                  {actionQueue.map((r) => {
-                    const testName = testMap[r.testId]?.name ?? r.testId
-                    return (
-                      <div
-                        key={r.id}
-                        className="ltp-queue-item"
-                        onClick={() => { setPanelId(r.id); setTab('queue') }}
-                      >
-                        <span className={`ltp-queue-item__status-dot ${STATUS_DOT[r.status]}`} />
-                        <div className="ltp-queue-item__body">
-                          <p className="ltp-queue-item__id">{r.id}</p>
-                          <p className="ltp-queue-item__patient">{r.patientName}</p>
-                          <p className="ltp-queue-item__test">{testName} · {r.status}</p>
-                        </div>
-                        <div className="ltp-queue-item__right">
-                          {r.priority === 'Priority' && (
-                            <span className="ltp-priority-pill">URGENT</span>
-                          )}
-                          <span className="ltp-queue-item__time">{r.scheduledAt}</span>
-                          {!r.assignedTechnician && (
-                            <span className="ltp-unassigned-tag">Unassigned</span>
+        <section className="admin-entity-card">
+          <div className="admin-entity-toolbar">
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search patient, test or reference" aria-label="Search lab requests" />
+            <select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} aria-label="Filter by status">
+              <option value="all">All statuses</option>
+              {STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </div>
+          {loading ? <p className="admin-entity-empty">Loading live laboratory requests…</p> : (
+            <div className="admin-entity-table-wrap">
+              <table className="admin-entity-table">
+                <thead><tr><th>Request</th><th>Patient</th><th>Fulfilment</th><th>Status</th><th>Technician</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {visibleRequests.map((request) => (
+                    <tr key={request.id}>
+                      <td><strong>{request.reference}</strong><small>{request.testName}</small></td>
+                      <td><strong>{request.patientName}</strong><small>{request.patientPhone}</small></td>
+                      <td><strong>{request.channelLabel}</strong><small>{formatDate(request.scheduledAt)}</small></td>
+                      <td><span className={`status-pill status-pill--${request.status}`}>{request.statusLabel}</span></td>
+                      <td>{request.technicianName || 'Unassigned'}</td>
+                      <td>
+                        <div className="admin-entity-actions">
+                          <button type="button" onClick={() => setSelectedId(request.id)}>Open</button>
+                          {!request.assignedTechnician && <button type="button" disabled={saving} onClick={() => void assignToMe(request)}>Assign me</button>}
+                          {request.assignedTechnician === user?.id && ['awaiting_sample', 'sample_collected', 'result_ready'].includes(request.status) && !(request.channel === 'collection' && request.status === 'awaiting_sample') && (
+                            <button type="button" disabled={saving} onClick={() => void advanceRequest(request)}>Advance</button>
                           )}
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Right column */}
-              <div>
-                {/* Workflow breakdown */}
-                <div className="ltp-panel" style={{ marginBottom: '1rem' }}>
-                  <div className="ltp-panel__header">
-                    <p className="ltp-panel__title">Workflow snapshot</p>
-                  </div>
-                  <div style={{ padding: '1rem 1.25rem' }}>
-                    {[
-                      { label: 'Awaiting sample', value: stats.awaiting, color: '#f59e0b' },
-                      { label: 'Sample collected', value: stats.collected, color: '#06b6d4' },
-                      { label: 'Processing', value: stats.processing, color: '#8b5cf6' },
-                      { label: 'Result ready', value: stats.ready, color: '#0d9488' },
-                      { label: 'Completed', value: stats.completed, color: '#10b981' },
-                    ].map(({ label, value, color }) => {
-                      const total = requests.filter((r) => r.status !== 'Cancelled').length || 1
-                      const pct = Math.round((value / total) * 100)
-                      return (
-                        <div key={label} className="ltp-snapshot-row">
-                          <div className="ltp-snapshot-row__label">
-                            <span className="ltp-snapshot-dot" style={{ background: color }} />
-                            <span>{label}</span>
-                          </div>
-                          <div className="ltp-snapshot-bar-wrap">
-                            <div
-                              className="ltp-snapshot-bar"
-                              style={{ width: `${pct}%`, background: color }}
-                            />
-                          </div>
-                          <span className="ltp-snapshot-count">{value}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Recently completed */}
-                <div className="ltp-panel">
-                  <div className="ltp-panel__header">
-                    <p className="ltp-panel__title">Recently completed</p>
-                  </div>
-                  <div className="ltp-queue">
-                    {recentCompleted.length === 0 && (
-                      <p style={{ padding: '1rem 1.25rem', fontSize: '0.8125rem', color: '#9ca3af' }}>
-                        No completed requests yet.
-                      </p>
-                    )}
-                    {recentCompleted.map((r) => (
-                      <div key={r.id} className="ltp-queue-item ltp-queue-item--compact">
-                        <span className={`ltp-queue-item__status-dot ${STATUS_DOT[r.status]}`} />
-                        <div className="ltp-queue-item__body">
-                          <p className="ltp-queue-item__id">{r.id}</p>
-                          <p className="ltp-queue-item__patient">{r.patientName}</p>
-                        </div>
-                        <span className={`status-pill ${r.status === 'Completed' ? 'status-pill--success' : 'status-pill--info'}`}>
-                          {r.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ── QUEUE / MINE ── */}
-        {(tab === 'queue' || tab === 'mine') && (
-          <>
-            {tab === 'mine' && <ProductivityStats myRequests={mineFiltered} />}
-            <div className="ltp-queue-header">
-              <div className="ltp-search">
-                <svg className="ltp-search__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-                <input
-                  className="ltp-search__input"
-                  type="text"
-                  placeholder="Search by ID, patient, phone or test…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {search && (
-                  <button className="ltp-search__clear" type="button" onClick={() => setSearch('')}>×</button>
-                )}
-              </div>
-              <select className="ltp-filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | LabRequestStatus)}>
-                <option value="all">All statuses</option>
-                <option value="Awaiting sample">Awaiting sample</option>
-                <option value="Sample collected">Sample collected</option>
-                <option value="Processing">Processing</option>
-                <option value="Result ready">Result ready</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-              <select className="ltp-filter-select" value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-                <option value="all">All priorities</option>
-                <option value="Priority">Priority</option>
-                <option value="Routine">Routine</option>
-              </select>
-              <span className="ltp-result-count">{activeList.length} request{activeList.length !== 1 ? 's' : ''}</span>
-            </div>
-
-            {renderTable(paged)}
-
-            {activeList.length > PAGE_SIZE && (
-              <div className="ltp-pagination">
-                <span className="ltp-pagination__info">
-                  {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, activeList.length)} of {activeList.length}
-                </span>
-                <div className="ltp-pagination__btns">
-                  <button
-                    className="pagination__button"
-                    type="button"
-                    disabled={page === 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >Prev</button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button
-                      key={p}
-                      className={`pagination__page ${p === page ? 'pagination__page--active' : ''}`}
-                      type="button"
-                      onClick={() => setPage(p)}
-                    >{p}</button>
+                      </td>
+                    </tr>
                   ))}
-                  <button
-                    className="pagination__button"
-                    type="button"
-                    disabled={page === totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                  >Next</button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+                  {!visibleRequests.length && <tr><td colSpan={6} className="admin-entity-empty">No requests match this view.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
 
-      {/* Side panel */}
-      {panelRequest && (
-        <>
-          <div className="ltp-panel-overlay" onClick={() => setPanelId(null)} />
-          <aside className="ltp-side-panel">
-            <div className="ltp-sp-header">
-              <div>
-                <h2 className="ltp-sp-id">{panelRequest.id}</h2>
-                <p className="ltp-sp-meta">
-                  {panelRequest.channel} · Requested {panelRequest.requestedAt}
-                  {panelRequest.priority === 'Priority' && (
-                    <span className="ltp-priority-pill" style={{ marginLeft: '0.5rem' }}>URGENT</span>
-                  )}
-                </p>
-              </div>
-              <button className="ltp-sp-close" type="button" onClick={() => setPanelId(null)}>×</button>
+      {selected && (
+        <div className="admin-entity-drawer-backdrop" role="presentation" onMouseDown={() => setSelectedId(null)}>
+          <aside className="admin-entity-drawer" role="dialog" aria-modal="true" aria-label={`Lab request ${selected.reference}`} onMouseDown={(event) => event.stopPropagation()}>
+            <div className="admin-entity-drawer__header">
+              <div><p>{selected.reference}</p><h2>{selected.testName}</h2></div>
+              <button type="button" aria-label="Close" onClick={() => setSelectedId(null)}>×</button>
             </div>
+            <div className="admin-entity-drawer__body">
+              <h3>Patient and collection</h3>
+              <dl className="admin-entity-details">
+                <div><dt>Patient</dt><dd>{selected.patientName} · {selected.patientPhone}</dd></div>
+                <div><dt>Service</dt><dd>{selected.channelLabel}</dd></div>
+                {selected.channel === 'collection' && <div><dt>Collection address</dt><dd>{selected.collectionAddress}</dd></div>}
+                {selected.collectionInstructions && <div><dt>Instructions</dt><dd>{selected.collectionInstructions}</dd></div>}
+                <div><dt>Scheduled</dt><dd>{formatDate(selected.scheduledAt)}</dd></div>
+                <div><dt>Results</dt><dd>{selected.resultDeliveryLabel}{selected.resultPickupLocation ? ` · ${selected.resultPickupLocation}` : ''}</dd></div>
+              </dl>
 
-            {/* Workflow stepper */}
-            <div className="ltp-stepper">
-              {STATUS_STEPS.map((step, i) => {
-                const currentIndex = stepIndex(panelRequest.status)
-                const isCancelled = panelRequest.status === 'Cancelled'
-                const isDone = !isCancelled && i < currentIndex
-                const isActive = !isCancelled && i === currentIndex
-                return (
-                  <div key={step} className={`ltp-step ${isDone ? 'ltp-step--done' : ''} ${isActive ? 'ltp-step--active' : ''}`}>
-                    {i > 0 && <div className={`ltp-step__line ${isDone ? 'ltp-step__line--done' : ''}`} />}
-                    <div className="ltp-step__inner">
-                      <div className="ltp-step__dot">{isDone ? '✓' : i + 1}</div>
-                      <span className="ltp-step__label">{step.replace('sample', 'samp.').replace('collected', 'coll.')}</span>
-                    </div>
-                  </div>
-                )
-              })}
-              {panelRequest.status === 'Cancelled' && (
-                <span className="ltp-cancelled-badge">Cancelled</span>
-              )}
-            </div>
-            <div style={{ padding: '0 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
-              <LabStepper currentStatus={panelRequest.status} />
-            </div>
+              {!selected.assignedTechnician && <button className="btn btn--primary" type="button" disabled={saving} onClick={() => void assignToMe(selected)}>Assign request to me</button>}
 
-            <div className="ltp-sp-body">
-              {/* Patient */}
-              <div className="ltp-sp-section">
-                <p className="ltp-sp-section-title">Patient</p>
-                <div className="ltp-sp-grid">
-                  <div>
-                    <p className="ltp-sp-field-label">Name</p>
-                    <p className="ltp-sp-field-value">{panelRequest.patientName}</p>
-                  </div>
-                  <div>
-                    <p className="ltp-sp-field-label">Phone</p>
-                    <p className="ltp-sp-field-value">{panelRequest.patientPhone}</p>
-                  </div>
-                  {panelRequest.patientEmail && (
-                    <div>
-                      <p className="ltp-sp-field-label">Email</p>
-                      <p className="ltp-sp-field-value">{panelRequest.patientEmail}</p>
-                    </div>
-                  )}
-                  {panelRequest.orderingDoctor && (
-                    <div>
-                      <p className="ltp-sp-field-label">Ordering doctor</p>
-                      <p className="ltp-sp-field-value">{panelRequest.orderingDoctor}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Test */}
-              {testMap[panelRequest.testId] && (
-                <div className="ltp-sp-section">
-                  <p className="ltp-sp-section-title">Test</p>
-                  <div className="ltp-sp-grid">
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <p className="ltp-sp-field-label">Name</p>
-                      <p className="ltp-sp-field-value">{testMap[panelRequest.testId].name}</p>
-                    </div>
-                    <div>
-                      <p className="ltp-sp-field-label">Category</p>
-                      <p className="ltp-sp-field-value">{testMap[panelRequest.testId].category}</p>
-                    </div>
-                    <div>
-                      <p className="ltp-sp-field-label">Sample type</p>
-                      <p className="ltp-sp-field-value">{testMap[panelRequest.testId].sampleType}</p>
-                    </div>
-                    <div>
-                      <p className="ltp-sp-field-label">Turnaround</p>
-                      <p className="ltp-sp-field-value">{testMap[panelRequest.testId].turnaround}</p>
-                    </div>
-                    <div>
-                      <p className="ltp-sp-field-label">Price</p>
-                      <p className="ltp-sp-field-value">KSh {testMap[panelRequest.testId].price.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
+              {selected.channel === 'collection' && selected.status === 'awaiting_sample' && selected.assignedTechnician === user?.id && (
+                <section>
+                  <h3>Verify patient handoff</h3>
+                  <p>Ask the patient to generate the collection code in their Ava account. Confirm their identity in person, then enter the code before taking the sample.</p>
+                  <label className="admin-entity-field">Six-digit collection code<input inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={collectionCode} onChange={(event) => setCollectionCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" /></label>
+                  <button className="btn btn--primary" type="button" disabled={saving || collectionCode.length !== 6} onClick={() => void verifyCollection()}>{saving ? 'Verifying…' : 'Verify and confirm sample collection'}</button>
+                </section>
               )}
 
-              {/* Scheduling */}
-              <div className="ltp-sp-section">
-                <p className="ltp-sp-section-title">Scheduling & assignment</p>
-                <div className="ltp-sp-grid">
-                  <div>
-                    <p className="ltp-sp-field-label">Scheduled</p>
-                    <p className="ltp-sp-field-value">{panelRequest.scheduledAt}</p>
-                  </div>
-                  <div>
-                    <p className="ltp-sp-field-label">Payment</p>
-                    <p className="ltp-sp-field-value">{panelRequest.paymentStatus}</p>
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <p className="ltp-sp-field-label">Assigned technician</p>
-                    <div className="ltp-assign-row">
-                      <p className="ltp-sp-field-value">
-                        {panelRequest.assignedTechnician ?? <em style={{ color: '#9ca3af' }}>Not assigned</em>}
-                      </p>
-                      {panelRequest.assignedTechnician !== actorName && !['Completed', 'Cancelled'].includes(panelRequest.status) && (
-                        <button
-                          className="btn btn--outline btn--sm"
-                          type="button"
-                          onClick={() => handleAssignSelf(panelRequest.id)}
-                        >
-                          Assign to me
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {selected.collectionVerifiedAt && <p><strong>Collection verified:</strong> {formatDate(selected.collectionVerifiedAt)} by {selected.collectionVerifiedByName}</p>}
 
-              {panelRequest.notes && (
-                <div className="ltp-sp-section">
-                  <p className="ltp-sp-section-title">Patient notes</p>
-                  <p className="ltp-sp-field-value">{panelRequest.notes}</p>
-                </div>
+              {selected.result ? (
+                <section>
+                  <h3>Released result</h3>
+                  <p>{selected.result.summary}</p>
+                  {selected.result.flags.length > 0 && <p><strong>Flags:</strong> {selected.result.flags.join(', ')}</p>}
+                  {selected.result.file && <button className="btn btn--outline" type="button" onClick={() => void downloadLabResultFile(selected.result!)}>Download secure file</button>}
+                </section>
+              ) : selected.status === 'processing' && selected.assignedTechnician === user?.id ? (
+                <section>
+                  <h3>Publish result</h3>
+                  <label className="admin-entity-field">Summary<textarea value={summary} onChange={(event) => setSummary(event.target.value)} rows={4} required /></label>
+                  <label className="admin-entity-field">Flags (comma separated)<input value={flags} onChange={(event) => setFlags(event.target.value)} /></label>
+                  <label className="admin-entity-field">Recommendation<textarea value={recommendation} onChange={(event) => setRecommendation(event.target.value)} rows={3} /></label>
+                  <label className="admin-entity-field">Result file (PDF, JPG or PNG)<input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setResultFile(event.target.files?.[0] ?? null)} /></label>
+                  <label><input type="checkbox" checked={abnormal} onChange={(event) => setAbnormal(event.target.checked)} /> Contains abnormal findings</label>
+                  <button className="btn btn--primary" type="button" disabled={saving} onClick={() => void publishResult()}>{saving ? 'Publishing…' : 'Publish secure result'}</button>
+                </section>
+              ) : (
+                <p>Move the assigned request through sample collection and processing before publishing a result.</p>
               )}
 
-              {/* Existing result */}
-              {resultMap[panelRequest.id] && (
-                <div className="ltp-sp-section">
-                  <p className="ltp-sp-section-title">Current result</p>
-                  <div className="ltp-result-box">
-                    <p className={`ltp-sp-field-value${resultMap[panelRequest.id].abnormal ? ' lab-result--abnormal' : ''}`}>
-                      {resultMap[panelRequest.id].summary}
-                      {resultMap[panelRequest.id].abnormal && (
-                        <span className="lab-abnormal-flag" style={{ marginLeft: '0.5rem' }}>
-                          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                            <path d="M8 1L1 14h14L8 1zm0 4v4m0 2v1" stroke="currentColor" fill="none" strokeWidth="1.5" strokeLinecap="round"/>
-                          </svg>
-                          Abnormal
-                        </span>
-                      )}
-                    </p>
-                    <p className="ltp-sp-field-label" style={{ marginTop: '0.4rem' }}>
-                      File: {resultMap[panelRequest.id].fileName} · By {resultMap[panelRequest.id].reviewedBy}
-                    </p>
-                    {resultMap[panelRequest.id].flags.length > 0 && (
-                      <p className="ltp-sp-field-label">Flags: {resultMap[panelRequest.id].flags.join(', ')}</p>
-                    )}
-                    {resultMap[panelRequest.id].recommendation && (
-                      <p className="ltp-sp-field-label">Rec: {resultMap[panelRequest.id].recommendation}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Result form */}
-              {canPublishResult && (
-                <div className="ltp-sp-section">
-                  <div className="ltp-result-form-section">
-                    <h4>{resultMap[panelRequest.id] ? 'Update result' : 'Publish result'}</h4>
-                    <div className="form-group">
-                      <label>Result summary *</label>
-                      <textarea
-                        rows={3}
-                        value={resultSummary}
-                        onChange={(e) => {
-                          setResultSummary(e.target.value)
-                          const testName = testMap[panelRequest.testId]?.name ?? ''
-                          const numMatch = e.target.value.match(/[\d.]+/)
-                          if (numMatch) {
-                            const val = parseFloat(numMatch[0])
-                            if (!isNaN(val) && isCriticalValue(testName, val)) {
-                              setCriticalWarning(true)
-                            } else {
-                              setCriticalWarning(false)
-                              setCriticalAcknowledged(false)
-                            }
-                          } else {
-                            setCriticalWarning(false)
-                            setCriticalAcknowledged(false)
-                          }
-                        }}
-                      />
-                    </div>
-                    {criticalWarning && (
-                      <div className="lab-critical-alert" role="alert">
-                        <strong>⚠ Critical Value</strong>
-                        <p>This result is outside critical range. Notify the ordering doctor immediately before releasing.</p>
-                        <label>
-                          <input type="checkbox" onChange={e => setCriticalAcknowledged(e.target.checked)} />
-                          {' '}I acknowledge this critical value and will notify the ordering doctor
-                        </label>
-                      </div>
-                    )}
-                    <div className="form-group">
-                      <label>File name</label>
-                      <input
-                        type="text"
-                        value={resultFile}
-                        onChange={(e) => setResultFile(e.target.value)}
-                        placeholder={`${panelRequest.id}-result.pdf`}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Flags (comma-separated)</label>
-                      <input type="text" value={resultFlags} onChange={(e) => setResultFlags(e.target.value)} placeholder="Critical value, Repeat required" />
-                    </div>
-                    <div className="form-group">
-                      <label>Clinical recommendation</label>
-                      <input type="text" value={resultRec} onChange={(e) => setResultRec(e.target.value)} />
-                    </div>
-                    <div className="form-group">
-                      <label className="ltp-inline-check">
-                        <input type="checkbox" checked={resultAbnormal} onChange={(e) => setResultAbnormal(e.target.checked)} />
-                        Mark result as abnormal
-                      </label>
-                    </div>
-                    {resultError && <p className="ltp-result-error">{resultError}</p>}
-                    <button className="btn btn--primary btn--sm" type="button" onClick={handlePublishResult}>
-                      {resultMap[panelRequest.id] ? 'Update result' : 'Publish result'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            <div className="ltp-sp-footer">
-              <div className="ltp-sp-actions">
-                {getNextLabStatus(panelRequest.status) && (
-                  <button
-                    className="btn btn--primary btn--sm"
-                    type="button"
-                    onClick={() => handleProgress(panelRequest.id)}
-                  >
-                    Mark as {getNextLabStatus(panelRequest.status)}
-                  </button>
-                )}
-                {['Awaiting sample', 'Sample collected', 'Processing'].includes(panelRequest.status) && (
-                  <button className="btn btn--secondary btn--sm" type="button" onClick={() => handleCancel(panelRequest.id)}>
-                    Cancel request
-                  </button>
-                )}
-                <button className="btn btn--outline btn--sm" type="button" onClick={() => setPanelId(null)}>
-                  Close
-                </button>
-              </div>
+              <h3>Audit trail</h3>
+              <ol className="admin-entity-timeline">
+                {selected.auditLogs.map((log) => <li key={log.id}><strong>{log.action}</strong><small>{log.performedByName || 'System'} · {formatDate(log.timestamp)}</small></li>)}
+              </ol>
             </div>
           </aside>
-        </>
+        </div>
       )}
     </ProfessionalPortalShell>
   )
 }
-
-export default LabTechPortal

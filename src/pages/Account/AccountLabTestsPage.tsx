@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   LabRequest,
+  downloadLabResultFile,
   fetchMyLabRequests,
+  issueLabCollectionCode,
 } from '../../services/labService'
 import '../../styles/pages/AccountLabTestsPage.css'
 
@@ -74,6 +76,8 @@ function AccountLabTestsPage() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [collectionCodes, setCollectionCodes] = useState<Record<number, { code: string; expiresAt: string }>>({})
+  const [codeLoadingId, setCodeLoadingId] = useState<number | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -114,6 +118,23 @@ function AccountLabTestsPage() {
   }), [requests])
 
   const toggle = (id: number) => setExpandedId((prev) => (prev === id ? null : id))
+
+  const generateCollectionCode = async (request: LabRequest) => {
+    setCodeLoadingId(request.id)
+    setError('')
+    try {
+      const issued = await issueLabCollectionCode(request.id)
+      setCollectionCodes((current) => ({ ...current, [request.id]: issued }))
+      setRequests((current) => current.map((item) => item.id === request.id
+        ? { ...item, collectionCodeActive: true, collectionCodeExpiresAt: issued.expiresAt }
+        : item))
+    } catch (requestError) {
+      const data = (requestError as { response?: { data?: { detail?: string; error?: { details?: { detail?: string } } } } })?.response?.data
+      setError(data?.detail || data?.error?.details?.detail || 'Unable to generate the collection verification code.')
+    } finally {
+      setCodeLoadingId(null)
+    }
+  }
 
   return (
     <div className="alt-page">
@@ -246,6 +267,28 @@ function AccountLabTestsPage() {
                         </div>
                       )}
 
+                      {request.channel === 'collection' && request.status === 'awaiting_sample' && (
+                        <div className="alt-result">
+                          <div className="alt-result__header">
+                            <div className="alt-result__title-row"><span className="alt-result__title">Verify your home sample collector</span></div>
+                            <p className="alt-result__date">Laboratory: {request.laboratoryName || 'Awaiting assignment'} · Collector: {request.technicianName || 'Awaiting assignment'}</p>
+                          </div>
+                          {collectionCodes[request.id] ? (
+                            <div>
+                              <p className="alt-result__summary" style={{ fontSize: '2rem', letterSpacing: '.35rem', fontWeight: 800 }}>{collectionCodes[request.id].code}</p>
+                              <p>Share this code only after the assigned collector arrives and identifies themselves. It expires {formatDateTime(collectionCodes[request.id].expiresAt)}.</p>
+                            </div>
+                          ) : (
+                            <p>{request.collectionCodeActive ? 'A code is already active. Generate a new one if you no longer have it.' : 'Generate a short-lived code and give it to the collector in person before your sample leaves your home.'}</p>
+                          )}
+                          <div className="alt-result__actions">
+                            <button className="btn btn--primary btn--sm" type="button" disabled={!request.assignedTechnician || codeLoadingId === request.id} onClick={() => { void generateCollectionCode(request) }}>
+                              {codeLoadingId === request.id ? 'Generating…' : request.collectionCodeActive ? 'Generate new code' : 'Generate collection code'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {request.result ? (
                         <div className={`alt-result${request.result.isAbnormal ? ' alt-result--abnormal' : ''}`}>
                           <div className="alt-result__header">
@@ -287,9 +330,9 @@ function AccountLabTestsPage() {
 
                           <div className="alt-result__actions">
                             {request.result.file && (
-                              <a href={request.result.file} target="_blank" rel="noopener noreferrer" className="btn btn--outline btn--sm">
-                                Open result file
-                              </a>
+                              <button className="btn btn--outline btn--sm" type="button" onClick={() => { void downloadLabResultFile(request.result!) }}>
+                                Download result file
+                              </button>
                             )}
                             <Link to="/doctor-consultation" className="btn btn--primary btn--sm">
                               Discuss with a doctor

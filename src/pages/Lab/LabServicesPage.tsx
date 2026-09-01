@@ -6,6 +6,7 @@ import {
   CreateLabRequestPayload,
   LabPriority,
   LabRequest,
+  LabResultDeliveryMethod,
   LabTest,
   createLabRequest,
   fetchLabTests,
@@ -89,7 +90,11 @@ function LabServicesPage() {
   const [patientName, setPatientName] = useState(user?.name ?? '')
   const [patientPhone, setPatientPhone] = useState(user?.phone ?? '')
   const [patientEmail, setPatientEmail] = useState(user?.email ?? '')
-  const [collection, setCollection] = useState<'walk_in' | 'collection'>('walk_in')
+  const [collection, setCollection] = useState<'walk_in' | 'collection'>('collection')
+  const [collectionAddress, setCollectionAddress] = useState('')
+  const [collectionInstructions, setCollectionInstructions] = useState('')
+  const [resultDelivery, setResultDelivery] = useState<LabResultDeliveryMethod>('digital')
+  const [resultPickupLocation, setResultPickupLocation] = useState('')
   const [schedule, setSchedule] = useState('')
   const [orderingDoctor, setOrderingDoctor] = useState('')
   const [priority, setPriority] = useState<LabPriority>('routine')
@@ -159,7 +164,11 @@ function LabServicesPage() {
   }), [requests])
 
   const resetBookingForm = () => {
-    setCollection('walk_in')
+    setCollection('collection')
+    setCollectionAddress('')
+    setCollectionInstructions('')
+    setResultDelivery('digital')
+    setResultPickupLocation('')
     setSchedule('')
     setOrderingDoctor('')
     setPriority('routine')
@@ -179,6 +188,14 @@ function LabServicesPage() {
       setBookingError('Patient name, phone, and preferred time are required.')
       return
     }
+    if (collection === 'collection' && !collectionAddress.trim()) {
+      setBookingError('Enter the address where the sample should be collected.')
+      return
+    }
+    if (resultDelivery === 'physical_pickup' && !resultPickupLocation.trim()) {
+      setBookingError('Enter the location where you would like to collect the physical result.')
+      return
+    }
 
     setIsBooking(true)
     setBookingError('')
@@ -190,6 +207,10 @@ function LabServicesPage() {
         patient_email: patientEmail.trim(),
         priority,
         channel: collection,
+        result_delivery_method: resultDelivery,
+        collection_address: collection === 'collection' ? collectionAddress.trim() : '',
+        collection_instructions: collection === 'collection' ? collectionInstructions.trim() : '',
+        result_pickup_location: resultDelivery === 'physical_pickup' ? resultPickupLocation.trim() : '',
         ordering_doctor: orderingDoctor.trim(),
         notes: notes.trim(),
         scheduled_at: new Date(schedule).toISOString(),
@@ -422,8 +443,8 @@ function LabServicesPage() {
                       <div className="form-group">
                         <label>Collection method</label>
                         <select value={collection} onChange={(event) => setCollection(event.target.value as 'walk_in' | 'collection')}>
-                          <option value="walk_in">Walk-in</option>
-                          <option value="collection">Home collection</option>
+                          <option value="collection">Home sample collection (recommended)</option>
+                          <option value="walk_in">Visit the laboratory</option>
                         </select>
                       </div>
                       <div className="form-group">
@@ -437,6 +458,33 @@ function LabServicesPage() {
                           <option value="priority">Priority</option>
                         </select>
                       </div>
+                    </div>
+                    {collection === 'collection' && (
+                      <div className="lab-booking-grid">
+                        <div className="form-group">
+                          <label>Collection address <span className="lab-required">*</span></label>
+                          <textarea rows={2} value={collectionAddress} onChange={(event) => setCollectionAddress(event.target.value)} placeholder="Building, street, area and county" />
+                        </div>
+                        <div className="form-group">
+                          <label>Collector instructions <span className="lab-optional">(optional)</span></label>
+                          <textarea rows={2} value={collectionInstructions} onChange={(event) => setCollectionInstructions(event.target.value)} placeholder="Gate, landmark or access instructions" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="lab-booking-grid">
+                      <div className="form-group">
+                        <label>Result delivery</label>
+                        <select value={resultDelivery} onChange={(event) => setResultDelivery(event.target.value as LabResultDeliveryMethod)}>
+                          <option value="digital">Secure digital delivery (recommended)</option>
+                          <option value="physical_pickup">Collect a physical result</option>
+                        </select>
+                      </div>
+                      {resultDelivery === 'physical_pickup' && (
+                        <div className="form-group">
+                          <label>Physical result pickup location <span className="lab-required">*</span></label>
+                          <input value={resultPickupLocation} onChange={(event) => setResultPickupLocation(event.target.value)} placeholder="Assigned laboratory or Ava Pharmacy location" />
+                        </div>
+                      )}
                     </div>
                   </div>
 

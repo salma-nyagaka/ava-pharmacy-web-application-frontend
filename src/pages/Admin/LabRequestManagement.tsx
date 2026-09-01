@@ -2,706 +2,346 @@ import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import { useAuth } from '../../context/AuthContext'
 import {
-  LabRequest,
-  LabRequestStatus,
-  LabResult,
-  assignLabPartner,
-  cancelLabRequest,
-  getNextLabStatus,
-  loadLabCategoryDefs,
-  loadLabRequests,
-  loadLabResults,
-  loadLabTests,
-  saveLabRequests,
-  saveLabResults,
-  assignLabTechnician,
-  updateLabRequestStatus,
-  upsertLabResult,
-} from '../../data/labs'
-import { LabPartner, loadLabPartners } from '../../data/labPartners'
+  type LabRequest,
+  type LabRequestStatus,
+  downloadLabResultFile,
+  fetchStaffLabRequests,
+  updateLabRequest,
+} from '../../services/labService'
+import {
+  adminLabPartnerService,
+  type AdminLaboratoryFacilityApi,
+  type AdminLabTechnicianApi,
+} from '../../services/adminLabPartnerService'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/LabRequestManagement.css'
 
 const PAGE_SIZE = 10
 
-const STATUS_STEPS: LabRequestStatus[] = [
-  'Awaiting sample',
-  'Sample collected',
-  'Processing',
-  'Result ready',
-  'Completed',
-]
+const NEXT_STATUS: Partial<Record<LabRequestStatus, LabRequestStatus>> = {
+  awaiting_sample: 'sample_collected',
+  sample_collected: 'processing',
+  result_ready: 'completed',
+}
 
-const STATUS_COLOR: Record<LabRequestStatus, string> = {
-  'Awaiting sample': '#f59e0b',
-  'Sample collected': '#06b6d4',
-  Processing: '#8b5cf6',
-  'Result ready': '#4f46e5',
-  Completed: '#10b981',
-  Cancelled: '#ef4444',
+const STATUS_LABELS: Record<LabRequestStatus, string> = {
+  awaiting_sample: 'Awaiting sample',
+  sample_collected: 'Sample collected',
+  processing: 'Processing',
+  result_ready: 'Result ready',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return 'Not scheduled'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('en-KE', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
 }
 
 function LabRequestManagement() {
   const { user } = useAuth()
-  const actor = user?.name ?? 'Admin'
-
-  const tests = useMemo(() => loadLabTests(), [])
-  const categoryDefs = useMemo(() => loadLabCategoryDefs(), [])
-  const labPartners = useMemo(() => loadLabPartners(), [])
-  const partnerMap = useMemo(
-    () => new Map(labPartners.map((partner) => [partner.id, partner])),
-    [labPartners]
-  )
-
-  const [requests, setRequests] = useState<LabRequest[]>(() => loadLabRequests())
-  const [results, setResults] = useState<LabResult[]>(() => loadLabResults())
-
+  const [requests, setRequests] = useState<LabRequest[]>([])
+  const [facilities, setFacilities] = useState<AdminLaboratoryFacilityApi[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [feedback, setFeedback] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | LabRequestStatus>('all')
-  const [paymentFilter, setPaymentFilter] = useState('all')
-  const [priorityFilter, setPriorityFilter] = useState('all')
   const [page, setPage] = useState(1)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
 
-  const [panelId, setPanelId] = useState<string | null>(null)
-  const [selectedPartnerId, setSelectedPartnerId] = useState<string>('')
-  const [selectedTechId, setSelectedTechId] = useState<string>('')
-  const [resultSummary, setResultSummary] = useState('')
-  const [resultFile, setResultFile] = useState('')
-  const [resultFlags, setResultFlags] = useState('')
-  const [resultRecommendation, setResultRecommendation] = useState('')
-  const [resultAbnormal, setResultAbnormal] = useState(false)
-  const [formError, setFormError] = useState('')
-
-  useEffect(() => { saveLabRequests(requests) }, [requests])
-  useEffect(() => { saveLabResults(results) }, [results])
-  useEffect(() => { setPage(1) }, [search, statusFilter, paymentFilter, priorityFilter])
-
-  const testMap = useMemo(
-    () => Object.fromEntries(tests.map((t) => [t.id, t])),
-    [tests]
-  )
-
-  const catColorMap = useMemo(
-    () => Object.fromEntries(categoryDefs.map((c) => [c.name, c.color])),
-    [categoryDefs]
-  )
-
-  const resultMap = useMemo(
-    () => results.reduce<Record<string, LabResult>>((acc, r) => { acc[r.requestId] = r; return acc }, {}),
-    [results]
-  )
-
-  const panelRequest = useMemo(
-    () => requests.find((r) => r.id === panelId) ?? null,
-    [requests, panelId]
-  )
-
-  useEffect(() => {
-    if (!panelRequest) return
-    const existing = resultMap[panelRequest.id]
-    setResultSummary(existing?.summary ?? '')
-    setResultFile(existing?.fileName ?? '')
-    setResultFlags(existing?.flags.join(', ') ?? '')
-    setResultRecommendation(existing?.recommendation ?? '')
-    setResultAbnormal(existing?.abnormal ?? false)
-    setFormError('')
-    setSelectedPartnerId(panelRequest.labPartnerId ?? '')
-    setSelectedTechId(panelRequest.labTechId ?? '')
-  }, [panelRequest, resultMap])
-
-  const partnerTechs = useMemo(() => {
-    if (!selectedPartnerId) return [] as LabPartner['techs']
-    return partnerMap.get(selectedPartnerId)?.techs ?? []
-  }, [partnerMap, selectedPartnerId])
-
-  const handlePartnerChange = (partnerId: string) => {
-    if (!panelRequest) return
-    const partner = partnerMap.get(partnerId)
-    setSelectedPartnerId(partnerId)
-    setSelectedTechId('')
-    setRequests((prev) => assignLabPartner(prev, panelRequest.id, partnerId || undefined, partner?.name, true))
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [requestData, facilityData] = await Promise.all([
+        fetchStaffLabRequests(),
+        adminLabPartnerService.listFacilities(),
+      ])
+      setRequests(requestData)
+      setFacilities(facilityData)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load lab requests.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleTechChange = (techId: string) => {
-    if (!panelRequest) return
-    const tech = partnerTechs.find((entry) => entry.id === techId)
-    setSelectedTechId(techId)
-    if (!tech) return
-    setRequests((prev) => assignLabTechnician(prev, panelRequest.id, tech.name, tech.id, selectedPartnerId || panelRequest.labPartnerId))
-  }
+  useEffect(() => { void load() }, [])
+  useEffect(() => { setPage(1) }, [search, statusFilter])
+
+  const selected = useMemo(
+    () => requests.find((request) => request.id === selectedId) ?? null,
+    [requests, selectedId],
+  )
+
+  const facilityMap = useMemo(
+    () => new Map(facilities.map((facility) => [Number(facility.id), facility])),
+    [facilities],
+  )
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return requests.filter((request) => {
+      if (statusFilter !== 'all' && request.status !== statusFilter) return false
+      if (!query) return true
+      return [request.reference, request.patientName, request.patientPhone, request.testName, request.partnerName, request.laboratoryName]
+        .some((value) => value.toLowerCase().includes(query))
+    })
+  }, [requests, search, statusFilter])
 
   const stats = useMemo(() => ({
     total: requests.length,
-    active: requests.filter((r) => ['Awaiting sample', 'Sample collected', 'Processing'].includes(r.status)).length,
-    ready: requests.filter((r) => r.status === 'Result ready').length,
-    completed: requests.filter((r) => r.status === 'Completed').length,
-    unpaid: requests.filter((r) => r.paymentStatus === 'Pending').length,
+    unassigned: requests.filter((request) => !request.laboratory).length,
+    home: requests.filter((request) => request.channel === 'collection').length,
+    processing: requests.filter((request) => request.status === 'processing').length,
+    ready: requests.filter((request) => request.status === 'result_ready').length,
   }), [requests])
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return [...requests]
-      .sort((a, b) => {
-        if (a.priority !== b.priority) return a.priority === 'Priority' ? -1 : 1
-        return b.id.localeCompare(a.id)
-      })
-      .filter((r) => {
-        if (statusFilter !== 'all' && r.status !== statusFilter) return false
-        if (paymentFilter !== 'all' && r.paymentStatus !== paymentFilter) return false
-        if (priorityFilter !== 'all' && r.priority !== priorityFilter) return false
-        if (!q) return true
-        const testName = testMap[r.testId]?.name ?? ''
-        return [r.id, r.patientName, r.patientPhone, testName].some((v) =>
-          v.toLowerCase().includes(q))
-      })
-  }, [requests, search, statusFilter, paymentFilter, priorityFilter, testMap])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const handleProgress = (request: LabRequest) => {
-    const next = getNextLabStatus(request.status)
-    if (!next) return
-    setRequests((prev) => updateLabRequestStatus(prev, request.id, next, actor))
+  const replaceRequest = (updated: LabRequest) => {
+    setRequests((current) => current.map((request) => request.id === updated.id ? updated : request))
   }
 
-  const handleCancel = (requestId: string) => {
-    setRequests((prev) => cancelLabRequest(prev, requestId, actor))
-    if (panelId === requestId) setPanelId(null)
-  }
-
-  const handlePublishResult = () => {
-    if (!panelRequest || !resultSummary.trim()) {
-      setFormError('Result summary is required.')
-      return
+  const patchRequest = async (request: LabRequest, payload: Parameters<typeof updateLabRequest>[1], message: string) => {
+    setSaving(true)
+    setError('')
+    setFeedback('')
+    try {
+      const updated = await updateLabRequest(request.id, payload)
+      replaceRequest(updated)
+      setFeedback(message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update the request.')
+    } finally {
+      setSaving(false)
     }
-    const flags = resultFlags.split(',').map((f) => f.trim()).filter(Boolean)
-    const payload = upsertLabResult(requests, results, {
-      requestId: panelRequest.id,
-      summary: resultSummary,
-      fileName: resultFile,
-      flags,
-      abnormal: resultAbnormal,
-      recommendation: resultRecommendation,
-      reviewedBy: actor,
-    })
-    setRequests(payload.requests)
-    setResults(payload.results)
-    setFormError('')
   }
 
-  const stepIndex = (status: LabRequestStatus) => STATUS_STEPS.indexOf(status)
+  const assignFacility = async (request: LabRequest, facilityId: number | null) => {
+    await patchRequest(
+      request,
+      { laboratory: facilityId, assigned_technician: null },
+      facilityId ? 'Laboratory facility assigned.' : 'Laboratory assignment removed.',
+    )
+  }
+
+  const reviewFacility = async (facility: AdminLaboratoryFacilityApi, action: 'verify' | 'request_changes' | 'suspend') => {
+    if (!facility.id) return
+    const note = action === 'verify' ? undefined : window.prompt(action === 'suspend' ? 'Suspension reason' : 'Required changes')?.trim()
+    if (action !== 'verify' && !note) return
+    setSaving(true)
+    setError('')
+    try {
+      const updated = await adminLabPartnerService.actionFacility(facility.id, { action, note })
+      setFacilities((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setFeedback(`Laboratory ${action.replace('_', ' ')} completed.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to review the laboratory.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const assignTechnician = async (request: LabRequest, technicianId: number | null) => {
+    await patchRequest(request, { assigned_technician: technicianId }, 'Technician assignment updated.')
+  }
+
+  const takeCoordination = async (request: LabRequest) => {
+    if (!user?.id) return
+    await patchRequest(request, { assigned_pharmacist: user.id }, 'Request assigned to your coordination queue.')
+  }
+
+  const progress = async (request: LabRequest) => {
+    const status = NEXT_STATUS[request.status]
+    if (!status) return
+    await patchRequest(request, { status }, `Request moved to ${STATUS_LABELS[status]}.`)
+  }
+
+  const cancel = async (request: LabRequest) => {
+    if (!window.confirm(`Cancel ${request.reference}?`)) return
+    await patchRequest(request, { status: 'cancelled' }, 'Request cancelled.')
+  }
+
+  const selectedFacility = selected?.laboratory ? facilityMap.get(selected.laboratory) : undefined
+  const selectedTechnicians = (selectedFacility?.technicians ?? []).filter(
+    (technician: AdminLabTechnicianApi) => technician.status === 'active' && technician.user,
+  )
+  const eligibleFacilities = selected ? facilities.filter((facility) => {
+    if (facility.status !== 'verified' || facility.is_active === false) return false
+    if (selected.channel === 'collection' && !facility.home_collection_enabled) return false
+    if (selected.resultDeliveryMethod === 'physical_pickup' && !facility.physical_result_pickup_enabled) return false
+    return (facility.offerings ?? []).some((offering) => offering.test === selected.test && offering.is_active !== false)
+  }) : []
+  const pendingFacilities = facilities.filter((facility) => facility.status === 'pending')
 
   return (
-    <div className={`category-management lrm-root ${panelId ? 'lrm-root--panel-open' : ''}`}>
+    <div className={`category-management lrm-root ${selected ? 'lrm-root--panel-open' : ''}`}>
       <PageHeader
         title="Lab requests"
-        subtitle="Review and manage all patient-submitted lab test requests."
-        badge="Admin"
+        subtitle="Coordinate home sample collections, laboratory assignments, and secure result delivery."
+        badge="Live API"
       />
 
       <section className="page">
         <div className="container">
+          {error && <div className="cm-error-banner">{error}</div>}
+          {feedback && <div className="cm-success-banner">{feedback}</div>}
 
-          {/* Stats */}
           <div className="lrm-stats">
-            <div className="lrm-stat lrm-stat--total">
-              <div className="lrm-stat__icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                </svg>
+            {[
+              ['Total requests', stats.total],
+              ['Unassigned', stats.unassigned],
+              ['Home collections', stats.home],
+              ['Processing', stats.processing],
+              ['Results ready', stats.ready],
+            ].map(([label, value]) => (
+              <div className="lrm-stat lrm-stat--total" key={label}>
+                <div><p className="lrm-stat__value">{value}</p><p className="lrm-stat__label">{label}</p></div>
               </div>
-              <div>
-                <p className="lrm-stat__value">{stats.total}</p>
-                <p className="lrm-stat__label">Total requests</p>
-              </div>
-            </div>
-            <div className="lrm-stat lrm-stat--active">
-              <div className="lrm-stat__icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
-                </svg>
-              </div>
-              <div>
-                <p className="lrm-stat__value">{stats.active}</p>
-                <p className="lrm-stat__label">In progress</p>
-              </div>
-            </div>
-            <div className="lrm-stat lrm-stat--ready">
-              <div className="lrm-stat__icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20,6 9,17 4,12"/>
-                </svg>
-              </div>
-              <div>
-                <p className="lrm-stat__value">{stats.ready}</p>
-                <p className="lrm-stat__label">Result ready</p>
-              </div>
-            </div>
-            <div className="lrm-stat lrm-stat--done">
-              <div className="lrm-stat__icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22,4 12,14.01 9,11.01"/>
-                </svg>
-              </div>
-              <div>
-                <p className="lrm-stat__value">{stats.completed}</p>
-                <p className="lrm-stat__label">Completed</p>
-              </div>
-            </div>
-            <div className="lrm-stat lrm-stat--unpaid">
-              <div className="lrm-stat__icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-                </svg>
-              </div>
-              <div>
-                <p className="lrm-stat__value">{stats.unpaid}</p>
-                <p className="lrm-stat__label">Unpaid</p>
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* Toolbar */}
+          {pendingFacilities.length > 0 && (
+            <div className="cm-panel" style={{ marginBottom: '1rem', padding: '1rem' }}>
+              <h2>Laboratories awaiting verification</h2>
+              {pendingFacilities.map((facility) => (
+                <div className="lrm-info-grid" key={facility.id} style={{ alignItems: 'center', marginTop: '.75rem' }}>
+                  <div><strong>{facility.name}</strong><br /><small>{facility.partner_name} · {facility.county}</small></div>
+                  <div><small>Licence</small><br /><strong>{facility.license_number}</strong></div>
+                  <div><small>Tests</small><br /><strong>{facility.offerings?.length ?? 0}</strong></div>
+                  <div className="cm-row-actions">
+                    <button className="btn btn--primary btn--sm" type="button" disabled={saving} onClick={() => { void reviewFacility(facility, 'verify') }}>Verify</button>
+                    <button className="btn btn--outline btn--sm" type="button" disabled={saving} onClick={() => { void reviewFacility(facility, 'request_changes') }}>Request changes</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="lrm-toolbar">
             <div className="lrm-search">
-              <svg className="lrm-search__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              <input
-                className="lrm-search__input"
-                type="text"
-                placeholder="Search by ID, patient, phone or test…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              {search && (
-                <button className="lrm-search__clear" type="button" onClick={() => setSearch('')}>×</button>
-              )}
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search reference, patient, test or laboratory…" />
             </div>
             <div className="lrm-filters">
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'all' | LabRequestStatus)}>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | LabRequestStatus)}>
                 <option value="all">All statuses</option>
-                <option value="Awaiting sample">Awaiting sample</option>
-                <option value="Sample collected">Sample collected</option>
-                <option value="Processing">Processing</option>
-                <option value="Result ready">Result ready</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-              <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}>
-                <option value="all">All payments</option>
-                <option value="Paid">Paid</option>
-                <option value="Pending">Pending</option>
-              </select>
-              <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-                <option value="all">All priorities</option>
-                <option value="Priority">Priority first</option>
-                <option value="Routine">Routine only</option>
+                {Object.entries(STATUS_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
               </select>
             </div>
-            <span className="lrm-count">{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
+            <button className="btn btn--outline btn--sm" type="button" onClick={() => { void load() }}>Refresh</button>
           </div>
 
-          {/* Table */}
           <div className="cm-panel">
             <div className="cm-table-wrap lrm-table-wrap">
-            <table className="cm-table lrm-table">
-              <thead>
-                <tr>
-                  <th>Request</th>
-                  <th>Patient</th>
-                  <th>Test</th>
-                  <th>Scheduled</th>
-                  <th>Technician</th>
-                  <th>Status</th>
-                  <th>Payment</th>
-                  <th className="cm-th-actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paged.map((r) => {
-                  const test = testMap[r.testId]
-                  const catColor = test ? (catColorMap[test.category] ?? '#6b7280') : '#6b7280'
-                  const nextStatus = getNextLabStatus(r.status)
-                  const statusColor = STATUS_COLOR[r.status] ?? '#6b7280'
-                  const isActive = panelId === r.id
-                  return (
-                    <tr
-                      key={r.id}
-                      className={`lrm-row ${isActive ? 'lrm-row--active' : ''}`}
-                      onClick={() => setPanelId(r.id)}
-                    >
-                      <td>
-                        <p className="lrm-id">{r.id}</p>
-                        {r.priority === 'Priority' && (
-                          <span className="lrm-urgent-tag">Urgent</span>
-                        )}
-                      </td>
-                      <td>
-                        <p className="lrm-patient">{r.patientName}</p>
-                        <p className="lrm-phone">{r.patientPhone}</p>
-                      </td>
-                      <td>
-                        {test ? (
-                          <>
-                            <p className="lrm-test-name">{test.name}</p>
-                            <span className="lrm-cat-badge" style={{ '--cat': catColor } as React.CSSProperties}>
-                              {test.category}
-                            </span>
-                          </>
-                        ) : <span className="lrm-phone">{r.testId}</span>}
-                      </td>
-                      <td className="lrm-scheduled">{r.scheduledAt}</td>
-                      <td className="lrm-tech">
-                        {r.assignedTechnician ?? <span className="lrm-unassigned">Unassigned</span>}
-                        {r.labPartnerId && (
-                          <span className="lrm-tech__partner">
-                            {partnerMap.get(r.labPartnerId)?.name ?? r.labPartnerId}
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="lrm-status-cell">
-                          <span className="lrm-status-dot" style={{ background: statusColor }} />
-                          <span className="lrm-status-text">{r.status}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`lrm-pay-badge ${r.paymentStatus === 'Paid' ? 'lrm-pay-badge--paid' : 'lrm-pay-badge--pending'}`}>
-                          {r.paymentStatus}
-                        </span>
-                      </td>
-                      <td className="lrm-actions" onClick={(e) => e.stopPropagation()}>
-                        {nextStatus && (
-                          <button
-                            className="lrm-action-btn lrm-action-btn--progress"
-                            type="button"
-                            onClick={() => handleProgress(r)}
-                            title={`Mark as ${nextStatus}`}
-                          >
-                            → {nextStatus}
-                          </button>
-                        )}
-                        {['Awaiting sample', 'Sample collected', 'Processing'].includes(r.status) && (
-                          <button
-                            className="lrm-action-btn lrm-action-btn--cancel"
-                            type="button"
-                            onClick={() => handleCancel(r.id)}
-                          >
-                            Cancel
-                          </button>
-                        )}
+              <table className="cm-table lrm-table">
+                <thead><tr><th>Request</th><th>Patient</th><th>Test</th><th>Fulfillment</th><th>Laboratory</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={7} className="lrm-empty">Loading lab requests…</td></tr>
+                  ) : paged.length === 0 ? (
+                    <tr><td colSpan={7} className="lrm-empty">No lab requests match the current filters.</td></tr>
+                  ) : paged.map((request) => (
+                    <tr key={request.id} className={selectedId === request.id ? 'lrm-row--active' : ''} onClick={() => setSelectedId(request.id)}>
+                      <td><strong>{request.reference}</strong><br /><small>{formatDateTime(request.requestedAt)}</small></td>
+                      <td><strong>{request.patientName}</strong><br /><small>{request.patientPhone}</small></td>
+                      <td>{request.testName}<br /><small>{request.priorityLabel}</small></td>
+                      <td>{request.channelLabel}<br /><small>{request.resultDeliveryLabel}</small></td>
+                      <td>{request.laboratoryName ? <><strong>{request.laboratoryName}</strong><br /><small>{request.partnerName}</small></> : <span className="lrm-unassigned">Unassigned</span>}</td>
+                      <td>{request.statusLabel}</td>
+                      <td onClick={(event) => event.stopPropagation()}>
+                        <button className="btn btn--outline btn--sm" type="button" onClick={() => setSelectedId(request.id)}>Manage</button>
                       </td>
                     </tr>
-                  )
-                })}
-                {paged.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="lrm-empty">
-                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
-                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                      </svg>
-                      <p>No lab requests match the current filters.</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* Pagination */}
-          {filtered.length > PAGE_SIZE && (
+          {totalPages > 1 && (
             <div className="lrm-pagination">
-              <span className="lrm-pagination__info">
-                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
-              </span>
-              <div className="lrm-pagination__btns">
-                <button className="lrm-page-btn" type="button" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-                  ← Prev
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    className={`lrm-page-btn lrm-page-btn--num ${p === page ? 'lrm-page-btn--active' : ''}`}
-                    type="button"
-                    onClick={() => setPage(p)}
-                  >{p}</button>
-                ))}
-                <button className="lrm-page-btn" type="button" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>
-                  Next →
-                </button>
-              </div>
+              <button className="lrm-page-btn" type="button" disabled={page === 1} onClick={() => setPage((current) => current - 1)}>Previous</button>
+              <span>Page {page} of {totalPages}</span>
+              <button className="lrm-page-btn" type="button" disabled={page === totalPages} onClick={() => setPage((current) => current + 1)}>Next</button>
             </div>
           )}
         </div>
       </section>
 
-      {/* Side panel */}
-      {panelRequest && (
+      {selected && (
         <>
-          <div className="lrm-overlay" onClick={() => setPanelId(null)} />
+          <div className="lrm-overlay" onClick={() => setSelectedId(null)} />
           <aside className="lrm-panel">
-            {/* Panel header */}
             <div className="lrm-panel__header">
-              <div>
-                <div className="lrm-panel__id-row">
-                  <h2 className="lrm-panel__id">{panelRequest.id}</h2>
-                  {panelRequest.priority === 'Priority' && (
-                    <span className="lrm-urgent-tag">Urgent</span>
-                  )}
-                </div>
-                <p className="lrm-panel__meta">
-                  {panelRequest.channel} · Requested {panelRequest.requestedAt}
-                </p>
-              </div>
-              <button className="lrm-panel__close" type="button" onClick={() => setPanelId(null)}>×</button>
+              <div><h2>{selected.reference}</h2><p>{selected.testName} · {selected.statusLabel}</p></div>
+              <button className="lrm-panel__close" type="button" onClick={() => setSelectedId(null)}>×</button>
             </div>
-
-            {/* Workflow stepper */}
-            <div className="lrm-stepper">
-              {STATUS_STEPS.map((step, i) => {
-                const currentIdx = stepIndex(panelRequest.status)
-                const isCancelled = panelRequest.status === 'Cancelled'
-                const isDone = !isCancelled && i < currentIdx
-                const isActive = !isCancelled && i === currentIdx
-                return (
-                  <div key={step} className={`lrm-step ${isDone ? 'lrm-step--done' : ''} ${isActive ? 'lrm-step--active' : ''}`}>
-                    {i > 0 && <div className={`lrm-step__line ${isDone ? 'lrm-step__line--done' : ''}`} />}
-                    <div className="lrm-step__inner">
-                      <div className="lrm-step__dot">{isDone ? '✓' : i + 1}</div>
-                      <span className="lrm-step__label">{step}</span>
-                    </div>
-                  </div>
-                )
-              })}
-              {panelRequest.status === 'Cancelled' && (
-                <span className="lrm-cancelled-pill">Cancelled</span>
-              )}
-            </div>
-
             <div className="lrm-panel__body">
-              {/* Patient */}
               <div className="lrm-section">
-                <p className="lrm-section__title">Patient</p>
+                <p className="lrm-section__title">Patient and collection</p>
                 <div className="lrm-info-grid">
-                  <div>
-                    <p className="lrm-info-label">Name</p>
-                    <p className="lrm-info-value">{panelRequest.patientName}</p>
-                  </div>
-                  <div>
-                    <p className="lrm-info-label">Phone</p>
-                    <p className="lrm-info-value">{panelRequest.patientPhone}</p>
-                  </div>
-                  {panelRequest.patientEmail && (
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <p className="lrm-info-label">Email</p>
-                      <p className="lrm-info-value">{panelRequest.patientEmail}</p>
-                    </div>
-                  )}
-                  {panelRequest.orderingDoctor && (
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <p className="lrm-info-label">Ordering doctor</p>
-                      <p className="lrm-info-value">{panelRequest.orderingDoctor}</p>
-                    </div>
-                  )}
+                  <div><p className="lrm-info-label">Patient</p><p className="lrm-info-value">{selected.patientName}</p></div>
+                  <div><p className="lrm-info-label">Phone</p><p className="lrm-info-value">{selected.patientPhone}</p></div>
+                  <div><p className="lrm-info-label">Method</p><p className="lrm-info-value">{selected.channelLabel}</p></div>
+                  <div><p className="lrm-info-label">Scheduled</p><p className="lrm-info-value">{formatDateTime(selected.scheduledAt)}</p></div>
                 </div>
+                {selected.collectionAddress && <p className="lrm-info-value"><strong>Address:</strong> {selected.collectionAddress}</p>}
+                {selected.collectionInstructions && <p className="lrm-info-value"><strong>Instructions:</strong> {selected.collectionInstructions}</p>}
               </div>
 
-              {/* Test */}
-              {testMap[panelRequest.testId] && (
-                <div className="lrm-section">
-                  <p className="lrm-section__title">Test</p>
-                  <div className="lrm-info-grid">
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <p className="lrm-info-label">Name</p>
-                      <p className="lrm-info-value">{testMap[panelRequest.testId].name}</p>
-                    </div>
-                    <div>
-                      <p className="lrm-info-label">Category</p>
-                      <p className="lrm-info-value">{testMap[panelRequest.testId].category}</p>
-                    </div>
-                    <div>
-                      <p className="lrm-info-label">Sample</p>
-                      <p className="lrm-info-value">{testMap[panelRequest.testId].sampleType}</p>
-                    </div>
-                    <div>
-                      <p className="lrm-info-label">Turnaround</p>
-                      <p className="lrm-info-value">{testMap[panelRequest.testId].turnaround}</p>
-                    </div>
-                    <div>
-                      <p className="lrm-info-label">Price</p>
-                      <p className="lrm-info-value">KSh {testMap[panelRequest.testId].price.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Schedule */}
               <div className="lrm-section">
-                <p className="lrm-section__title">Scheduling</p>
-                <div className="lrm-info-grid">
-                  <div>
-                    <p className="lrm-info-label">Scheduled</p>
-                    <p className="lrm-info-value">{panelRequest.scheduledAt}</p>
-                  </div>
-                  <div>
-                    <p className="lrm-info-label">Channel</p>
-                    <p className="lrm-info-value">{panelRequest.channel}</p>
-                  </div>
-                  <div>
-                    <p className="lrm-info-label">Payment</p>
-                    <span className={`lrm-pay-badge ${panelRequest.paymentStatus === 'Paid' ? 'lrm-pay-badge--paid' : 'lrm-pay-badge--pending'}`}>
-                      {panelRequest.paymentStatus}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="lrm-info-label">Technician</p>
-                    <p className="lrm-info-value">{panelRequest.assignedTechnician ?? '-'}</p>
-                  </div>
-                  <div>
-                    <p className="lrm-info-label">Lab partner</p>
-                    <p className="lrm-info-value">{panelRequest.labPartnerId ? partnerMap.get(panelRequest.labPartnerId)?.name ?? panelRequest.labPartnerId : '-'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Assignment */}
-              <div className="lrm-section">
-                <p className="lrm-section__title">Assignment</p>
-                <div className="lrm-form-row">
-                  <div className="lrm-form-group">
-                    <label>Lab partner</label>
-                    <select
-                      value={selectedPartnerId}
-                      onChange={(e) => handlePartnerChange(e.target.value)}
-                    >
-                      <option value="">Unassigned</option>
-                      {labPartners.map((partner) => (
-                        <option key={partner.id} value={partner.id}>{partner.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="lrm-form-group">
-                    <label>Lab technician</label>
-                    <select
-                      value={selectedTechId}
-                      onChange={(e) => handleTechChange(e.target.value)}
-                      disabled={!selectedPartnerId}
-                    >
-                      <option value="">Select technician</option>
-                      {partnerTechs.map((tech) => (
-                        <option key={tech.id} value={tech.id}>{tech.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                {!selectedPartnerId && (
-                  <p className="lrm-info-label" style={{ marginTop: '0.35rem' }}>
-                    Select a lab partner to assign technicians.
-                  </p>
+                <p className="lrm-section__title">Result delivery</p>
+                <p className="lrm-info-value">{selected.resultDeliveryLabel}</p>
+                {selected.resultPickupLocation && <p className="lrm-info-value">Pickup: {selected.resultPickupLocation}</p>}
+                {selected.result?.file && (
+                  <button className="btn btn--outline btn--sm" type="button" onClick={() => { void downloadLabResultFile(selected.result!) }}>Download secured result</button>
                 )}
               </div>
 
-              {panelRequest.notes && (
-                <div className="lrm-section">
-                  <p className="lrm-section__title">Patient notes</p>
-                  <p className="lrm-info-value lrm-notes">{panelRequest.notes}</p>
+              <div className="lrm-section">
+                <p className="lrm-section__title">Coordination</p>
+                <div className="lrm-form-group">
+                  <label>Verified laboratory facility</label>
+                  <select disabled={saving} value={selected.laboratory ?? ''} onChange={(event) => { void assignFacility(selected, event.target.value ? Number(event.target.value) : null) }}>
+                    <option value="">Unassigned</option>
+                    {eligibleFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name} — {facility.partner_name} ({facility.county})</option>)}
+                  </select>
+                  {eligibleFacilities.length === 0 && <small>No verified facility currently offers this fulfillment/test combination.</small>}
                 </div>
-              )}
-
-              {/* Existing result */}
-              {resultMap[panelRequest.id] && (
-                <div className="lrm-section">
-                  <p className="lrm-section__title">Result on file</p>
-                  <div className="lrm-result-card">
-                    <p className="lrm-info-value">
-                      {resultMap[panelRequest.id].summary}
-                      {resultMap[panelRequest.id].abnormal && (
-                        <span className="lrm-abnormal-tag">Abnormal</span>
-                      )}
-                    </p>
-                    <p className="lrm-info-label" style={{ marginTop: '0.4rem' }}>
-                      {resultMap[panelRequest.id].fileName} · By {resultMap[panelRequest.id].reviewedBy}
-                    </p>
-                    {resultMap[panelRequest.id].flags.length > 0 && (
-                      <p className="lrm-info-label">Flags: {resultMap[panelRequest.id].flags.join(', ')}</p>
-                    )}
-                    {resultMap[panelRequest.id].recommendation && (
-                      <p className="lrm-info-label">Rec: {resultMap[panelRequest.id].recommendation}</p>
-                    )}
-                  </div>
+                <div className="lrm-form-group">
+                  <label>Active technician</label>
+                  <select disabled={saving || !selected.laboratory} value={selected.assignedTechnician ?? ''} onChange={(event) => { void assignTechnician(selected, event.target.value ? Number(event.target.value) : null) }}>
+                    <option value="">Unassigned</option>
+                    {selectedTechnicians.map((technician) => <option key={technician.id} value={technician.user ?? ''}>{technician.name || technician.user_name}</option>)}
+                  </select>
                 </div>
-              )}
+                <p className="lrm-info-value">Coordinator: {selected.pharmacistName || 'Unassigned'}</p>
+                {!selected.assignedPharmacist && user?.id && (
+                  <button className="btn btn--outline btn--sm" disabled={saving} type="button" onClick={() => { void takeCoordination(selected) }}>Coordinate this request</button>
+                )}
+              </div>
 
-              {/* Publish result form */}
-              {(panelRequest.status === 'Processing' || panelRequest.status === 'Result ready') && (
-                <div className="lrm-section">
-                  <div className="lrm-result-form">
-                    <p className="lrm-result-form__title">
-                      {resultMap[panelRequest.id] ? 'Update result' : 'Publish result'}
-                    </p>
-                    <div className="lrm-form-group">
-                      <label>Result summary *</label>
-                      <textarea rows={3} value={resultSummary} onChange={(e) => setResultSummary(e.target.value)} />
-                    </div>
-                    <div className="lrm-form-group">
-                      <label>File name</label>
-                      <input
-                        type="text"
-                        value={resultFile}
-                        onChange={(e) => setResultFile(e.target.value)}
-                        placeholder={`${panelRequest.id}-result.pdf`}
-                      />
-                    </div>
-                    <div className="lrm-form-row">
-                      <div className="lrm-form-group">
-                        <label>Flags (comma-separated)</label>
-                        <input type="text" value={resultFlags} onChange={(e) => setResultFlags(e.target.value)} />
-                      </div>
-                      <div className="lrm-form-group">
-                        <label>Recommendation</label>
-                        <input type="text" value={resultRecommendation} onChange={(e) => setResultRecommendation(e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="lrm-form-group">
-                      <label className="lrm-check-label">
-                        <input type="checkbox" checked={resultAbnormal} onChange={(e) => setResultAbnormal(e.target.checked)} />
-                        Mark as abnormal
-                      </label>
-                    </div>
-                    {formError && <p className="lrm-form-error">{formError}</p>}
-                    <button className="btn btn--primary btn--sm" type="button" onClick={handlePublishResult}>
-                      {resultMap[panelRequest.id] ? 'Update result' : 'Publish result'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
+              {selected.notes && <div className="lrm-section"><p className="lrm-section__title">Notes</p><p className="lrm-info-value">{selected.notes}</p></div>}
+              <div className="lrm-section">
+                <p className="lrm-section__title">Audit trail</p>
+                {selected.auditLogs.length === 0 ? <p className="lrm-info-label">No events recorded.</p> : selected.auditLogs.map((log) => (
+                  <p className="lrm-info-value" key={log.id}>{log.action}<br /><small>{log.performedByName || 'System'} · {formatDateTime(log.timestamp)}</small></p>
+                ))}
+              </div>
             </div>
-
-            {/* Panel footer */}
             <div className="lrm-panel__footer">
-              {getNextLabStatus(panelRequest.status) && (
-                <button
-                  className="btn btn--primary btn--sm"
-                  type="button"
-                  onClick={() => handleProgress(panelRequest)}
-                >
-                  Mark as {getNextLabStatus(panelRequest.status)}
-                </button>
-              )}
-              {['Awaiting sample', 'Sample collected', 'Processing'].includes(panelRequest.status) && (
-                <button className="btn btn--secondary btn--sm" type="button" onClick={() => handleCancel(panelRequest.id)}>
-                  Cancel request
-                </button>
-              )}
-              <button className="btn btn--outline btn--sm" style={{ marginLeft: 'auto' }} type="button" onClick={() => setPanelId(null)}>
-                Close
-              </button>
+              {NEXT_STATUS[selected.status] && <button className="btn btn--primary btn--sm" disabled={saving} type="button" onClick={() => { void progress(selected) }}>Mark as {STATUS_LABELS[NEXT_STATUS[selected.status]!]}</button>}
+              {['awaiting_sample', 'sample_collected', 'processing'].includes(selected.status) && <button className="btn btn--secondary btn--sm" disabled={saving} type="button" onClick={() => { void cancel(selected) }}>Cancel request</button>}
+              <button className="btn btn--outline btn--sm" type="button" onClick={() => setSelectedId(null)}>Close</button>
             </div>
           </aside>
         </>

@@ -38,9 +38,9 @@ const PEDIATRICIAN_DOCS = [
 ]
 
 const LAB_PARTNER_DOCS = [
-  'Lab facility licence', 'Accreditation certificate',
-  'Company registration', 'Professional indemnity insurance',
-  'Quality assurance policy',
+  'Company registration certificate', 'Tax compliance certificate',
+  'Lead laboratory licence or accreditation certificate', 'Professional indemnity insurance',
+  'Quality management policy',
 ]
 const CV_RESUME_DOC = 'CV / Resume'
 
@@ -170,8 +170,8 @@ const ROLE_CARDS: Array<{ type: ProfType; icon: React.ReactNode; tagline: string
   },
   {
     type: 'Lab Partner',
-    tagline: 'Diagnostic labs & sample collection',
-    perks: ['Connect with 12,000+ patients', 'Integrated results delivery', 'Verified partner badge'],
+    tagline: 'Diagnostic laboratory organisations',
+    perks: ['Register multiple laboratory branches', 'Integrated results delivery', 'Verified partner badge'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M9 3v8l-5 8h16l-5-8V3"/>
@@ -370,13 +370,13 @@ function ProfessionalRegisterPage() {
       if (!form.email.trim()) e.email = 'Email address is required.'
       if (!form.phone.trim()) e.phone = 'Phone number is required.'
       if (type === 'Lab Partner') {
-        if (!form.labName.trim()) e.labName = 'Lab name is required.'
-        if (!form.labLocation.trim()) e.labLocation = 'Lab location is required.'
+        if (!form.labName.trim()) e.labName = 'Legal organisation name is required.'
+        if (!form.labLocation.trim()) e.labLocation = 'Primary operating location is required.'
       }
     } else if (step === 3) {
       if (type === 'Lab Partner') {
-        if (!form.labAccreditation.trim()) e.labAccreditation = 'Accreditation number is required.'
-        if (!form.license.trim()) e.license = 'Facility licence number is required.'
+        if (!form.labAccreditation.trim()) e.labAccreditation = 'Accreditation or quality certification reference is required.'
+        if (!form.license.trim()) e.license = 'Lead laboratory or operating licence number is required.'
       } else {
         if (!form.license.trim()) e.license = 'License number is required.'
         if (!form.licenseBoard.trim()) e.licenseBoard = 'Licensing board is required.'
@@ -649,9 +649,9 @@ function ProfessionalRegisterPage() {
           <div className="pr-step">
             <div className="pr-step__head">
               <h2 className="pr-step__title">
-                {type === 'Lab Partner' ? 'Primary contact details' : 'Personal information'}
+                {type === 'Lab Partner' ? 'Organisation and authorised contact' : 'Personal information'}
               </h2>
-              <p className="pr-step__sub">This is how we'll contact you during the review process.</p>
+              <p className="pr-step__sub">We verify the legal partner first. You will register each physical laboratory, its tests, and its collection team after your account is approved.</p>
             </div>
             <div className="pr-fields">
               <Field label={type === 'Lab Partner' ? 'Contact name' : 'Full name'} required error={errors.name}>
@@ -685,19 +685,19 @@ function ProfessionalRegisterPage() {
               </div>
               {type === 'Lab Partner' && (
                 <div className="pr-row">
-                  <Field label="Lab name" required error={errors.labName}>
+                  <Field label="Legal organisation name" required error={errors.labName}>
                     <input
                       type="text"
-                      placeholder="Ava Diagnostics Ltd"
+                      placeholder="Ava Diagnostics Limited"
                       value={form.labName}
                       onChange={(e) => set('labName', e.target.value)}
                       className={errors.labName ? 'err' : ''}
                     />
                   </Field>
-                  <Field label="Lab location" required error={errors.labLocation}>
+                  <Field label="Primary operating location" required error={errors.labLocation}>
                     <input
                       type="text"
-                      placeholder="Westlands, Nairobi"
+                      placeholder="Nairobi, Kenya"
                       value={form.labLocation}
                       onChange={(e) => set('labLocation', e.target.value)}
                       className={errors.labLocation ? 'err' : ''}
@@ -725,7 +725,7 @@ function ProfessionalRegisterPage() {
                 </Field>
               </div>
               <Field label="Brief bio" optional hint={type === 'Lab Partner'
-                ? 'Describe your lab, quality standards, and turnaround time.'
+                ? 'Describe your organisation, quality standards, and the laboratory network you intend to onboard.'
                 : `Your experience, approach to ${type === 'Doctor' ? 'patient' : 'paediatric'} care, and what patients can expect.`}>
                 <textarea
                   rows={3}
@@ -743,18 +743,18 @@ function ProfessionalRegisterPage() {
           <div className="pr-step">
             <div className="pr-step__head">
               <h2 className="pr-step__title">
-                {type === 'Lab Partner' ? 'Lab credentials' : 'Professional credentials'}
+                {type === 'Lab Partner' ? 'Partner eligibility and quality credentials' : 'Professional credentials'}
               </h2>
               <p className="pr-step__sub">
                 {type === 'Lab Partner'
-                  ? 'Provide your lab accreditation and facility details.'
+                  ? 'These establish the legal partner. Each laboratory branch is verified separately after activation.'
                   : 'Your licence and regulatory details for verification.'}
               </p>
             </div>
             <div className="pr-fields">
               {type === 'Lab Partner' ? (
                 <div className="pr-row">
-                  <Field label="Accreditation number" required error={errors.labAccreditation}>
+                  <Field label="Accreditation or quality certification reference" required error={errors.labAccreditation}>
                     <input
                       type="text"
                       placeholder="KENAS-ACC-XXXX"
@@ -763,7 +763,7 @@ function ProfessionalRegisterPage() {
                       className={errors.labAccreditation ? 'err' : ''}
                     />
                   </Field>
-                  <Field label="Facility licence number" required error={errors.license}>
+                  <Field label="Lead laboratory or operating licence number" required error={errors.license}>
                     <input
                       type="text"
                       placeholder="LAB-LIC-XXXX"
@@ -1137,7 +1137,7 @@ function ProfessionalRegisterPage() {
             <div className="pr-fields">
               <div className="pr-summary-card">
                 <div className="pr-summary-row">
-                  <span>Role</span><strong>{type}</strong>
+                  <span>Role</span><strong>{type === 'Lab Partner' ? 'Laboratory partner organisation' : type}</strong>
                 </div>
                 <div className="pr-summary-row">
                   <span>Name</span><strong>{form.name || '—'}</strong>
@@ -1145,6 +1145,11 @@ function ProfessionalRegisterPage() {
                 <div className="pr-summary-row">
                   <span>Email</span><strong>{form.email || '—'}</strong>
                 </div>
+                {type === 'Lab Partner' && (
+                  <div className="pr-summary-row">
+                    <span>Organisation</span><strong>{form.labName || '—'} · {form.labLocation || '—'}</strong>
+                  </div>
+                )}
                 {form.specialty && (
                   <div className="pr-summary-row">
                     <span>Specialty</span><strong>{form.specialty}</strong>
@@ -1161,7 +1166,10 @@ function ProfessionalRegisterPage() {
               <div className="pr-what-next">
                 <p className="pr-what-next__title">What happens next?</p>
                 <div className="pr-what-next__steps">
-                  {['Application received and confirmation email sent', 'Admin reviews documents and credentials', 'Approval email with activation link is sent', 'You verify your email and create a password', 'Account activates and dashboard access opens'].map((s, i) => (
+                  {(type === 'Lab Partner'
+                    ? ['Partner application received and confirmation email sent', 'Admin reviews legal and quality documentation', 'Approval email with activation link is sent', 'You register every laboratory, its services, documents and technicians', 'AVA verifies each laboratory before it can receive patient requests']
+                    : ['Application received and confirmation email sent', 'Admin reviews documents and credentials', 'Approval email with activation link is sent', 'You verify your email and create a password', 'Account activates and dashboard access opens']
+                  ).map((s, i) => (
                     <div key={s} className="pr-what-next__step">
                       <span className="pr-what-next__num">{i + 1}</span>
                       <span>{s}</span>

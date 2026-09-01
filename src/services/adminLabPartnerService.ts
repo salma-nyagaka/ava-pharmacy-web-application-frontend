@@ -81,6 +81,39 @@ export interface AdminLabPartnerApi {
   technicians?: AdminLabTechnicianApi[]
 }
 
+export interface AdminLaboratoryFacilityApi {
+  id?: number
+  reference?: string
+  partner?: number
+  partner_name?: string
+  name?: string
+  email?: string
+  phone?: string
+  county?: string
+  address?: string
+  accreditation?: string
+  license_number?: string
+  license_expiry?: string | null
+  supported_counties?: string[]
+  home_collection_enabled?: boolean
+  physical_result_pickup_enabled?: boolean
+  pickup_instructions?: string
+  status?: 'pending' | 'verified' | 'suspended'
+  status_note?: string
+  is_active?: boolean
+  technicians?: AdminLabTechnicianApi[]
+  offerings?: Array<{
+    id?: number
+    test?: number
+    test_name?: string
+    price?: string | number
+    turnaround?: string
+    home_collection_available?: boolean
+    is_active?: boolean
+  }>
+  documents?: Array<{ id?: number; name?: string; status?: string; download_url?: string; uploaded_at?: string }>
+}
+
 export type LabPartnerAction = 'verify' | 'request_docs' | 'reject' | 'suspend'
 export type LabTechnicianAction = 'approve' | 'request_docs' | 'reject'
 
@@ -157,7 +190,12 @@ const extractMessage = (payload: unknown, fallback: string) => {
 
 const handleResponse = async <T,>(response: Response): Promise<T> => {
   const payload = await response.json().catch(() => null)
-  if (response.ok) return payload as T
+  if (response.ok) {
+    if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
+      return (payload as { data: T }).data
+    }
+    return payload as T
+  }
   throw new AdminLabPartnerError(
     extractMessage(payload, 'Request failed.'),
     extractFieldErrors(payload),
@@ -170,9 +208,48 @@ const jsonHeaders = () => ({
 })
 
 export const adminLabPartnerService = {
+  async downloadFacilityDocument(url: string, filename: string) {
+    const apiOrigin = new URL(API_BASE_URL).origin
+    const target = new URL(url, apiOrigin)
+    if (target.origin !== apiOrigin) {
+      throw new AdminLabPartnerError('The document URL is outside the trusted Ava API.')
+    }
+    const response = await fetch(target.toString(), { headers: { ...getAuthHeaders() } })
+    if (!response.ok) throw new AdminLabPartnerError('Unable to download the facility document.')
+    const objectUrl = URL.createObjectURL(await response.blob())
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = filename
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(objectUrl)
+  },
+
+  async listFacilities() {
+    const response = await fetch(`${API_BASE_URL}/admin/lab/facilities/`, {
+      headers: { ...getAuthHeaders() },
+      cache: 'no-store',
+    })
+    const payload = await handleResponse<AdminLaboratoryFacilityApi[] | { results?: AdminLaboratoryFacilityApi[] }>(response)
+    if (Array.isArray(payload)) return payload
+    if (payload && typeof payload === 'object' && Array.isArray(payload.results)) return payload.results
+    return []
+  },
+
+  async actionFacility(id: number | string, payload: { action: 'verify' | 'request_changes' | 'suspend'; note?: string }) {
+    const response = await fetch(`${API_BASE_URL}/admin/lab/facilities/${id}/action/`, {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<AdminLaboratoryFacilityApi>(response)
+  },
+
   async listPartners() {
     const response = await fetch(`${API_BASE_URL}/admin/lab/partners/`, {
       headers: { ...getAuthHeaders() },
+      cache: 'no-store',
     })
     const payload = await handleResponse<AdminLabPartnerApi[] | { results?: AdminLabPartnerApi[] }>(response)
     if (Array.isArray(payload)) return payload

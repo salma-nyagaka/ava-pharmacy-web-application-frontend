@@ -48,6 +48,87 @@ interface ApiLabRequest {
   technician_name?: string
 }
 
+interface ApiLaboratoryFacility {
+  id?: number
+  reference?: string
+  name?: string
+  email?: string
+  phone?: string
+  county?: string
+  address?: string
+  accreditation?: string
+  license_number?: string
+  license_expiry?: string | null
+  supported_counties?: string[]
+  operating_hours?: Record<string, string>
+  home_collection_enabled?: boolean
+  physical_result_pickup_enabled?: boolean
+  pickup_instructions?: string
+  status?: string
+  status_note?: string
+  is_active?: boolean
+  technicians?: ApiLabTechnician[]
+  offerings?: Array<{
+    id?: number
+    test?: number
+    test_name?: string
+    sample_type?: string
+    price?: string | number
+    turnaround?: string
+    home_collection_available?: boolean
+    is_active?: boolean
+  }>
+  documents?: Array<{ id?: number; name?: string; status?: string; download_url?: string; uploaded_at?: string }>
+}
+
+export interface LabPartnerFacility {
+  id: number
+  reference: string
+  name: string
+  email: string
+  phone: string
+  county: string
+  address: string
+  accreditation: string
+  licenseNumber: string
+  licenseExpiry: string | null
+  supportedCounties: string[]
+  operatingHours: Record<string, string>
+  homeCollectionEnabled: boolean
+  physicalResultPickupEnabled: boolean
+  pickupInstructions: string
+  status: string
+  statusNote: string
+  isActive: boolean
+  technicianIds: number[]
+  offerings: Array<{ testId: number; testName: string; price: number; turnaround: string }>
+  documents: Array<{ id: number; name: string; status: string; downloadUrl: string }>
+}
+
+export interface CreateLabPartnerFacilityPayload {
+  name: string
+  email?: string
+  phone: string
+  county: string
+  address: string
+  accreditation?: string
+  license_number: string
+  license_expiry?: string | null
+  supported_counties: string[]
+  operating_hours?: Record<string, string>
+  home_collection_enabled: boolean
+  physical_result_pickup_enabled: boolean
+  pickup_instructions?: string
+  test_ids: number[]
+  test_offerings?: Array<{
+    test: number
+    price: number
+    turnaround: string
+    home_collection_available: boolean
+  }>
+  technician_ids: number[]
+}
+
 export interface LabPartnerTechnician {
   id: number
   name: string
@@ -78,6 +159,8 @@ export interface LabPartnerDashboardData {
     documents: string[]
   }
   stats: {
+    facilitiesTotal: number
+    facilitiesVerified: number
     techniciansTotal: number
     techniciansActive: number
     techniciansPending: number
@@ -86,6 +169,7 @@ export interface LabPartnerDashboardData {
     requestsCompleted: number
   }
   technicians: LabPartnerTechnician[]
+  facilities: LabPartnerFacility[]
   recentRequests: Array<{
     id: number
     reference: string
@@ -155,7 +239,41 @@ const formatDate = (value?: string) => {
   return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-const mapDashboard = (payload: { partner?: ApiLabPartner; stats?: Record<string, number>; recent_requests?: ApiLabRequest[] }): LabPartnerDashboardData => {
+const mapFacility = (facility: ApiLaboratoryFacility): LabPartnerFacility => ({
+  id: Number(facility.id ?? 0),
+  reference: facility.reference || '',
+  name: facility.name || 'Unnamed laboratory',
+  email: facility.email || '',
+  phone: facility.phone || '',
+  county: facility.county || '',
+  address: facility.address || '',
+  accreditation: facility.accreditation || '',
+  licenseNumber: facility.license_number || '',
+  licenseExpiry: facility.license_expiry || null,
+  supportedCounties: Array.isArray(facility.supported_counties) ? facility.supported_counties : [],
+  operatingHours: facility.operating_hours || {},
+  homeCollectionEnabled: Boolean(facility.home_collection_enabled),
+  physicalResultPickupEnabled: Boolean(facility.physical_result_pickup_enabled),
+  pickupInstructions: facility.pickup_instructions || '',
+  status: facility.status || 'pending',
+  statusNote: facility.status_note || '',
+  isActive: facility.is_active !== false,
+  technicianIds: Array.isArray(facility.technicians) ? facility.technicians.map((tech) => Number(tech.id ?? 0)) : [],
+  offerings: Array.isArray(facility.offerings) ? facility.offerings.map((offering) => ({
+    testId: Number(offering.test ?? 0),
+    testName: offering.test_name || 'Lab test',
+    price: Number(offering.price ?? 0),
+    turnaround: offering.turnaround || '',
+  })) : [],
+  documents: Array.isArray(facility.documents) ? facility.documents.map((document) => ({
+    id: Number(document.id ?? 0),
+    name: document.name || 'Facility document',
+    status: document.status || 'submitted',
+    downloadUrl: document.download_url || '',
+  })) : [],
+})
+
+const mapDashboard = (payload: { partner?: ApiLabPartner; facilities?: ApiLaboratoryFacility[]; stats?: Record<string, number>; recent_requests?: ApiLabRequest[] }): LabPartnerDashboardData => {
   const partner = payload.partner ?? {}
   const techniciansRaw = Array.isArray(partner.technicians) ? partner.technicians : []
   return {
@@ -177,6 +295,8 @@ const mapDashboard = (payload: { partner?: ApiLabPartner; stats?: Record<string,
       documents: Array.isArray(partner.documents) ? partner.documents.map((doc) => doc.name || 'Document') : [],
     },
     stats: {
+      facilitiesTotal: Number(payload.stats?.facilities_total ?? payload.facilities?.length ?? 0),
+      facilitiesVerified: Number(payload.stats?.facilities_verified ?? 0),
       techniciansTotal: Number(payload.stats?.technicians_total ?? techniciansRaw.length),
       techniciansActive: Number(payload.stats?.technicians_active ?? 0),
       techniciansPending: Number(payload.stats?.technicians_pending ?? 0),
@@ -194,6 +314,7 @@ const mapDashboard = (payload: { partner?: ApiLabPartner; stats?: Record<string,
       accountProvisioned: Boolean(tech.user || tech.user_email),
       note: tech.status_note || tech.rejection_note || '',
     })),
+    facilities: Array.isArray(payload.facilities) ? payload.facilities.map(mapFacility) : [],
     recentRequests: Array.isArray(payload.recent_requests)
       ? payload.recent_requests.map((item) => ({
           id: Number(item.id ?? 0),
@@ -211,8 +332,38 @@ const mapDashboard = (payload: { partner?: ApiLabPartner; stats?: Record<string,
 export const labPartnerDashboardService = {
   async getDashboard() {
     const response = await fetch(`${API_BASE_URL}/lab/partner/dashboard/`, { headers: { ...getAuthHeaders() } })
-    const payload = await handleResponse<{ partner?: ApiLabPartner; stats?: Record<string, number>; recent_requests?: ApiLabRequest[] }>(response)
+    const payload = await handleResponse<{ partner?: ApiLabPartner; facilities?: ApiLaboratoryFacility[]; stats?: Record<string, number>; recent_requests?: ApiLabRequest[] }>(response)
     return mapDashboard(payload)
+  },
+
+  async addFacility(payload: CreateLabPartnerFacilityPayload) {
+    const response = await fetch(`${API_BASE_URL}/lab/partner/facilities/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiLaboratoryFacility>(response)
+  },
+
+  async updateFacility(id: number, payload: Partial<CreateLabPartnerFacilityPayload> & { is_active?: boolean }) {
+    const response = await fetch(`${API_BASE_URL}/lab/partner/facilities/${id}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<ApiLaboratoryFacility>(response)
+  },
+
+  async uploadFacilityDocument(facilityId: number, file: File, name = 'Facility licence') {
+    const form = new FormData()
+    form.append('name', name)
+    form.append('file', file)
+    const response = await fetch(`${API_BASE_URL}/lab/partner/facilities/${facilityId}/documents/`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders() },
+      body: form,
+    })
+    return handleResponse(response)
   },
 
   async addTechnician(payload: { name: string; email: string; phone?: string; specialty?: string }) {
