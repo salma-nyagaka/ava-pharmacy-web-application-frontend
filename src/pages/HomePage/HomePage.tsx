@@ -14,6 +14,7 @@ import type { CatalogProduct } from '../../data/products'
 import { categoryCardImages } from '../../data/categoryCardImages'
 import HomeSearch from '../../components/HomeSearch/HomeSearch'
 import LazySection from '../../components/LazySection/LazySection'
+import ContentBlocks from '../../components/ContentBlocks/ContentBlocks'
 import '../../styles/pages/HomePage.css'
 
 const FEATURED_PRODUCTS_LIMIT = 5
@@ -263,6 +264,11 @@ function HomePage() {
   }, [featuredSeedProducts, catalogProducts])
 
   const newProducts = useMemo(() => latestStockedProducts.slice(0, 5), [latestStockedProducts])
+
+  const topRatedProducts = useMemo(
+    () => featuredProducts.filter((product) => product.reviews > 0 && product.rating > 0).slice(0, 5),
+    [featuredProducts],
+  )
 
   const spotlightOfferProducts = useMemo(() => {
     return [...catalogProducts]
@@ -688,7 +694,7 @@ function HomePage() {
               <span className="hero-placeholder__eyebrow">Ava Pharmacy · Kenya</span>
               <h2 className="hero-placeholder__title">Medicines & care, delivered to your door</h2>
               <p className="hero-placeholder__text">
-                Order genuine medicines, book doctor and pediatric consultations, upload prescriptions, and schedule lab tests — all from one place.
+                Order genuine medicines, book doctor and pediatric consultations, upload prescriptions, and schedule lab tests - all from one place.
               </p>
               <div className="hero-placeholder__cta">
                 <Link to="/products" className="hero-placeholder__btn hero-placeholder__btn--primary">
@@ -864,13 +870,13 @@ function HomePage() {
           {renderSectionHeader('top', 'Customer favourites', 'Top Rated Products', 'Highly rated by shoppers like you.')}
           {featuredLoading && catalogLoading ? (
             renderSkeletonGrid(5)
-          ) : featuredProducts.length === 0 ? (
+          ) : topRatedProducts.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-state__message">No top rated products available at the moment.</p>
+              <p className="empty-state__message">No verified product ratings are available yet.</p>
             </div>
           ) : (
             <div className="products__grid">
-              {featuredProducts.map((product) => renderProductCard(product, 'featured'))}
+              {topRatedProducts.map((product) => renderProductCard(product, 'featured'))}
             </div>
           )}
           <div className="featured-products__cta">
@@ -998,6 +1004,8 @@ function HomePage() {
         </div>
       </section>
       </LazySection>
+
+      <ContentBlocks />
 
       {/* Trust & compliance band */}
       <section className="home-trust" aria-label="Pharmacy accreditation and licensing">

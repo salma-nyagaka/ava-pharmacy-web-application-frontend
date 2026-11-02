@@ -1,3 +1,4 @@
+import ConsultationAttachments from '../../components/ConsultationAttachments'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -70,7 +71,8 @@ function sortConsultations(items: ConsultationRecord[]) {
   })
 }
 
-function getTypeConfig(_consultation: ConsultationRecord) {
+function getTypeConfig(consultation: ConsultationRecord) {
+  void consultation
   return { color: '#ec4899', bg: 'rgba(236,72,153,0.1)', label: 'Doctor' }
 }
 
@@ -85,9 +87,9 @@ function getInitials(name: string) {
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString('en-KE', {
     day: 'numeric',
     month: 'short',
@@ -204,7 +206,7 @@ function DoctorConsultation() {
       setProfileHydrated(true)
     }).catch(() => undefined)
     return () => { mounted = false }
-  }, [user?.id])
+  }, [user])
 
   useEffect(() => {
     let isMounted = true
@@ -279,7 +281,7 @@ function DoctorConsultation() {
     }, 2500)
 
     return () => window.clearInterval(timer)
-  }, [currentConsultation?.id, currentConsultation?.status])
+  }, [currentConsultation])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -593,7 +595,7 @@ function DoctorConsultation() {
       }
     }, 5000)
     return () => window.clearInterval(timer)
-  }, [handleFinalizePaidIntent, paymentIntent?.id, paymentStatus])
+  }, [handleFinalizePaidIntent, paymentIntent, paymentStatus])
 
   useEffect(() => {
     if (paymentStatus !== 'waiting') {
@@ -1180,6 +1182,7 @@ function DoctorConsultation() {
               {typingUsers.length > 0 && (
                 <p className="dc-chat__typing">{typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</p>
               )}
+              <ConsultationAttachments key={currentConsultation.id} consultationId={currentConsultation.id} refreshKey={currentConsultation.messages.length} />
               <div className="dc-chat__input">
                 <input
                   type="text"

@@ -13,9 +13,9 @@ type SortDirection = 'asc' | 'desc'
 const PAGE_SIZE = 8
 
 function formatDate(value?: string): string {
-  if (!value) return '—'
+  if (!value) return '-'
   const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+  return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function getStatusClass(status: ApiBanner['status']): string {

@@ -3,7 +3,7 @@ import { apiClient, extractAuthTokens, refreshAccessToken, saveTokens, clearToke
 import { buildBotPayload, type BotProtectionPayload } from '../services/botProtectionService'
 import { cartService } from '../services/cartService'
 
-export type UserRole = 'patient' | 'customer' | 'doctor' | 'pediatrician' | 'pharmacist' | 'admin' | 'lab_partner' | 'lab_technician'
+export type UserRole = 'patient' | 'customer' | 'doctor' | 'pediatrician' | 'pharmacist' | 'admin' | 'lab_partner' | 'lab_technician' | 'ppb_inspector'
 
 export interface User {
   id: number
@@ -107,7 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refresh = localStorage.getItem('ava_refresh_token')
     try {
       if (refresh) await apiClient.post('/auth/logout/', { refresh })
-    } catch {}
+    } catch {
+      // Local session cleanup must still complete if server-side logout fails.
+    }
     clearTokens()
     localStorage.removeItem('ava_user')
     setUser(null)

@@ -15,6 +15,7 @@ import {
 } from '../../services/adminLabPartnerService'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/LabPartnerManagement.css'
 import '../../styles/admin/LabRequestManagement.css'
 
 const PAGE_SIZE = 10
@@ -34,6 +35,15 @@ const STATUS_LABELS: Record<LabRequestStatus, string> = {
   cancelled: 'Cancelled',
 }
 
+type QueueFilter = 'all' | 'needs_assignment' | 'home_collection' | 'results_ready'
+
+function statusTone(status: LabRequestStatus) {
+  if (status === 'completed') return 'lrm-status-pill lrm-status-pill--complete'
+  if (status === 'result_ready') return 'lrm-status-pill lrm-status-pill--ready'
+  if (status === 'cancelled') return 'lrm-status-pill lrm-status-pill--cancelled'
+  return 'lrm-status-pill lrm-status-pill--active'
+}
+
 function formatDateTime(value?: string | null) {
   if (!value) return 'Not scheduled'
   const date = new Date(value)
@@ -43,7 +53,7 @@ function formatDateTime(value?: string | null) {
   })
 }
 
-function LabRequestManagement() {
+function LabRequestManagement({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth()
   const [requests, setRequests] = useState<LabRequest[]>([])
   const [facilities, setFacilities] = useState<AdminLaboratoryFacilityApi[]>([])
@@ -53,6 +63,7 @@ function LabRequestManagement() {
   const [feedback, setFeedback] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | LabRequestStatus>('all')
+  const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
@@ -74,7 +85,7 @@ function LabRequestManagement() {
   }
 
   useEffect(() => { void load() }, [])
-  useEffect(() => { setPage(1) }, [search, statusFilter])
+  useEffect(() => { setPage(1) }, [search, statusFilter, queueFilter])
 
   const selected = useMemo(
     () => requests.find((request) => request.id === selectedId) ?? null,
@@ -90,15 +101,18 @@ function LabRequestManagement() {
     const query = search.trim().toLowerCase()
     return requests.filter((request) => {
       if (statusFilter !== 'all' && request.status !== statusFilter) return false
+      if (queueFilter === 'needs_assignment' && request.laboratory && request.assignedTechnician) return false
+      if (queueFilter === 'home_collection' && request.channel !== 'collection') return false
+      if (queueFilter === 'results_ready' && request.status !== 'result_ready') return false
       if (!query) return true
       return [request.reference, request.patientName, request.patientPhone, request.testName, request.partnerName, request.laboratoryName]
         .some((value) => value.toLowerCase().includes(query))
     })
-  }, [requests, search, statusFilter])
+  }, [requests, search, statusFilter, queueFilter])
 
   const stats = useMemo(() => ({
     total: requests.length,
-    unassigned: requests.filter((request) => !request.laboratory).length,
+    unassigned: requests.filter((request) => !request.laboratory || !request.assignedTechnician).length,
     home: requests.filter((request) => request.channel === 'collection').length,
     processing: requests.filter((request) => request.status === 'processing').length,
     ready: requests.filter((request) => request.status === 'result_ready').length,
@@ -134,23 +148,6 @@ function LabRequestManagement() {
     )
   }
 
-  const reviewFacility = async (facility: AdminLaboratoryFacilityApi, action: 'verify' | 'request_changes' | 'suspend') => {
-    if (!facility.id) return
-    const note = action === 'verify' ? undefined : window.prompt(action === 'suspend' ? 'Suspension reason' : 'Required changes')?.trim()
-    if (action !== 'verify' && !note) return
-    setSaving(true)
-    setError('')
-    try {
-      const updated = await adminLabPartnerService.actionFacility(facility.id, { action, note })
-      setFacilities((current) => current.map((item) => item.id === updated.id ? updated : item))
-      setFeedback(`Laboratory ${action.replace('_', ' ')} completed.`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to review the laboratory.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const assignTechnician = async (request: LabRequest, technicianId: number | null) => {
     await patchRequest(request, { assigned_technician: technicianId }, 'Technician assignment updated.')
   }
@@ -181,52 +178,34 @@ function LabRequestManagement() {
     if (selected.resultDeliveryMethod === 'physical_pickup' && !facility.physical_result_pickup_enabled) return false
     return (facility.offerings ?? []).some((offering) => offering.test === selected.test && offering.is_active !== false)
   }) : []
-  const pendingFacilities = facilities.filter((facility) => facility.status === 'pending')
-
   return (
-    <div className={`category-management lrm-root ${selected ? 'lrm-root--panel-open' : ''}`}>
-      <PageHeader
+    <div className={`${embedded ? '' : 'category-management '}lrm-root ${embedded ? 'lrm-root--embedded' : ''} ${selected ? 'lrm-root--panel-open' : ''}`}>
+      {!embedded && <PageHeader
         title="Lab requests"
         subtitle="Coordinate home sample collections, laboratory assignments, and secure result delivery."
         badge="Live API"
-      />
+      />}
 
-      <section className="page">
-        <div className="container">
+      <section className={embedded ? 'lrm-embedded-page' : 'page'}>
+        <div className={embedded ? 'lrm-embedded-page__content' : 'container'}>
           {error && <div className="cm-error-banner">{error}</div>}
           {feedback && <div className="cm-success-banner">{feedback}</div>}
 
-          <div className="lrm-stats">
-            {[
-              ['Total requests', stats.total],
-              ['Unassigned', stats.unassigned],
-              ['Home collections', stats.home],
-              ['Processing', stats.processing],
-              ['Results ready', stats.ready],
-            ].map(([label, value]) => (
-              <div className="lrm-stat lrm-stat--total" key={label}>
-                <div><p className="lrm-stat__value">{value}</p><p className="lrm-stat__label">{label}</p></div>
-              </div>
-            ))}
-          </div>
-
-          {pendingFacilities.length > 0 && (
-            <div className="cm-panel" style={{ marginBottom: '1rem', padding: '1rem' }}>
-              <h2>Laboratories awaiting verification</h2>
-              {pendingFacilities.map((facility) => (
-                <div className="lrm-info-grid" key={facility.id} style={{ alignItems: 'center', marginTop: '.75rem' }}>
-                  <div><strong>{facility.name}</strong><br /><small>{facility.partner_name} · {facility.county}</small></div>
-                  <div><small>Licence</small><br /><strong>{facility.license_number}</strong></div>
-                  <div><small>Tests</small><br /><strong>{facility.offerings?.length ?? 0}</strong></div>
-                  <div className="cm-row-actions">
-                    <button className="btn btn--primary btn--sm" type="button" disabled={saving} onClick={() => { void reviewFacility(facility, 'verify') }}>Verify</button>
-                    <button className="btn btn--outline btn--sm" type="button" disabled={saving} onClick={() => { void reviewFacility(facility, 'request_changes') }}>Request changes</button>
-                  </div>
-                </div>
-              ))}
+          <section className="lp-explorer lrm-queue-intro">
+            <div className="lp-explorer__heading"><h2>Lab requests workspace</h2><p>Review incoming patient requests, then assign a verified laboratory and active technician for home sample collection.</p></div>
+            <div className="lp-registry-tabs lrm-queue-tabs" role="tablist" aria-label="Lab request queues">
+              {[
+                ['all', 'All requests', stats.total],
+                ['needs_assignment', 'Needs assignment', stats.unassigned],
+                ['home_collection', 'Home collection', stats.home],
+                ['results_ready', 'Results ready', stats.ready],
+              ].map(([value, label, count]) => <button key={value} type="button" role="tab" aria-selected={queueFilter === value} className={queueFilter === value ? 'lp-registry-tabs__tab lp-registry-tabs__tab--active' : 'lp-registry-tabs__tab'} onClick={() => setQueueFilter(value as QueueFilter)}>{label} <span>{count}</span></button>)}
             </div>
-          )}
+          </section>
 
+          <section className="lp-workspace lrm-request-list">
+          <div className="lp-workspace__header"><div><h2>Requests</h2><p>{filtered.length} request{filtered.length === 1 ? '' : 's'} in the current queue.</p></div></div>
+          <div className="lp-workspace__body">
           <div className="lrm-toolbar">
             <div className="lrm-search">
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search reference, patient, test or laboratory…" />
@@ -240,10 +219,9 @@ function LabRequestManagement() {
             <button className="btn btn--outline btn--sm" type="button" onClick={() => { void load() }}>Refresh</button>
           </div>
 
-          <div className="cm-panel">
-            <div className="cm-table-wrap lrm-table-wrap">
-              <table className="cm-table lrm-table">
-                <thead><tr><th>Request</th><th>Patient</th><th>Test</th><th>Fulfillment</th><th>Laboratory</th><th>Status</th><th>Actions</th></tr></thead>
+            <div className="cm-table-wrap">
+              <table className="cm-table">
+                <thead><tr><th>Request</th><th>Patient</th><th>Test</th><th>Pickup / delivery</th><th>Assignment</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                   {loading ? (
                     <tr><td colSpan={7} className="lrm-empty">Loading lab requests…</td></tr>
@@ -254,9 +232,9 @@ function LabRequestManagement() {
                       <td><strong>{request.reference}</strong><br /><small>{formatDateTime(request.requestedAt)}</small></td>
                       <td><strong>{request.patientName}</strong><br /><small>{request.patientPhone}</small></td>
                       <td>{request.testName}<br /><small>{request.priorityLabel}</small></td>
-                      <td>{request.channelLabel}<br /><small>{request.resultDeliveryLabel}</small></td>
-                      <td>{request.laboratoryName ? <><strong>{request.laboratoryName}</strong><br /><small>{request.partnerName}</small></> : <span className="lrm-unassigned">Unassigned</span>}</td>
-                      <td>{request.statusLabel}</td>
+                      <td><strong>{request.channelLabel}</strong><br /><small>{request.scheduledAt ? formatDateTime(request.scheduledAt) : request.resultDeliveryLabel}</small></td>
+                      <td>{request.laboratoryName ? <><strong>{request.laboratoryName}</strong><br /><small>{request.technicianName || 'Technician pending'}</small></> : <span className="lrm-unassigned">Lab and technician needed</span>}</td>
+                      <td><span className={statusTone(request.status)}>{request.statusLabel}</span></td>
                       <td onClick={(event) => event.stopPropagation()}>
                         <button className="btn btn--outline btn--sm" type="button" onClick={() => setSelectedId(request.id)}>Manage</button>
                       </td>
@@ -265,7 +243,6 @@ function LabRequestManagement() {
                 </tbody>
               </table>
             </div>
-          </div>
 
           {totalPages > 1 && (
             <div className="lrm-pagination">
@@ -274,6 +251,8 @@ function LabRequestManagement() {
               <button className="lrm-page-btn" type="button" disabled={page === totalPages} onClick={() => setPage((current) => current + 1)}>Next</button>
             </div>
           )}
+          </div>
+          </section>
         </div>
       </section>
 
@@ -313,7 +292,7 @@ function LabRequestManagement() {
                   <label>Verified laboratory facility</label>
                   <select disabled={saving} value={selected.laboratory ?? ''} onChange={(event) => { void assignFacility(selected, event.target.value ? Number(event.target.value) : null) }}>
                     <option value="">Unassigned</option>
-                    {eligibleFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name} — {facility.partner_name} ({facility.county})</option>)}
+                    {eligibleFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name} - {facility.partner_name} ({facility.county})</option>)}
                   </select>
                   {eligibleFacilities.length === 0 && <small>No verified facility currently offers this fulfillment/test combination.</small>}
                 </div>

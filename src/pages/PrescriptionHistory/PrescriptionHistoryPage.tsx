@@ -55,6 +55,7 @@ function PrescriptionHistoryPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const targetPrescription = searchParams.get('prescription')
+  const openedNotificationTarget = useRef<string | null>(null)
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
@@ -110,17 +111,6 @@ function PrescriptionHistoryPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!prescriptions.length) return
-    if (!targetPrescription) return
-    const match = prescriptions.find((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
-    if (!match) return
-    setExpandedId(match.id)
-    setActiveRx(match)
-    window.requestAnimationFrame(() => {
-      rowRefs.current[match.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    })
-  }, [prescriptions, targetPrescription])
 
   useEffect(() => {
     if (!activeRx) return
@@ -145,10 +135,10 @@ function PrescriptionHistoryPage() {
 
   const totalPages = Math.max(1, Math.ceil(sortedPrescriptions.length / PAGE_SIZE))
   const pageStart = (currentPage - 1) * PAGE_SIZE
-  const pagedPrescriptions = sortedPrescriptions.slice(pageStart, pageStart + PAGE_SIZE)
+  const pagedPrescriptions = useMemo(() => sortedPrescriptions.slice(pageStart, pageStart + PAGE_SIZE), [sortedPrescriptions, pageStart])
 
   useEffect(() => {
-    if (!targetPrescription) return
+    if (!targetPrescription || openedNotificationTarget.current === targetPrescription) return
     const targetIndex = sortedPrescriptions.findIndex((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
     if (targetIndex >= 0) {
       setCurrentPage(Math.floor(targetIndex / PAGE_SIZE) + 1)
@@ -156,9 +146,10 @@ function PrescriptionHistoryPage() {
   }, [sortedPrescriptions, targetPrescription])
 
   useEffect(() => {
-    if (!targetPrescription) return
+    if (!targetPrescription || openedNotificationTarget.current === targetPrescription) return
     const match = pagedPrescriptions.find((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
     if (!match) return
+    openedNotificationTarget.current = targetPrescription
     setExpandedId(match.id)
     setActiveRx(match)
     window.requestAnimationFrame(() => {

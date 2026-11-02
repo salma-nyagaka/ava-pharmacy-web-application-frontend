@@ -235,3 +235,9 @@
     align-items: flex-start;
   }
 }
+.lpd-team-gate {
+  margin: -0.25rem 0 1rem;
+  color: #a16207;
+  font-size: 0.82rem;
+  font-weight: 600;
+}

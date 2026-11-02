@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { logAdminAction } from '../../data/adminAudit'
 import { SupportPriority, SupportStatus, SupportTicket } from '../../data/support'
 import { supportService } from '../../services/supportService'
-import { loadAdminUsers } from '../../data/adminUsers'
+import { adminUserService } from '../../services/adminUserService'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/SupportManagement.css'
@@ -24,16 +24,21 @@ function SupportManagement() {
   const [quickFilter, setQuickFilter] = useState<'all' | 'unassigned' | 'high'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [activeTicket, setActiveTicket] = useState<SupportTicket | null>(null)
+  const [isInternal, setIsInternal] = useState(true)
+  const [noteBusy, setNoteBusy] = useState(false)
   const [internalNote, setInternalNote] = useState('')
-
-  const assigneeOptions = useMemo(() => {
-    return loadAdminUsers()
-      .filter((user) => user.status === 'active' && user.role === 'admin')
-      .map((user) => user.name)
-  }, [])
+  const [assigneeOptions, setAssigneeOptions] = useState<Array<{ id: number; name: string }>>([])
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    void supportService.list().then((response) => setTickets(response.data))
+    void Promise.all([supportService.list(), adminUserService.listUsers()])
+      .then(([response, users]) => {
+        setTickets(response.data)
+        setAssigneeOptions(users
+          .filter((user) => user.role === 'admin' && user.is_active !== false && user.status !== 'suspended')
+          .map((user) => ({ id: user.id, name: user.full_name || user.name || user.email })))
+      })
+      .catch(() => setLoadError('Unable to load support tickets. Please try again.'))
   }, [])
 
   useEffect(() => {
@@ -66,7 +71,7 @@ function SupportManagement() {
       }
       return b.id.localeCompare(a.id)
     })
-  }, [tickets, searchTerm, selectedStatus, selectedPriority])
+  }, [tickets, searchTerm, selectedStatus, selectedPriority, quickFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredTickets.length / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
@@ -107,13 +112,11 @@ function SupportManagement() {
   }
 
   const updateTicket = (ticketId: string, updates: Partial<SupportTicket>, detail: string) => {
-    void supportService.update(ticketId, updates).then((response) => setTickets(response.data))
-    logAdminAction({
-      action: 'Update support ticket',
-      entity: 'Support',
-      entityId: ticketId,
-      detail,
-    })
+    const ticket = tickets.find((item) => item.id === ticketId)
+    if (!ticket) return
+    void supportService.update(ticket.backendId, updates)
+      .then((response) => {setTickets(response.data);logAdminAction({action:'Update support ticket',entity:'Support',entityId:ticketId,detail})})
+      .catch(() => setLoadError('Unable to update the support ticket.'))
   }
 
   const addInternalNote = () => {
@@ -122,16 +125,13 @@ function SupportManagement() {
     const note = {
       time: new Date().toLocaleString(),
       author: 'Admin User',
-      message,
+      message, isInternal,
     }
-    void supportService.appendNote(activeTicket.id, note).then((response) => setTickets(response.data))
-    setInternalNote('')
-    logAdminAction({
-      action: 'Add support note',
-      entity: 'Support',
-      entityId: activeTicket.id,
-      detail: message,
-    })
+    setNoteBusy(true)
+    void supportService.appendNote(activeTicket.backendId, note)
+      .then((response) => {setTickets(response.data);setInternalNote('');logAdminAction({action:'Add support note',entity:'Support',entityId:activeTicket.id,detail:isInternal?'Internal staff note added':'Public reply added'})})
+      .catch(() => setLoadError('Unable to add the support note.'))
+      .finally(() => setNoteBusy(false))
   }
 
   return (
@@ -142,10 +142,11 @@ function SupportManagement() {
           <p className="cm-title-sub">Prioritize tickets, assign owners, and keep resolution on track.</p>
         </div>
         <div className="category-management__actions">
-          <button className="btn btn--outline btn--sm" type="button">Export</button>
+          <button className="btn btn--outline btn--sm" type="button" onClick={()=>{const escape=(v:string)=>'"'+(/^[=+@-]/.test(v)?"'":'')+v.replace(/"/g,'""')+'"';const csv=[['Reference','Subject','Status','Priority'],...tickets.map(t=>[t.id,t.subject,t.status,t.priority])].map(row=>row.map(escape).join(',')).join('\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));const link=document.createElement('a');link.href=url;link.download='support-tickets.csv';link.click();URL.revokeObjectURL(url)}}>Export</button>
           <Link className="btn btn--outline btn--sm" to="/admin/settings">Support settings</Link>
         </div>
       </div>
+      {loadError && <div className="admin-alert admin-alert--error" role="alert">{loadError}</div>}
 
       <div className="cm-kpi-grid">
         <div className="cm-kpi-card">
@@ -285,7 +286,7 @@ function SupportManagement() {
                 </td>
                 <td>{ticket.assignedTo}</td>
                 <td className="support-activity">
-                  {ticket.notes?.[0]?.time ?? ticket.createdAt}
+                  {ticket.notes?.[ticket.notes.length-1]?.time ?? ticket.createdAt}
                 </td>
                 <td>
                   <div className="cm-row-actions">
@@ -387,14 +388,16 @@ function SupportManagement() {
                   <label htmlFor="support-assignee">Assign to</label>
                   <select
                     id="support-assignee"
-                    value={activeTicket.assignedTo}
-                    onChange={(event) =>
-                      updateTicket(activeTicket.id, { assignedTo: event.target.value }, `Assigned to ${event.target.value}`)
-                    }
+                    value={activeTicket.assignedToId ?? ''}
+                    onChange={(event) => {
+                      const assignedToId = event.target.value ? Number(event.target.value) : null
+                      const assignedTo = assigneeOptions.find((option) => option.id === assignedToId)?.name ?? 'Unassigned'
+                      updateTicket(activeTicket.id, { assignedTo, assignedToId }, `Assigned to ${assignedTo}`)
+                    }}
                   >
-                    <option value="Unassigned">Unassigned</option>
+                    <option value="">Unassigned</option>
                     {assigneeOptions.map((assignee) => (
-                      <option key={assignee} value={assignee}>{assignee}</option>
+                      <option key={assignee.id} value={assignee.id}>{assignee.name}</option>
                     ))}
                   </select>
                 </div>
@@ -419,7 +422,9 @@ function SupportManagement() {
               </div>
 
               <div className="support-modal__group">
-                <label htmlFor="support-note">Internal note</label>
+                <h3>Conversation history</h3>{activeTicket.notes.map((note,index)=><article key={index}><strong>{note.author} · {note.isInternal ? 'Internal note' : 'Public reply'}</strong><small> · {note.time}</small><p>{note.message}</p></article>)}
+                <label>Reply visibility<select aria-label="Reply visibility" value={isInternal ? 'internal' : 'public'} onChange={e=>setIsInternal(e.target.value==='internal')}><option value="internal">Internal note — staff only</option><option value="public">Public reply — customer can see</option></select></label>
+                <label htmlFor="support-note">{isInternal ? 'Internal note' : 'Public reply'}</label>
                 <textarea
                   id="support-note"
                   rows={3}
@@ -427,7 +432,7 @@ function SupportManagement() {
                   onChange={(event) => setInternalNote(event.target.value)}
                   placeholder="Add handling notes or next steps."
                 />
-                <button className="btn btn--outline btn--sm support-note-btn" type="button" onClick={addInternalNote}>
+                <button className="btn btn--outline btn--sm support-note-btn" type="button" disabled={noteBusy || !internalNote.trim()} onClick={addInternalNote}>
                   Add note
                 </button>
               </div>

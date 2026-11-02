@@ -1,4 +1,7 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/avapharmacy/api/v1').replace(/\/$/, '')
+import { apiFetch } from '../lib/apiFetch'
+import { apiClient } from '../lib/apiClient'
+
+const API_BASE_URL = String(apiClient.defaults.baseURL).replace(/\/$/, '')
 
 export interface PharmacistCreatePayload {
   firstName: string
@@ -219,7 +222,7 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
 
 export const adminUserService = {
   async listUsers() {
-    const response = await fetch(`${API_BASE_URL}/admin/users/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -229,7 +232,7 @@ export const adminUserService = {
   },
 
   async getUser(id: number) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -239,7 +242,7 @@ export const adminUserService = {
   },
 
   async updateUser(id: number, payload: AdminUserUpdatePayload) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -252,7 +255,7 @@ export const adminUserService = {
   },
 
   async suspendUser(id: number) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/suspend/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/suspend/`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -263,7 +266,7 @@ export const adminUserService = {
   },
 
   async activateUser(id: number) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/activate/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/activate/`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -274,7 +277,7 @@ export const adminUserService = {
   },
 
   async createPharmacist(payload: PharmacistCreatePayload) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -298,7 +301,7 @@ export const adminUserService = {
   },
 
   async resendActivation(id: number) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/resend-activation/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/resend-activation/`, {
       method: 'POST',
       headers: { ...getAuthHeaders() },
     })
@@ -306,7 +309,7 @@ export const adminUserService = {
   },
 
   async activateStaffPassword(payload: { token: string; new_password: string; new_password_confirm: string; accepted_terms: boolean }) {
-    const response = await fetch(`${API_BASE_URL}/auth/professional/activate/`, {
+    const response = await apiFetch(`${API_BASE_URL}/auth/professional/activate/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

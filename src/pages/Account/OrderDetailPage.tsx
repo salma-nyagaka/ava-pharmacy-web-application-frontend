@@ -102,6 +102,7 @@ function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
 
@@ -158,13 +159,14 @@ function OrderDetailPage() {
 
   const handleCancel = async () => {
     if (!order?.canCancel) return
-    if (!window.confirm(`Cancel order ${order.id}?`)) return
+    if (!confirmCancel) return
 
     setIsCancelling(true)
     try {
       await cancelOrder(order.apiId)
       const refreshed = await fetchOrder(order.apiId)
       setOrder(mapApiOrder(refreshed))
+      setConfirmCancel(false)
     } catch {
       setError('Unable to cancel this order right now.')
     } finally {
@@ -425,9 +427,18 @@ function OrderDetailPage() {
                   </button>
                 )}
                 {order.canCancel && (
-                  <button className="btn btn--outline od-action-btn" type="button" onClick={() => { void handleCancel() }} disabled={isCancelling}>
+                  <button className="btn btn--outline od-action-btn" type="button" onClick={() => setConfirmCancel(true)} disabled={isCancelling}>
                     {isCancelling ? 'Cancelling…' : 'Cancel order'}
                   </button>
+                )}
+                {confirmCancel && order.canCancel && (
+                  <div role="alertdialog" aria-label="Confirm order cancellation">
+                    <p>Cancel order {order.id}?</p>
+                    <button className="btn btn--outline" type="button" onClick={() => setConfirmCancel(false)} disabled={isCancelling}>Keep order</button>
+                    <button className="btn btn--primary" type="button" onClick={() => void handleCancel()} disabled={isCancelling}>
+                      {isCancelling ? 'Cancelling…' : 'Confirm cancellation'}
+                    </button>
+                  </div>
                 )}
                 {canShowReceipt(order) && (
                   <button className="btn btn--outline od-action-btn" type="button" onClick={() => downloadReceipt(order)}>

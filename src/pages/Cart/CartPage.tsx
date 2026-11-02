@@ -14,14 +14,18 @@ function CartPage() {
   const { settings } = useSiteSettings()
   const [searchParams] = useSearchParams()
   const focusedPrescriptionId = searchParams.get('prescription')?.trim() || ''
+  const [mergeWarning] = useState(() => sessionStorage.getItem('ava_cart_merge_warning') || '')
   const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [cartLoading, setCartLoading] = useState(true)
+  const [cartError, setCartError] = useState('')
+  const showCartError = (error: unknown) => setCartError(error instanceof Error ? error.message : 'Unable to update cart. Please try again.')
   const [movedId, setMovedId] = useState<number | null>(null)
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [addingPrescriptionItemId, setAddingPrescriptionItemId] = useState<number | null>(null)
   const [prescriptionCartMessage, setPrescriptionCartMessage] = useState('')
 
   useEffect(() => {
-    const refresh = () => { void cartService.list().then((r) => setCartItems(r.data)) }
+    const refresh = () => { void cartService.list().then((r) => { setCartItems(r.data); setCartError('') }).catch(showCartError).finally(() => setCartLoading(false)) }
     refresh()
     return cartService.subscribe(refresh)
   }, [])
@@ -72,14 +76,13 @@ function CartPage() {
   const fmt = (n: number) => `KSh ${n.toLocaleString()}`
 
   const changeQty = (item: CartItem, next: number) =>
-    void cartService.updateQuantity(item.serverItemId ?? item.id, next, item.prescriptionId).then((r) => setCartItems(r.data))
+    void cartService.updateQuantity(item.serverItemId ?? item.id, next, item.prescriptionId).then((r) => { setCartItems(r.data); setCartError('') }).catch(showCartError)
 
   const removeItem = (item: CartItem) =>
-    void cartService.remove(item.serverItemId ?? item.id, item.prescriptionId).then((r) => setCartItems(r.data))
+    void cartService.remove(item.serverItemId ?? item.id, item.prescriptionId).then((r) => { setCartItems(r.data); setCartError('') }).catch(showCartError)
 
   const moveToWishlist = (item: CartItem) => {
-    setMovedId(item.id)
-    void cartService.moveToWishlist(item).then((r) => setCartItems(r.data))
+    void cartService.moveToWishlist(item).then((r) => { setCartItems(r.data); setCartError(''); setMovedId(item.id) }).catch(showCartError)
     window.setTimeout(() => setMovedId(null), 1500)
   }
 
@@ -103,6 +106,8 @@ function CartPage() {
   return (
     <div className="cart-page">
       <div className="container">
+        {cartError && <p role="alert">{cartError}</p>}
+        {mergeWarning && <p role="alert">{mergeWarning}</p>}
 
         <nav className="cart-breadcrumbs">
           <Link to="/">Home</Link>
@@ -140,7 +145,7 @@ function CartPage() {
           </div>
         )}
 
-        {visibleCartItems.length === 0 && approvedPrescriptionItems.length === 0 ? (
+        {cartLoading ? <p role="status">Loading your cart…</p> : visibleCartItems.length === 0 && approvedPrescriptionItems.length === 0 ? (
           <div className="cart-empty">
             <div className="cart-empty__icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -342,7 +347,7 @@ function CartPage() {
 
               <p className="cart-summary__note">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Items reserved for 30 minutes during checkout
+                Stock and prices are checked again at checkout
               </p>
               <p className="cart-summary__note cart-summary__note--rx">
                 Need a prescription medicine? Upload your prescription first, then continue once it has been approved.

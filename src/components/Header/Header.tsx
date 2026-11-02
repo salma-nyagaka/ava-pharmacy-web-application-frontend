@@ -73,7 +73,7 @@ function Header() {
     return favouritesService.subscribe(refresh)
   }, [])
 
-  const { categories, brands, healthConcerns } = useCatalog()
+  const { categories, brands, healthConcerns, loading: catalogLoading, error: catalogError, refreshCatalog } = useCatalog()
   const orderedCategories = useMemo(
     () => sortCategoriesByPreferredOrder(categories),
     [categories]
@@ -112,22 +112,21 @@ function Header() {
       ? orderedCategories[0]
       : orderedCategories.find((category) => category.slug === activeCategory) || orderedCategories[0]
   const activeCategoryLabel = activeCategory === ALL_CATEGORIES_KEY ? 'All Products' : activeCategoryData?.name ?? 'Shop by Category'
+  const activeSubcategories = activeCategoryData?.subcategories ?? []
   const megaPanelItems =
     activeCategory === ALL_CATEGORIES_KEY
-      ? orderedCategories.flatMap((category) =>
-          category.subcategories.map((item) => ({
-            id: `${category.slug}-${item.slug}`,
+      ? []
+      : activeSubcategories.length > 0
+        ? activeSubcategories.map((item) => ({
+            id: `subcategory-${item.slug}`,
             name: item.name,
-            categoryName: category.name,
-            path: buildSubcategoryPath(category.slug, item.slug),
+            path: buildSubcategoryPath(activeCategoryData!.slug, item.slug),
           }))
-        )
-      : (activeCategoryData?.subcategories ?? []).map((item) => ({
-          id: item.slug,
-          name: item.name,
-          categoryName: null,
-          path: buildSubcategoryPath(activeCategoryData.slug, item.slug),
-        }))
+        : (activeCategoryData?.products ?? []).map((product) => ({
+            id: `product-${product.id}`,
+            name: product.name,
+            path: `/product/${product.id}`,
+          }))
   const itemsSplitIndex = Math.ceil(megaPanelItems.length / 2)
   const itemsColumnOne = megaPanelItems.slice(0, itemsSplitIndex)
   const itemsColumnTwo = megaPanelItems.slice(itemsSplitIndex)
@@ -279,6 +278,8 @@ function Header() {
                         </svg>
                         Account
                       </Link>
+                      <Link to="/account/notifications" className="had-link">Notifications</Link>
+                      <Link to="/account/support" className="had-link">Support requests</Link>
                       <Link to="/account/orders" className="had-link">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
@@ -410,9 +411,28 @@ function Header() {
                   </div>
                   <div className="mega-panel__col mega-panel__values">
                     <h4>{activeCategoryLabel}</h4>
+                    {catalogError && categories.length === 0 && (
+                      <div className="catalog-load-state" role="alert">
+                        <p>{catalogError}</p>
+                        <button type="button" onClick={() => { void refreshCatalog(true) }}>Try again</button>
+                      </div>
+                    )}
+                    {catalogLoading && categories.length === 0 && <p className="catalog-load-state">Loading catalogue…</p>}
                     {activeCategory === ALL_CATEGORIES_KEY ? (
                       <div className="mega-panel__all-grid">
-                        {categories.filter((cat) => cat.subcategories.length > 0).map((cat) => (
+                        {categories.map((cat) => {
+                          const entries = cat.subcategories.length > 0
+                            ? cat.subcategories.map((sub) => ({
+                                id: `subcategory-${sub.slug}`,
+                                name: sub.name,
+                                path: buildSubcategoryPath(cat.slug, sub.slug),
+                              }))
+                            : cat.products.slice(0, 4).map((product) => ({
+                                id: `product-${product.id}`,
+                                name: product.name,
+                                path: `/product/${product.id}`,
+                              }))
+                          return (
                           <div key={cat.slug} className="mega-panel__cat-group">
                             <Link
                               to={`/products?category=${encodeURIComponent(cat.slug)}`}
@@ -422,19 +442,20 @@ function Header() {
                               {cat.name}
                             </Link>
                             <ul className="mega-panel__cat-group-list">
-                              {cat.subcategories.map((sub) => (
-                                <li key={sub.slug}>
+                              {entries.map((entry) => (
+                                <li key={entry.id}>
                                   <Link
-                                    to={buildSubcategoryPath(cat.slug, sub.slug)}
+                                    to={entry.path}
                                     onClick={closeMenus}
                                   >
-                                    {sub.name}
+                                    {entry.name}
                                   </Link>
                                 </li>
                               ))}
                             </ul>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     ) : (
                       <div className="mega-panel__values-grid">
@@ -481,6 +502,7 @@ function Header() {
                 <span className="header__nav-caret">▾</span>
               </button>
               <div className="conditions-panel">
+                {catalogError && healthConcerns.length === 0 && <p className="catalog-load-state" role="alert">{catalogError}</p>}
                 <div className="conditions-panel__grid">
                   {healthConcerns.map((condition) => (
                     <Link
@@ -519,6 +541,7 @@ function Header() {
                   {/* <Link to="/brands" onClick={closeMenus} className="brands-panel__view-all">View all</Link> */}
                 </div>
                 <div className="brands-panel__grid">
+                  {catalogError && brands.length === 0 && <p className="catalog-load-state" role="alert">{catalogError}</p>}
                   {brands.map((brand) => (
                     <Link key={brand.id} to={`/products?brand=${encodeURIComponent(brand.slug)}`} onClick={closeMenus} className="brands-panel__card">
                       <span className="brands-panel__logo">

@@ -107,8 +107,8 @@ export async function updateAdminOrder(id: number | string, payload: Partial<{
   return unwrap<AdminOrder>(res)
 }
 
-export async function refundAdminOrder(id: number | string): Promise<AdminOrder> {
-  const res = await apiClient.post(`/admin/orders/${id}/refund/`)
+export async function refundAdminOrder(id: number | string, reason = ''): Promise<AdminOrder> {
+  const res = await apiClient.post(`/admin/orders/${id}/refund/`, { reason })
   return unwrap<AdminOrder>(res)
 }
 

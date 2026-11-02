@@ -1,7 +1,9 @@
 import { type FormEvent, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import {
   changeAccountPassword,
+  deactivateAccount,
   fetchAccountProfile,
   updateAccountProfile,
   type AccountProfile,
@@ -96,6 +98,8 @@ function extractErrorMessage(error: unknown, fallback: string) {
   if (!response || typeof response !== 'object') return fallback
 
   if (typeof response.detail === 'string') return response.detail
+  const apiError = response.error as { message?: unknown } | undefined
+  if (typeof apiError?.message === 'string') return apiError.message
 
   for (const value of Object.values(response)) {
     if (typeof value === 'string') return value
@@ -119,7 +123,25 @@ function formatJoinDate(value?: string | null) {
 }
 
 function AccountSettingsPage() {
-  const { updateUser } = useAuth()
+  const { updateUser, logout } = useAuth()
+  const navigate = useNavigate()
+  const [deactivateConfirm, setDeactivateConfirm] = useState(false)
+  const [deactivating, setDeactivating] = useState(false)
+  const [deactivateError, setDeactivateError] = useState('')
+
+  const handleDeactivate = async () => {
+    setDeactivating(true)
+    setDeactivateError('')
+    try {
+      await deactivateAccount()
+      await logout()
+      navigate('/login', { replace: true })
+    } catch (error) {
+      setDeactivateError(extractErrorMessage(error, 'Unable to deactivate your account. Please try again.'))
+    } finally {
+      setDeactivating(false)
+    }
+  }
   const [activeTab, setActiveTab] = useState<TabKey>('profile')
   const [profile, setProfile] = useState<AccountProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -160,6 +182,9 @@ function AccountSettingsPage() {
           date_of_birth: profileResponse.date_of_birth ?? '',
           gender: profileResponse.gender ?? '',
         })
+      })
+      .catch((error: unknown) => {
+        if (active) setProfileError(extractErrorMessage(error, 'Unable to load your profile. Please reload to try again.'))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -387,6 +412,18 @@ function AccountSettingsPage() {
         </div>
       )}
 
+      <section className="ase-card" aria-label="Deactivate account">
+        <h3>Deactivate account</h3>
+        <p>This disables sign-in. Existing service and transaction records are retained. Contact support to request removal of retained records.</p>
+        {deactivateConfirm ? (
+          <div>
+            <p>Deactivate this account and sign out?</p>
+            <button type="button" className="ase-btn ase-btn--primary" disabled={deactivating} onClick={() => void handleDeactivate()}>{deactivating ? 'Deactivating…' : 'Confirm deactivation'}</button>
+            <button type="button" className="ase-btn" disabled={deactivating} onClick={() => setDeactivateConfirm(false)}>Keep account</button>
+          </div>
+        ) : <button type="button" className="ase-btn" onClick={() => setDeactivateConfirm(true)}>Deactivate account</button>}
+        {deactivateError && <p role="alert">{deactivateError}</p>}
+      </section>
     </div>
   )
 }

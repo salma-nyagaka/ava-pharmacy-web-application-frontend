@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
-import { loadCatalogProducts } from '../../data/products'
-import { categoryData } from '../../data/categories'
+import { useProducts } from '../../hooks/useProducts'
+import { useCatalog } from '../../context/CatalogContext'
 import '../../styles/pages/BrandsPage.css'
 import '../../styles/pages/ProductListingPage.css'
 import { useAuth } from '../../context/AuthContext'
@@ -29,21 +29,19 @@ function BrandsPage() {
   const { brand } = useParams()
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
-  const products = loadCatalogProducts()
+  const { brands: catalogBrands, loading: brandsLoading, error: brandsError, refreshCatalog } = useCatalog()
+  const { products, loading: productsLoading, error: productsError, reload: reloadProducts } = useProducts(
+    brand ? { brand, page_size: 200 } : { page_size: 1 },
+    { loadAllPages: Boolean(brand) },
+  )
 
-  const slugify  = (v: string) => v.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
-  const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '')
   const formatLabel = (v: string) => v.split('-').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
 
   const brandDirectory = useMemo(() =>
-    Array.from(new Set(products.map((p) => p.brand)))
-      .sort((a, b) => a.localeCompare(b))
-      .map((name) => ({
-        name,
-        slug: slugify(name),
-        count: products.filter((p) => normalize(p.brand) === normalize(name)).length,
-      })),
-    [products]
+    catalogBrands
+      .map(({ name, slug }) => ({ name, slug }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [catalogBrands]
   )
 
   const [brandSearch, setBrandSearch]       = useState('')
@@ -59,18 +57,18 @@ function BrandsPage() {
 
   const selectedBrandEntry   = brandDirectory.find((e) => e.slug === brand)
   const selectedBrandLabel   = selectedBrandEntry?.name ?? (brand ? formatLabel(brand) : '')
-  const selectedBrandProducts = brand
-    ? products.filter((p) => normalize(p.brand) === normalize(selectedBrandLabel))
-    : []
+  const selectedBrandProducts = useMemo(() => brand ? products : [], [brand, products])
 
   const brandCategories = useMemo(() =>
-    categoryData
-      .filter((cat) => selectedBrandProducts.some((p) => p.categorySlug === cat.slug))
-      .map((cat) => ({
-        slug: cat.slug,
-        name: cat.name,
-        count: selectedBrandProducts.filter((p) => p.categorySlug === cat.slug).length,
-      })),
+    Array.from(new Map(
+      selectedBrandProducts
+        .filter((product) => product.categorySlug)
+        .map((product) => [product.categorySlug, product.category]),
+    )).map(([slug, name]) => ({
+      slug,
+      name,
+      count: selectedBrandProducts.filter((product) => product.categorySlug === slug).length,
+    })),
     [selectedBrandProducts]
   )
 
@@ -156,7 +154,13 @@ function BrandsPage() {
         </div>
 
         <div className="container brand-dir">
-          {letters.length === 0 ? (
+          {brandsLoading && brandDirectory.length === 0 ? (
+            <div className="brand-empty">Loading brands…</div>
+          ) : brandsError && brandDirectory.length === 0 ? (
+            <div className="brand-empty" role="alert">
+              {brandsError} <button type="button" onClick={() => { void refreshCatalog(true) }}>Try again</button>
+            </div>
+          ) : letters.length === 0 ? (
             <div className="brand-empty">No brands match &ldquo;{brandSearch}&rdquo;</div>
           ) : (
             letters.map((letter) => (
@@ -169,7 +173,7 @@ function BrandsPage() {
                       <Link key={entry.slug} to={`/brands/${entry.slug}`} className={`brand-dir-card brand-dir-card--${color}`}>
                         <span className="brand-dir-card__initial">{entry.name[0].toUpperCase()}</span>
                         <span className="brand-dir-card__name">{entry.name}</span>
-                        <span className="brand-dir-card__count">{entry.count} products</span>
+                        <span className="brand-dir-card__count">View products</span>
                       </Link>
                     )
                   })}
@@ -275,6 +279,13 @@ function BrandsPage() {
 
           {/* Main */}
           <main className="plp__main">
+            {productsLoading && <div className="empty-state"><p className="empty-state__message">Loading products…</p></div>}
+            {productsError && (
+              <div className="empty-state" role="alert">
+                <p className="empty-state__message">{productsError}</p>
+                <button className="btn btn--outline btn--sm" type="button" onClick={() => { void reloadProducts() }}>Try again</button>
+              </div>
+            )}
             <div className="plp__toolbar">
               <p className="plp__results-count">
                 {filteredBrandProducts.length === 0 ? 'No products found' : `Showing ${filteredBrandProducts.length} product${filteredBrandProducts.length !== 1 ? 's' : ''}`}
@@ -337,7 +348,7 @@ function BrandsPage() {
                   </div>
                 </article>
               ))}
-              {filteredBrandProducts.length === 0 && (
+              {!productsLoading && !productsError && filteredBrandProducts.length === 0 && (
                 <div className="empty-state">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="44" height="44"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                   <p className="empty-state__message">No products match your filters</p>

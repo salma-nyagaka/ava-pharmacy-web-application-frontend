@@ -13,7 +13,7 @@ import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/OrderDetailsPage.css'
 
 const formatCurrency = (value: string | number) => `KSh ${Number(value || 0).toLocaleString()}`
-const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'
+const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '-'
 
 const STATUS_FLOW = ['pending', 'processing', 'shipped', 'delivered'] as const
 type FlowStatus = typeof STATUS_FLOW[number]
@@ -141,8 +141,7 @@ function OrderDetailsLivePage() {
     setIsSaving(true)
     setError('')
     try {
-      let updated = await refundAdminOrder(order.id)
-      updated = await addAdminOrderNote(order.id, `Refund reason: ${actionNote.trim()}`)
+      const updated = await refundAdminOrder(order.id, actionNote.trim())
       setOrder(updated)
       setActionNote('')
       setRefundReasonError(false)
@@ -221,8 +220,8 @@ function OrderDetailsLivePage() {
   const timelineEntries = buildTimelineEntries(order)
   const upcomingStatus = nextOrderStatus(order)
   const customerName = order.customer_name || `${order.shipping_first_name} ${order.shipping_last_name}`.trim() || 'Guest customer'
-  const customerEmail = order.customer_email || order.shipping_email || '—'
-  const customerPhone = order.customer_phone || order.shipping_phone || '—'
+  const customerEmail = order.customer_email || order.shipping_email || '-'
+  const customerPhone = order.customer_phone || order.shipping_phone || '-'
 
   return (
     <div className="admin-page od-page">
@@ -370,7 +369,7 @@ function OrderDetailsLivePage() {
               )}
               {order.payment_status === 'paid' && order.status !== 'refunded' && (
                 <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowRefund(true)}>
-                  Issue refund
+                  Record external refund
                 </button>
               )}
             </div>
@@ -391,15 +390,15 @@ function OrderDetailsLivePage() {
               <div className="od-customer__avatar">{getInitials(customerName)}</div>
               <div>
                 <p className="od-customer__name">{customerName}</p>
-                {customerEmail !== '—' ? (
+                {customerEmail !== '-' ? (
                   <a className="od-customer__contact" href={`mailto:${customerEmail}`}>{customerEmail}</a>
                 ) : (
-                  <span className="od-customer__contact">—</span>
+                  <span className="od-customer__contact">-</span>
                 )}
-                {customerPhone !== '—' ? (
+                {customerPhone !== '-' ? (
                   <a className="od-customer__contact" href={`tel:${customerPhone}`}>{customerPhone}</a>
                 ) : (
-                  <span className="od-customer__contact">—</span>
+                  <span className="od-customer__contact">-</span>
                 )}
               </div>
             </div>
@@ -416,11 +415,11 @@ function OrderDetailsLivePage() {
             <div className="od-detail-list">
               <div className="od-detail-row"><span>Method</span><strong>{order.payment_method.replace(/_/g, ' ')}</strong></div>
               <div className="od-detail-row"><span>Status</span><strong>{order.payment_status.replace(/_/g, ' ')}</strong></div>
-              <div className="od-detail-row"><span>Reference</span><strong>{order.payment_reference || '—'}</strong></div>
+              <div className="od-detail-row"><span>Reference</span><strong>{order.payment_reference || '-'}</strong></div>
               {order.payment_method === 'mpesa_paybill' && (
                 <>
-                  <div className="od-detail-row"><span>Paybill</span><strong>{order.paybill_number || '—'}</strong></div>
-                  <div className="od-detail-row"><span>{order.paybill_account_label || 'Account Number'}</span><strong>{order.paybill_account_reference || '—'}</strong></div>
+                  <div className="od-detail-row"><span>Paybill</span><strong>{order.paybill_number || '-'}</strong></div>
+                  <div className="od-detail-row"><span>{order.paybill_account_label || 'Account Number'}</span><strong>{order.paybill_account_reference || '-'}</strong></div>
                 </>
               )}
             </div>
@@ -432,8 +431,8 @@ function OrderDetailsLivePage() {
                 <p className="od-card__title">Paybill Confirmation</p>
               </div>
               <div className="od-detail-list">
-                <div className="od-detail-row"><span>Submitted reference</span><strong>{pendingPaybillIntent.submitted_reference || pendingPaybillIntent.provider_reference || '—'}</strong></div>
-                <div className="od-detail-row"><span>Payer phone</span><strong>{pendingPaybillIntent.phone_number || '—'}</strong></div>
+                <div className="od-detail-row"><span>Submitted reference</span><strong>{pendingPaybillIntent.submitted_reference || pendingPaybillIntent.provider_reference || '-'}</strong></div>
+                <div className="od-detail-row"><span>Payer phone</span><strong>{pendingPaybillIntent.phone_number || '-'}</strong></div>
               </div>
               <div className="od-actions-panel od-actions-panel--split">
                 <button className="btn btn--primary btn--sm" type="button" disabled={isSaving} onClick={() => void handlePaybillDecision(pendingPaybillIntent, 'succeeded')}>
@@ -467,7 +466,7 @@ function OrderDetailsLivePage() {
                         <span className={`status status--${intent.status}`}>{intent.status.replace(/_/g, ' ')}</span>
                       </div>
                       <p>Reference: <strong>{intent.reference}</strong></p>
-                      <p>Provider Ref: <strong>{intent.provider_reference || '—'}</strong></p>
+                      <p>Provider Ref: <strong>{intent.provider_reference || '-'}</strong></p>
                       {intent.last_error && <p className="od-payment-log__error">Latest error: {intent.last_error}</p>}
                     </div>
                   ))}
@@ -541,7 +540,8 @@ function OrderDetailsLivePage() {
         <div className="modal-overlay" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
-              <h2>Issue refund</h2>
+              <h2>Record external refund</h2>
+              <p>This records a refund completed outside this application. No money is transferred here. Include the payment reference in the reason.</p>
               <button className="modal__close" type="button" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>×</button>
             </div>
             <div className="modal__content">
@@ -556,13 +556,13 @@ function OrderDetailsLivePage() {
                   placeholder="e.g. Duplicate paybill submission"
                   style={{ borderColor: refundReasonError ? '#dc2626' : undefined }}
                 />
-                {refundReasonError && <p className="od-field-error">A reason is required to issue a refund.</p>}
+                {refundReasonError && <p className="od-field-error">A reason and external payment reference are required for the refund record.</p>}
               </div>
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>Cancel</button>
               <button className="btn btn--primary btn--sm" type="button" disabled={isSaving} onClick={() => void handleRefund()}>
-                Confirm refund
+                Record refund
               </button>
             </div>
           </div>

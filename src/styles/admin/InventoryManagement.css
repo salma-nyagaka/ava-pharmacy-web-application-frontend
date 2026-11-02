@@ -685,3 +685,6 @@
 }
 @media (max-width: 1023px) { .inventory-management, .im-page { padding: 1.5rem; } }
 @media (max-width: 640px) { .inventory-management, .im-page { padding: 1rem; } }
+
+.inventory-management .cm-kpi-card__body { min-width: 0; }
+.inventory-management .cm-kpi-card__label { white-space: normal; overflow-wrap: anywhere; }

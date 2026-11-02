@@ -9,9 +9,9 @@ import { SearchableSelect } from '../../components/SearchableSelect/SearchableSe
 import '../../styles/admin/CategoryManagement.css'
 
 function formatDate(value?: string): string {
-  if (!value) return '—'
+  if (!value) return '-'
   const d = new Date(value)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 type ViewMode = 'categories' | 'subcategories'
@@ -453,7 +453,7 @@ function CategoryManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Categories</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : categories.length}</strong>
+            <strong className="cm-kpi-card__value">{loading ? '-' : categories.length}</strong>
             <span className="cm-kpi-card__delta">{loading ? '' : `${activeCategories} active · ${categories.length - activeCategories} inactive`}</span>
           </div>
         </div>
@@ -465,7 +465,7 @@ function CategoryManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Subcategories</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : subcategories.length}</strong>
+            <strong className="cm-kpi-card__value">{loading ? '-' : subcategories.length}</strong>
             <span className="cm-kpi-card__delta">{loading ? '' : `${activeSubcategories} active · ${subcategories.length - activeSubcategories} inactive`}</span>
           </div>
         </div>
@@ -623,7 +623,7 @@ function CategoryManagement() {
                           </div>
                         </td>
                         <td>
-                          <span className="cm-cell-desc">{cat.description || '—'}</span>
+                          <span className="cm-cell-desc">{cat.description || '-'}</span>
                         </td>
                         <td>
                           {cat.image ? (
@@ -631,7 +631,7 @@ function CategoryManagement() {
                               View image
                             </a>
                           ) : (
-                            <span className="cm-cell-muted">—</span>
+                            <span className="cm-cell-muted">-</span>
                           )}
                         </td>
                         <td>

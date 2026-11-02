@@ -51,9 +51,9 @@ function parseAmount(value: string | null | undefined) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 

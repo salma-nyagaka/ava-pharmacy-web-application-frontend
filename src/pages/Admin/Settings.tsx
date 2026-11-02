@@ -670,7 +670,7 @@ function Settings() {
         </div>
 
         <div className="form-card settings-card">
-          <h2 className="card__title">PPB Internet Pharmacy</h2>
+          <h2 className="card__title">PPB Internet Pharmacy</h2><Link to="/account/compliance">Manage restricted compliance evidence</Link>
           <p className="card__subtitle">These details are displayed publicly for PPB internet-pharmacy compliance.</p>
           <div className="form-group">
             <label htmlFor="health-safety-code">Health Safety Code</label>

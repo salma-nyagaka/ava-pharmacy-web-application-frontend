@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adminProductService, ApiInventoryProduct, ApiPosProductOption, ApiProduct, ApiProductVariant } from '../../services/adminProductService'
 import '../../styles/admin/AdminShared.css'
@@ -12,6 +12,7 @@ type SortField = 'managed_stock' | 'pos_stock' | 'sellable_quantity'
 type SortDirection = 'asc' | 'desc'
 
 type VariantDraft = {
+  inventory_id?: number
   id: number
   name: string
   sku: string
@@ -71,7 +72,8 @@ function getInventoryMaxBackorder(product: ApiInventoryProduct, location: 'branc
   return getInventoryItem(product, location)?.max_backorder_quantity ?? 0
 }
 
-function isVariantManaged(_product: ApiInventoryProduct) {
+function isVariantManaged(product: ApiInventoryProduct) {
+  void product
   return true
 }
 
@@ -110,9 +112,9 @@ function formatVariantStockSource(value: ApiProductVariant['stock_source']): str
 }
 
 function formatDateTime(value?: string | null): string {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString()
 }
 
 function formatDate(value?: string | null): string {
@@ -129,7 +131,7 @@ function formatVariantBatchSummary(variant: ApiProductVariant): string {
     .slice(0, 3)
     .map((inventory) => {
       const label = inventory.batch_number || 'Default batch'
-      const location = inventory.location === 'branch' ? 'Main Shop' : 'POS Store'
+      const location = inventory.store?.name || (inventory.location === 'branch' ? 'Main Shop' : 'POS Store')
       return `${label} · ${inventory.stock_quantity} at ${location} · exp ${formatDate(inventory.expiry_date)}`
     })
     .join(' | ') || 'No stock in batches'
@@ -162,6 +164,7 @@ function formatBackorderSummary(product: ApiInventoryProduct): string {
 function createVariantDraft(variant: ApiProductVariant): VariantDraft {
   const hasStockInformation = Boolean((variant.inventories ?? []).length)
   return {
+    inventory_id: variant.inventories?.length === 1 ? variant.inventories[0].id : undefined,
     id: variant.id,
     name: variant.name,
     sku: variant.sku ?? '',
@@ -293,7 +296,10 @@ function formatVariantAttributes(attributes: Record<string, unknown>): string {
 function InventoryManagement() {
   const [searchParams, setSearchParams] = useSearchParams()
 
+  const inventoryRequest = useRef(0)
+  const [inventoryTotal, setInventoryTotal] = useState(0)
   const [inventory, setInventory] = useState<ApiInventoryProduct[]>([])
+  const [parentProductSearch, setParentProductSearch] = useState('')
   const [parentProducts, setParentProducts] = useState<ApiProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -367,12 +373,12 @@ function InventoryManagement() {
 
   useEffect(() => {
     void loadInventory()
-  }, [filterProductId])
+  }, [filterProductId, searchTerm, selectedStatus, currentPage, sortField, sortDirection])
 
   useEffect(() => {
     void Promise.all([
       adminProductService.listPosProductOptions(),
-      adminProductService.listProducts(),
+      adminProductService.listProductOptions(parentProductSearch),
     ])
       .then(([options, products]) => {
         setPosOptions(options)
@@ -382,15 +388,24 @@ function InventoryManagement() {
         setPosOptions([])
         setParentProducts([])
       })
-  }, [])
+  }, [parentProductSearch])
 
   async function loadInventory() {
+    const request = ++inventoryRequest.current
     setLoading(true)
     setError('')
     try {
-      const params = filterProductId ? { product_id: filterProductId } : undefined
-      const items = await adminProductService.listInventory(params)
+      const orderField = { managed_stock: 'branch_stock_quantity', pos_stock: 'warehouse_stock_quantity', sellable_quantity: 'stock_quantity' }[sortField]
+      const params: Record<string, string> = {
+        page: String(currentPage), page_size: String(PAGE_SIZE), search: searchTerm,
+        ordering: `${sortDirection === 'desc' ? '-' : ''}${orderField}`,
+      }
+      if (filterProductId) params.product_id = filterProductId
+      if (selectedStatus !== 'all') params.inventory_status = selectedStatus
+      const { items, total } = await adminProductService.listInventoryPage(params)
+      if (request !== inventoryRequest.current) return
       setInventory(items)
+      setInventoryTotal(total)
 
       if (filterProductId) {
         const targetId = Number(filterProductId)
@@ -401,9 +416,10 @@ function InventoryManagement() {
         }
       }
     } catch {
+      if (request !== inventoryRequest.current) return
       setError(filterProductId ? 'Failed to load stock for the selected product.' : 'Failed to load inventory.')
     } finally {
-      setLoading(false)
+      if (request === inventoryRequest.current) setLoading(false)
     }
   }
 
@@ -411,11 +427,7 @@ function InventoryManagement() {
     const items = await adminProductService.listInventory({ product_id: String(productId) })
     if (items.length === 0) return []
 
-    setInventory((prev) => {
-      if (filterProductId) return items
-      const productIds = new Set(items.map((item) => item.product_id))
-      return [...items, ...prev.filter((item) => !productIds.has(item.product_id))]
-    })
+    await loadInventory()
 
     return items
   }
@@ -438,48 +450,15 @@ function InventoryManagement() {
     setNewStockFieldErrors({})
   }
 
-  const filteredInventory = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase()
-
-    return inventory.filter((item) => {
-      const matchSearch = query === ''
-        || item.product_name.toLowerCase().includes(query)
-        || item.name.toLowerCase().includes(query)
-        || item.sku.toLowerCase().includes(query)
-        || (item.barcode ?? '').toLowerCase().includes(query)
-        || (item.pos_product_id ?? '').toLowerCase().includes(query)
-
-      const status = getInventoryStatus(item)
-      const matchStatus = selectedStatus === 'all' || status === selectedStatus
-      return matchSearch && matchStatus
-    })
-  }, [inventory, searchTerm, selectedStatus])
-
-  const sortedInventory = useMemo(() => {
-    const items = [...filteredInventory]
-    items.sort((left, right) => {
-      let comparison = 0
-
-      if (sortField === 'managed_stock') {
-        comparison = getManagedStock(left) - getManagedStock(right)
-      } else if (sortField === 'pos_stock') {
-        comparison = getPosManagedQuantity(left) - getPosManagedQuantity(right)
-      } else {
-        comparison = getSellableQuantity(left) - getSellableQuantity(right)
-      }
-
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-    return items
-  }, [filteredInventory, sortField, sortDirection])
+  const sortedInventory = inventory
 
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, selectedStatus, sortField, sortDirection, filterProductId])
 
-  const totalPages = Math.max(1, Math.ceil(sortedInventory.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(inventoryTotal / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
-  const pagedInventory = sortedInventory.slice(startIndex, startIndex + PAGE_SIZE)
+  const pagedInventory = sortedInventory
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -691,6 +670,10 @@ function InventoryManagement() {
       const nextFieldErrors: Partial<Record<AdjustFieldErrorKey, string>> = {}
       const variantUpdates = []
       for (const draft of variantDrafts) {
+        if ((adjustItem.inventories?.length ?? 0) > 1 && !draft.inventory_id) {
+          setAdjustError('Select the store and batch to adjust.')
+          return
+        }
         const stockKey = `variant-${draft.id}-stock_quantity`
         const thresholdKey = `variant-${draft.id}-low_stock_threshold`
         const backorderKey = `variant-${draft.id}-max_backorder_quantity`
@@ -709,15 +692,15 @@ function InventoryManagement() {
         const lowStockThreshold = getVariantDraftThreshold(draft)
         const maxBackorderQuantity = draft.allow_backorder ? getVariantDraftMaxBackorder(draft) : 0
 
-        variantUpdates.push({
-          variantId: draft.id,
-          payload: {
-            stock_quantity: stockQuantity,
-            low_stock_threshold: lowStockThreshold,
-            allow_backorder: draft.allow_backorder,
-            max_backorder_quantity: maxBackorderQuantity,
+        const row = adjustItem.inventories?.find((entry) => entry.id === draft.inventory_id)
+        const values = { stock_quantity: stockQuantity, low_stock_threshold: lowStockThreshold,
+          allow_backorder: draft.allow_backorder, max_backorder_quantity: maxBackorderQuantity }
+        const payload = row ? {
+          [row.location === 'warehouse' ? 'warehouse_inventory' : 'branch_inventory']: {
+            ...values, store_listing_id: row.store_listing_id, batch_number: row.batch_number,
           },
-        })
+        } : values
+        variantUpdates.push({ variantId: draft.id, payload })
       }
 
       if (Object.keys(nextFieldErrors).length > 0) {
@@ -818,7 +801,7 @@ function InventoryManagement() {
   const posInventory = adjustItem && !isVariantManaged(adjustItem) ? getInventoryItem(adjustItem, 'warehouse') : null
 
   return (
-    <div className="category-management admin-page">
+    <div className="category-management admin-page inventory-management">
       <div className="category-management__header">
         <div className="cm-title-group">
           <h1>Inventory Management</h1>
@@ -867,8 +850,8 @@ function InventoryManagement() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Tracked Variants</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : inventory.length}</strong>
+            <span className="cm-kpi-card__label">Matching Variants</span>
+            <strong className="cm-kpi-card__value">{loading ? '-' : inventoryTotal}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -876,8 +859,8 @@ function InventoryManagement() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">In Stock</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : inventory.filter((item) => getInventoryStatus(item) === 'in_stock').length}</strong>
+            <span className="cm-kpi-card__label">In Stock on this page</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '-' : inventory.filter((item) => getInventoryStatus(item) === 'in_stock').length}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -885,8 +868,8 @@ function InventoryManagement() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Low / Backorder</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{loading ? '—' : inventory.filter((item) => ['low_stock', 'backorder'].includes(getInventoryStatus(item))).length}</strong>
+            <span className="cm-kpi-card__label">Low / Backorder on this page</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{loading ? '-' : inventory.filter((item) => ['low_stock', 'backorder'].includes(getInventoryStatus(item))).length}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -894,8 +877,8 @@ function InventoryManagement() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Out / Inactive</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : inventory.filter((item) => ['out_of_stock', 'inactive'].includes(getInventoryStatus(item))).length}</strong>
+            <span className="cm-kpi-card__label">Out / Inactive on this page</span>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '-' : inventory.filter((item) => ['out_of_stock', 'inactive'].includes(getInventoryStatus(item))).length}</strong>
           </div>
         </div>
       </div>
@@ -1007,8 +990,8 @@ function InventoryManagement() {
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                           <span>{item.name}</span>
-                          <span className="cm-name-cell__id">SKU {item.sku || '—'}</span>
-                          <span className="cm-name-cell__id">Barcode {item.barcode || '—'}</span>
+                          <span className="cm-name-cell__id">SKU {item.sku || '-'}</span>
+                          <span className="cm-name-cell__id">Barcode {item.barcode || '-'}</span>
                         </div>
                       </td>
                       <td>
@@ -1063,17 +1046,15 @@ function InventoryManagement() {
           </div>
         )}
 
-        {filteredInventory.length > PAGE_SIZE && (
+        {inventoryTotal > PAGE_SIZE && (
           <div className="cm-pagination">
             <span className="cm-pagination__info">
-              Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, sortedInventory.length)} of {sortedInventory.length}
+              Showing {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, inventoryTotal)} of {inventoryTotal}
             </span>
             <div className="cm-pagination__controls">
               <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>Prev</button>
               <div className="pagination__pages">
-                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-                  <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>{page}</button>
-                ))}
+                <span>Page {currentPage} of {totalPages}</span>
               </div>
               <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>Next</button>
             </div>
@@ -1097,6 +1078,9 @@ function InventoryManagement() {
                 </div>
                 <div className="adjust-grid stock-form__core-grid">
                   <div className="adjust-field">
+                    <label htmlFor="stock-parent-search">Find parent product</label>
+                    <input id="stock-parent-search" type="search" placeholder="Search active parent products"
+                      value={parentProductSearch} onChange={(event) => setParentProductSearch(event.target.value)} />
                     <label>Parent product <span className="adjust-required">*</span></label>
                     <select value={newStockProductId} onChange={(e) => {
                       setNewStockProductId(Number(e.target.value) || '')
@@ -1364,7 +1348,7 @@ function InventoryManagement() {
                                     {draft.barcode ? ` · Barcode ${draft.barcode}` : ''}
                                   </div>
                                   <div className="adjust-variant-card__meta">
-                                    {draft.strength ? `${draft.strength} · ` : ''}Selling price {draft.price ? `KSh ${Number(draft.price).toLocaleString()}` : '—'}
+                                    {draft.strength ? `${draft.strength} · ` : ''}Selling price {draft.price ? `KSh ${Number(draft.price).toLocaleString()}` : '-'}
                                   </div>
                                   {draft.dosage_instructions && (
                                     <div className="adjust-variant-card__meta">Dosage: {draft.dosage_instructions}</div>
@@ -1381,6 +1365,23 @@ function InventoryManagement() {
                                 <span className={getStatusClass(status)}>{formatStatusLabel(status)}</span>
                               </div>
 
+                              {!!adjustItem.inventories?.length && (
+                                <div className="adjust-field">
+                                  <label htmlFor={`stock-row-${draft.id}`}>Store / batch</label>
+                                  <select id={`stock-row-${draft.id}`} value={draft.inventory_id ?? ''} onChange={(event) => {
+                                    const row = adjustItem.inventories?.find((entry) => entry.id === Number(event.target.value))
+                                    if (!row) return
+                                    handleVariantDraftChange(draft.id, { inventory_id: row.id,
+                                      stock_quantity: String(row.stock_quantity), low_stock_threshold: String(row.low_stock_threshold),
+                                      allow_backorder: row.allow_backorder, max_backorder_quantity: String(row.max_backorder_quantity) })
+                                  }}>
+                                    <option value="">Select store and batch</option>
+                                    {adjustItem.inventories.map((row) => <option key={row.id} value={row.id}>
+                                      {row.store?.name ?? row.source_name ?? row.location} · {row.batch_number || 'Default batch'} · {row.stock_quantity} packs
+                                    </option>)}
+                                  </select>
+                                </div>
+                              )}
                               <div className="adjust-grid">
                                 <div className="adjust-field">
                                   <label>Available stock <span className="adjust-required">*</span></label>

@@ -5,6 +5,9 @@ import avatarJohn from '../../assets/images/avatars/avatar-john.svg'
 import '../../styles/pages/AccountLayout.css'
 
 const NAV_ITEMS = [
+  { icon: <span aria-hidden="true">▤</span>, title: 'Compliance evidence', link: '/account/compliance', color: '#167a80' },
+  { icon: <span aria-hidden="true">◉</span>, title: 'Notifications', link: '/account/notifications', color: '#167a80' },
+  { icon: <span aria-hidden="true">?</span>, title: 'Support requests', link: '/account/support', color: '#167a80' },
   {
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -125,7 +128,7 @@ function AccountLayout() {
 
             <nav aria-label="Account navigation">
               <p className="acl-nav__label">My Account</p>
-              {NAV_ITEMS.map((item) => {
+              {NAV_ITEMS.filter(item=>item.link!=='/account/compliance'||['admin','ppb_inspector'].includes(user?.role||'')).map((item) => {
                 const active = isActive(item)
                 return (
                   <Link

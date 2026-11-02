@@ -190,7 +190,7 @@ function AdminDashboard() {
   const stats = [
     {
       title: 'Total Orders',
-      value: reports ? reports.total_orders.toLocaleString() : '—',
+      value: reports ? reports.total_orders.toLocaleString() : '-',
       sub: `${dashboard?.orders.today ?? 0} today`,
       color: '#3b82f6',
       icon: (
@@ -201,7 +201,7 @@ function AdminDashboard() {
     },
     {
       title: 'Monthly Revenue',
-      value: dashboard ? fmtKsh(dashboard.orders.monthly_revenue) : '—',
+      value: dashboard ? fmtKsh(dashboard.orders.monthly_revenue) : '-',
       sub: fmtKsh(dashboard?.orders.total_revenue ?? 0) + ' all time',
       color: '#10b981',
       icon: (
@@ -212,7 +212,7 @@ function AdminDashboard() {
     },
     {
       title: 'Low Stock Items',
-      value: reports ? reports.low_stock_products.toLocaleString() : '—',
+      value: reports ? reports.low_stock_products.toLocaleString() : '-',
       sub: 'items need restocking',
       color: '#f59e0b',
       icon: (
@@ -224,7 +224,7 @@ function AdminDashboard() {
     },
     {
       title: 'Customers',
-      value: reports ? reports.total_customers.toLocaleString() : '—',
+      value: reports ? reports.total_customers.toLocaleString() : '-',
       sub: `${dashboard?.users.new_today ?? 0} new today`,
       color: '#8b5cf6',
       icon: (

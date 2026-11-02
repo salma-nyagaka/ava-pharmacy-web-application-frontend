@@ -70,7 +70,7 @@ const createBlankDraft = (): PromotionDraft => {
 
 function formatDisplayDate(value: string): string {
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return '—'
+  if (Number.isNaN(parsed.getTime())) return '-'
   return parsed.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
@@ -704,8 +704,8 @@ function DealsManagement() {
                         </span>
                       </td>
                       <td style={{ color: '#6b7280' }}>{formatDisplayDate(promotion.created_at)}</td>
-                      <td style={{ color: '#6b7280' }}>—</td>
-                      <td style={{ color: '#6b7280' }}>—</td>
+                      <td style={{ color: '#6b7280' }}>-</td>
+                      <td style={{ color: '#6b7280' }}>-</td>
                       <td>
                         <div className="cm-row-actions">
                           <button type="button" className="cm-row-btn cm-row-btn--edit" onClick={() => openEdit(promotion)}>

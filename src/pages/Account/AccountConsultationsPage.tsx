@@ -26,9 +26,9 @@ const STATUS_CFG: Record<ConsultationStatusKey, { label: string; color: string; 
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString('en-KE', {
     day: 'numeric',
     month: 'short',
@@ -61,7 +61,7 @@ function AccountConsultationsPage() {
   const [consultations, setConsultations] = useState<ConsultationRecord[]>([])
   const [customerPrescriptions, setCustomerPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeStatus, setActiveStatus] = useState<StatusFilter>('all')
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(() => Number(new URLSearchParams(window.location.search).get('consultation')) || null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 

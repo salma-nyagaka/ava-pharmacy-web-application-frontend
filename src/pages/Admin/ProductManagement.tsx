@@ -24,9 +24,9 @@ type ProductSortField = 'name' | 'brand' | 'subcategory' | 'price' | 'stock' | '
 type ProductBrandSortField = 'name' | 'products' | 'status' | 'created_at'
 
 function formatDate(value?: string): string {
-  if (!value) return '—'
+  if (!value) return '-'
   const d = new Date(value)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function compareCreatedAt(left?: string, right?: string): number {
@@ -41,9 +41,9 @@ function compareCreatedAt(left?: string, right?: string): number {
 }
 
 function formatCurrency(value?: string | number | null): string {
-  if (value === null || value === undefined || value === '') return '—'
+  if (value === null || value === undefined || value === '') return '-'
   const amount = typeof value === 'number' ? value : Number(value)
-  return Number.isFinite(amount) ? `KSh ${amount.toLocaleString()}` : '—'
+  return Number.isFinite(amount) ? `KSh ${amount.toLocaleString()}` : '-'
 }
 
 function formatFeatureLines(features: string[] | null | undefined): string {
@@ -843,7 +843,7 @@ function ProductManagement() {
                       </td>
                       <td>
                         <span style={{ fontSize: '0.74rem', color: brand.description ? '#374151' : '#d1d5db' }}>
-                          {brand.description || '—'}
+                          {brand.description || '-'}
                         </span>
                       </td>
                       <td>
@@ -857,7 +857,7 @@ function ProductManagement() {
                         </span>
                       </td>
                       <td style={{ whiteSpace: 'nowrap' }}>{formatDate(brand.created_at)}</td>
-                      <td>{brand.created_by_name || '—'}</td>
+                      <td>{brand.created_by_name || '-'}</td>
                       <td>
                         <div className="cm-row-actions">
                           <button type="button" className="cm-row-btn cm-row-btn--edit" onClick={() => openEditBrand(brand)}>
@@ -1066,7 +1066,7 @@ function ProductManagement() {
                   <td>
                     {product.requires_prescription
                       ? <span className="cm-status cm-status--scheduled">Required</span>
-                      : <span className="cm-name-cell__id">—</span>}
+                      : <span className="cm-name-cell__id">-</span>}
                   </td>
                   <td>
                     <span className={`cm-status ${product.is_active ? 'cm-status--active' : 'cm-status--inactive'}`}>
@@ -1074,8 +1074,8 @@ function ProductManagement() {
                     </span>
                   </td>
                   <td style={{ whiteSpace: 'nowrap' }}>{formatDate(product.created_at)}</td>
-                  <td>{product.created_by_name || '—'}</td>
-                  <td>—</td>
+                  <td>{product.created_by_name || '-'}</td>
+                  <td>-</td>
                   <td>
                     <div className="cm-row-actions">
                       <button

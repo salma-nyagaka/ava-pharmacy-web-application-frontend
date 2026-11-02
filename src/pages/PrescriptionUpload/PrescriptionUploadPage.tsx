@@ -44,7 +44,7 @@ const DISPATCH_CFG: Record<PrescriptionRecord['dispatchStatus'], { label: string
 }
 
 function formatDate(value: string) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString('en-KE', {
@@ -269,37 +269,35 @@ function PrescriptionUploadPage() {
   }, [activeRx, prescriptions])
 
   const addFiles = (files: File[]) => {
-    setUploadedFiles((prev) => {
-      const merged = [...prev]
-      files.forEach((file) => {
-        if (!merged.some((existing) => existing.name === file.name && existing.size === file.size)) {
-          merged.push(file)
-        }
-      })
-      return merged
+    if (files.some((file) => !['application/pdf', 'image/jpeg', 'image/png'].includes(file.type))) {
+      setUploadError('Unsupported file type. Please upload a PDF, JPG, or PNG file.')
+      return
+    }
+    if (files.some((file) => file.size > 5 * 1024 * 1024)) {
+      setUploadError('Each prescription file must be 5 MB or smaller.')
+      return
+    }
+    const merged = [...uploadedFiles]
+    files.forEach((file) => {
+      if (!merged.some((existing) => existing.name === file.name && existing.size === file.size)) merged.push(file)
     })
+    if (merged.length > 5) {
+      setUploadError('You can upload up to 5 prescription files.')
+      return
+    }
+    setUploadedFiles(merged)
     setUploadError('')
   }
 
   const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files ?? []).filter((file) =>
-      ['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)
-    )
-    if (selectedFiles.length) {
-      addFiles(selectedFiles)
-    } else if (event.target.files?.length) {
-      setUploadError('Unsupported file type. Please upload a PDF, JPG, or PNG file.')
-    }
+    addFiles(Array.from(event.target.files ?? []))
     event.target.value = ''
   }
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault()
     setIsDragging(false)
-    const files = Array.from(event.dataTransfer.files).filter((file) =>
-      ['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)
-    )
-    if (files.length) addFiles(files)
+    addFiles(Array.from(event.dataTransfer.files))
   }
 
   const removeFile = (index: number) => {
@@ -698,9 +696,9 @@ function PrescriptionUploadPage() {
                         {activeRx.files.map((file, index) => {
                           const href = resolveMediaUrl(file) || file
                           return (
-                            <a key={`${file}-${index}`} className="rx-modal__file-pill" href={href} target="_blank" rel="noreferrer">
+                            <a key={`${file}-${index}`} className="rx-modal__file-pill" href={href} download rel="noreferrer">
                               <span>{formatFileLabel(file, index)}</span>
-                              <small>Open</small>
+                              <small>Download</small>
                             </a>
                           )
                         })}
@@ -797,7 +795,7 @@ function PrescriptionUploadPage() {
                           <li key={`${item.backendId || item.name}-${item.name}`} className="rx-approved-items__row">
                             <div>
                               <p className="rx-approved-items__name">{item.productName || item.name}</p>
-                              <p className="rx-approved-items__meta">{item.dose} · {item.frequency} · Qty {item.qty}</p>
+                              <p className="rx-approved-items__meta">{item.variantName || item.variantSku} · {item.dose} · {item.frequency}{item.duration ? ` · ${item.duration}` : ''} · Qty {item.qty} {item.quantityMeasurement || ''}</p>
                             </div>
                             {item.isPaidFor && <span className="status-pill status-pill--success">Paid</span>}
                           </li>

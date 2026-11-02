@@ -1,3 +1,4 @@
+import NewsletterForm from './NewsletterForm'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useCatalog } from '../../context/CatalogContext'
@@ -46,6 +47,7 @@ function Footer() {
     <footer className="footer">
       <div className="footer__main">
         <div className="container">
+          <NewsletterForm />
           <div className="footer__grid">
 
             {/* Brand Column */}

@@ -338,7 +338,7 @@ function OrderHistoryPage() {
       }
       navigate('/cart')
     } catch {
-      // silent — user can retry from the order detail page
+      // silent - user can retry from the order detail page
     } finally {
       setReorderingId(null)
     }

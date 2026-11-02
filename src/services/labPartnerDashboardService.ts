@@ -1,4 +1,7 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/avapharmacy/api/v1').replace(/\/$/, '')
+import { apiFetch } from '../lib/apiFetch'
+import { apiClient } from '../lib/apiClient'
+
+const API_BASE_URL = String(apiClient.defaults.baseURL).replace(/\/$/, '')
 
 interface ApiLabDocument {
   id?: number
@@ -119,14 +122,14 @@ export interface CreateLabPartnerFacilityPayload {
   home_collection_enabled: boolean
   physical_result_pickup_enabled: boolean
   pickup_instructions?: string
-  test_ids: number[]
+  test_ids?: number[]
   test_offerings?: Array<{
     test: number
     price: number
     turnaround: string
     home_collection_available: boolean
   }>
-  technician_ids: number[]
+  technician_ids?: number[]
 }
 
 export interface LabPartnerTechnician {
@@ -233,7 +236,7 @@ const toStatus = (value?: string): 'Active' | 'Pending' | 'Suspended' => {
 }
 
 const formatDate = (value?: string) => {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value.slice(0, 10)
   return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -319,10 +322,10 @@ const mapDashboard = (payload: { partner?: ApiLabPartner; facilities?: ApiLabora
       ? payload.recent_requests.map((item) => ({
           id: Number(item.id ?? 0),
           reference: item.reference || '',
-          patientName: item.patient_name || '—',
-          testName: item.test_name || '—',
+          patientName: item.patient_name || '-',
+          testName: item.test_name || '-',
           technicianName: item.technician_name || 'Unassigned',
-          status: item.status || '—',
+          status: item.status || '-',
           requestedAt: formatDate(item.requested_at),
         }))
       : [],
@@ -331,13 +334,13 @@ const mapDashboard = (payload: { partner?: ApiLabPartner; facilities?: ApiLabora
 
 export const labPartnerDashboardService = {
   async getDashboard() {
-    const response = await fetch(`${API_BASE_URL}/lab/partner/dashboard/`, { headers: { ...getAuthHeaders() } })
+    const response = await apiFetch(`${API_BASE_URL}/lab/partner/dashboard/`, { headers: { ...getAuthHeaders() } })
     const payload = await handleResponse<{ partner?: ApiLabPartner; facilities?: ApiLaboratoryFacility[]; stats?: Record<string, number>; recent_requests?: ApiLabRequest[] }>(response)
     return mapDashboard(payload)
   },
 
   async addFacility(payload: CreateLabPartnerFacilityPayload) {
-    const response = await fetch(`${API_BASE_URL}/lab/partner/facilities/`, {
+    const response = await apiFetch(`${API_BASE_URL}/lab/partner/facilities/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload),
@@ -346,7 +349,7 @@ export const labPartnerDashboardService = {
   },
 
   async updateFacility(id: number, payload: Partial<CreateLabPartnerFacilityPayload> & { is_active?: boolean }) {
-    const response = await fetch(`${API_BASE_URL}/lab/partner/facilities/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/lab/partner/facilities/${id}/`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload),
@@ -358,7 +361,7 @@ export const labPartnerDashboardService = {
     const form = new FormData()
     form.append('name', name)
     form.append('file', file)
-    const response = await fetch(`${API_BASE_URL}/lab/partner/facilities/${facilityId}/documents/`, {
+    const response = await apiFetch(`${API_BASE_URL}/lab/partner/facilities/${facilityId}/documents/`, {
       method: 'POST',
       headers: { ...getAuthHeaders() },
       body: form,
@@ -367,7 +370,7 @@ export const labPartnerDashboardService = {
   },
 
   async addTechnician(payload: { name: string; email: string; phone?: string; specialty?: string }) {
-    const response = await fetch(`${API_BASE_URL}/lab/partner/technicians/`, {
+    const response = await apiFetch(`${API_BASE_URL}/lab/partner/technicians/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(payload),
@@ -376,7 +379,7 @@ export const labPartnerDashboardService = {
   },
 
   async provisionTechnician(id: number) {
-    const response = await fetch(`${API_BASE_URL}/lab/partner/technicians/${id}/provision-account/`, {
+    const response = await apiFetch(`${API_BASE_URL}/lab/partner/technicians/${id}/provision-account/`, {
       method: 'POST',
       headers: { ...getAuthHeaders() },
     })
@@ -384,7 +387,7 @@ export const labPartnerDashboardService = {
   },
 
   async setTechnicianStatus(id: number, action: 'activate' | 'suspend', note?: string) {
-    const response = await fetch(`${API_BASE_URL}/lab/partner/technicians/${id}/action/`, {
+    const response = await apiFetch(`${API_BASE_URL}/lab/partner/technicians/${id}/action/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(note ? { action, note } : { action }),

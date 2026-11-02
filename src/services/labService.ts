@@ -150,6 +150,35 @@ export async function fetchLabTests(): Promise<LabTest[]> {
   return listPayload(response.data).map((item) => mapLabTest(item as Record<string, unknown>))
 }
 
+export async function fetchAdminLabTests(): Promise<LabTest[]> {
+  const response = await apiClient.get('/admin/lab/tests/', { params: { page_size: 500 } })
+  return listPayload(response.data).map((item) => mapLabTest(item as Record<string, unknown>))
+}
+
+export type SaveLabTestPayload = {
+  name: string
+  category: string
+  price: number
+  turnaround: string
+  sample_type: string
+  description: string
+  is_active?: boolean
+}
+
+export async function createAdminLabTest(payload: SaveLabTestPayload): Promise<LabTest> {
+  const response = await apiClient.post('/admin/lab/tests/', payload)
+  return mapLabTest(unwrap<Record<string, unknown>>(response.data, {}))
+}
+
+export async function updateAdminLabTest(id: number, payload: SaveLabTestPayload): Promise<LabTest> {
+  const response = await apiClient.patch(`/admin/lab/tests/${id}/`, payload)
+  return mapLabTest(unwrap<Record<string, unknown>>(response.data, {}))
+}
+
+export async function deleteAdminLabTest(id: number): Promise<void> {
+  await apiClient.delete(`/admin/lab/tests/${id}/`)
+}
+
 export async function fetchMyLabRequests(): Promise<LabRequest[]> {
   const response = await apiClient.get('/lab/requests/', { params: { page_size: 500 } })
   return listPayload(response.data).map((item) => mapLabRequest(item as Record<string, unknown>))

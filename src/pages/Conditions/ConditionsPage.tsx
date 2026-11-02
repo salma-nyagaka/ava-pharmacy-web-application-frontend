@@ -1,9 +1,9 @@
-import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { ReactNode, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
-import { fetchHealthConcernsFromBackend, type HealthConcern, matchesHealthConcern } from '../../data/healthConcerns'
-import { loadCatalogProducts } from '../../data/products'
+import { useProducts } from '../../hooks/useProducts'
+import { useCatalog } from '../../context/CatalogContext'
 import '../../styles/pages/ConditionsPage.css'
 import '../../styles/pages/ProductListingPage.css'
 import { useAuth } from '../../context/AuthContext'
@@ -40,25 +40,11 @@ function ConditionsPage() {
   const { condition } = useParams()
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
-  const products = loadCatalogProducts()
-  const [healthConcerns, setHealthConcerns] = useState<HealthConcern[]>([])
-  const [concernsLoading, setConcernsLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    setConcernsLoading(true)
-    fetchHealthConcernsFromBackend()
-      .then((items) => {
-        if (!cancelled) setHealthConcerns(items)
-      })
-      .finally(() => {
-        if (!cancelled) setConcernsLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+  const { healthConcerns, loading: concernsLoading, error: concernsError, refreshCatalog } = useCatalog()
+  const { products, loading: productsLoading, error: productsError, reload: reloadProducts } = useProducts(
+    condition ? { health_concern: condition, page_size: 200 } : { page_size: 1 },
+    { loadAllPages: Boolean(condition) },
+  )
   const selectedConcern = useMemo(
     () => healthConcerns.find((concernItem) => concernItem.slug === condition),
     [condition, healthConcerns],
@@ -73,10 +59,7 @@ function ConditionsPage() {
   const [sortBy, setSortBy]             = useState('recommended')
   const [addedId, setAddedId]           = useState<number | null>(null)
 
-  const concernProducts = useMemo(
-    () => selectedConcern ? products.filter((p) => matchesHealthConcern(p, selectedConcern)) : [],
-    [products, selectedConcern]
-  )
+  const concernProducts = useMemo(() => selectedConcern ? products : [], [products, selectedConcern])
 
   const brands = useMemo(
     () => Array.from(new Set(concernProducts.map((p) => p.brand))).sort((a, b) => a.localeCompare(b)),
@@ -151,19 +134,22 @@ function ConditionsPage() {
           <div className="cond-grid">
             {concernsLoading ? (
               <p style={{ color: '#6b7280' }}>Loading health concerns…</p>
+            ) : concernsError && healthConcerns.length === 0 ? (
+              <p style={{ color: '#6b7280' }} role="alert">
+                {concernsError} <button type="button" onClick={() => { void refreshCatalog(true) }}>Try again</button>
+              </p>
             ) : healthConcerns.length === 0 ? (
-              <p style={{ color: '#6b7280' }}>No health concerns have been created yet.</p>
+              <p style={{ color: '#6b7280' }}>No health concerns have been published yet.</p>
             ) : healthConcerns.map((concern) => {
               const meta = conditionMeta[concern.slug]
-              const count = products.filter((p) => matchesHealthConcern(p, concern)).length
               return (
-                <Link key={concern.slug} to={concern.path} className={`cond-card cond-card--${meta?.color ?? 'blue'}`}>
+                <Link key={concern.slug} to={`/conditions/${concern.slug}`} className={`cond-card cond-card--${meta?.color ?? 'blue'}`}>
                   <span className="cond-card__icon">{meta?.icon}</span>
                   <div className="cond-card__body">
                     <strong className="cond-card__name">{concern.name}</strong>
                     <span className="cond-card__desc">{meta?.desc}</span>
                   </div>
-                  <span className="cond-card__count">{count}</span>
+                  <span className="cond-card__count">View</span>
                 </Link>
               )
             })}
@@ -260,6 +246,13 @@ function ConditionsPage() {
           </aside>
 
           <main className="plp__main">
+            {productsLoading && <div className="empty-state"><p className="empty-state__sub">Loading products…</p></div>}
+            {productsError && (
+              <div className="empty-state" role="alert">
+                <p className="empty-state__sub">{productsError}</p>
+                <button className="btn btn--sm btn--primary" type="button" onClick={() => { void reloadProducts() }}>Try again</button>
+              </div>
+            )}
             <div className="plp__toolbar">
               <p className="plp__results-count">
                 <strong>{sortedProducts.length}</strong> product{sortedProducts.length !== 1 ? 's' : ''}
@@ -313,7 +306,7 @@ function ConditionsPage() {
                   </div>
                 </article>
               ))}
-              {sortedProducts.length === 0 && (
+              {!productsLoading && !productsError && sortedProducts.length === 0 && (
                 <div className="empty-state">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="44" height="44"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                   <p className="empty-state__title">No products found</p>

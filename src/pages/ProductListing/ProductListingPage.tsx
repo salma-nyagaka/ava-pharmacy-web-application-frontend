@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { useCategories } from '../../hooks/useCategories'
@@ -8,7 +8,7 @@ import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
 import { useProducts } from '../../hooks/useProducts'
 import { useAuth } from '../../context/AuthContext'
-import { fetchBrandBySlug, type PublicBrand } from '../../services/productService'
+import { fetchBrandBySlug, fetchNavBrands, type NavBrand, type PublicBrand } from '../../services/productService'
 import '../../styles/pages/ProductListingPage.css'
 
 type ListingProduct = CatalogProduct
@@ -46,6 +46,9 @@ function ProductListingPage() {
       ? formatSlug(healthConcernParam)
       : activeCategory?.name ?? (categorySlug === 'all' ? 'All Products' : formatSlug(categorySlug))
 
+  const [brands, setBrands] = useState<NavBrand[]>([])
+  useEffect(() => { void fetchNavBrands().then(setBrands).catch(() => setBrands([])) }, [])
+
   const [brandData, setBrandData] = useState<PublicBrand | null>(null)
 
   useEffect(() => {
@@ -79,18 +82,21 @@ function ProductListingPage() {
     })
   }
 
-  const { products, loading: productsLoading } = useProducts({
+  const { products, loading: productsLoading, error: productsError, meta, reload } = useProducts({
     category: categorySlug !== 'all' ? categorySlug : undefined,
     subcategory: activeSubcategorySlug || undefined,
     brand: brandParam,
     health_concern: healthConcernParam,
-    search: queryFromUrl || undefined,
-    page_size: 200,
-  }, { loadAllPages: true })
-
-  const productsWithDeals = products as (ListingProduct & { inStock: boolean; dealLabel?: string | null })[]
-
-  const brands = Array.from(new Set(products.map((product) => product.brand))).sort((a, b) => a.localeCompare(b))
+    search: searchTerm || undefined,
+    page: currentPage,
+    page_size: ITEMS_PER_PAGE,
+    min_price: minPrice,
+    max_price: maxPrice,
+    brands: selectedBrands.join(',') || undefined,
+    min_rating: minRating || undefined,
+    inventory_status: availability === 'in_stock' ? 'purchasable' : availability === 'out_of_stock' ? 'out_of_stock' : undefined,
+    ordering: ({ 'price-low': 'price', 'price-high': '-price', rating: '-approved_average_rating', newest: '-created_at' } as Record<string, string>)[sortBy] ?? '-created_at',
+  })
 
   const formatPrice = (price: number) => `KSh ${price.toLocaleString()}`
 
@@ -133,7 +139,7 @@ function ProductListingPage() {
     setSelectedBrands([])
     setMinRating(0)
     setAvailability('all')
-    setSortBy('recommended')
+    setSortBy(validInitialSort)
     setCurrentPage(1)
   }, [queryFromUrl, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
 
@@ -164,71 +170,15 @@ function ProductListingPage() {
     })
   }
 
-  const filteredProducts = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase()
-    return productsWithDeals.filter((product) => {
-      const queryMatches =
-        !query ||
-        [product.name, product.brand, product.category].some((value) => value.toLowerCase().includes(query))
-      const priceMatches = product.price >= minPrice && product.price <= maxPrice
-      const brandMatches = selectedBrands.length === 0 || selectedBrands.includes(product.brand)
-      const ratingMatches = minRating === 0 || product.rating >= minRating
-      const availabilityMatches =
-        availability === 'all' ||
-        (availability === 'in_stock' && product.stockSource !== 'out') ||
-        (availability === 'out_of_stock' && product.stockSource === 'out')
-
-      return queryMatches && priceMatches && brandMatches && ratingMatches && availabilityMatches
-    })
-  }, [
-    productsWithDeals,
-    categorySlug,
-    activeCategory,
-    activeSubcategory,
-    searchTerm,
-    minPrice,
-    maxPrice,
-    selectedBrands,
-    minRating,
-    availability,
-  ])
-
-  const sortedProducts = useMemo(() => {
-    const list = [...filteredProducts]
-    if (sortBy === 'price-low') list.sort((a, b) => a.price - b.price)
-    if (sortBy === 'price-high') list.sort((a, b) => b.price - a.price)
-    if (sortBy === 'rating') {
-      list.sort((a, b) => {
-        const ratingDiff = b.rating - a.rating
-        if (ratingDiff !== 0) return ratingDiff
-        const reviewsDiff = b.reviews - a.reviews
-        if (reviewsDiff !== 0) return reviewsDiff
-        return a.name.localeCompare(b.name)
-      })
-    }
-    if (sortBy === 'newest') list.sort((a, b) => b.id - a.id)
-    return list
-  }, [filteredProducts, sortBy])
-
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, minPrice, maxPrice, selectedBrands, minRating, availability, sortBy, categorySlug, activeSubcategorySlug, brandParam, healthConcernParam])
 
-  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE))
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages)
-    }
-  }, [currentPage, totalPages])
-
-  const paginatedProducts = useMemo(
-    () => sortedProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE),
-    [sortedProducts, currentPage]
-  )
-
-  const startItem = sortedProducts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
-  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, sortedProducts.length)
+  const total = typeof meta.total === 'number' ? meta.total : products.length
+  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))
+  const paginatedProducts = products
+  const startItem = total === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1
+  const endItem = Math.min(currentPage * ITEMS_PER_PAGE, total)
 
   const getPageNumbers = (): (number | '...')[] => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -387,13 +337,13 @@ function ProductListingPage() {
                 <h4 className="filter-panel__heading">Brands</h4>
                 <div className="filter-options">
                   {brands.map((brand) => (
-                    <label key={brand} className="checkbox-label">
+                    <label key={brand.slug} className="checkbox-label">
                       <input
                         type="checkbox"
-                        checked={selectedBrands.includes(brand)}
-                        onChange={() => toggleBrand(brand)}
+                        checked={selectedBrands.includes(brand.slug)}
+                        onChange={() => toggleBrand(brand.slug)}
                       />
-                      <span>{brand}</span>
+                      <span>{brand.name}</span>
                     </label>
                   ))}
                 </div>
@@ -460,9 +410,9 @@ function ProductListingPage() {
               <p className="plp__results-count">
                 {productsLoading
                   ? 'Loading products…'
-                  : sortedProducts.length === 0
+                  : total === 0
                   ? 'No products found'
-                  : `Showing ${startItem}–${endItem} of ${sortedProducts.length} product${sortedProducts.length !== 1 ? 's' : ''}`}
+                  : `Showing ${startItem}–${endItem} of ${total} product${total !== 1 ? 's' : ''}`}
               </p>
               <div className="plp__toolbar-right">
                 <div className="plp__search-wrap">
@@ -530,7 +480,8 @@ function ProductListingPage() {
                   <p>Loading products…</p>
                 </div>
               )}
-              {!productsLoading && paginatedProducts.map((product) => (
+              {productsError && <div role="alert"><p>{productsError}</p><button type="button" onClick={() => void reload()}>Try again</button></div>}
+              {!productsLoading && !productsError && paginatedProducts.map((product) => (
                 <article key={product.id} className={`product-card ${viewMode === 'list' ? 'product-card--list' : ''}`}>
                   <Link to={`/product/${product.id}`} className="product-card__image">
                     {product.badge && (
@@ -594,7 +545,7 @@ function ProductListingPage() {
                   </div>
                 </article>
               ))}
-              {!productsLoading && sortedProducts.length === 0 && (
+              {!productsLoading && !productsError && total === 0 && (
                 <div className="empty-state">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="48" height="48">
                     <circle cx="11" cy="11" r="8"/>
@@ -614,7 +565,7 @@ function ProductListingPage() {
             {!productsLoading && totalPages > 1 && (
               <div className="pagination-wrap">
                 <p className="pagination-info">
-                  Showing <strong>{startItem}–{endItem}</strong> of <strong>{sortedProducts.length}</strong> results
+                  Showing <strong>{startItem}–{endItem}</strong> of <strong>{total}</strong> results
                 </p>
                 <div className="pagination">
                   <button

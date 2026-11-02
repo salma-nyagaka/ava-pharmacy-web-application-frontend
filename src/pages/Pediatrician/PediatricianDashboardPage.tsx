@@ -1,3 +1,4 @@
+import ConsultationAttachments from '../../components/ConsultationAttachments'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -8,13 +9,8 @@ import {
   DoctorProfile,
   DoctorPrescription,
   DoctorPrescriptionItem,
-  loadConsultations,
-  loadDoctorEarnings,
-  loadDoctorMessages,
-  loadDoctorPrescriptions,
   loadDoctorProfiles,
   saveConsultations,
-  saveDoctorEarnings,
   saveDoctorMessages,
   saveDoctorPrescriptions,
 } from '../../data/telemedicine'
@@ -46,6 +42,7 @@ type PediatricClinicalNoteKey = 'complaint' | 'history' | 'exam' | 'diagnosis' |
 type PediatricClinicalNotes = Record<PediatricClinicalNoteKey, string>
 
 type ChildClinicalProfile = {
+  identityKey: string
   child: string
   age: number
   ageMonths: number
@@ -59,7 +56,7 @@ type ChildClinicalProfile = {
   emergencyContact: string
   lastVisit: string
   weightKg?: number
-  heightCm: number
+  heightCm: number | null
   bmi: string
   headCircumference: string
   growthPercentile: string
@@ -125,8 +122,9 @@ function consultationNumericId(id: string) {
   return Number.isFinite(numericId) && numericId > 0 ? numericId : null
 }
 
-function prescriptionMatchesConsultation(rx: DoctorPrescription, consultationId: string) {
-  return rx.notes.toLowerCase().includes(consultationId.toLowerCase())
+function prescriptionMatchesConsultation(rx: DoctorPrescription, consultation: Consultation) {
+  if (consultation.backendId && rx.consultationId === consultation.backendId) return true
+  return rx.notes.toLowerCase().includes(consultation.id.toLowerCase())
 }
 
 function medicationSummary(items: DoctorPrescriptionItem[]) {
@@ -164,14 +162,20 @@ function mapBackendPediatricConsultation(record: ConsultationRecord, doctorId: s
     issue: record.issue,
     status: CONSULT_STATUS_FROM_API[record.status] ?? 'Waiting',
     scheduledAt: formatBackendDate(record.scheduledAt || record.createdAt),
+    createdAtRaw: record.createdAt,
     channel: 'Chat',
     priority: record.priority === 'priority' ? 'Priority' : 'Routine',
     lastMessageAt: formatBackendDate(record.lastMessageAt || record.updatedAt),
     pediatric: true,
     guardianName: record.guardianName || record.patientName,
     childName: record.childName || record.patientName,
+    childPatientId: record.childPatient,
     childAge: record.childAge ?? undefined,
     weightKg: record.weightKg == null ? undefined : Number(record.weightKg),
+    heightCm: record.heightCm == null ? undefined : Number(record.heightCm),
+    bmi: record.bmi ?? undefined,
+    childSnapshot: record.childSnapshot,
+    guardianSnapshot: record.guardianSnapshot,
     consentStatus: record.consentStatus === 'granted' ? 'Granted' : 'Pending',
     dosageAlert: record.dosageAlert,
   }
@@ -180,8 +184,9 @@ function mapBackendPediatricConsultation(record: ConsultationRecord, doctorId: s
 function mapBackendPediatricThread(record: ConsultationRecord, doctorId: string): DoctorMessageThread {
   const messages = record.messages.map((message) => ({
     id: String(message.id),
-    sender: message.senderName === record.patientName ? 'patient' as const : 'doctor' as const,
+    sender: message.sender == null ? 'system' as const : message.sender === record.patient ? 'patient' as const : 'doctor' as const,
     text: message.message,
+    sentAtRaw: message.sentAt,
     time: message.sentAt ? new Date(message.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
   }))
   return {
@@ -203,6 +208,7 @@ function mapSocketMessage(message: SocketMessage, currentUserId: number | null |
     id: String(message.id),
     sender: message.sender == null ? 'system' : message.sender === currentUserId ? 'doctor' : 'patient',
     text: message.message,
+    sentAtRaw: message.sentAt,
     time: sentAt && !Number.isNaN(sentAt.getTime())
       ? sentAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : '',
@@ -325,54 +331,8 @@ function formatPediatricAge(ageYears?: number, ageMonths?: number): string {
   return `${ageYears} years`
 }
 
-const WHO_WEIGHT_PERCENTILES = {
-  p3:  [3.4,4.4,5.1,5.7,6.2,6.7,7.1,7.4,7.7,8.0,8.2,8.4,8.6,8.9,9.2,9.5,9.7,9.9,10.1,10.3,10.5,10.7,10.9,11.1,11.3],
-  p50: [3.3,4.5,5.6,6.4,7.0,7.5,7.9,8.3,8.6,8.9,9.2,9.4,9.6,9.9,10.1,10.3,10.5,10.7,10.9,11.1,11.3,11.5,11.8,12.0,12.2],
-  p97: [4.2,5.7,6.9,7.7,8.4,9.0,9.5,9.9,10.3,10.7,11.0,11.3,11.6,12.0,12.3,12.6,12.9,13.2,13.5,13.8,14.1,14.4,14.7,15.0,15.3],
-}
-
-function GrowthChart({ weightKg, ageMonths }: { weightKg?: number; ageMonths?: number }) {
-  if (!weightKg || ageMonths === undefined) return null
-  const months = Math.min(ageMonths, 24)
-  const maxIdx = WHO_WEIGHT_PERCENTILES.p3.length - 1
-  const idx = Math.min(months, maxIdx)
-  const p3 = WHO_WEIGHT_PERCENTILES.p3[idx]
-  const p50 = WHO_WEIGHT_PERCENTILES.p50[idx]
-  const p97 = WHO_WEIGHT_PERCENTILES.p97[idx]
-  const minW = 2.5, maxW = 16
-  const toY = (w: number) => 120 - ((w - minW) / (maxW - minW)) * 100
-  const patientY = toY(Math.min(maxW, Math.max(minW, weightKg)))
-  const allMonths = Array.from({ length: maxIdx + 1 }, (_, i) => i)
-  void allMonths
-  const toX = (m: number) => (m / maxIdx) * 220 + 20
-  const path = (arr: number[]) => arr.map((w, i) => `${i === 0 ? 'M' : 'L'}${toX(i)},${toY(w)}`).join(' ')
-  return (
-    <div className="ped-growth-chart">
-      <p className="ped-growth-chart__title">Weight-for-Age (WHO 0–24 months)</p>
-      <svg viewBox="0 0 260 140" width="100%" style={{ maxWidth: 320 }}>
-        <path d={path(WHO_WEIGHT_PERCENTILES.p97)} fill="none" stroke="#bfdbfe" strokeWidth="1.5" />
-        <path d={path(WHO_WEIGHT_PERCENTILES.p50)} fill="none" stroke="#93c5fd" strokeWidth="2" />
-        <path d={path(WHO_WEIGHT_PERCENTILES.p3)} fill="none" stroke="#bfdbfe" strokeWidth="1.5" />
-        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p97[maxIdx])} fontSize="7" fill="#93c5fd">P97</text>
-        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p50[maxIdx])} fontSize="7" fill="#06B6D4">P50</text>
-        <text x="238" y={toY(WHO_WEIGHT_PERCENTILES.p3[maxIdx])} fontSize="7" fill="#93c5fd">P3</text>
-        {ageMonths <= 24 && (
-          <circle cx={toX(months)} cy={patientY} r="5" fill="#ef4444" stroke="#fff" strokeWidth="2" />
-        )}
-        <text x={toX(0)} y="138" fontSize="7" fill="#94a3b8">0m</text>
-        <text x={toX(12)} y="138" fontSize="7" fill="#94a3b8">12m</text>
-        <text x={toX(24)} y="138" fontSize="7" fill="#94a3b8">24m</text>
-      </svg>
-      <p className="ped-growth-chart__meta">
-        {weightKg}kg at {ageMonths}m_ {
-          weightKg < p3 ? 'Below P3 (underweight)' :
-          weightKg > p97 ? 'Above P97 (overweight)' :
-          weightKg >= p50 ? `Above median (P50: ${p50}kg)` :
-          `Below median (P50: ${p50}kg)`
-        }
-      </p>
-    </div>
-  )
+function GrowthChart({ weightKg }: { weightKg?: number; ageMonths?: number }) {
+  return <div className="ped-growth-chart"><p>Recorded weight: {weightKg ? `${weightKg} kg` : 'Not recorded'}. Growth assessment has not been recorded.</p></div>
 }
 
 function DosingCalculator({ weightKg }: { weightKg?: number }) {
@@ -433,196 +393,50 @@ function monthsFromAge(ageYears?: number) {
   return Math.max(0, Math.round((ageYears || 0) * 12))
 }
 
-function childProfileSeed(child: string) {
-  const seeds: Record<string, Partial<ChildClinicalProfile>> = {
-    'Ethan W.': {
-      gender: 'Male',
-      dob: '2021-03-18',
-      bloodGroup: 'O+',
-      relationship: 'Mother',
-      allergies: ['Penicillin'],
-      chronicConditions: ['Recurrent tonsillitis'],
-      currentMedication: ['Paracetamol syrup as needed'],
-      vaccinations: { received: ['BCG', 'Pentavalent 1-3', 'MMR 1'], upcoming: ['MMR 2'], missed: ['Influenza 2026'] },
-      documents: ['Previous prescriptions', 'Vaccination card'],
-    },
-    'Ava K.': {
-      gender: 'Female',
-      dob: '2024-01-09',
-      bloodGroup: 'A+',
-      relationship: 'Father',
-      allergies: ['No known drug allergies'],
-      chronicConditions: ['Nutrition follow-up'],
-      currentMedication: ['Zinc supplement'],
-      vaccinations: { received: ['BCG', 'OPV 1-3', 'Pentavalent 1-3'], upcoming: ['Vitamin A'], missed: [] },
-      documents: ['Growth record', 'Vaccination card'],
-    },
-    'Mia M.': {
-      gender: 'Female',
-      dob: '2017-06-23',
-      bloodGroup: 'B+',
-      relationship: 'Mother',
-      allergies: ['Skin irritants', 'Sulfa caution'],
-      chronicConditions: ['Atopic dermatitis'],
-      currentMedication: ['Emollient cream'],
-      vaccinations: { received: ['Routine childhood series'], upcoming: ['HPV counselling'], missed: [] },
-      documents: ['Lab reports', 'Dermatology notes'],
-    },
-    'Leo N.': {
-      gender: 'Male',
-      dob: '2020-09-11',
-      bloodGroup: 'AB+',
-      relationship: 'Father',
-      allergies: ['No known drug allergies'],
-      chronicConditions: ['Recent antibiotic course'],
-      currentMedication: ['Amoxicillin clavulanate'],
-      vaccinations: { received: ['Routine childhood series'], upcoming: ['Influenza 2026'], missed: [] },
-      documents: ['Prescription history', 'Medical records'],
-    },
-    'Jay O.': {
-      gender: 'Male',
-      dob: '2022-04-05',
-      bloodGroup: 'O-',
-      relationship: 'Mother',
-      allergies: ['Dust trigger'],
-      chronicConditions: ['Wheeze episodes'],
-      currentMedication: ['Salbutamol inhaler'],
-      vaccinations: { received: ['BCG', 'Pentavalent 1-3', 'MMR 1'], upcoming: ['MMR 2'], missed: [] },
-      documents: ['Asthma action notes', 'Vaccination card'],
-    },
-  }
-  return seeds[child] || {}
+function pediatricChildKey(consultation: Consultation): string {
+  return consultation.childPatientId != null
+    ? `child:${consultation.childPatientId}`
+    : `consultation:${consultation.backendId ?? consultation.id}`
 }
 
 function buildChildClinicalProfile(consultation: Consultation): ChildClinicalProfile {
-  const child = consultation.childName || consultation.patientName
-  const seed = childProfileSeed(child)
+  const child = consultation.childSnapshot ?? {}
+  const guardian = consultation.guardianSnapshot ?? {}
+  const list = (value: unknown): string[] => Array.isArray(value) && value.length ? value.map(String) : ['Not recorded']
   const age = consultation.childAge ?? consultation.patientAge ?? 0
-  const ageMonths = monthsFromAge(age)
-  const weightKg = consultation.weightKg
-  const heightCm = age < 3 ? 88 : age < 6 ? 108 : age < 10 ? 132 : 152
-  const bmiValue = weightKg ? weightKg / Math.pow(heightCm / 100, 2) : 0
-  const growthStatus = weightKg && weightKg < Math.max(8, age * 2.1 + 7) ? 'Underweight watch' : 'Tracking expected curve'
   return {
-    child,
+    identityKey: pediatricChildKey(consultation),
+    child: consultation.childName || consultation.patientName,
     age,
-    ageMonths,
-    gender: seed.gender || 'Not recorded',
-    dob: seed.dob || 'Not recorded',
-    bloodGroup: seed.bloodGroup || 'Not recorded',
-    guardian: consultation.guardianName || 'Guardian',
-    relationship: seed.relationship || 'Parent/Guardian',
-    phone: '+254 700 000 000',
-    email: `${(consultation.guardianName || 'guardian').toLowerCase().replace(/[^a-z]+/g, '.').replace(/^\.+|\.+$/g, '') || 'guardian'}@example.com`,
-    emergencyContact: '+254 711 000 000',
+    ageMonths: monthsFromAge(age),
+    gender: String(child.gender || 'Not recorded'),
+    dob: String(child.date_of_birth || 'Not recorded'),
+    bloodGroup: 'Not recorded',
+    guardian: consultation.guardianName || String(guardian.name || 'Guardian'),
+    relationship: 'Parent/Guardian',
+    phone: String(guardian.phone || 'Not recorded'),
+    email: String(guardian.email || 'Not recorded'),
+    emergencyContact: 'Not recorded',
     lastVisit: consultation.scheduledAt,
-    weightKg,
-    heightCm,
-    bmi: bmiValue ? bmiValue.toFixed(1) : '-',
-    headCircumference: ageMonths <= 24 ? `${44 + Math.min(ageMonths, 24) * 0.25} cm` : 'Not applicable',
-    growthPercentile: growthStatus === 'Underweight watch' ? 'P3-P10' : 'P50-P75',
-    growthStatus,
-    allergies: seed.allergies || ['No known drug allergies'],
-    chronicConditions: seed.chronicConditions || ['None recorded'],
-    currentMedication: seed.currentMedication || ['None recorded'],
-    vaccinations: seed.vaccinations || { received: ['Routine vaccines recorded'], upcoming: ['Next age-based review'], missed: [] },
-    hospitalizations: seed.hospitalizations || ['None recorded'],
-    documents: seed.documents || ['Medical records', 'Previous prescriptions'],
+    weightKg: consultation.weightKg,
+    heightCm: consultation.heightCm ?? null,
+    bmi: consultation.bmi || 'Not recorded',
+    headCircumference: 'Not recorded',
+    growthPercentile: 'Not assessed',
+    growthStatus: 'Assessment not recorded',
+    allergies: list(child.allergies),
+    chronicConditions: list(child.chronic_conditions),
+    currentMedication: list(child.current_medications),
+    vaccinations: { received: list(child.vaccination_notes ? [child.vaccination_notes] : []), upcoming: ['Not recorded'], missed: [] },
+    hospitalizations: ['Not recorded'],
+    documents: [],
   }
 }
 
-// ── Data seeding ─────────────────────────────────────────────────────────────
-
-const createInitialPediatricThreads = (): DoctorMessageThread[] => {
-  const stored = loadDoctorMessages()
-  const seeded = [...stored]
-  const defaults: DoctorMessageThread[] = [
-    {
-      id: 'MSG-PED-901',
-      doctorId: 'PED-001',
-      patientName: 'Guardian: Aisha K.',
-      lastMessage: 'Could you share the latest temperature reading?',
-      lastMessageAt: '2026-02-07 09:20 AM',
-      unreadCount: 1,
-      status: 'Open',
-      messages: [
-        { id: 'MSG-PED-901-1', sender: 'patient', text: 'Liam still has a mild fever.', time: '09:10 AM' },
-        { id: 'MSG-PED-901-2', sender: 'doctor', text: 'Could you share the latest temperature reading?', time: '09:20 AM' },
-      ],
-    },
-    {
-      id: 'MSG-PED-902',
-      doctorId: 'PED-002',
-      patientName: 'Guardian: Brian T.',
-      lastMessage: 'No wheezing today, thank you doctor.',
-      lastMessageAt: '2026-02-07 10:15 AM',
-      unreadCount: 0,
-      status: 'Resolved',
-      messages: [
-        { id: 'MSG-PED-902-1', sender: 'doctor', text: 'Continue inhaler for 3 more days.', time: '09:58 AM' },
-        { id: 'MSG-PED-902-2', sender: 'patient', text: 'No wheezing today, thank you doctor.', time: '10:15 AM' },
-      ],
-    },
-  ]
-  defaults.forEach((thread) => {
-    const index = seeded.findIndex((item) => item.id === thread.id)
-    if (index === -1) { seeded.push(thread); return }
-    seeded[index] = { ...thread, ...seeded[index], doctorId: thread.doctorId }
-  })
-  if (seeded.length !== stored.length) saveDoctorMessages(seeded)
-  return seeded
-}
-
-const createInitialPediatricConsultations = (): Consultation[] => {
-  const stored = loadConsultations()
-  const seeded = [...stored]
-  const defaults: Consultation[] = [
-    { id: 'CONS-2203', doctorId: 'PED-001', patientName: 'Guardian: Mary W.', patientAge: 36, issue: 'Persistent sore throat and fever', status: 'Waiting', scheduledAt: '2026-02-07 11:40 AM', channel: 'Chat', priority: 'Priority', lastMessageAt: '2026-02-07 11:15 AM', pediatric: true, guardianName: 'Mary W.', childName: 'Ethan W.', childAge: 5, weightKg: 18, consentStatus: 'Pending', dosageAlert: false },
-    { id: 'CONS-2204', doctorId: 'PED-001', patientName: 'Guardian: David K.', patientAge: 40, issue: 'Routine nutrition follow-up', status: 'Completed', scheduledAt: '2026-02-06 02:10 PM', channel: 'Chat', priority: 'Routine', lastMessageAt: '2026-02-06 02:45 PM', pediatric: true, guardianName: 'David K.', childName: 'Ava K.', childAge: 2, weightKg: 11, consentStatus: 'Granted', dosageAlert: false },
-    { id: 'CONS-2205', doctorId: 'PED-002', patientName: 'Guardian: Lydia M.', patientAge: 34, issue: 'Skin allergy reaction', status: 'Waiting', scheduledAt: '2026-02-07 01:20 PM', channel: 'Chat', priority: 'Routine', lastMessageAt: '2026-02-07 01:02 PM', pediatric: true, guardianName: 'Lydia M.', childName: 'Mia M.', childAge: 9, weightKg: 29, consentStatus: 'Pending', dosageAlert: true },
-    { id: 'CONS-2206', doctorId: 'PED-002', patientName: 'Guardian: Peter N.', patientAge: 37, issue: 'Post-antibiotic stomach upset', status: 'In progress', scheduledAt: '2026-02-07 03:00 PM', channel: 'Chat', priority: 'Priority', lastMessageAt: '2026-02-07 02:55 PM', pediatric: true, guardianName: 'Peter N.', childName: 'Leo N.', childAge: 6, weightKg: 20, consentStatus: 'Granted', dosageAlert: false },
-    { id: 'CONS-2207', doctorId: 'PED-002', patientName: 'Guardian: Diana O.', patientAge: 31, issue: 'Night cough and wheeze', status: 'Completed', scheduledAt: '2026-02-05 09:15 AM', channel: 'Chat', priority: 'Routine', lastMessageAt: '2026-02-05 09:45 AM', pediatric: true, guardianName: 'Diana O.', childName: 'Jay O.', childAge: 4, weightKg: 16, consentStatus: 'Granted', dosageAlert: false },
-  ]
-  defaults.forEach((consult) => {
-    const index = seeded.findIndex((item) => item.id === consult.id)
-    if (index === -1) { seeded.push(consult); return }
-    seeded[index] = { ...consult, ...seeded[index], doctorId: consult.doctorId, pediatric: true }
-  })
-  if (seeded.length !== stored.length) saveConsultations(seeded)
-  return seeded
-}
-
-const createInitialPediatricPrescriptions = (): DoctorPrescription[] => {
-  const stored = loadDoctorPrescriptions()
-  const seeded = [...stored]
-  const defaults: DoctorPrescription[] = [
-    { id: 'RX-6502', doctorId: 'PED-001', patientName: 'Liam K.', createdAt: '2026-02-06', status: 'Draft', notes: 'Monitor temperature every 6 hours.', pediatric: true, items: [{ name: 'Paracetamol syrup', dosage: '5ml every 6 hours', quantity: 1 }] },
-    { id: 'RX-6503', doctorId: 'PED-001', patientName: 'Ava K.', createdAt: '2026-02-04', status: 'Sent', notes: 'Add probiotic for 5 days.', pediatric: true, items: [{ name: 'Oral rehydration salts', dosage: 'After each loose stool', quantity: 8 }, { name: 'Children probiotic sachet', dosage: '1 sachet daily', quantity: 5 }] },
-    { id: 'RX-6504', doctorId: 'PED-002', patientName: 'Mia M.', createdAt: '2026-02-03', status: 'Dispensed', notes: 'Avoid known skin irritants.', pediatric: true, items: [{ name: 'Cetirizine syrup', dosage: '5ml at night', quantity: 1 }, { name: 'Calamine lotion', dosage: 'Apply twice daily', quantity: 1 }] },
-  ]
-  defaults.forEach((prescription) => {
-    const index = seeded.findIndex((item) => item.id === prescription.id)
-    if (index === -1) { seeded.push(prescription); return }
-    seeded[index] = { ...prescription, ...seeded[index], doctorId: prescription.doctorId, pediatric: true }
-  })
-  if (seeded.length !== stored.length) saveDoctorPrescriptions(seeded)
-  return seeded
-}
-
-const createInitialPediatricEarnings = (): DoctorEarning[] => {
-  const stored = loadDoctorEarnings()
-  const seeded = [...stored]
-  const defaults: DoctorEarning[] = [
-    { id: 'PAY-2002', doctorId: 'PED-001', period: 'Jan 2026', consults: 31, revenue: 37200, payoutDate: '2026-02-03', status: 'Paid' },
-    { id: 'PAY-2003', doctorId: 'PED-001', period: 'Feb 2026', consults: 14, revenue: 16800, payoutDate: '2026-03-03', status: 'Scheduled' },
-    { id: 'PAY-2004', doctorId: 'PED-002', period: 'Feb 2026', consults: 19, revenue: 28500, payoutDate: '2026-03-03', status: 'On hold' },
-  ]
-  defaults.forEach((earning) => {
-    if (!seeded.some((item) => item.id === earning.id)) seeded.push(earning)
-  })
-  if (seeded.length !== stored.length) saveDoctorEarnings(seeded)
-  return seeded
-}
+const createInitialPediatricThreads = (): DoctorMessageThread[] => []
+const createInitialPediatricConsultations = (): Consultation[] => []
+const createInitialPediatricPrescriptions = (): DoctorPrescription[] => []
+const createInitialPediatricEarnings = (): DoctorEarning[] => []
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -749,7 +563,7 @@ function PediatricianDashboardPage() {
         ? { ...consultation, lastMessageAt }
         : consultation
     )))
-  }, [activeDoctorId, consultThread?.patientName, liveConsultationId, selectedConsult?.childName, selectedConsult?.patientName, user?.id])
+  }, [activeDoctorId, consultThread?.patientName, liveConsultationId, selectedConsult?.backendId, selectedConsult?.childName, selectedConsult?.patientName, user?.id])
 
   useConsultationSocket(liveConsultationId, socketToken, handleLiveConsultationMessage)
 
@@ -823,7 +637,13 @@ function PediatricianDashboardPage() {
         setPrescriptions(backendPrescriptions.map((rx) => mapBackendPediatricPrescription(rx, activeDoctorId)))
         setEarningsData(backendEarnings.map((earning) => mapBackendPediatricEarning(earning, activeDoctorId)))
       } catch {
-        if (!cancelled) setWorkspaceError('Unable to load the live pediatrician workspace. Showing saved local data.')
+        if (!cancelled) {
+          setWorkspaceError('Unable to load the live pediatrician workspace. Please try again.')
+          setConsultations([])
+          setThreads([])
+          setPrescriptions([])
+          setEarningsData([])
+        }
       }
     }
     void loadLiveWorkspace()
@@ -916,6 +736,13 @@ function PediatricianDashboardPage() {
     [consultations, activeDoctorId]
   )
 
+  const notificationOpened = useRef(false)
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get('consultation'))
+    const record = pedConsultations.find(item => item.backendId === id)
+    if (!notificationOpened.current && record) { setSelectedConsult(record); notificationOpened.current = true }
+  }, [pedConsultations])
+
   const queueItems = useMemo(() => {
     const q = queueSearch.trim().toLowerCase()
     if (!q) return pedConsultations
@@ -966,7 +793,8 @@ function PediatricianDashboardPage() {
     const map = new Map<string, ChildClinicalProfile>()
     pedConsultations.forEach((c) => {
       if (!c.childName) return
-      map.set(c.childName, buildChildClinicalProfile(c))
+      const key = pediatricChildKey(c)
+      if (!map.has(key)) map.set(key, buildChildClinicalProfile(c))
     })
     return Array.from(map.values())
   }, [pedConsultations])
@@ -989,26 +817,18 @@ function PediatricianDashboardPage() {
         linkedThread: undefined as DoctorMessageThread | undefined,
       }
     }
-    const childName = selectedConsult.childName || selectedConsult.patientName
-    const guardianName = selectedConsult.guardianName || selectedConsult.patientName
-    const consults = pedConsultations.filter((consultation) =>
-      (consultation.childName || consultation.patientName) === childName
-    )
-    const prescriptionsForChild = pedPrescriptions.filter((rx) => rx.patientName === childName)
-    const threadsForFamily = pedThreads.filter((thread) =>
-      thread.patientName === childName ||
-      thread.patientName === guardianName ||
-      thread.patientName.includes(childName) ||
-      thread.patientName.includes(guardianName)
-    )
-    const linkedRx = prescriptionsForChild.find((rx) => prescriptionMatchesConsultation(rx, selectedConsult.id))
+    const consults = pedConsultations.filter((consultation) => pediatricChildKey(consultation) === pediatricChildKey(selectedConsult))
+    const consultationIds = new Set(consults.map((consultation) => consultation.backendId).filter((id): id is number => id != null))
+    const prescriptionsForChild = pedPrescriptions.filter((rx) => rx.consultationId != null && consultationIds.has(rx.consultationId))
+    const threadsForFamily = pedThreads.filter((thread) => thread.backendConsultationId != null && consultationIds.has(thread.backendConsultationId))
+    const linkedRx = prescriptionsForChild.find((rx) => prescriptionMatchesConsultation(rx, selectedConsult))
     const linkedThread = threadsForFamily.find((thread) =>
       thread.backendConsultationId === selectedConsult.backendId || thread.id === `CONS-${selectedConsult.backendId}`
     ) ?? threadsForFamily[0]
     const timeline = [
       ...consults.map((consultation) => ({
         type: 'consultation',
-        date: consultation.scheduledAt,
+        date: consultation.createdAtRaw || consultation.scheduledAt,
         summary: `${consultation.id}: ${consultation.issue} (${consultation.status})`,
       })),
       ...prescriptionsForChild.map((rx) => ({
@@ -1019,7 +839,7 @@ function PediatricianDashboardPage() {
       ...threadsForFamily.flatMap((thread) =>
         thread.messages.slice(-2).map((message) => ({
           type: 'message',
-          date: thread.lastMessageAt,
+          date: message.sentAtRaw || thread.lastMessageAt,
           summary: `${message.sender === 'doctor' ? 'Pediatrician' : 'Guardian'}: ${message.text}`,
         }))
       ),
@@ -1803,7 +1623,7 @@ function PediatricianDashboardPage() {
                       <span>Date of birth <strong>{selectedClinicalProfile.dob}</strong></span>
                       <span>Blood group <strong>{selectedClinicalProfile.bloodGroup}</strong></span>
                       <span>Weight <strong>{selectedClinicalProfile.weightKg ? `${selectedClinicalProfile.weightKg} kg` : '-'}</strong></span>
-                      <span>Height <strong>{selectedClinicalProfile.heightCm} cm</strong></span>
+                      <span>Height <strong>{selectedClinicalProfile.heightCm == null ? 'Not recorded' : `${selectedClinicalProfile.heightCm} cm`}</strong></span>
                       <span>BMI <strong>{selectedClinicalProfile.bmi}</strong></span>
                       <span>Head circumference <strong>{selectedClinicalProfile.headCircumference}</strong></span>
                     </div>
@@ -1844,7 +1664,7 @@ function PediatricianDashboardPage() {
                         <h4>Vaccination</h4>
                         <p>Received: {selectedClinicalProfile.vaccinations.received.join(', ')}</p>
                         <p>Upcoming: {selectedClinicalProfile.vaccinations.upcoming.join(', ') || 'None'}</p>
-                        <p>Missed: {selectedClinicalProfile.vaccinations.missed.join(', ') || 'None'}</p>
+                        <p>Missed: {selectedClinicalProfile.vaccinations.missed.join(', ') || 'Not recorded'}</p>
                       </div>
                       <div>
                         <h4>Referral</h4>
@@ -1867,8 +1687,6 @@ function PediatricianDashboardPage() {
                     </div>
                     <div className="pd-shared-files">
                       {selectedClinicalProfile.documents.map((doc) => <span key={doc}>{doc}</span>)}
-                      <span>Uploaded child photos</span>
-                      <span>Shared treatment instructions</span>
                     </div>
                     <div className="dd-sp-chat-messages pd-inline-chat">
                       {(consultThread?.messages ?? []).map((msg) => (
@@ -1884,7 +1702,8 @@ function PediatricianDashboardPage() {
                         </div>
                       ))}
                     </div>
-                    <div className="dd-sp-chat-input">
+                    {consultThread?.backendConsultationId && <ConsultationAttachments key={consultThread.backendConsultationId} consultationId={consultThread.backendConsultationId} refreshKey={consultThread.messages.length} />}
+                <div className="dd-sp-chat-input">
                       <input
                         type="text"
                         placeholder="Message guardian, request photos, or share instructions..."
@@ -2071,12 +1890,13 @@ function PediatricianDashboardPage() {
               </div>
               <div className="pd-profile-grid">
                 {childProfiles.map((p) => {
-                  const childConsults = pedConsultations.filter((consultation) => (consultation.childName || consultation.patientName) === p.child)
-                  const childRx = pedPrescriptions.filter((rx) => rx.patientName === p.child)
+                  const childConsults = pedConsultations.filter((consultation) => pediatricChildKey(consultation) === p.identityKey)
+                  const consultationIds = new Set(childConsults.map((consultation) => consultation.backendId).filter((id): id is number => id != null))
+                  const childRx = pedPrescriptions.filter((rx) => rx.consultationId != null && consultationIds.has(rx.consultationId))
                   const timelineItems = [
                     ...childConsults.map((consultation) => ({
                       type: 'consultation',
-                      date: consultation.scheduledAt,
+                      date: consultation.createdAtRaw || consultation.scheduledAt,
                       summary: `${consultation.issue} (${consultation.status}) · Guardian: ${consultation.guardianName || p.guardian}`,
                     })),
                     ...childRx.map((rx) => ({
@@ -2088,7 +1908,7 @@ function PediatricianDashboardPage() {
                   const latestPrescribableConsultation = childConsults.find((consultation) => consultation.backendId && consultation.status !== 'Cancelled')
 
                   return (
-                    <div key={p.child} className="pd-profile-card">
+                    <div key={p.identityKey} className="pd-profile-card">
                       <div className="pd-profile-card__avatar">{initials(p.child)}</div>
                       <div className="pd-profile-card__body">
                         <p className="pd-profile-card__name">{p.child}</p>
@@ -2105,13 +1925,13 @@ function PediatricianDashboardPage() {
                           <span>Weight</span><strong>{p.weightKg ? `${p.weightKg} kg` : '-'}</strong>
                         </div>
                         <div className="pd-profile-card__row">
-                          <span>Height</span><strong>{p.heightCm} cm</strong>
+                          <span>Height</span><strong>{p.heightCm == null ? 'Not recorded' : `${p.heightCm} cm`}</strong>
                         </div>
                         <div className="pd-profile-card__row">
                           <span>Growth</span><strong>{p.growthPercentile}</strong>
                         </div>
                         <div className="pd-profile-card__row">
-                          <span>Vaccines due</span><strong>{p.vaccinations.upcoming.length + p.vaccinations.missed.length}</strong>
+                          <span>Vaccines due</span><strong>Not recorded</strong>
                         </div>
                         <div className="pd-profile-card__row">
                           <span>Last visit</span><strong>{p.lastVisit}</strong>
@@ -2127,9 +1947,9 @@ function PediatricianDashboardPage() {
                         <button
                           className="dd-action-btn"
                           type="button"
-                          onClick={() => setSelectedChild(selectedChild === p.child ? null : p.child)}
+                          onClick={() => setSelectedChild(selectedChild === p.identityKey ? null : p.identityKey)}
                         >
-                          {selectedChild === p.child ? 'Hide history' : 'View history'}
+                          {selectedChild === p.identityKey ? 'Hide history' : 'View history'}
                         </button>
                         <button
                           className="dd-action-btn dd-action-btn--rx"
@@ -2148,7 +1968,7 @@ function PediatricianDashboardPage() {
                           Rx
                         </button>
                       </div>
-                      {selectedChild === p.child && (
+                      {selectedChild === p.identityKey && (
                         <div className="pd-profile-card__history">
                           {timelineItems.length > 0 ? (
                             <PediatricTimeline items={timelineItems} />
@@ -2187,7 +2007,7 @@ function PediatricianDashboardPage() {
                 <p className="dd-earnings-summary__label">Avg. per consult</p>
                 <p className="dd-earnings-summary__num">
                   KSh {earnings.reduce((s, e) => s + e.consults, 0) > 0
-                    ? Math.round(stats.totalRevenue / earnings.reduce((s, e) => s + e.consults, 0)).toLocaleString()
+                    ? (stats.totalRevenue / earnings.reduce((s, e) => s + e.consults, 0)).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                     : '-'}
                 </p>
               </div>
@@ -2297,6 +2117,7 @@ function PediatricianDashboardPage() {
                   ))}
                   <div ref={consultEndRef} />
                 </div>
+                {consultThread?.backendConsultationId && <ConsultationAttachments key={consultThread.backendConsultationId} consultationId={consultThread.backendConsultationId} refreshKey={consultThread.messages.length} />}
                 <div className="dd-sp-chat-input">
                   <input
                     type="text"

@@ -1,6 +1,10 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/avapharmacy/api/v1').replace(/\/$/, '')
+import { apiFetch } from '../lib/apiFetch'
+import { apiClient } from '../lib/apiClient'
+
+const API_BASE_URL = String(apiClient.defaults.baseURL).replace(/\/$/, '')
 
 export interface AdminDoctorApi {
+  user?: number | null
   id?: number | string
   name?: string
   first_name?: string
@@ -137,7 +141,7 @@ const unwrapItem = <T,>(payload: T | { data?: T } | null | undefined): T => {
 
 export const adminDoctorService = {
   async listDoctors() {
-    const response = await fetch(`${API_BASE_URL}/admin/doctors/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/doctors/`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -147,7 +151,7 @@ export const adminDoctorService = {
   },
 
   async listPediatricians() {
-    const response = await fetch(`${API_BASE_URL}/admin/pediatricians/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/pediatricians/`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -157,7 +161,7 @@ export const adminDoctorService = {
   },
 
   async listNotifications() {
-    const response = await fetch(`${API_BASE_URL}/notifications/`, {
+    const response = await apiFetch(`${API_BASE_URL}/notifications/`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -168,7 +172,7 @@ export const adminDoctorService = {
 
   async getDoctor(id: number | string, professionalType: AdminProfessionalType = 'Doctor') {
     const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
-    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -179,7 +183,7 @@ export const adminDoctorService = {
 
   async updateDoctor(id: number | string, payload: Pick<AdminDoctorApi, 'consult_fee' | 'commission'>, professionalType: AdminProfessionalType = 'Doctor') {
     const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
-    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -193,7 +197,7 @@ export const adminDoctorService = {
 
   async actionDoctor(id: number | string, payload: { action: DoctorAction; note?: string }, professionalType: AdminProfessionalType = 'Doctor') {
     const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
-    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/action/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/${resource}/${id}/action/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -207,7 +211,7 @@ export const adminDoctorService = {
 
   async provisionAccount(id: number | string, professionalType: AdminProfessionalType = 'Doctor') {
     const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
-    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/provision-account/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/${resource}/${id}/provision-account/`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),

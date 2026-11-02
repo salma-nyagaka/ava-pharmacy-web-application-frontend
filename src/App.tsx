@@ -64,6 +64,9 @@ import TermsPage from './pages/Legal/TermsPage'
 import CookiesPage from './pages/Legal/CookiesPage'
 import PrescriptionHistoryPage from './pages/PrescriptionHistory/PrescriptionHistoryPage'
 import AccountConsultationsPage from './pages/Account/AccountConsultationsPage'
+import AccountCompliancePage from './pages/Account/AccountCompliancePage'
+import AccountNotificationsPage from './pages/Account/AccountNotificationsPage'
+import AccountSupportPage from './pages/Account/AccountSupportPage'
 import AccountLabTestsPage from './pages/Account/AccountLabTestsPage'
 import AccountFavouritesPage from './pages/Account/AccountFavouritesPage'
 import DoctorDashboardPage from './pages/Doctor/DoctorDashboardPage'
@@ -102,7 +105,7 @@ function DoctorConsultationEntry() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <SiteSettingsProvider>
           <CatalogProvider>
@@ -125,6 +128,9 @@ function App() {
                 <Route path="prescriptions" element={<PrescriptionHistoryPage />} />
                 <Route path="consultations" element={<AccountConsultationsPage />} />
                 <Route path="lab-tests" element={<AccountLabTestsPage />} />
+                <Route path="notifications" element={<AccountNotificationsPage />} />
+                <Route path="compliance" element={<RoleRoute allowedRoles={['admin', 'ppb_inspector']}><AccountCompliancePage /></RoleRoute>} />
+                <Route path="support" element={<AccountSupportPage />} />
                 <Route path="favourites" element={<AccountFavouritesPage />} />
               </Route>
               <Route path="orders" element={<OrderHistoryPage />} />

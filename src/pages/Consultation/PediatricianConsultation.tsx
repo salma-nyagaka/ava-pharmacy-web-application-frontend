@@ -1,3 +1,4 @@
+import ConsultationAttachments from '../../components/ConsultationAttachments'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PrescriptionRecord } from '../../data/prescriptions'
@@ -129,9 +130,9 @@ function getInitials(name: string) {
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString('en-KE', {
     day: 'numeric',
     month: 'short',
@@ -293,7 +294,7 @@ function PediatricianConsultation() {
     }, 2500)
 
     return () => window.clearInterval(timer)
-  }, [currentConsultation?.id, currentConsultation?.status, isChatOpen])
+  }, [currentConsultation, isChatOpen])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -508,7 +509,6 @@ function PediatricianConsultation() {
 
     try {
       const created = await finalizePaidConsultation(intent.id)
-      await grantConsultationConsent(created.id).catch(() => undefined)
       const detail = await fetchConsultation(created.id)
       setCurrentConsultation(detail)
       setConsultations((prev) => sortConsultations([detail, ...prev.filter((item) => item.id !== detail.id)]))
@@ -580,6 +580,7 @@ function PediatricianConsultation() {
         consultation: {
           pediatrician: selectedPediatrician.id,
           child_patient_id: child.id,
+          guardian_consent: consentChecked,
           patient_name: formData.parentName.trim(),
           patient_email: formData.email.trim(),
           patient_phone: formData.phone.trim(),
@@ -660,7 +661,7 @@ function PediatricianConsultation() {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [finalizePaymentAndOpenChat, paymentIntent?.id, paymentStage])
+  }, [finalizePaymentAndOpenChat, paymentIntent, paymentStage])
 
   const handleRefreshConsultation = async () => {
     if (!currentConsultation) return
@@ -1138,8 +1139,8 @@ function PediatricianConsultation() {
                 Back
               </button>
               <span className="dc-waiting__eyebrow">Pediatric consultation</span>
-              <h1>Finding an available pediatrician</h1>
-              <p className="dc-waiting__lead">Your request has been shared with all available pediatricians. The first pediatrician to accept it will join the consultation chat.</p>
+              <h1>Waiting for your pediatrician</h1>
+              <p className="dc-waiting__lead">Your request has been sent to your selected pediatrician. The consultation chat will start when they accept it.</p>
               <div className="dc-waiting__reference">
                 <span>Reference</span>
                 <strong>{currentConsultation.reference}</strong>
@@ -1167,9 +1168,9 @@ function PediatricianConsultation() {
                   <div className="dc-waiting__avatar">PED</div>
                 </div>
                 <div>
-                  <span className="dc-waiting__status-badge">Shared with pediatricians</span>
-                  <p className="dc-waiting__doctor-name">Pediatrician consultation queue</p>
-                  <p className="dc-waiting__doctor-spec">Waiting for an available pediatrician to accept {currentConsultation.childName || formData.childName || 'your child'}&apos;s request</p>
+                  <span className="dc-waiting__status-badge">Sent to your pediatrician</span>
+                  <p className="dc-waiting__doctor-name">{currentConsultation.doctorName || assignedPediatrician?.name || 'Selected pediatrician'}</p>
+                  <p className="dc-waiting__doctor-spec">Waiting for your selected pediatrician to accept {currentConsultation.childName || formData.childName || 'your child'}&apos;s request</p>
                 </div>
               </div>
 
@@ -1180,7 +1181,7 @@ function PediatricianConsultation() {
                 </div>
                 <div className="dc-waiting__meta-item">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  <span>{pediatricians.length} available pediatrician{pediatricians.length === 1 ? '' : 's'} notified</span>
+                  <span>Your selected pediatrician has been notified</span>
                 </div>
               </div>
 
@@ -1283,6 +1284,7 @@ function PediatricianConsultation() {
                 <div ref={messagesEndRef} />
               </div>
 
+              <ConsultationAttachments key={currentConsultation.id} consultationId={currentConsultation.id} refreshKey={currentConsultation.messages.length} />
               <div className="dc-chat__input">
                 <input
                   type="text"
@@ -1325,7 +1327,7 @@ function PediatricianConsultation() {
                 </div>
                 <div className="dc-chat-detail">
                   <span>Child</span>
-                  <strong>{currentConsultation.childName || '—'}</strong>
+                  <strong>{currentConsultation.childName || '-'}</strong>
                 </div>
                 <div className="dc-chat-detail">
                   <span>Status</span>
@@ -1552,6 +1554,10 @@ function PediatricianConsultation() {
                   </div>
                 </div>
                 <div className="dc-field">
+                  <label htmlFor="ped-pediatrician">Pediatrician</label>
+                  <select id="ped-pediatrician" value={selectedPediatrician?.id ?? ''} onChange={(event) => setSelectedPediatricianId(Number(event.target.value))}>
+                    {pediatricians.map((provider) => <option key={provider.id} value={provider.id}>{provider.name} · KSh {provider.consultFee.toLocaleString()}</option>)}
+                  </select>
                   <label htmlFor="ped-child-profile">Child profile</label>
                   <select id="ped-child-profile" value={selectedChildId} onChange={(event) => handleChildSelection(event.target.value)}>
                     <option value={NEW_CHILD_VALUE}>Add a new child</option>
@@ -1672,7 +1678,7 @@ function PediatricianConsultation() {
                   <p className="dc-fee-card__label">Consultation fee</p>
                   <p className="dc-fee-card__amount">KSh {(selectedPediatrician?.consultFee ?? 0).toLocaleString()}</p>
                 </div>
-                <span>Assigned pediatrician</span>
+                <span>{selectedPediatrician?.name || 'Assigned pediatrician'}</span>
               </div>
               <p className="dc-fee-card__note">Payment is required before the pediatric consultation starts. Medicines, lab tests, and delivery are billed separately if needed.</p>
               <div className="dc-fee-card__includes">

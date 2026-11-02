@@ -89,7 +89,12 @@ function ProductDetailPage() {
     setIsLoading(true)
     setLoadError('')
 
-    void Promise.all([fetchProductById(parsedId), fetchProductReviews(parsedId)])
+    void fetchProductById(parsedId).then(async (detail) => {
+      const variant = detail.variants.find((item) => item.id === parsedId)
+        ?? detail.variants.find((item) => item.is_active && (item.available_quantity ?? 0) > 0)
+        ?? detail.variants.find((item) => item.is_active)
+      return [detail, variant ? await fetchProductReviews(variant.id) : []] as [ProductDetail, ProductReview[]]
+    })
       .then(async ([detail, productReviews]) => {
         if (!active) return
         setProduct(detail)
@@ -207,8 +212,8 @@ function ProductDetailPage() {
     : product?.original_price
       ? Number.parseFloat(product.original_price)
       : null
-  const averageRating = product?.average_rating ?? 0
-  const reviewCount = product?.review_count ?? 0
+  const averageRating = selectedVariant?.average_rating ?? product?.average_rating ?? 0
+  const reviewCount = selectedVariant?.review_count ?? product?.review_count ?? 0
   const featureList = normalizeFeatures(product?.features ?? [])
 
   const stockSource: StockSource = selectedVariant?.stock_source === 'warehouse' || liveAvailability?.stock_source === 'warehouse'
@@ -371,9 +376,10 @@ function ProductDetailPage() {
     setReviewError('')
     setReviewSuccess('')
     try {
-      await submitProductReview(product.id, { rating: reviewRating, comment: reviewComment.trim() })
-      const updatedReviews = await fetchProductReviews(product.id)
+      await submitProductReview(commerceVariantId ?? parsedId, { rating: reviewRating, comment: reviewComment.trim() })
+      const updatedReviews = await fetchProductReviews(commerceVariantId ?? parsedId)
       setReviews(updatedReviews)
+      setProduct(await fetchProductById(parsedId))
       setReviewSuccess('Your review has been saved.')
     } catch (error: unknown) {
       const message =
@@ -449,7 +455,7 @@ function ProductDetailPage() {
 
           <div className="pdp__info">
             <span className="pdp__brand">{product.brand?.name ?? product.brand_name}</span>
-            <h1 className="pdp__title">{product.name}</h1>
+            <h1 className="pdp__title">{selectedVariant?.name ?? product.name}</h1>
 
             <div className="pdp__rating-section">
               <div className="pdp__stars">{renderStars(averageRating)}</div>
@@ -463,6 +469,18 @@ function ProductDetailPage() {
                 <span className="pdp__savings">Save {Math.round((1 - currentPrice / originalPrice) * 100)}%</span>
               )}
             </div>
+
+            {product.variants.filter((variant) => variant.is_active).length > 1 && (
+              <div className="pdp__variant-picker">
+                <label htmlFor="product-variant">Strength / pack size</label>
+                <select id="product-variant" value={selectedVariant?.id ?? ''}
+                  onChange={(event) => { setQuantity(1); navigate(`/product/${event.target.value}`) }}>
+                  {product.variants.filter((variant) => variant.is_active).map((variant) => (
+                    <option key={variant.id} value={variant.id}>{variant.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <p className="pdp__sku">SKU: {selectedVariant?.sku ?? product.sku}</p>
 

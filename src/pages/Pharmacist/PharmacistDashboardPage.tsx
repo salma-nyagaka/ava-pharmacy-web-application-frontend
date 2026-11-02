@@ -78,11 +78,11 @@ const ORDER_STATUS_FILTER_OPTIONS = [
 ] as const
 
 function formatOrderDate(value?: string | null) {
-  return value ? new Date(value).toLocaleString() : '—'
+  return value ? new Date(value).toLocaleString() : '-'
 }
 
 function formatSubmittedDateTime(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString('en-KE', {
@@ -273,7 +273,7 @@ function PharmacistDashboardPage() {
   const [cartAddedMsg, setCartAddedMsg] = useState<string | null>(null)
   const [brokenDocImages, setBrokenDocImages] = useState<Record<string, boolean>>({})
   const [itemSelections, setItemSelections] = useState<Record<string, boolean>>({})
-  const [manualItems, setManualItems] = useState<Array<{ variant: PharmacistCatalogVariant; qty: number }>>([])
+  const [manualItems, setManualItems] = useState<Array<{ variant: PharmacistCatalogVariant; qty: number; dose?: string; frequency?: string; duration?: string }>>([])
   const [productSearch, setProductSearch] = useState('')
   const [variantSuggestions, setVariantSuggestions] = useState<PharmacistCatalogVariant[]>([])
   const [variantSearchLoading, setVariantSearchLoading] = useState(false)
@@ -393,6 +393,12 @@ function PharmacistDashboardPage() {
     setItemSelections(initial)
   }, [activeRx?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!activeRx) return
+    setItemSelections((current) => Object.fromEntries(activeRx.items.map((item) =>
+      [item.name, current[item.name] ?? Boolean(item.variantId)])))
+  }, [activeRx?.items])
+
   // Modal keyboard shortcuts
   useEffect(() => {
     if (!activeRx) return
@@ -472,14 +478,16 @@ function PharmacistDashboardPage() {
         variant_id: item.variantId ?? null,
         dose: item.dose,
         frequency: item.frequency,
+        duration: item.duration || '',
         quantity: item.qty,
       })),
-      ...manualItems.map(({ variant, qty }) => ({
+      ...manualItems.map(({ variant, qty, dose, frequency, duration }) => ({
         name: variant.display_name,
         product_id: variant.product_id,
         variant_id: variant.id,
-        dose: '',
-        frequency: '',
+        dose: dose || '',
+        frequency: frequency || '',
+        duration: duration || '',
         quantity: qty,
       })),
     ]
@@ -506,7 +514,7 @@ function PharmacistDashboardPage() {
       })) }, `Approved by ${actor}`)
     }
     const skipped = activeRx.items.length - toAdd.length
-    setCartAddedMsg(`Prescription approved with ${reviewItems.length} mapped item${reviewItems.length !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} out-of-stock item${skipped !== 1 ? 's' : ''} skipped` : ''}.`)
+    setCartAddedMsg(`Prescription approved with ${reviewItems.length} mapped item${reviewItems.length !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} unselected item${skipped !== 1 ? 's' : ''} skipped` : ''}.`)
     window.setTimeout(() => setCartAddedMsg(null), 6000)
   }
 
@@ -526,13 +534,23 @@ function PharmacistDashboardPage() {
     setClarificationNote('')
   }
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!activeRx) return
-    const reason = rejectionTemplate === 'Other' ? rejectionCustom : rejectionTemplate
-    void updateRx(activeRx.id, { status: 'Rejected', dispatchStatus: 'Not started', pharmacist: actor }, `Rejected by ${actor}${reason ? ': ' + reason : ''}`)
-    setShowRejectInput(false)
-    setRejectionTemplate('')
-    setRejectionCustom('')
+    const reason = (rejectionTemplate === 'Other' ? rejectionCustom : rejectionTemplate).trim()
+    if (!reason) return
+    try {
+      if (activeRx.backendId) {
+        const response = await prescriptionService.pharmacistReview(activeRx.backendId, { action: 'reject', notes: reason })
+        setPrescriptions(response.data)
+      } else {
+        await updateRx(activeRx.id, { status: 'Rejected', dispatchStatus: 'Not started', pharmacist: actor, notes: reason }, `Rejected by ${actor}: ${reason}`)
+      }
+      setShowRejectInput(false)
+      setRejectionTemplate('')
+      setRejectionCustom('')
+    } catch {
+      setCartAddedMsg('Unable to reject this prescription. Please retry; the decision has not been saved.')
+    }
   }
 
   const filtered = useMemo(() => {
@@ -1181,7 +1199,7 @@ function PharmacistDashboardPage() {
                   </div>
                   <div className="px-detail-cell">
                     <span className="px-info-label">Prescribing doctor</span>
-                    <span className="px-info-value">{activeRx.doctor || '—'}</span>
+                    <span className="px-info-value">{activeRx.doctor || '-'}</span>
                   </div>
                 </div>
 
@@ -1225,7 +1243,7 @@ function PharmacistDashboardPage() {
                     <div className="px-item-picker-header">
                       <p className="px-section-label">Prescribed items</p>
                       <span className="px-item-picker-count">
-                        {Object.values(itemSelections).filter(Boolean).length} / {activeRx.items.length} in stock
+                        {Object.values(itemSelections).filter(Boolean).length} / {activeRx.items.length} selected
                       </span>
                     </div>
                     <p className="px-item-picker-hint">Only catalog-matched variants can be approved. For handwritten or unmatched lines, select the exact variant below.</p>
@@ -1256,7 +1274,7 @@ function PharmacistDashboardPage() {
                           </div>
                           <div className="px-item__right">
                             <span className="px-item__qty">Qty {item.qty}</span>
-                            {!itemSelections[item.name] && <span className="px-item__oos-tag">Out of stock</span>}
+                            {!itemSelections[item.name] && <span className="px-item__oos-tag">Not selected</span>}
                           </div>
                         </label>
                         )
@@ -1359,7 +1377,7 @@ function PharmacistDashboardPage() {
                   {manualItems.length > 0 && (
                     <div className="px-manual-items">
                       <p className="px-selected-variants-title">Selected catalog variants</p>
-                      {manualItems.map(({ variant, qty }) => (
+                      {manualItems.map(({ variant, qty, dose, frequency, duration }) => (
                         <div key={variant.id} className="px-manual-item">
                           <div className="px-item__info">
                             <p className="px-item__name">{variant.display_name}</p>
@@ -1367,6 +1385,17 @@ function PharmacistDashboardPage() {
                             <p className="px-item__variant">
                               {variant.variant_name || 'Selected variant'}{variant.sku ? ` · SKU ${variant.sku}` : ''}
                             </p>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                              {(['dose', 'frequency', 'duration'] as const).map((field) => (
+                                <label key={field} style={{ fontSize: 12 }}>
+                                  {field[0].toUpperCase() + field.slice(1)}
+                                  <input aria-label={`${variant.sku} ${field}`} value={{ dose, frequency, duration }[field] || ''}
+                                    onChange={(event) => setManualItems((current) => current.map((entry) =>
+                                      entry.variant.id === variant.id ? { ...entry, [field]: event.target.value } : entry))}
+                                    style={{ display: 'block', maxWidth: 150 }} />
+                                </label>
+                              ))}
+                            </div>
                           </div>
                           <div className="px-manual-item__controls">
                             <label className="px-manual-item__qty-label">Qty</label>

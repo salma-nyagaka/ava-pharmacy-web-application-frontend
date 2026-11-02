@@ -5,6 +5,7 @@ import {
   downloadLabResultFile,
   fetchMyLabRequests,
   issueLabCollectionCode,
+  updateLabRequest,
 } from '../../services/labService'
 import '../../styles/pages/AccountLabTestsPage.css'
 
@@ -34,9 +35,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 const LAB_STEPS = ['Awaiting sample', 'Sample collected', 'Processing', 'Result ready', 'Completed']
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString('en-KE', {
     day: 'numeric',
     month: 'short',
@@ -55,6 +56,9 @@ function sortRequests(items: LabRequest[]) {
 }
 
 function buildWaitingCopy(request: LabRequest) {
+  if (request.status === 'cancelled') {
+    return 'This lab request has been cancelled.'
+  }
   if (request.status === 'awaiting_sample') {
     return `We are waiting to receive your sample${request.scheduledAt ? ` on ${formatDateTime(request.scheduledAt)}` : ''}.`
   }
@@ -73,7 +77,7 @@ function buildWaitingCopy(request: LabRequest) {
 function AccountLabTestsPage() {
   const [requests, setRequests] = useState<LabRequest[]>([])
   const [activeFilter, setActiveFilter] = useState<FilterTab>('All')
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(() => Number(new URLSearchParams(window.location.search).get('request')) || null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [collectionCodes, setCollectionCodes] = useState<Record<number, { code: string; expiresAt: string }>>({})
@@ -118,6 +122,19 @@ function AccountLabTestsPage() {
   }), [requests])
 
   const toggle = (id: number) => setExpandedId((prev) => (prev === id ? null : id))
+
+  const [cancelId, setCancelId] = useState<number | null>(null)
+  const [cancelling, setCancelling] = useState(false)
+  const cancelRequest = async (request: LabRequest) => {
+    setCancelling(true)
+    setError('')
+    try {
+      const updated = await updateLabRequest(request.id, { status: 'cancelled' })
+      setRequests((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setCancelId(null)
+    } catch { setError('Unable to cancel this request. Contact your coordinator if collection has started or payment is recorded.') }
+    finally { setCancelling(false) }
+  }
 
   const generateCollectionCode = async (request: LabRequest) => {
     setCodeLoadingId(request.id)
@@ -245,6 +262,15 @@ function AccountLabTestsPage() {
 
                   {isExpanded && (
                     <div className="alt-card__body">
+                      {request.status === 'awaiting_sample' && request.paymentStatus === 'pending' && (
+                        <div>
+                          {cancelId === request.id ? <>
+                            <p>Cancel this unpaid lab request?</p>
+                            <button type="button" disabled={cancelling} onClick={() => { void cancelRequest(request) }}>Confirm cancellation</button>
+                            <button type="button" disabled={cancelling} onClick={() => setCancelId(null)}>Keep request</button>
+                          </> : <button type="button" onClick={() => setCancelId(request.id)}>Cancel request</button>}
+                        </div>
+                      )}
                       {request.status !== 'cancelled' && (
                         <div className="alt-track">
                           {LAB_STEPS.map((label, index) => {

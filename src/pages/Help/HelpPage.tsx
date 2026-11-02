@@ -20,7 +20,7 @@ function HelpPage() {
             <div>
               <p className="help-page__eyebrow">Support</p>
               <h1 className="help-page__title">Help center</h1>
-              <p className="help-page__subtitle">Quick answers and direct support.</p>
+              <p className="help-page__subtitle">Quick answers and direct support.</p><Link className="btn btn--outline" to="/account/support">Create or track a support request</Link>
             </div>
 
             <div className="help-page__actions">

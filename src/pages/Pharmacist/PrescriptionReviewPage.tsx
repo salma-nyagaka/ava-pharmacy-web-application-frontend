@@ -190,7 +190,7 @@ function PrescriptionReviewPage() {
             <div className="prx-card__body">
               <div className="prx-meta-grid">
                 <div><p className="prx-meta-item__label">Patient name</p><p className="prx-meta-item__value">{prescription.patient}</p></div>
-                <div><p className="prx-meta-item__label">Prescribing doctor</p><p className="prx-meta-item__value">{prescription.doctor || '—'}</p></div>
+                <div><p className="prx-meta-item__label">Prescribing doctor</p><p className="prx-meta-item__value">{prescription.doctor || '-'}</p></div>
                 <div><p className="prx-meta-item__label">Date submitted</p><p className="prx-meta-item__value">{prescription.submitted}</p></div>
                 <div><p className="prx-meta-item__label">Handled by</p><p className="prx-meta-item__value">{prescription.pharmacist || 'Not yet assigned'}</p></div>
                 <div><p className="prx-meta-item__label">Current status</p><span className={statusBadgeClass(prescription.status)}>{prescription.status}</span></div>

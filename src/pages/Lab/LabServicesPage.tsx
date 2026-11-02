@@ -26,9 +26,9 @@ function getCategoryColor(category: string): string {
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString('en-KE', {
     day: 'numeric',
     month: 'short',
@@ -504,7 +504,7 @@ function LabServicesPage() {
 
                   <div className="lab-form-section">
                     <p className="lab-form-section__label">Payment</p>
-                    <p className="card__meta">Payment status is tracked after booking.</p>
+                    <p className="card__meta">No online payment is collected here. The lab coordinator will confirm the facility and arrange payment after booking.</p>
                   </div>
 
                   {bookingError && (

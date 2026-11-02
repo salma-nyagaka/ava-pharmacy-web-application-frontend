@@ -1,9 +1,16 @@
+import { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+import { supportService } from '../../services/supportService'
 import SupportShortcuts from '../../components/SupportShortcuts/SupportShortcuts'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
 import '../../styles/pages/ContactPage.css'
 
 function ContactPage() {
   const { settings } = useSiteSettings()
+  const { isLoggedIn } = useAuth()
+  const navigate=useNavigate()
+  const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('')
 
   return (
     <div className="contact">
@@ -73,15 +80,13 @@ function ContactPage() {
             {/* Right - form */}
             <div className="contact__form-card">
               <h2 className="contact__form-title">Contact Us</h2>
-              <form className="contact__form">
-                <div className="contact__form-row">
-                  <input type="text" placeholder="Your Name" required />
-                  <input type="email" placeholder="Your Email" required />
-                </div>
-                <input type="tel" placeholder="Your Mobile" />
-                <textarea rows={5} placeholder="Message" required></textarea>
-                <button type="submit" className="btn btn--primary contact__submit">Submit Now</button>
-              </form>
+              <p>Use a secure support ticket to receive replies and track resolution.</p>
+              {isLoggedIn ? <form className="contact__form" onSubmit={event=>{event.preventDefault();setBusy(true);setError('');void supportService.create({subject:message.trim(),channel:'other'}).then(ticket=>navigate(`/account/support?ticket=${ticket.backendId}`)).catch(()=>setError('Your ticket could not be created. Please try again.')).finally(()=>setBusy(false))}}>
+                <label>Support message<textarea rows={5} required maxLength={500} value={message} onChange={event=>setMessage(event.target.value)} /></label>
+                {error&&<p role="alert">{error}</p>}
+                <button type="submit" disabled={busy||!message.trim()} className="btn btn--primary contact__submit">Create support ticket</button>
+              </form> : <Link className="btn btn--primary" to="/login?redirect=%2Faccount%2Fsupport">Sign in for support</Link>}
+
             </div>
 
           </div>

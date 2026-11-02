@@ -149,7 +149,7 @@ function InvoiceModal({ invoice, onClose }: { invoice: ApiInvoice; onClose: () =
                   <td style={{ color: '#6b7280', fontSize: '0.8rem' }}>{item.product_sku}</td>
                   <td style={{ textAlign: 'right' }}>{item.quantity}</td>
                   <td style={{ textAlign: 'right' }}>{fmtKsh(item.unit_price)}</td>
-                  <td style={{ textAlign: 'right', color: '#dc2626' }}>{Number(item.discount_total) > 0 ? `-${fmtKsh(item.discount_total)}` : '—'}</td>
+                  <td style={{ textAlign: 'right', color: '#dc2626' }}>{Number(item.discount_total) > 0 ? `-${fmtKsh(item.discount_total)}` : '-'}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtKsh(item.subtotal)}</td>
                 </tr>
               ))}

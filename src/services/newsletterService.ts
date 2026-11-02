@@ -24,12 +24,13 @@ function extractErrorMessage(error: unknown): string {
   return 'Unable to subscribe to the newsletter right now.'
 }
 
-export async function subscribeToNewsletter(email: string, source = 'website'): Promise<void> {
+export async function subscribeToNewsletter(email: string, source = 'website'): Promise<string> {
   try {
-    await apiClient.post('/newsletter/subscribe/', {
+    const response = await apiClient.post('/newsletter/subscribe/', {
       email: email.trim(),
       source,
     })
+    return response.data?.data?.message || response.data?.message || 'Your subscription is saved.'
   } catch (error) {
     throw new NewsletterSubscriptionError(extractErrorMessage(error))
   }

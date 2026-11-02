@@ -10,9 +10,9 @@ type SortDirection = 'asc' | 'desc'
 type SortField = 'name' | 'status' | 'created_at'
 
 function formatDate(value?: string): string {
-  if (!value) return '—'
+  if (!value) return '-'
   const d = new Date(value)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function compareCreatedAt(left?: string, right?: string): number {
@@ -206,7 +206,7 @@ function HealthConcernManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Health Concerns</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : concerns.length}</strong>
+            <strong className="cm-kpi-card__value">{loading ? '-' : concerns.length}</strong>
             <span className="cm-kpi-card__delta">{loading ? '' : `${activeCount} active · ${concerns.length - activeCount} inactive`}</span>
           </div>
         </div>
@@ -327,11 +327,11 @@ function HealthConcernManagement() {
                       <td>
                         {c.image
                           ? <a className="cm-cell-link" href={c.image} target="_blank" rel="noreferrer">View image</a>
-                          : <span className="cm-cell-muted">—</span>}
+                          : <span className="cm-cell-muted">-</span>}
                       </td>
                       <td>
                         <span className="cm-cell-desc">
-                          {c.description || <span className="cm-name-cell__id">—</span>}
+                          {c.description || <span className="cm-name-cell__id">-</span>}
                         </span>
                       </td>
                       <td>

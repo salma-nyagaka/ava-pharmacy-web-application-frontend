@@ -74,6 +74,7 @@ function UserManagement() {
   const [resendingId, setResendingId] = useState<number | null>(null)
   const [resentIds, setResentIds] = useState<Set<number>>(new Set())
   const [statusLoadingId, setStatusLoadingId] = useState<number | null>(null)
+  const [statusConfirmation, setStatusConfirmation] = useState<{ userId: number; nextStatus: 'active' | 'suspended' } | null>(null)
 
   // Modal state
   const [showModal, setShowModal] = useState(false)
@@ -191,10 +192,7 @@ function UserManagement() {
   const modalOtherErrors = Object.entries(mFieldErrors).filter(([key]) => !PHARMACIST_MODAL_FIELD_ERROR_KEYS.has(key))
 
   const handleToggleStatus = async (userId: number, nextStatus: 'active' | 'suspended') => {
-    const targetUser = users.find((user) => user.id === userId)
-    const actionLabel = nextStatus === 'active' ? 'activate' : 'suspend'
-    const confirmed = window.confirm(`Are you sure you want to ${actionLabel} ${targetUser?.name ?? 'this user'}?`)
-    if (!confirmed) return
+    setStatusConfirmation(null)
 
     setStatusLoadingId(userId)
     setLoadError('')
@@ -342,7 +340,7 @@ function UserManagement() {
                     )}
                   </td>
                   <td>
-                    <span className={`status status--${user.status}`}>{user.accountActivated ? user.status : 'pending activation'}</span>
+                    <span className={`status status--${user.status}`}>{user.status === 'suspended' ? 'suspended' : user.accountActivated ? user.status : 'pending activation'}</span>
                     {user.role === 'pharmacist' && user.pharmacistBranchLocation && (
                       <div className="role-note">{user.pharmacistBranchLocation}</div>
                     )}
@@ -365,7 +363,7 @@ function UserManagement() {
                       {user.status === 'active' ? (
                         <button
                           className="cm-row-btn cm-row-btn--delete"
-                          onClick={() => handleToggleStatus(user.id, 'suspended')}
+                          onClick={() => setStatusConfirmation({ userId: user.id, nextStatus: 'suspended' })}
                           disabled={statusLoadingId === user.id}
                         >
                           {statusLoadingId === user.id ? 'Suspending…' : 'Suspend'}
@@ -373,7 +371,7 @@ function UserManagement() {
                       ) : (
                         <button
                           className="cm-row-btn cm-row-btn--edit"
-                          onClick={() => handleToggleStatus(user.id, 'active')}
+                          onClick={() => setStatusConfirmation({ userId: user.id, nextStatus: 'active' })}
                           disabled={statusLoadingId === user.id}
                         >
                           {statusLoadingId === user.id ? 'Activating…' : 'Activate'}
@@ -403,6 +401,19 @@ function UserManagement() {
         </div>
       )}
 
+      {statusConfirmation && (
+        <div className="um-modal-overlay">
+          <div className="um-modal" role="dialog" aria-modal="true" aria-label="Confirm account status change">
+            <div className="um-modal__header"><h2>Confirm account status change</h2></div>
+            <p>{statusConfirmation.nextStatus === 'active' ? 'Activate' : 'Suspend'} {users.find((user) => user.id === statusConfirmation.userId)?.name}?</p>
+            <div className="um-modal__success-actions">
+              <button type="button" className="btn btn--primary btn--sm" autoFocus onClick={() => void handleToggleStatus(statusConfirmation.userId, statusConfirmation.nextStatus)}>Confirm {statusConfirmation.nextStatus === 'active' ? 'activation' : 'suspension'}</button>
+              <button type="button" className="btn btn--outline btn--sm" onClick={() => setStatusConfirmation(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Pharmacist Modal */}
       {showModal && (
         <div className="um-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeModal() }}>
@@ -410,7 +421,7 @@ function UserManagement() {
             <div className="um-modal__header">
               <div>
                 <h2>Add Pharmacist</h2>
-                <p>Create a staff account — activation email sent automatically</p>
+                <p>Create a staff account - activation email sent automatically</p>
               </div>
               <button className="um-modal__close" type="button" onClick={closeModal} aria-label="Close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

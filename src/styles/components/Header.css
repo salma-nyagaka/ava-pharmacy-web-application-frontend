@@ -1293,3 +1293,19 @@
     right: 0.25rem;
   }
 }
+
+.catalog-load-state {
+  color: #64748b;
+  padding: 1rem 0;
+}
+
+.catalog-load-state button {
+  background: transparent;
+  border: 0;
+  color: #e81750;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+}

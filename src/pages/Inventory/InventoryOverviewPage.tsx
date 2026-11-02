@@ -84,7 +84,7 @@ function InventoryOverviewPage() {
     setSyncing(true)
     setSyncMsg('')
     void triggerInventorySync().then((res) => {
-      setSyncMsg(`Synced successfully — ${res.updated_count} items updated`)
+      setSyncMsg(`Synced successfully - ${res.updated_count} items updated`)
       setLastSynced(res.synced_at)
       loadItems()
     }).catch(() => {
@@ -224,13 +224,13 @@ function InventoryOverviewPage() {
                         <td>{item.batch_number || 'Default'}</td>
                         <td>{item.quantity_on_hand}</td>
                         <td>{item.reorder_level ?? item.low_stock_threshold}</td>
-                        <td>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('en-KE') : '—'}</td>
-                        <td>{item.shelf_location || '—'}</td>
+                        <td>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('en-KE') : '-'}</td>
+                        <td>{item.shelf_location || '-'}</td>
                         <td>{statusPill(item)}</td>
                         <td>
                           {item.last_synced_at
                             ? new Date(item.last_synced_at).toLocaleString('en-KE')
-                            : '—'}
+                            : '-'}
                         </td>
                         <td>
                           <button className="btn btn--outline btn--sm" type="button">Adjust</button>
@@ -262,7 +262,7 @@ function InventoryOverviewPage() {
                     <tr key={push.id}>
                       <td><strong>{push.order_number}</strong></td>
                       <td>{push.attempts}</td>
-                      <td className="inv-error-cell">{push.last_error || '—'}</td>
+                      <td className="inv-error-cell">{push.last_error || '-'}</td>
                       <td>{new Date(push.last_tried_at).toLocaleString('en-KE')}</td>
                       <td>
                         <button

@@ -12,9 +12,9 @@ type SortDirection = 'asc' | 'desc'
 type SortField = 'name' | 'status' | 'created_at'
 
 function formatDate(value?: string): string {
-  if (!value) return '—'
+  if (!value) return '-'
   const d = new Date(value)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function compareCreatedAt(left?: string, right?: string): number {
@@ -291,7 +291,7 @@ function BrandManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Brands</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : brands.length}</strong>
+            <strong className="cm-kpi-card__value">{loading ? '-' : brands.length}</strong>
             <span className="cm-kpi-card__delta">{loading ? '' : `${activeCount} active · ${brands.length - activeCount} inactive`}</span>
           </div>
         </div>
@@ -301,7 +301,7 @@ function BrandManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">With Logo</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : withLogosCount}</strong>
+            <strong className="cm-kpi-card__value">{loading ? '-' : withLogosCount}</strong>
             <span className="cm-kpi-card__delta">{loading ? '' : `${brands.length - withLogosCount} missing`}</span>
           </div>
         </div>
@@ -453,7 +453,7 @@ function BrandManagement() {
                         </button>
                       </td>
                       <td className="cm-cell-date">{formatDate(brand.created_at)}</td>
-                      <td className="cm-cell-by">{brand.created_by_name || '—'}</td>
+                      <td className="cm-cell-by">{brand.created_by_name || '-'}</td>
                       <td>
                         <div className="cm-row-actions">
                           <button

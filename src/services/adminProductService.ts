@@ -110,6 +110,8 @@ export type StockSource = 'branch' | 'warehouse' | 'out'
 export type InventoryLocation = 'branch' | 'warehouse'
 
 export interface ApiProductInventory {
+  store_listing_id?: number | null
+  store?: { code: string; name: string } | null
   id: number
   location: InventoryLocation
   batch_number: string
@@ -131,6 +133,8 @@ export interface ApiProductInventory {
 }
 
 export interface InventoryLocationPayload {
+  store_listing_id?: number | null
+  store_code?: string
   batch_number?: string
   supplier?: string
   stock_quantity?: number
@@ -399,6 +403,10 @@ function normalizeBanner<T extends ApiBanner>(banner: T): T {
 }
 
 export const adminProductService = {
+  async listProductOptions(search = '') {
+    const res = await apiClient.get('/admin/products/', { params: { search, is_active: 'true', page_size: '20' } })
+    return unwrapList<ApiProduct>(res)
+  },
   async listProducts(params?: Record<string, string>) {
     const res = await apiClient.get('/admin/products/', { params: { page_size: '500', ...params } })
     const firstPage = res.data
@@ -529,6 +537,11 @@ export const adminProductService = {
 
   async deleteBrand(id: number) {
     await apiClient.delete(`/admin/brands/${id}/`)
+  },
+
+  async listInventoryPage(params?: Record<string, string>) {
+    const res = await apiClient.get('/admin/inventory/', { params })
+    return { items: unwrapList<ApiInventoryProduct>(res), total: res.data?.meta?.total ?? res.data?.count ?? 0 }
   },
 
   async listInventory(params?: Record<string, string>) {

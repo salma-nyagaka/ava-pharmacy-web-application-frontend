@@ -110,6 +110,7 @@ const API_TO_FORM_ERROR_MAP: Record<string, string> = {
   agreed_to_terms: 'terms',
   documentNames: 'docChecklist',
   document_names: 'docChecklist',
+  documents: 'docChecklist',
   cvNames: 'docChecklist',
   cv_names: 'docChecklist',
 }
@@ -651,7 +652,7 @@ function ProfessionalRegisterPage() {
               <h2 className="pr-step__title">
                 {type === 'Lab Partner' ? 'Organisation and authorised contact' : 'Personal information'}
               </h2>
-              <p className="pr-step__sub">We verify the legal partner first. You will register each physical laboratory, its tests, and its collection team after your account is approved.</p>
+              <p className="pr-step__sub">{type === 'Lab Partner' ? 'We verify the legal partner first. You will register each physical laboratory, its tests, and its collection team after your account is approved.' : 'Provide your contact details so we can review your professional application and send account updates.'}</p>
             </div>
             <div className="pr-fields">
               <Field label={type === 'Lab Partner' ? 'Contact name' : 'Full name'} required error={errors.name}>
@@ -1140,14 +1141,14 @@ function ProfessionalRegisterPage() {
                   <span>Role</span><strong>{type === 'Lab Partner' ? 'Laboratory partner organisation' : type}</strong>
                 </div>
                 <div className="pr-summary-row">
-                  <span>Name</span><strong>{form.name || '—'}</strong>
+                  <span>Name</span><strong>{form.name || '-'}</strong>
                 </div>
                 <div className="pr-summary-row">
-                  <span>Email</span><strong>{form.email || '—'}</strong>
+                  <span>Email</span><strong>{form.email || '-'}</strong>
                 </div>
                 {type === 'Lab Partner' && (
                   <div className="pr-summary-row">
-                    <span>Organisation</span><strong>{form.labName || '—'} · {form.labLocation || '—'}</strong>
+                    <span>Organisation</span><strong>{form.labName || '-'} · {form.labLocation || '-'}</strong>
                   </div>
                 )}
                 {form.specialty && (
@@ -1156,7 +1157,7 @@ function ProfessionalRegisterPage() {
                   </div>
                 )}
                 <div className="pr-summary-row">
-                  <span>Payout</span><strong>{form.payoutMethod} · {form.payoutAccount || '—'}</strong>
+                  <span>Payout</span><strong>{form.payoutMethod} · {form.payoutAccount || '-'}</strong>
                 </div>
                 <div className="pr-summary-row">
                   <span>Documents</span><strong>{Object.values(documentUploads).flat().length} file{Object.values(documentUploads).flat().length !== 1 ? 's' : ''} uploaded</strong>

@@ -183,7 +183,7 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
-        label: 'Lab Partners',
+        label: 'Laboratory Operations',
         to: '/admin/lab-partners',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">

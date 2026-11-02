@@ -5,7 +5,7 @@ import '../../styles/admin/OrderManagement.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 
 const formatCurrency = (value: string | number) => `KSh ${Number(value || 0).toLocaleString()}`
-const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'
+const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '-'
 type SortDirection = 'asc' | 'desc'
 type SortField = 'order' | 'customer' | 'created_at' | 'items' | 'total' | 'payment' | 'payment_status' | 'status'
 
@@ -166,10 +166,8 @@ function OrderManagementLive() {
     setActionLoading(refundTarget.id)
     setError('')
     try {
-      const refunded = await refundAdminOrder(refundTarget.id)
+      const refunded = await refundAdminOrder(refundTarget.id, refundNote.trim())
       syncOrderInState(refunded)
-      const noted = await addAdminOrderNote(refundTarget.id, `Refund reason: ${refundNote.trim()}`)
-      syncOrderInState(noted)
       setRefundTarget(null)
       setRefundNote('')
       setRefundReasonError(false)
@@ -346,8 +344,8 @@ function OrderManagementLive() {
                     </td>
                     <td>
                       <div className="customer-info">
-                        <div className="customer-name">{order.customer_name || '—'}</div>
-                        <div className="customer-email">{order.customer_email || '—'}</div>
+                        <div className="customer-name">{order.customer_name || '-'}</div>
+                        <div className="customer-email">{order.customer_email || '-'}</div>
                       </div>
                     </td>
                     <td>{formatDate(order.created_at)}</td>
@@ -377,7 +375,7 @@ function OrderManagementLive() {
                         )}
                         {order.payment_status === 'paid' && order.status !== 'refunded' && (
                           <button className="btn-sm btn--outline" type="button" disabled={actionLoading === order.id} onClick={() => setRefundTarget(order)}>
-                            Issue refund
+                            Record external refund
                           </button>
                         )}
                       </div>
@@ -457,7 +455,8 @@ function OrderManagementLive() {
         <div className="modal-overlay" onClick={() => { setRefundTarget(null); setRefundReasonError(false) }}>
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
-              <h2>Issue refund</h2>
+              <h2>Record external refund</h2>
+              <p>This records a refund completed outside this application. No money is transferred here. Include the payment reference in the reason.</p>
               <button className="modal__close" type="button" onClick={() => { setRefundTarget(null); setRefundReasonError(false) }}>×</button>
             </div>
             <div className="modal__content">
@@ -472,13 +471,13 @@ function OrderManagementLive() {
                   placeholder="e.g. Payment reversed after stock issue"
                   style={{ borderColor: refundReasonError ? '#dc2626' : undefined }}
                 />
-                {refundReasonError && <p className="od-field-error">A reason is required to issue a refund.</p>}
+                {refundReasonError && <p className="od-field-error">A reason and external payment reference are required for the refund record.</p>}
               </div>
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => { setRefundTarget(null); setRefundReasonError(false) }}>Cancel</button>
               <button className="btn btn--primary btn--sm" type="button" disabled={actionLoading === refundTarget.id} onClick={() => void confirmRefund()}>
-                Confirm refund
+                Record refund
               </button>
             </div>
           </div>

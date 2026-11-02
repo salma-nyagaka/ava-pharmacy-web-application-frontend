@@ -91,6 +91,13 @@ function LabDashboardPage() {
 
   const isAdminPreview = user?.role === 'admin'
   const isPartner = user?.role === 'lab_partner'
+  const hasVerifiedLaboratory = Boolean(dashboard?.facilities.some(
+    (facility) => facility.status.toLowerCase() === 'verified' && facility.isActive,
+  ))
+  const editingFacility = dashboard?.facilities.find((facility) => facility.id === editingFacilityId)
+  const canEditFacilityTests = Boolean(editingFacility && (
+    editingFacility.status.toLowerCase() === 'verified' && editingFacility.isActive
+  ))
 
   const loadDashboard = useCallback(async () => {
     setLoading(true)
@@ -133,6 +140,10 @@ function LabDashboardPage() {
   }
 
   const handleAddTechnician = async () => {
+    if (!hasVerifiedLaboratory) {
+      setError('A laboratory must be verified by Ava before technicians can be added.')
+      return
+    }
     setSubmitting(true)
     setFieldErrors({})
     setError('')
@@ -162,10 +173,10 @@ function LabDashboardPage() {
     const validationErrors: Record<string, string> = {}
     if (!facilityDraft.name.trim()) validationErrors.name = 'Laboratory name is required.'
     if (!facilityDraft.licenseNumber.trim()) validationErrors.license_number = 'Facility licence number is required.'
+    if (!facilityDraft.licenseExpiry) validationErrors.license_expiry = 'Licence expiry date is required.'
     if (!facilityDraft.phone.trim()) validationErrors.phone = 'A facility contact phone is required.'
     if (!facilityDraft.county.trim()) validationErrors.county = 'County is required.'
     if (!facilityDraft.address.trim()) validationErrors.address = 'Physical address is required.'
-    if (facilityDraft.testIds.length === 0) validationErrors.test_ids = 'Select at least one test this laboratory can perform.'
     if (Object.keys(validationErrors).length > 0) {
       setFieldErrors(validationErrors)
       return
@@ -174,6 +185,20 @@ function LabDashboardPage() {
     setFieldErrors({})
     setError('')
     try {
+      const registrationCataloguePayload = {
+        test_ids: facilityDraft.testIds,
+        test_offerings: facilityDraft.testIds.map((testId) => {
+          const test = labTests.find((item) => item.id === testId)
+          const override = facilityDraft.offeringOverrides[testId]
+          return {
+            test: testId,
+            price: Number(override?.price ?? test?.price ?? 0),
+            turnaround: override?.turnaround ?? test?.turnaround ?? '',
+            home_collection_available: facilityDraft.homeCollection,
+          }
+        }),
+      }
+      const cataloguePayload = canEditFacilityTests ? registrationCataloguePayload : {}
       const payload = {
         name: facilityDraft.name.trim(),
         email: facilityDraft.email.trim(),
@@ -191,18 +216,8 @@ function LabDashboardPage() {
         home_collection_enabled: facilityDraft.homeCollection,
         physical_result_pickup_enabled: facilityDraft.physicalPickup,
         pickup_instructions: facilityDraft.pickupInstructions.trim(),
-        test_ids: facilityDraft.testIds,
-        test_offerings: facilityDraft.testIds.map((testId) => {
-          const test = labTests.find((item) => item.id === testId)
-          const override = facilityDraft.offeringOverrides[testId]
-          return {
-            test: testId,
-            price: Number(override?.price ?? test?.price ?? 0),
-            turnaround: override?.turnaround ?? test?.turnaround ?? '',
-            home_collection_available: facilityDraft.homeCollection,
-          }
-        }),
-        technician_ids: facilityDraft.technicianIds,
+        ...cataloguePayload,
+        ...(editingFacilityId && canEditFacilityTests ? { technician_ids: facilityDraft.technicianIds } : {}),
       }
       const saved = editingFacilityId
         ? await labPartnerDashboardService.updateFacility(editingFacilityId, payload)
@@ -362,7 +377,7 @@ function LabDashboardPage() {
         <div className="portal-shell__meta-card">
           <span className="portal-shell__meta-label">Lab partner</span>
           <p className="portal-shell__meta-value">{dashboard?.partner.name || 'Loading...'}</p>
-          <p className="portal-shell__meta-value">{dashboard?.partner.reference || '—'}</p>
+          <p className="portal-shell__meta-value">{dashboard?.partner.reference || '-'}</p>
         </div>
       )}
       userInitials={actorName.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'LP'}
@@ -432,7 +447,7 @@ function LabDashboardPage() {
                   <p className="dd-count">Registration, accreditation, and payout configuration.</p>
                 </div>
                 {!isAdminPreview && (
-                  <button className="btn btn--primary btn--sm" type="button" onClick={() => { setShowAddTech(true); setFeedback(''); setFieldErrors({}) }}>
+                  <button className="btn btn--primary btn--sm" type="button" disabled={!hasVerifiedLaboratory} title={!hasVerifiedLaboratory ? 'Verify a laboratory before adding technicians.' : undefined} onClick={() => { setShowAddTech(true); setFeedback(''); setFieldErrors({}) }}>
                     Add technician
                   </button>
                 )}
@@ -443,10 +458,10 @@ function LabDashboardPage() {
                   <span className="lpd-profile__reference">{dashboard.partner.reference}</span>
                 </div>
                 <div className="lpd-detail-grid">
-                  <div><span className="lpd-detail-grid__label">Contact</span><strong>{dashboard.partner.contactName || '—'}</strong><span>{dashboard.partner.email || '—'}</span></div>
-                  <div><span className="lpd-detail-grid__label">Phone</span><strong>{dashboard.partner.phone || '—'}</strong><span>{dashboard.partner.location || '—'}</span></div>
-                  <div><span className="lpd-detail-grid__label">Accreditation</span><strong>{dashboard.partner.accreditation || '—'}</strong><span>{dashboard.partner.licenseNumber || '—'}</span></div>
-                  <div><span className="lpd-detail-grid__label">Payout</span><strong>{dashboard.partner.payoutMethod}</strong><span>{dashboard.partner.payoutAccount || '—'}</span></div>
+                  <div><span className="lpd-detail-grid__label">Contact</span><strong>{dashboard.partner.contactName || '-'}</strong><span>{dashboard.partner.email || '-'}</span></div>
+                  <div><span className="lpd-detail-grid__label">Phone</span><strong>{dashboard.partner.phone || '-'}</strong><span>{dashboard.partner.location || '-'}</span></div>
+                  <div><span className="lpd-detail-grid__label">Accreditation</span><strong>{dashboard.partner.accreditation || '-'}</strong><span>{dashboard.partner.licenseNumber || '-'}</span></div>
+                  <div><span className="lpd-detail-grid__label">Payout</span><strong>{dashboard.partner.payoutMethod}</strong><span>{dashboard.partner.payoutAccount || '-'}</span></div>
                 </div>
                 {dashboard.partner.documents.length > 0 && (
                   <div className="lpd-chip-row">
@@ -480,8 +495,9 @@ function LabDashboardPage() {
                 <h2 className="dd-toolbar__title">Lab technicians</h2>
                 <p className="dd-count">Manage your team and account activation state.</p>
               </div>
-              {!isAdminPreview && <button className="btn btn--primary btn--sm" type="button" onClick={() => setShowAddTech(true)}>Add technician</button>}
+              {!isAdminPreview && <button className="btn btn--primary btn--sm" type="button" disabled={!hasVerifiedLaboratory} title={!hasVerifiedLaboratory ? 'Verify a laboratory before adding technicians.' : undefined} onClick={() => setShowAddTech(true)}>Add technician</button>}
             </div>
+            {!hasVerifiedLaboratory && !isAdminPreview && <p className="lpd-team-gate">Technician registration opens after Ava verifies at least one laboratory.</p>}
             <div className="cm-panel cm-table-wrap dd-table-wrap">
               <table className="cm-table dd-table">
                 <thead>
@@ -496,8 +512,8 @@ function LabDashboardPage() {
                           <div><strong>{tech.name}</strong>{tech.note && <p>{tech.note}</p>}</div>
                         </div>
                       </td>
-                      <td>{tech.email}<br />{tech.phone || '—'}</td>
-                      <td>{tech.specialty || '—'}</td>
+                      <td>{tech.email}<br />{tech.phone || '-'}</td>
+                      <td>{tech.specialty || '-'}</td>
                       <td><span className={statusToneClass(tech.status)}>{tech.status}</span></td>
                       <td>{tech.accountProvisioned ? 'Provisioned' : 'Pending setup'}</td>
                       <td className="portal-table__actions">
@@ -647,7 +663,7 @@ function LabDashboardPage() {
               <div className="form-grid form-grid--2">
                 <div className="form-group"><label>Laboratory name <span aria-hidden="true">*</span></label><input value={facilityDraft.name} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, name: event.target.value }))} />{fieldErrors.name && <p className="pr-field__err">{fieldErrors.name}</p>}</div>
                 <div className="form-group"><label>Facility licence number <span aria-hidden="true">*</span></label><input value={facilityDraft.licenseNumber} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, licenseNumber: event.target.value }))} />{fieldErrors.license_number && <p className="pr-field__err">{fieldErrors.license_number}</p>}</div>
-                <div className="form-group"><label>Licence expiry</label><input type="date" value={facilityDraft.licenseExpiry} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, licenseExpiry: event.target.value }))} /></div>
+                <div className="form-group"><label>Licence expiry <span aria-hidden="true">*</span></label><input type="date" value={facilityDraft.licenseExpiry} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, licenseExpiry: event.target.value }))} />{fieldErrors.license_expiry && <p className="pr-field__err">{fieldErrors.license_expiry}</p>}</div>
                 <div className="form-group"><label>Accreditation</label><input value={facilityDraft.accreditation} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, accreditation: event.target.value }))} /></div>
                 <div className="form-group"><label>Phone</label><input value={facilityDraft.phone} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, phone: event.target.value }))} />{fieldErrors.phone && <p className="pr-field__err">{fieldErrors.phone}</p>}</div>
                 <div className="form-group"><label>Email</label><input type="email" value={facilityDraft.email} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, email: event.target.value }))} /></div>
@@ -658,32 +674,33 @@ function LabDashboardPage() {
               </div>
               <div className="form-group"><label>Physical address <span aria-hidden="true">*</span></label><textarea rows={2} value={facilityDraft.address} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, address: event.target.value }))} />{fieldErrors.address && <p className="pr-field__err">{fieldErrors.address}</p>}</div>
               <div className="form-group"><label>Facility licence/accreditation document (PDF, JPG or PNG){!editingFacilityId && <span aria-hidden="true"> *</span>}</label><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setFacilityDocument(event.target.files?.[0] ?? null)} />{fieldErrors.documents && <p className="pr-field__err">{fieldErrors.documents}</p>}</div>
-              <p className="lpd-form-section-title">2. Services and collection coverage</p>
+              <p className="lpd-form-section-title">2. Collection coverage</p>
               <div className="form-group">
-                <label>Tests offered</label>
-                <div className="lpd-chip-row">
+                <label>Test catalogue</label>
+                {!canEditFacilityTests && <p className="lpd-team-gate">Tests are operational data. Ava will review this laboratory using its licence and compliance documents first; add tests after approval.</p>}
+                {canEditFacilityTests && <div className="lpd-chip-row">
                   {labTests.map((test) => (
                     <label key={test.id} className="status-pill status-pill--info">
-                      <input type="checkbox" checked={facilityDraft.testIds.includes(test.id)} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, testIds: event.target.checked ? [...prev.testIds, test.id] : prev.testIds.filter((id) => id !== test.id) }))} /> {test.name}
+                      <input type="checkbox" disabled={!canEditFacilityTests} checked={facilityDraft.testIds.includes(test.id)} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, testIds: event.target.checked ? [...prev.testIds, test.id] : prev.testIds.filter((id) => id !== test.id) }))} /> {test.name}
                     </label>
                   ))}
-                </div>
+                </div>}
                 {fieldErrors.test_ids && <p className="pr-field__err">{fieldErrors.test_ids}</p>}
                 {fieldErrors.test_offerings && <p className="pr-field__err">{fieldErrors.test_offerings}</p>}
               </div>
-              {facilityDraft.testIds.map((testId) => {
+              {canEditFacilityTests && facilityDraft.testIds.map((testId) => {
                 const test = labTests.find((item) => item.id === testId)
                 if (!test) return null
                 const override = facilityDraft.offeringOverrides[testId]
                 return (
                   <div className="form-grid form-grid--2" key={testId}>
-                    <div className="form-group"><label>{test.name} price (KSh)</label><input type="number" min="1" value={override?.price ?? String(test.price)} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: event.target.value, turnaround: prev.offeringOverrides[testId]?.turnaround ?? test.turnaround } } }))} /></div>
-                    <div className="form-group"><label>{test.name} turnaround</label><input value={override?.turnaround ?? test.turnaround} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: prev.offeringOverrides[testId]?.price ?? String(test.price), turnaround: event.target.value } } }))} /></div>
+                    <div className="form-group"><label>{test.name} price (KSh)</label><input disabled={!canEditFacilityTests} type="number" min="1" value={override?.price ?? String(test.price)} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: event.target.value, turnaround: prev.offeringOverrides[testId]?.turnaround ?? test.turnaround } } }))} /></div>
+                    <div className="form-group"><label>{test.name} turnaround</label><input disabled={!canEditFacilityTests} value={override?.turnaround ?? test.turnaround} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: prev.offeringOverrides[testId]?.price ?? String(test.price), turnaround: event.target.value } } }))} /></div>
                   </div>
                 )
               })}
               <p className="lpd-form-section-title">3. Team and result fulfilment</p>
-              <div className="form-group">
+              {canEditFacilityTests ? <div className="form-group">
                 <label>Technicians assigned to this facility</label>
                 <div className="lpd-chip-row">
                   {dashboard?.technicians.filter((tech) => tech.status === 'Active').map((tech) => (
@@ -692,7 +709,7 @@ function LabDashboardPage() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </div> : <p className="lpd-team-gate">Technicians can be assigned after Ava approves this laboratory.</p>}
               <label><input type="checkbox" checked={facilityDraft.homeCollection} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, homeCollection: event.target.checked }))} /> Supports home sample collection</label>
               <label><input type="checkbox" checked={facilityDraft.physicalPickup} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, physicalPickup: event.target.checked }))} /> Supports physical result pickup</label>
               {facilityDraft.physicalPickup && <div className="form-group"><label>Pickup instructions</label><textarea rows={2} value={facilityDraft.pickupInstructions} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, pickupInstructions: event.target.value }))} /></div>}

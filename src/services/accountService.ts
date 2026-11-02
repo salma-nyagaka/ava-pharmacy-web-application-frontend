@@ -101,6 +101,10 @@ export async function changeAccountPassword(payload: PasswordChangePayload): Pro
   return unwrap<{ detail: string }>(res)
 }
 
+export async function deactivateAccount(): Promise<void> {
+  await apiClient.delete('/account/')
+}
+
 export async function fetchNotificationPreferences(): Promise<NotificationPreferences> {
   const res = await apiClient.get('/notifications/preferences/')
   return unwrap<NotificationPreferences>(res)

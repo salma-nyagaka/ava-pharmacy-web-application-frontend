@@ -1,9 +1,12 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/avapharmacy/api/v1').replace(/\/$/, '')
+import { apiFetch } from '../lib/apiFetch'
+import { apiClient } from '../lib/apiClient'
+
+const API_BASE_URL = String(apiClient.defaults.baseURL).replace(/\/$/, '')
 
 export interface AdminLabDocumentApi {
   id?: number
   name?: string
-  file?: string
+  download_url?: string
   status?: string
   uploaded_at?: string
 }
@@ -101,6 +104,8 @@ export interface AdminLaboratoryFacilityApi {
   status?: 'pending' | 'verified' | 'suspended'
   status_note?: string
   is_active?: boolean
+  submitted_at?: string | null
+  updated_at?: string
   technicians?: AdminLabTechnicianApi[]
   offerings?: Array<{
     id?: number
@@ -111,7 +116,23 @@ export interface AdminLaboratoryFacilityApi {
     home_collection_available?: boolean
     is_active?: boolean
   }>
-  documents?: Array<{ id?: number; name?: string; status?: string; download_url?: string; uploaded_at?: string }>
+  documents?: Array<{ id?: number; name?: string; file?: string; status?: string; download_url?: string; uploaded_at?: string }>
+}
+
+export interface AdminLaboratoryFacilityUpdatePayload {
+  test_ids?: number[]
+  test_offerings?: Array<{
+    test: number
+    price: string | number
+    turnaround: string
+    home_collection_available: boolean
+  }>
+}
+
+export interface AdminLabApprovalQueueApi {
+  partner_applications: AdminLabPartnerApi[]
+  laboratory_applications: AdminLaboratoryFacilityApi[]
+  counts: { partners: number; laboratories: number }
 }
 
 export type LabPartnerAction = 'verify' | 'request_docs' | 'reject' | 'suspend'
@@ -128,10 +149,10 @@ export interface AdminLabPartnerCreatePayload {
   payout_method?: 'mpesa' | 'bank_transfer'
   payout_account?: string
   notes?: string
+  documents: File[]
 }
 
 export interface AdminLabPartnerUpdatePayload {
-  status?: 'pending' | 'verified' | 'suspended'
   payout_method?: 'mpesa' | 'bank_transfer'
   payout_account?: string
   notes?: string
@@ -208,13 +229,21 @@ const jsonHeaders = () => ({
 })
 
 export const adminLabPartnerService = {
+  async getApprovalQueue() {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/approval-queue/`, {
+      headers: { ...getAuthHeaders() },
+      cache: 'no-store',
+    })
+    return handleResponse<AdminLabApprovalQueueApi>(response)
+  },
+
   async downloadFacilityDocument(url: string, filename: string) {
     const apiOrigin = new URL(API_BASE_URL).origin
     const target = new URL(url, apiOrigin)
     if (target.origin !== apiOrigin) {
       throw new AdminLabPartnerError('The document URL is outside the trusted Ava API.')
     }
-    const response = await fetch(target.toString(), { headers: { ...getAuthHeaders() } })
+    const response = await apiFetch(target.toString(), { headers: { ...getAuthHeaders() } })
     if (!response.ok) throw new AdminLabPartnerError('Unable to download the facility document.')
     const objectUrl = URL.createObjectURL(await response.blob())
     const anchor = document.createElement('a')
@@ -227,7 +256,7 @@ export const adminLabPartnerService = {
   },
 
   async listFacilities() {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/facilities/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/facilities/`, {
       headers: { ...getAuthHeaders() },
       cache: 'no-store',
     })
@@ -238,7 +267,7 @@ export const adminLabPartnerService = {
   },
 
   async actionFacility(id: number | string, payload: { action: 'verify' | 'request_changes' | 'suspend'; note?: string }) {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/facilities/${id}/action/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/facilities/${id}/action/`, {
       method: 'POST',
       headers: jsonHeaders(),
       body: JSON.stringify(payload),
@@ -246,8 +275,17 @@ export const adminLabPartnerService = {
     return handleResponse<AdminLaboratoryFacilityApi>(response)
   },
 
+  async updateFacility(id: number | string, payload: AdminLaboratoryFacilityUpdatePayload) {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/facilities/${id}/`, {
+      method: 'PATCH',
+      headers: jsonHeaders(),
+      body: JSON.stringify(payload),
+    })
+    return handleResponse<AdminLaboratoryFacilityApi>(response)
+  },
+
   async listPartners() {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/partners/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/partners/`, {
       headers: { ...getAuthHeaders() },
       cache: 'no-store',
     })
@@ -258,16 +296,26 @@ export const adminLabPartnerService = {
   },
 
   async createPartner(payload: AdminLabPartnerCreatePayload) {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/partners/`, {
+    const formData = new FormData()
+    formData.append('name', payload.name)
+    formData.append('email', payload.email)
+    formData.append('phone', payload.phone)
+    if (payload.location) formData.append('location', payload.location)
+    if (payload.contact_name) formData.append('contact_name', payload.contact_name)
+    if (payload.accreditation) formData.append('accreditation', payload.accreditation)
+    if (payload.license_number) formData.append('license_number', payload.license_number)
+    if (payload.notes) formData.append('notes', payload.notes)
+    payload.documents.forEach((document) => formData.append('documents', document))
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/partners/`, {
       method: 'POST',
-      headers: jsonHeaders(),
-      body: JSON.stringify(payload),
+      headers: { ...getAuthHeaders() },
+      body: formData,
     })
     return handleResponse<AdminLabPartnerApi>(response)
   },
 
   async updatePartner(id: number | string, payload: AdminLabPartnerUpdatePayload) {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/partners/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/partners/${id}/`, {
       method: 'PATCH',
       headers: jsonHeaders(),
       body: JSON.stringify(payload),
@@ -276,7 +324,7 @@ export const adminLabPartnerService = {
   },
 
   async actionPartner(id: number | string, payload: { action: LabPartnerAction; note?: string }) {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/partners/${id}/action/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/partners/${id}/action/`, {
       method: 'POST',
       headers: jsonHeaders(),
       body: JSON.stringify(payload),
@@ -285,7 +333,7 @@ export const adminLabPartnerService = {
   },
 
   async provisionPartnerAccount(id: number | string) {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/partners/${id}/provision-account/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/partners/${id}/provision-account/`, {
       method: 'POST',
       headers: { ...getAuthHeaders() },
     })
@@ -298,7 +346,7 @@ export const adminLabPartnerService = {
   },
 
   async createTechnician(partnerId: number | string, payload: AdminLabTechnicianCreatePayload) {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/partners/${partnerId}/technicians/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/partners/${partnerId}/technicians/`, {
       method: 'POST',
       headers: jsonHeaders(),
       body: JSON.stringify(payload),
@@ -307,7 +355,7 @@ export const adminLabPartnerService = {
   },
 
   async actionTechnician(id: number | string, payload: { action: LabTechnicianAction; note?: string }) {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/technicians/${id}/action/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/technicians/${id}/action/`, {
       method: 'POST',
       headers: jsonHeaders(),
       body: JSON.stringify(payload),
@@ -316,7 +364,7 @@ export const adminLabPartnerService = {
   },
 
   async provisionTechnicianAccount(id: number | string) {
-    const response = await fetch(`${API_BASE_URL}/admin/lab/technicians/${id}/provision-account/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/lab/technicians/${id}/provision-account/`, {
       method: 'POST',
       headers: { ...getAuthHeaders() },
     })
