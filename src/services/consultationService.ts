@@ -18,6 +18,7 @@ export interface ClinicianSummary {
 }
 
 export interface ConsultationMessage {
+  messageType?: 'text' | 'image' | 'file' | 'e_prescription'
   id: number
   sender: number | null
   senderName: string
@@ -468,6 +469,7 @@ function mapMessage(raw: Record<string, unknown>): ConsultationMessage {
     sender: raw.sender == null ? null : Number(raw.sender),
     senderName: String(raw.sender_name ?? ''),
     message: String(raw.message ?? ''),
+    messageType: String(raw.message_type ?? 'text') as ConsultationMessage['messageType'],
     sentAt: String(raw.sent_at ?? ''),
   }
 }

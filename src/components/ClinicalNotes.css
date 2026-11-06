@@ -1,0 +1,9 @@
+.clinical-notes { padding: 1.25rem; margin: 1rem 0; background: #fff; border: 1px solid #dce4ef; border-radius: 12px; min-width: 0; }
+.clinical-notes h3 { margin: 0 0 .5rem; color: #0f172a; }
+.clinical-notes h4 { margin: 1rem 0 .25rem; }
+.clinical-notes p { font-size: .9rem; line-height: 1.5; color: #475569; }
+.clinical-notes label { display: block; margin: .85rem 0; font-size: .9rem; font-weight: 600; }
+.clinical-notes textarea { display: block; box-sizing: border-box; width: 100%; margin-top: .35rem; padding: .7rem; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; font-weight: 400; resize: vertical; }
+.clinical-notes__text { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.dd-sp-chat > .clinical-notes--editable { flex-shrink: 0; max-height: 40vh; overflow-y: auto; margin: .5rem 1rem; }

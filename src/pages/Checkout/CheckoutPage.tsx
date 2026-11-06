@@ -1268,7 +1268,7 @@ function CheckoutPage() {
                   </div>
                   {availabilityErrors.length > 0 && <p className="co-error">{availabilityErrors[0]}</p>}
                   <TurnstileChallenge action="checkout" onToken={setChallengeToken} resetKey={challengeResetKey} />
-                  {validationError && <p className="co-error">{validationError}</p>}
+                  {validationError && validationError !== visiblePaymentNotice && <p className="co-error">{validationError}</p>}
                   <div className="co-form__actions">
                     <button type="button" onClick={handleContinueToPayment} className="btn btn--primary btn--lg" disabled={checkoutItems.length === 0 || isSubmitting || (challengeRequired && !challengeToken)}>
                       Continue to Payment
@@ -1311,7 +1311,7 @@ function CheckoutPage() {
                       <input type="radio" name="mpesa-flow" checked={mpesaFlow === 'stk'} onChange={() => setMpesaFlow('stk')} />
                       <div>
                         <strong>STK Push</strong>
-                        <p>Prompt sent to your phone</p>
+                        <p>Send a payment prompt to your phone</p>
                       </div>
                     </label>
                     <label className={`co-mpesa-opt ${mpesaFlow === 'paybill' ? 'co-mpesa-opt--active' : ''}`}>
@@ -1336,7 +1336,7 @@ function CheckoutPage() {
                   <div className={`co-paybill-box co-paybill-box--${selectedMethodTone}`} aria-live="polite">
                     <p className="co-paybill-box__label">M-Pesa STK Push</p>
                     <div className="co-paybill-box__rows">
-                      <div className="co-paybill-box__row"><span>Flow</span><strong>Prompt sent to your phone</strong></div>
+                      <div className="co-paybill-box__row"><span>Flow</span><strong>{paymentStatus === 'waiting' ? 'Waiting for confirmation on your phone' : paymentStatus === 'confirmed' ? 'Payment confirmed' : 'Initiate STK Push to send a prompt'}</strong></div>
                       <div className="co-paybill-box__row"><span>Number</span><strong>{mpesaPhone || 'Enter M-Pesa number above'}</strong></div>
                       <div className="co-paybill-box__row"><span>Amount</span><strong>{fmt(total)}</strong></div>
                     </div>
@@ -1401,7 +1401,7 @@ function CheckoutPage() {
                 )}
 
                 {visiblePaymentNotice && <p className={`co-payment-notice co-payment-notice--${paymentNoticeTone}`}>{visiblePaymentNotice}</p>}
-                {validationError && <p className="co-error">{validationError}</p>}
+                {validationError && validationError !== visiblePaymentNotice && <p className="co-error">{validationError}</p>}
 
                 <div className="co-actions">
                   <button onClick={() => setCurrentStep(1)} className="btn btn--outline" type="button" disabled={isPaymentLocked}>Back</button>
@@ -1552,7 +1552,7 @@ function CheckoutPage() {
                   ))}
                 </div>
 
-                {validationError && <p className="co-error">{validationError}</p>}
+                {validationError && validationError !== visiblePaymentNotice && <p className="co-error">{validationError}</p>}
 
                 <div className="co-actions">
                   {!isPaymentLocked && <button onClick={() => setCurrentStep(2)} className="btn btn--outline" type="button">Back</button>}

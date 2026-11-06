@@ -1132,3 +1132,44 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep the consultation workspace readable without squeezing clinical cards. */
+.dd-side-panel.pd-consult-panel { width: min(960px, 96vw); display: flex; flex-direction: column; overflow: hidden; }
+.pd-consult-panel .dd-sp-header { padding: 16px 20px; flex-shrink: 0; }
+.pd-consult-panel .dd-sp-id { font-size: 1rem; }
+.pd-consult-panel .dd-sp-meta { font-size: .75rem; margin-top: 4px; }
+.pd-consult-panel .dd-sp-stepper { position: static; padding: 14px 20px; flex-shrink: 0; }
+.pd-consult-panel .dd-sp-step__dot { width: 24px; height: 24px; font-size: .68rem; }
+.pd-consult-panel .dd-sp-step__label { font-size: .68rem; }
+.pd-consult-panel .dd-sp-body.pd-consult-body { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 20px; }
+.pd-consult-panel .pd-consult-workspace { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; }
+.pd-consult-panel :is(.pd-child-summary-card, .pd-complaint-card, .pd-note-board, .pd-context-card) { padding: 14px; border-radius: 10px; box-shadow: none; }
+.pd-consult-panel .dd-sp-section-title { font-size: .72rem; letter-spacing: .03em; margin-bottom: 10px; }
+.pd-consult-panel .dd-sp-patient { padding: 12px; gap: 10px; }
+.pd-consult-panel .dd-sp-patient__avatar { width: 34px; height: 34px; min-width: 34px; font-size: .75rem; }
+.pd-consult-panel .dd-sp-patient__name { font-size: .9rem; }
+.pd-consult-panel .dd-sp-patient__meta { font-size: .72rem; line-height: 1.6; }
+.pd-consult-panel .pd-child-summary-card__badges { gap: 6px; }
+.pd-consult-panel .pd-child-summary-card__badges :is(span, .dd-status-text) { font-size: .65rem; }
+.pd-consult-panel .pd-child-summary-card__metrics { gap: 10px; margin-top: 12px; }
+.pd-consult-panel .pd-child-summary-card__metrics div { padding: 10px; border-radius: 7px; }
+.pd-consult-panel .pd-child-summary-card__metrics span { font-size: .6rem; font-weight: 600; }
+.pd-consult-panel .pd-child-summary-card__metrics strong { font-size: .75rem; line-height: 1.6; overflow: visible; overflow-wrap: anywhere; }
+.pd-consult-panel .pd-complaint-card > span { font-size: .68rem; }
+.pd-consult-panel .pd-complaint-card p { margin: 8px 0 0; font-size: .8rem; line-height: 1.8; overflow-wrap: anywhere; }
+.pd-consult-panel .pd-consult-main, .pd-consult-panel .pd-consult-context { gap: 16px; }
+.pd-consult-panel .ped-growth-chart, .pd-consult-panel .ped-dosing-calc { padding: 12px; margin-top: 12px; border-radius: 8px; }
+.pd-consult-panel .ped-growth-chart__meta, .pd-consult-panel .pd-context-empty { font-size: .75rem; line-height: 1.8; }
+.pd-consult-panel .ped-dosing-calc__title, .pd-consult-panel .ped-growth-chart__title { font-size: .65rem; margin-bottom: 10px; }
+.pd-consult-panel .ped-dosing-calc__input { box-sizing: border-box; width: 0; min-width: 80px; height: 34px; padding: 8px 10px; font-size: .75rem; }
+.pd-consult-panel .doc-timeline__date { font-size: .65rem; margin-bottom: 5px; }
+.pd-consult-panel .doc-timeline__summary { font-size: .75rem; line-height: 1.8; overflow-wrap: anywhere; }
+.pd-consult-panel .pd-context-card__header span { font-size: .65rem; min-width: 22px; height: 22px; padding: 3px 6px; }
+.pd-consult-panel .pd-consult-rx-card { padding: 12px; font-size: .75rem; }
+.pd-consult-panel .pd-consult-rx-card strong { font-size: .85rem; }
+.pd-consult-panel .pd-consult-rx-card p, .pd-consult-panel .pd-note-board__header span { font-size: .7rem; line-height: 1.7; }
+.pd-consult-panel .pd-note-field { font-size: .75rem; }
+.pd-consult-panel .pd-note-field textarea { font-size: .75rem; line-height: 1.7; padding: 9px; }
+.pd-consult-panel .dd-sp-footer { padding: 12px 20px; flex-shrink: 0; }
+.pd-consult-panel .dd-sp-btn { font-size: .75rem; min-height: 34px; padding: 7px 12px; }
+@media (max-width: 760px) { .pd-consult-panel .pd-consult-workspace { grid-template-columns: minmax(0, 1fr); } .pd-consult-panel .dd-sp-body.pd-consult-body { padding: 14px; } }

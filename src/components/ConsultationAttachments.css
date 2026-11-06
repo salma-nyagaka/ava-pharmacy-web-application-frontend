@@ -18,3 +18,15 @@
 .consultation-files__empty, .consultation-files__status { margin: 12px 0 0; font-size: .75rem; color: #64748b; }
 .consultation-files__error { margin: 10px 0 0; font-size: .75rem; color: #b91c1c; }
 @media (max-width: 560px) { .consultation-files__header { flex-wrap: wrap; } .consultation-files__list li { flex-wrap: wrap; } .consultation-files__download { margin-left: 44px; } }
+
+/* Quiet attachment tray above the message composer. */
+.consultation-files { padding: 12px 16px; background: #fbfcfd; flex-shrink: 0; }
+.consultation-files__header { gap: 16px; }
+.consultation-files h3 { font-size: .8rem; gap: 7px; }
+.consultation-files h3 span { padding: 1px 6px; font-size: .6rem; }
+.consultation-files__header p { font-size: .68rem; margin-top: 3px; }
+.consultation-files__upload { min-height: 32px; padding: 6px 10px; font-size: .7rem; border-radius: 7px; }
+.consultation-files__upload svg { width: 14px; height: 14px; }
+.consultation-files__empty { display: inline-block; margin-top: 10px; padding: 5px 9px; border-radius: 6px; background: #f1f5f9; font-size: .68rem; color: #7a8799; }
+.consultation-files__list { margin-top: 10px; max-height: 160px; }
+.consultation-files__error { padding: 8px 10px; border: 1px solid #fecdd3; background: #fff1f2; border-radius: 7px; font-size: .7rem; line-height: 1.6; }

@@ -635,3 +635,33 @@
 }
 
 .cart-item__error { margin: 8px 0 0; padding: 8px 10px; border: 1px solid #fed7aa; border-radius: 7px; background: #fff7ed; color: #9a3412; font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
+
+/* Compact prescription checkout preparation. */
+.cart-page--prescription > .container { max-width: 1120px; }
+.cart-page--prescription .cart-breadcrumbs { padding-top: 18px; font-size: .72rem; }
+.cart-page--prescription .cart-header { padding: 16px 0 20px; }
+.cart-page--prescription .cart-header__title { font-size: 1.4rem; }
+.cart-page--prescription .cart-rx-banner { margin-bottom: 18px; padding: 14px 16px; border: 1px solid #cfe5dc; border-radius: 10px; background: #f0f8f4; gap: 12px; }
+.cart-page--prescription .cart-rx-banner__icon { width: 34px; height: 34px; border-radius: 9px; background: #e0eee7; color: #075b52; }
+.cart-page--prescription .cart-rx-banner__title { font-size: .85rem; color: #075b52; }
+.cart-page--prescription .cart-rx-banner__text { font-size: .75rem; color: #526b62; }
+.cart-page--prescription .cart-layout { grid-template-columns: minmax(0, 1fr) 290px; gap: 20px; }
+.cart-page--prescription .cart-prescribed { padding: 18px; border-bottom: 0; }
+.cart-page--prescription .cart-prescribed__head { align-items: center; margin-bottom: 14px; gap: 10px; }
+.cart-page--prescription .cart-prescribed__eyebrow { font-size: .62rem; margin-bottom: 4px; }
+.cart-page--prescription .cart-prescribed__head h2 { font-size: .95rem; margin: 0; }
+.cart-page--prescription .cart-prescribed__head > span { padding: 3px 8px; border-radius: 12px; background: #f1f5f9; font-size: .7rem; white-space: nowrap; }
+.cart-page--prescription .cart-prescribed__item { gap: 14px; padding: 14px 0; align-items: center; }
+.cart-page--prescription .cart-prescribed__item > div { min-width: 0; }
+.cart-page--prescription .cart-prescribed__name { font-size: .8rem; line-height: 1.6; margin: 0 0 5px; }
+.cart-page--prescription .cart-prescribed__meta { font-size: .68rem; line-height: 1.6; overflow-wrap: anywhere; margin: 0; }
+.cart-page--prescription .cart-prescribed__item .btn { min-height: 36px; padding: 8px 12px; border-radius: 8px; font-size: .75rem; flex-shrink: 0; }
+.cart-page--prescription .cart-summary { padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px #0f172a04; }
+.cart-page--prescription .cart-summary__title { font-size: .95rem; margin-bottom: 16px; }
+.cart-summary__empty { margin: 0 0 16px; padding: 12px; border: 1px dashed #dce3e9; border-radius: 8px; background: #f8fafc; font-size: .78rem; color: #64748b; line-height: 1.7; }
+.cart-page--prescription .cart-summary__cta { min-height: 38px; padding: 10px 12px; font-size: .8rem; border-radius: 8px; }
+.cart-page--prescription .cart-summary__row { font-size: .78rem; padding-block: 10px; }
+.cart-page--prescription .cart-summary__row--total { font-size: .95rem; }
+.cart-page--prescription .cart-summary__note { margin-top: 12px; font-size: .68rem; line-height: 1.6; }
+@media (max-width: 900px) { .cart-page--prescription .cart-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .cart-page--prescription .cart-prescribed__item { flex-direction: column; align-items: stretch; } }

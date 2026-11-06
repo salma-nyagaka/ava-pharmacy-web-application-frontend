@@ -1,3 +1,5 @@
+import PrescriptionDuration from '../../components/PrescriptionDuration'
+import ClinicalNotes from '../../components/ClinicalNotes'
 import { useWorkspaceView } from '../../hooks/useWorkspaceView'
 import { preferredScrollBehavior } from '../../utils/motion'
 import { formatStatus } from '../../utils/formatStatus'
@@ -2151,6 +2153,7 @@ function DoctorDashboardPage() {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   </button>
                 </div>
+                <ClinicalNotes key={selectedConsult.backendId} consultationId={selectedConsult.backendId} editable />
                 <div className="dd-sp-footer">
                   <div className="dd-sp-actions">
                     <button
@@ -2207,6 +2210,7 @@ function DoctorDashboardPage() {
                 </div>
 
                 <div className="dd-sp-body">
+                  <ClinicalNotes key={selectedConsult.backendId} consultationId={selectedConsult.backendId} editable />
                   <div className="dd-sp-section">
                     <p className="dd-sp-section-title">Patient</p>
                     <div className="dd-sp-patient">
@@ -2450,7 +2454,7 @@ function DoctorDashboardPage() {
                         <label>Frequency <span className="dd-rx-required">*</span></label>
                         <input aria-label="Frequency" type="text" required placeholder="e.g. TID" disabled={rxLockedByPayment} value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
                         <label>Duration <span className="dd-rx-required">*</span></label>
-                        <input aria-label="Duration" type="text" required placeholder="e.g. 3/7, 2/52, 1/12" disabled={rxLockedByPayment} value={item.duration ?? ''} onChange={(e) => updateRxItem(idx, { duration: e.target.value })} />
+                        <PrescriptionDuration value={item.duration ?? ''} disabled={rxLockedByPayment} onChange={duration => updateRxItem(idx, { duration })} />
                       </div>
                       <div className="dd-rx-qty-cell">
                         <label>Qty <span className="dd-rx-required">*</span></label>

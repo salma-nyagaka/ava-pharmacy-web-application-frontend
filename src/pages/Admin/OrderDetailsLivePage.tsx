@@ -88,7 +88,7 @@ function getInitials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function OrderDetailsLivePage() {
+function OrderDetailsLivePage({ backTo = '/admin/orders' }: { backTo?: string }) {
   const { id } = useParams<{ id: string }>()
   const [order, setOrder] = useState<AdminOrder | null>(null)
   const [loading, setLoading] = useState(true)
@@ -232,8 +232,8 @@ function OrderDetailsLivePage() {
   const customerPhone = order.customer_phone || order.shipping_phone || '-'
 
   return (
-    <div className="admin-page od-page">
-      <Link to="/admin/orders" className="od-back-link">← Back to orders</Link>
+    <div className="admin-page od-page staff-order-details">
+      <Link to={backTo} className="od-back-link">← Back to orders</Link>
       <div className="od-header">
         <div className="od-header__left">
           <div className="od-header__title">
@@ -287,7 +287,7 @@ function OrderDetailsLivePage() {
             <div className="od-items">
               {order.items.map((item) => (
                 <div key={item.id} className="od-item">
-                  <div className="od-item__icon">{item.product_name[0]}</div>
+                  
                   <div className="od-item__info">
                     <span className="od-item__name">{item.product_name}</span>
                     <span className="od-item__qty">{item.quantity} × {formatCurrency(item.unit_price)}</span>

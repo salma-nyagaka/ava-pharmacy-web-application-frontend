@@ -96,6 +96,7 @@ export interface PharmacistCatalogVariant {
   inventory_status: string
   available_quantity: number
   can_select: boolean
+  unavailable_reason?: string
 }
 
 const STATUS_FROM_API: Record<string, PrescriptionRecord['status']> = {
@@ -378,6 +379,15 @@ export const prescriptionService = {
       savePrescriptionRecords(nextRecords)
     }
     return prescriptionService.list()
+  },
+  editPending: async (backendId: number, payload: { patient: string; doctor: string; notes: string; files: File[] }) => {
+    const formData = new FormData()
+    formData.append('patient_name', payload.patient.trim())
+    formData.append('doctor_name', payload.doctor.trim())
+    formData.append('notes', payload.notes.trim())
+    payload.files.forEach((file) => formData.append('files', file))
+    const response = await apiClient.patch(`/prescriptions/${backendId}/edit/`, formData)
+    return { data: mapPrescription(response.data?.data ?? response.data) }
   },
   resubmit: async (backendId: number, files: File[]) => {
     const formData = new FormData()

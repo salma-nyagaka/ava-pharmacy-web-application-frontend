@@ -1,3 +1,5 @@
+import PrescriptionDuration from '../../components/PrescriptionDuration'
+import ClinicalNotes from '../../components/ClinicalNotes'
 import { useWorkspaceView } from '../../hooks/useWorkspaceView'
 import { preferredScrollBehavior } from '../../utils/motion'
 import { formatStatus } from '../../utils/formatStatus'
@@ -40,9 +42,7 @@ import '../../styles/portals/PediatricianDashboardPage.css'
 
 type PediatricTab = 'queue' | 'consents' | 'prescriptions' | 'profiles' | 'earnings'
 
-type PediatricClinicalNoteKey = 'complaint' | 'history' | 'exam' | 'diagnosis' | 'plan' | 'followUp' | 'assessment'
 
-type PediatricClinicalNotes = Record<PediatricClinicalNoteKey, string>
 
 type ChildClinicalProfile = {
   identityKey: string
@@ -372,26 +372,6 @@ function DosingCalculator({ weightKg }: { weightKg?: number }) {
   )
 }
 
-const NOTE_FIELDS: Array<{ key: PediatricClinicalNoteKey; label: string; placeholder: string }> = [
-  { key: 'complaint', label: 'Presenting complaint', placeholder: 'Fever, cough, rash, vomiting, diarrhoea...' },
-  { key: 'history', label: 'History of present illness', placeholder: 'Onset, duration, associated symptoms, feeding, hydration, sleep...' },
-  { key: 'exam', label: 'Physical examination findings', placeholder: 'Vitals, hydration, ENT, chest, abdomen, skin, neuro...' },
-  { key: 'diagnosis', label: 'Diagnosis', placeholder: 'Working diagnosis and differentials...' },
-  { key: 'plan', label: 'Treatment plan', placeholder: 'Medication, fluids, investigations, home care instructions...' },
-  { key: 'followUp', label: 'Follow-up instructions', placeholder: 'Review date, red flags, when guardian should return urgently...' },
-  { key: 'assessment', label: 'Pediatric assessment notes', placeholder: 'Growth, nutrition, vaccination, safeguarding, dosing rationale...' },
-]
-
-const EMPTY_NOTES: PediatricClinicalNotes = {
-  complaint: '',
-  history: '',
-  exam: '',
-  diagnosis: '',
-  plan: '',
-  followUp: '',
-  assessment: '',
-}
-
 function monthsFromAge(ageYears?: number) {
   return Math.max(0, Math.round((ageYears || 0) * 12))
 }
@@ -490,7 +470,6 @@ function PediatricianDashboardPage() {
 
   const [queueSearch, setQueueSearch] = useState('')
   const [selectedConsult, setSelectedConsult] = useState<Consultation | null>(null)
-  const [consultationNotes, setConsultationNotes] = useState<Record<string, PediatricClinicalNotes>>({})
 
   const consultEndRef = useRef<HTMLDivElement>(null)
   const [showConsultChat, setShowConsultChat] = useState(false)
@@ -807,7 +786,6 @@ function PediatricianDashboardPage() {
     [selectedConsult]
   )
 
-  const selectedConsultationNotes = selectedConsult ? consultationNotes[selectedConsult.id] || EMPTY_NOTES : EMPTY_NOTES
 
   const selectedConsultContext = useMemo(() => {
     if (!selectedConsult) {
@@ -991,16 +969,6 @@ function PediatricianDashboardPage() {
     const updated = consultations.map((c) => (c.id === id ? { ...c, dosageAlert: false } : c))
     setConsultations(updated)
     saveConsultations(updated)
-  }
-
-  const updateConsultationNote = (consultationId: string, key: PediatricClinicalNoteKey, value: string) => {
-    setConsultationNotes((prev) => ({
-      ...prev,
-      [consultationId]: {
-        ...(prev[consultationId] || EMPTY_NOTES),
-        [key]: value,
-      },
-    }))
   }
 
   const findOrCreateThread = (consult: Consultation): DoctorMessageThread => {
@@ -1646,23 +1614,7 @@ function PediatricianDashboardPage() {
                   </section>
 
                   <section className="pd-workspace-panel pd-notes-panel">
-                    <div className="pd-panel-title">
-                      <h3>Consultation notes</h3>
-                      <span>Autosaved locally</span>
-                    </div>
-                    <div className="pd-note-grid">
-                      {NOTE_FIELDS.map((field) => (
-                        <label key={field.key} className="pd-note-field">
-                          <span>{field.label}</span>
-                          <textarea
-                            rows={field.key === 'complaint' ? 2 : 3}
-                            placeholder={field.placeholder}
-                            value={selectedConsultationNotes[field.key]}
-                            onChange={(e) => updateConsultationNote(selectedConsult.id, field.key, e.target.value)}
-                          />
-                        </label>
-                      ))}
-                    </div>
+                    <ClinicalNotes key={selectedConsult.backendId} consultationId={selectedConsult.backendId} editable />
                     <div className="pd-care-modules">
                       <div>
                         <h4>Vaccination</h4>
@@ -2243,27 +2195,7 @@ function PediatricianDashboardPage() {
                         </button>
                       </div>
 
-                      <div className="pd-note-board">
-                        <div className="pd-note-board__header">
-                          <div>
-                            <p className="dd-sp-section-title">Clinical notes</p>
-                            <span>Autosaved locally while the consultation is open.</span>
-                          </div>
-                        </div>
-                        <div className="pd-note-grid">
-                          {NOTE_FIELDS.map((field) => (
-                            <label key={field.key} className="pd-note-field">
-                              <span>{field.label}</span>
-                              <textarea
-                                value={selectedConsultationNotes[field.key]}
-                                placeholder={field.placeholder}
-                                rows={field.key === 'assessment' ? 3 : 2}
-                                onChange={(event) => updateConsultationNote(selectedConsult.id, field.key, event.target.value)}
-                              />
-                            </label>
-                          ))}
-                        </div>
-                      </div>
+                      <ClinicalNotes key={selectedConsult.backendId} consultationId={selectedConsult.backendId} editable />
                     </section>
 
                     <aside className="pd-consult-context">
@@ -2501,7 +2433,7 @@ function PediatricianDashboardPage() {
                         <label>Frequency <span className="dd-rx-required">*</span></label>
                         <input aria-label="Frequency" type="text" required placeholder="e.g. TID" value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
                         <label>Duration <span className="dd-rx-required">*</span></label>
-                        <input aria-label="Duration" type="text" required placeholder="e.g. 3/7 or 2/52" value={item.duration ?? ''} onChange={(e) => updateRxItem(idx, { duration: e.target.value })} />
+                        <PrescriptionDuration value={item.duration ?? ''} onChange={duration => updateRxItem(idx, { duration })} />
                       </div>
                       <div className="dd-rx-qty-cell">
                         <label>Qty <span className="dd-rx-required">*</span></label>

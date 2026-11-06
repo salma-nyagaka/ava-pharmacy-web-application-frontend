@@ -281,3 +281,11 @@
   line-height: 1.6;
   max-width: none;
 }
+
+/* Payment status tabs match the admin orders filters. */
+.pharm-payment-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 4px 12px; margin-bottom: 12px; }
+.pharm-payment-tabs__tab { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #475569; font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
+.pharm-payment-tabs__tab[aria-pressed=true] { color: #be123c; background: #fff1f2; border-color: #fda4af; }
+.pharm-payment-tabs__tab > span { border-radius: 16px; padding: 2px 7px; background: #f1f5f9; font-size: .8em; }
+.pharm-payment-tabs__tab[aria-pressed=true] > span { background: #ffe4e6; }
+.pharm-payment-tabs__tab:focus-visible { outline: 2px solid #e11d48; outline-offset: 2px; }

@@ -1,9 +1,12 @@
-import PrescriptionVerificationPanel from '../../components/PrescriptionVerificationPanel'
+import OrderManageModal from '../../components/OrderManageModal'
+import OrderStatusConfirmation from '../../components/OrderStatusConfirmation'
+import { addAdminOrderNote, recordDeliveryConfirmation, orderUpdateError, type DeliveryConfirmation } from '../../services/adminOrderService'
+import PrescriptionVerificationPanel, { type PrescriptionVerificationHandle } from '../../components/PrescriptionVerificationPanel'
 import { useWorkspaceView } from '../../hooks/useWorkspaceView'
 import { formatStatus, formatPaymentMethod } from '../../utils/formatStatus'
 import Dialog from '../../components/Dialog/Dialog'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { PrescriptionClarificationMessage, PrescriptionItem, PrescriptionRecord, PrescriptionStatus } from '../../data/prescriptions'
 import { prescriptionService, type PharmacistCatalogVariant } from '../../services/prescriptionService'
@@ -272,6 +275,11 @@ function PharmacistDashboardPage() {
   const [selectedOrderPaymentStatus, setSelectedOrderPaymentStatus] = useState<'all' | string>('all')
   const [orderCurrentPage, setOrderCurrentPage] = useState(1)
   const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
+  const verificationRef = useRef<PrescriptionVerificationHandle>(null)
+  const approvalBusyRef = useRef(false)
+  const [isApproving, setIsApproving] = useState(false)
+  const [approvalError, setApprovalError] = useState('')
+  useEffect(() => { setApprovalError('') }, [activeRx?.id])
   const [showClarificationInput, setShowClarificationInput] = useState(false)
   const [clarificationNote, setClarificationNote] = useState('')
   const [cartAddedMsg, setCartAddedMsg] = useState<string | null>(null)
@@ -289,6 +297,7 @@ function PharmacistDashboardPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [ordersError, setOrdersError] = useState('')
+  const [orderNote, setOrderNote] = useState('')
   const [activeOrder, setActiveOrder] = useState<AdminOrder | null>(null)
   const [orderSaving, setOrderSaving] = useState(false)
   const [statusConfirm, setStatusConfirm] = useState<{ order: AdminOrder; nextStatus: string } | null>(null)
@@ -411,6 +420,7 @@ function PharmacistDashboardPage() {
   useEffect(() => {
     if (!activeRx) return
     const handleKey = (e: KeyboardEvent) => {
+      if (approvalBusyRef.current) return
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       if (activeWorkspace === 'prescriptions' && e.code === 'KeyA') { void handleApprove() }
@@ -477,7 +487,7 @@ function PharmacistDashboardPage() {
     }))
 
   const handleApprove = async () => {
-    if (!activeRx) return
+    if (!activeRx || approvalBusyRef.current) return
     const toAdd = activeRx.items.filter((item) => itemSelections[item.name] && item.variantId)
     const reviewItems = [
       ...toAdd.map((item) => ({
@@ -504,30 +514,45 @@ function PharmacistDashboardPage() {
       window.setTimeout(() => setCartAddedMsg(null), 6000)
       return
     }
-    if (activeRx.backendId) {
-      const response = await prescriptionService.pharmacistReview(activeRx.backendId, {
-        action: 'approve',
-        notes: `Approved by ${actor}`,
-        items: reviewItems,
-      })
-      setPrescriptions(response.data)
-    } else {
-      await updateRx(activeRx.id, { status: 'Approved', pharmacist: actor, items: reviewItems.map((item) => ({
-        name: item.name,
-        productId: item.product_id,
-        variantId: item.variant_id,
-        dose: item.dose || '-',
-        frequency: item.frequency || '-',
-        qty: item.quantity,
-      })) }, `Approved by ${actor}`)
+    approvalBusyRef.current = true
+    setIsApproving(true)
+    setApprovalError('')
+    try {
+      if (activeRx.backendId) {
+        if (!verificationRef.current || !await verificationRef.current.saveForApproval()) {
+          setApprovalError('Complete the required prescription verification fields before approving. See the verification section on the left.')
+          return
+        }
+        const response = await prescriptionService.pharmacistReview(activeRx.backendId, {
+          action: 'approve',
+          notes: `Approved by ${actor}`,
+          items: reviewItems,
+        })
+        setPrescriptions(response.data)
+      } else {
+        await updateRx(activeRx.id, { status: 'Approved', pharmacist: actor, items: reviewItems.map((item) => ({
+          name: item.name,
+          productId: item.product_id,
+          variantId: item.variant_id,
+          dose: item.dose || '-',
+          frequency: item.frequency || '-',
+          qty: item.quantity,
+        })) }, `Approved by ${actor}`)
+      }
+      const skipped = activeRx.items.length - toAdd.length
+      setCartAddedMsg(`Prescription approved with ${reviewItems.length} mapped item${reviewItems.length !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} unselected item${skipped !== 1 ? 's' : ''} skipped` : ''}.`)
+      window.setTimeout(() => setCartAddedMsg(null), 6000)
+    } catch (error) {
+      const payload = (error as { response?: { data?: { error?: { message?: string }; detail?: string } } }).response?.data
+      setApprovalError(payload?.error?.message || payload?.detail || 'Unable to approve this prescription. Please check the verification details and try again.')
+    } finally {
+      approvalBusyRef.current = false
+      setIsApproving(false)
     }
-    const skipped = activeRx.items.length - toAdd.length
-    setCartAddedMsg(`Prescription approved with ${reviewItems.length} mapped item${reviewItems.length !== 1 ? 's' : ''}${skipped > 0 ? ` · ${skipped} unselected item${skipped !== 1 ? 's' : ''} skipped` : ''}.`)
-    window.setTimeout(() => setCartAddedMsg(null), 6000)
   }
 
   const handleClarification = async (note: string) => {
-    if (!activeRx) return
+    if (!activeRx || approvalBusyRef.current) return
     const trimmed = note.trim()
     if (activeRx.backendId) {
       const response = await prescriptionService.pharmacistReview(activeRx.backendId, {
@@ -543,7 +568,7 @@ function PharmacistDashboardPage() {
   }
 
   const handleReject = async () => {
-    if (!activeRx) return
+    if (!activeRx || approvalBusyRef.current) return
     const reason = (rejectionTemplate === 'Other' ? rejectionCustom : rejectionTemplate).trim()
     if (!reason) return
     try {
@@ -637,10 +662,12 @@ function PharmacistDashboardPage() {
 
   const openOrderModal = (order: AdminOrder) => {
     setActiveOrder(order)
+    setOrderNote('')
     setOrdersError('')
   }
 
   const promptOrderStatusUpdate = (order: AdminOrder, nextStatus: string) => {
+    setOrdersError('')
     setStatusConfirm({ order, nextStatus })
   }
 
@@ -649,21 +676,31 @@ function PharmacistDashboardPage() {
     setActiveOrder((prev) => (prev?.id === updated.id ? updated : prev))
   }
 
-  const handleOrderUpdate = async (status: string) => {
-    if (!activeOrder) return
-    promptOrderStatusUpdate(activeOrder, status)
-  }
-
-  const confirmOrderStatusUpdate = async () => {
-    if (!statusConfirm) return
+  const saveOrderNote = async () => {
+    if (!activeOrder || !orderNote.trim() || orderSaving) return
     setOrderSaving(true)
     setOrdersError('')
     try {
+      syncOrder(await addAdminOrderNote(activeOrder.id, orderNote.trim()))
+      setOrderNote('')
+    } catch (error) {
+      setOrdersError(orderUpdateError(error))
+    } finally {
+      setOrderSaving(false)
+    }
+  }
+
+  const confirmOrderStatusUpdate = async (delivery?: DeliveryConfirmation) => {
+    if (!statusConfirm || orderSaving) return
+    setOrderSaving(true)
+    setOrdersError('')
+    try {
+      if (statusConfirm.nextStatus === 'delivered' && delivery) await recordDeliveryConfirmation(statusConfirm.order.id, delivery)
       const updated = await updateAdminOrder(statusConfirm.order.id, { status: statusConfirm.nextStatus })
       syncOrder(updated)
       setStatusConfirm(null)
-    } catch {
-      setOrdersError('Unable to update the order right now.')
+    } catch (error) {
+      setOrdersError(orderUpdateError(error))
     } finally {
       setOrderSaving(false)
     }
@@ -944,6 +981,24 @@ function PharmacistDashboardPage() {
             </div>
           </div>
 
+          <div className="pharm-payment-tabs" role="group" aria-label="Filter orders by payment status">
+            {[
+              { value: 'all', label: 'All payments' },
+              { value: 'paid', label: 'Paid' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'requires_action', label: 'Requires action' },
+              { value: 'failed', label: 'Failed' },
+              { value: 'refunded', label: 'Refunded' },
+            ].map(tab => (
+              <button key={tab.value} type="button" className="pharm-payment-tabs__tab"
+                aria-pressed={selectedOrderPaymentStatus === tab.value}
+                onClick={() => { setSelectedOrderPaymentStatus(tab.value); setOrderCurrentPage(1) }}>
+                {tab.label}
+                {!ordersLoading && <span>{tab.value === 'all' ? orders.length : orders.filter(order => order.payment_status === tab.value).length}</span>}
+              </button>
+            ))}
+          </div>
+
           <div className="admin-page__filters">
             <input
               type="text"
@@ -959,14 +1014,6 @@ function PharmacistDashboardPage() {
                   {ORDER_STATUS_LABELS[status] ?? status}
                 </option>
               ))}
-            </select>
-            <select aria-label="Filter orders by payment status" value={selectedOrderPaymentStatus} onChange={(e) => setSelectedOrderPaymentStatus(e.target.value)}>
-              <option value="all">All payment states</option>
-              <option value="pending">Pending</option>
-              <option value="requires_action">Requires action</option>
-              <option value="paid">Paid</option>
-              <option value="failed">Failed</option>
-              <option value="refunded">Refunded</option>
             </select>
             {(selectedOrderStatus !== 'all' || selectedOrderPaymentStatus !== 'all' || orderSearchTerm) && (
               <button
@@ -1138,6 +1185,8 @@ function PharmacistDashboardPage() {
                             </td>
                             <td>
                               <div className="cm-row-actions pharm-row-actions">
+                                <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => openOrderModal(order)}>Manage</button>
+                                <Link className="cm-row-btn cm-row-btn--edit" to={`/pharmacist/orders/${order.id}`}>View</Link>
                                 {upcomingStatus && (
                                   <button
                                     className="cm-row-btn cm-row-btn--primary pharm-row-btn--next"
@@ -1148,9 +1197,6 @@ function PharmacistDashboardPage() {
                                     {ORDER_ACTION_LABELS[upcomingStatus]}
                                   </button>
                                 )}
-                                <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => openOrderModal(order)}>
-                                  View items
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1179,8 +1225,8 @@ function PharmacistDashboardPage() {
 
       {/* Modal */}
       {activeRx && (
-        <div className="modal-overlay" onClick={() => setActiveRx(null)}>
-          <Dialog aria-label={`Prescription ${activeRx.id}`} onClose={() => setActiveRx(null)} className="px-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => { if (!approvalBusyRef.current) setActiveRx(null) }}>
+          <Dialog busy={isApproving} aria-label={`Prescription ${activeRx.id}`} onClose={() => { if (!approvalBusyRef.current) setActiveRx(null) }} className="px-modal" onClick={(e) => e.stopPropagation()}>
 
             {/* Modal header */}
             <div className="px-modal__header">
@@ -1193,7 +1239,7 @@ function PharmacistDashboardPage() {
               </div>
               <div className="px-modal__header-right">
                 <span className="px-modal__submitted">Submitted {formatSubmittedDateTime(activeRx.submittedAt || activeRx.submitted)}</span>
-                <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
+                <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => { if (!approvalBusyRef.current) setActiveRx(null) }}>×</button>
               </div>
             </div>
 
@@ -1214,7 +1260,7 @@ function PharmacistDashboardPage() {
                   </div>
                 </div>
 
-                {activeRx.backendId && <PrescriptionVerificationPanel id={activeRx.backendId} onSaved={refreshPrescriptions} />}
+                {activeRx.backendId && <PrescriptionVerificationPanel key={activeRx.backendId} ref={verificationRef} id={activeRx.backendId} onSaved={refreshPrescriptions} />}
 
                 {/* Inline document viewer */}
                 {activeRx.files.length > 0 && (
@@ -1274,7 +1320,7 @@ function PharmacistDashboardPage() {
                           />
                           <div className="px-item__info">
                             <p className="px-item__name">{item.name}</p>
-                            <p className="px-item__meta">{item.dose} · {item.frequency}</p>
+                            <p className="px-item__meta">{[item.dose, item.frequency, item.duration].filter(Boolean).join(' · ')}</p>
                             {hasCatalogVariant ? (
                               <p className="px-item__variant">
                                 Patient requested catalog item · {item.variantName || 'Selected variant'}{item.variantSku ? ` · SKU ${item.variantSku}` : ''}
@@ -1373,7 +1419,7 @@ function PharmacistDashboardPage() {
                                   </span>
                                 </span>
                                 <span className={`px-med-dropdown__stock ${variant.can_select ? '' : 'px-med-dropdown__stock--out'}`}>
-                                  {variant.can_select ? `${variant.available_quantity} in stock` : 'Out of stock'}
+                                  {variant.can_select ? `${variant.available_quantity} in stock` : (variant.unavailable_reason || 'Unavailable')}
                                 </span>
                               </button>
                             ))}
@@ -1465,12 +1511,13 @@ function PharmacistDashboardPage() {
               {activeWorkspace === 'prescriptions' && (
                 <div className="px-modal__right">
                   {cartAddedMsg && <div className="px-cart-added-msg">{cartAddedMsg}</div>}
+                  {approvalError && <p className="pharm-order-state pharm-order-state--error" role="alert">{approvalError}</p>}
                   <div className="px-workflow-section">
                     <p className="px-section-label">Decision</p>
                     <div className="pharm-action-bar">
-                      <button className={`px-decision-btn px-decision-btn--approve ${activeRx.status === 'Approved' ? 'px-decision-btn--active' : ''}`} type="button" onClick={handleApprove}>
+                      <button className={`px-decision-btn px-decision-btn--approve ${activeRx.status === 'Approved' ? 'px-decision-btn--active' : ''}`} type="button" disabled={isApproving} onClick={handleApprove}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        <span>Approve</span>
+                        <span>{isApproving ? 'Approving…' : 'Approve'}</span>
                       </button>
                       <button className={`px-decision-btn px-decision-btn--clarify ${activeRx.status === 'Clarification' ? 'px-decision-btn--active' : ''}`} type="button" onClick={() => setShowClarificationInput((current) => !current)}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -1516,168 +1563,15 @@ function PharmacistDashboardPage() {
 
             {/* Footer */}
             <div className="px-modal__footer">
-              <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
+              <button className="btn btn--outline btn--sm" type="button" onClick={() => { if (!approvalBusyRef.current) setActiveRx(null) }}>Close</button>
             </div>
           </Dialog>
         </div>
       )}
 
-      {activeOrder && (
-        <div className="modal-overlay" onClick={() => setActiveOrder(null)}>
-          <Dialog busy={orderSaving} onClose={() => setActiveOrder(null)} className="px-modal pharm-order-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="px-modal__header">
-              <div className="px-modal__header-left">
-                <span className="px-modal__rx-id">{activeOrder.order_number}</span>
-                <span className={`admin-status status--${activeOrder.status}`}>{ORDER_STATUS_LABELS[activeOrder.status] ?? activeOrder.status}</span>
-              </div>
-              <div className="px-modal__header-right">
-                <span className="px-modal__submitted">Updated {formatOrderDate(activeOrder.updated_at)}</span>
-                <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setActiveOrder(null)}>×</button>
-              </div>
+      {activeOrder && <OrderManageModal order={activeOrder} busy={orderSaving} error={ordersError} orderNote={orderNote} setOrderNote={setOrderNote} onClose={() => setActiveOrder(null)} onNextStatus={status => promptOrderStatusUpdate(activeOrder, status)} onSaveNote={() => void saveOrderNote()} />}
+      {statusConfirm && <OrderStatusConfirmation orderNumber={statusConfirm.order.order_number} status={formatStatus(statusConfirm.nextStatus)} busy={orderSaving} error={ordersError} onClose={() => setStatusConfirm(null)} onConfirm={delivery => void confirmOrderStatusUpdate(delivery)} />}
 
-            </div>
-
-            <div className="px-modal__body">
-              <div className="px-modal__left">
-                <div className="pharm-order-modal__summary">
-                  <div>
-                    <span>Customer</span>
-                    <strong>{orderCustomerName(activeOrder)}</strong>
-                    <p>{orderCustomerEmail(activeOrder)}</p>
-                    <p>{orderCustomerPhone(activeOrder)}</p>
-                  </div>
-                  <div>
-                    <span>Address</span>
-                    <strong>{activeOrder.shipping_address}</strong>
-                  </div>
-                  <div>
-                    <span>Payment</span>
-                    <strong>{formatPaymentMethod(activeOrder.payment_method)} · {formatStatus(activeOrder.payment_status)}</strong>
-                  </div>
-                  {formatOrderPrescriptionReferences(activeOrder) && (
-                    <div>
-                      <span>Prescription</span>
-                      <strong>{formatOrderPrescriptionReferences(activeOrder)}</strong>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pharm-pack-list">
-                  <div className="pharm-pack-list__header">
-                    <strong>Items to pack</strong>
-                    <span>Use this list while picking and packing the order.</span>
-                  </div>
-                  <div className="pharm-pack-list__body">
-                    {activeOrder.items.map((item) => (
-                      <div key={item.id} className="pharm-pack-list__item">
-                        <div className="pharm-pack-list__qty">{item.quantity}x</div>
-                        <div className="pharm-pack-list__details">
-                          <strong>{item.product_name}</strong>
-                          <span>SKU: {item.product_sku || 'Not available'}</span>
-                          {item.prescription_id && <span>Rx: {item.prescription_id}</span>}
-                        </div>
-                        <div className="pharm-pack-list__pricing">
-                          <span>{formatCurrency(item.unit_price)} each</span>
-                          <strong>{formatCurrency(item.subtotal)}</strong>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="pharm-pack-list__hint">Verify the SKU and quantity for each line before moving the order to the next status.</p>
-                </div>
-
-              </div>
-
-              <div className="px-modal__right">
-                <div className="pharm-order-actions">
-                  <p className="px-section-label">Order actions</p>
-                  {nextOrderStatus(activeOrder) ? (
-                    <button
-                      className="btn btn--primary btn--sm"
-                      type="button"
-                      disabled={orderSaving}
-                      onClick={() => void handleOrderUpdate(nextOrderStatus(activeOrder) as string)}
-                    >
-                      Mark {ORDER_ACTION_LABELS[nextOrderStatus(activeOrder) as string].toLowerCase()}
-                    </button>
-                  ) : (
-                    <p className="pharm-order-actions__hint">No further operational status change is needed for this order.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="px-modal__footer">
-              <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveOrder(null)}>Close</button>
-            </div>
-          </Dialog>
-        </div>
-      )}
-
-      {statusConfirm && (
-        <div className="modal-overlay" onClick={() => !orderSaving && setStatusConfirm(null)}>
-          <Dialog busy={orderSaving} onClose={() => !orderSaving && setStatusConfirm(null)} className="px-modal pharm-order-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="px-modal__header">
-              <div className="px-modal__header-left">
-                <span className="px-modal__rx-id">{statusConfirm.order.order_number}</span>
-                <span className={`admin-status status--${statusConfirm.order.status}`}>
-                  {ORDER_STATUS_LABELS[statusConfirm.order.status] ?? statusConfirm.order.status}
-                </span>
-              </div>
-              <div className="px-modal__header-right">
-                <span className="px-modal__submitted">Confirm order status update</span>
-                <button aria-label="Close dialog" className="modal__close" type="button" disabled={orderSaving} onClick={() => setStatusConfirm(null)}>×</button>
-              </div>
-            </div>
-
-            <div className="px-modal__body">
-              <div className="px-modal__left">
-                <div className="pharm-order-modal__summary">
-                  <div>
-                    <span>Current status</span>
-                    <strong>{ORDER_STATUS_LABELS[statusConfirm.order.status] ?? statusConfirm.order.status}</strong>
-                  </div>
-                  <div>
-                    <span>Next status</span>
-                    <strong>{ORDER_STATUS_LABELS[statusConfirm.nextStatus] ?? statusConfirm.nextStatus}</strong>
-                  </div>
-                  <div>
-                    <span>Customer</span>
-                    <strong>{statusConfirm.order.customer_name || `${statusConfirm.order.shipping_first_name} ${statusConfirm.order.shipping_last_name}`}</strong>
-                  </div>
-                </div>
-
-                <p className="pharm-order-actions__hint">
-                  You are updating this order from {ORDER_STATUS_LABELS[statusConfirm.order.status] ?? statusConfirm.order.status} to {ORDER_STATUS_LABELS[statusConfirm.nextStatus] ?? statusConfirm.nextStatus}. Confirm only if that fulfilment step is complete.
-                </p>
-              </div>
-
-              <div className="px-modal__right">
-                <div className="pharm-order-actions">
-                  <p className="px-section-label">Apply update</p>
-                  <p className="pharm-order-actions__hint">This change updates the live backend order record and customer tracking timeline.</p>
-                  <button
-                    className="btn btn--primary btn--sm"
-                    type="button"
-                    disabled={orderSaving}
-                    onClick={() => void confirmOrderStatusUpdate()}
-                  >
-                    Confirm update
-                  </button>
-                  <button
-                    className="btn btn--outline btn--sm"
-                    type="button"
-                    disabled={orderSaving}
-                    onClick={() => setStatusConfirm(null)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Dialog>
-        </div>
-      )}
       </div>
     </ProfessionalPortalShell>
   )

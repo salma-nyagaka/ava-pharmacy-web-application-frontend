@@ -1,3 +1,4 @@
+import ClinicalNotes from '../../components/ClinicalNotes'
 import { preferredScrollBehavior } from '../../utils/motion'
 import Dialog from '../../components/Dialog/Dialog'
 import ConsultationAttachments from '../../components/ConsultationAttachments'
@@ -1000,6 +1001,7 @@ function PediatricianConsultation() {
 
                   {isExpanded && (
                     <div className="ac-card__body">
+                      <ClinicalNotes key={consultation.id} consultationId={consultation.id} />
                       <div className="ac-card__summary">
                         <p className="ac-card__summary-label">Reason for consultation</p>
                         <p className="ac-card__summary-text">{consultation.issue || 'No summary recorded yet.'}</p>
@@ -1270,6 +1272,19 @@ function PediatricianConsultation() {
                   </div>
                 )}
                 {currentConsultation.messages.map((message) => {
+                  if (message.messageType === 'e_prescription') {
+                    const issued = currentConsultation.prescriptions.find(item => message.message.includes(item.reference))
+                    const dispensing = issued ? customerPrescriptions.find(item => item.clinicianPrescriptionId === issued.id) : null
+                    return <div key={message.id} className="dc-prescription-notice" role="status">
+                      <div className="dc-prescription-notice__heading">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M14 2H5v20h14V7l-5-5ZM14 2v6h5M8 14h8M12 10v8"/></svg>
+                        <strong>New prescription issued</strong>
+                        <time dateTime={message.sentAt}>{formatDateTime(message.sentAt)}</time>
+                      </div>
+                      <p>{message.message}</p>
+                      <Link className="btn btn--outline btn--sm" to={dispensing?.backendId ? `/prescriptions?prescription=${dispensing.backendId}` : '/prescriptions'}>View prescription</Link>
+                    </div>
+                  }
                   const isPatient = message.sender === user?.id
                   return (
                     <div key={message.id} className={`dc-msg dc-msg--${isPatient ? 'patient' : 'doctor'}`}>
@@ -1300,14 +1315,15 @@ function PediatricianConsultation() {
                     }
                   }}
                 />
-                <button className="btn btn--primary" type="button" onClick={() => { void handleSendMessage() }} disabled={!messageInput.trim() || isSendingMessage}>
+                <button aria-label="Send message" className="btn btn--primary" type="button" onClick={() => { void handleSendMessage() }} disabled={!messageInput.trim() || isSendingMessage}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
               </div>
-              {submitError && <p className="dc-field-error dc-chat__error">{submitError}</p>}
+              {submitError && <p role="alert" className="dc-field-error dc-chat__error">{submitError}</p>}
             </div>
 
             <aside className="dc-chat-panel" aria-label="Consultation details">
+              <ClinicalNotes key={currentConsultation?.id} consultationId={currentConsultation?.id} />
               <div className="dc-chat-panel__card dc-chat-panel__card--doctor">
                 <div className="dc-chat-panel__avatar">{getInitials(clinicianName)}</div>
                 <div>
@@ -1405,6 +1421,7 @@ function PediatricianConsultation() {
                   </p>
                   <div className="dc-chat-detail"><span>Reference</span><strong>{latestPrescription.reference}</strong></div>
                   <div className="dc-chat-detail"><span>Items</span><strong>{latestPrescription.itemsCount}</strong></div>
+                  {latestPrescription.items.map((item, index) => <div key={index} className="dc-chat-detail"><span>{item.drugName || item.catalogName}</span><strong>{[item.dose, item.frequency, item.duration].filter(Boolean).join(' · ')}</strong></div>)}
                   <Link to={dispensingPrescription?.backendId ? `/prescriptions?prescription=${dispensingPrescription.backendId}` : '/prescriptions'} className="dc-prescription-status__link">
                     {dispensingPrescription?.status === 'Approved' ? 'Add to cart / pay' : 'Review prescription'}
                   </Link>

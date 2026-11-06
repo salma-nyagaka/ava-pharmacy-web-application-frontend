@@ -55,7 +55,7 @@ export default function ConsultationAttachments({ consultationId, refreshKey }: 
   }
   return <section aria-label="Consultation shared files" className="consultation-files">
     <header className="consultation-files__header">
-      <div><h3>Shared files <span>{files.length}</span></h3><p>Share photos and documents with your care team. Up to 10 MB per file.</p></div>
+      <div><h3>Shared files <span>{files.length}</span></h3><p>Photos & documents · Up to 10 MB per file.</p></div>
       <button className="consultation-files__upload" type="button" disabled={busy} onClick={() => input.current?.click()}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></svg>
         {busy ? 'Uploading…' : 'Upload file'}

@@ -112,7 +112,7 @@ function CartPage() {
   }
 
   return (
-    <div className="cart-page">
+    <div className={`cart-page${focusedPrescriptionId ? ' cart-page--prescription' : ''}`}>
       <div className="container">
         {cartError && <p role="alert">{cartError}</p>}
         {mergeWarning && <p role="alert">{mergeWarning}</p>}
@@ -147,7 +147,7 @@ function CartPage() {
             <div>
               <p className="cart-rx-banner__title">Prescription {focusedPrescriptionId}</p>
               <p className="cart-rx-banner__text">
-                Showing only items tied to this prescription{focusedPrescription ? ` for ${focusedPrescription.patient}` : ''}.
+                Approved items{focusedPrescription ? ` for ${focusedPrescription.patient}` : ''}. Add them below to continue.
               </p>
             </div>
           </div>
@@ -176,7 +176,7 @@ function CartPage() {
                   <div className="cart-prescribed__head">
                     <div>
                       <p className="cart-prescribed__eyebrow">Approved prescriptions</p>
-                      <h2>Prescribed products ready to add</h2>
+                      <h2>Ready to add</h2>
                     </div>
                     <span>{approvedPrescriptionItems.length} item{approvedPrescriptionItems.length === 1 ? '' : 's'}</span>
                   </div>
@@ -187,8 +187,8 @@ function CartPage() {
                         <div>
                           <p className="cart-prescribed__name">{item.productName || item.name}</p>
                           <p className="cart-prescribed__meta">
-                            {rx.id}
-                            {item.variantName ? ` · ${item.variantName}` : ''}
+                            {!focusedPrescriptionId ? `${rx.id} · ` : ''}
+                            {item.variantName && item.variantName.trim().toLowerCase() !== (item.productName || item.name).trim().toLowerCase() ? `${item.variantName} · ` : ''}
                             {item.variantSku ? ` · SKU ${item.variantSku}` : ''}
                             {` · Qty ${item.qty}`}
                           </p>
@@ -291,7 +291,7 @@ function CartPage() {
             <div className="cart-summary">
               <h2 className="cart-summary__title">Order Summary</h2>
 
-              <div className="cart-delivery-bar">
+              {visibleCartItems.length > 0 && <div className="cart-delivery-bar">
                 {amountToFree > 0 ? (
                   <>
                     <p className="cart-delivery-bar__label">Add <strong>{fmt(amountToFree)}</strong> more for free delivery</p>
@@ -305,9 +305,10 @@ function CartPage() {
                     Free delivery applied!
                   </p>
                 )}
-              </div>
+              </div>}
 
-              <div className="cart-summary__rows">
+              {visibleCartItems.length === 0 && <p className="cart-summary__empty">Add your approved items to see prices, delivery, and your order total.</p>}
+              {visibleCartItems.length > 0 && <div className="cart-summary__rows">
                 <div className="cart-summary__row">
                   <span>Subtotal ({itemCount} item{itemCount !== 1 ? 's' : ''})</span>
                   <span>{fmt(subtotal)}</span>
@@ -320,7 +321,7 @@ function CartPage() {
                   <span>Total</span>
                   <span>{fmt(total)}</span>
                 </div>
-              </div>
+              </div>}
 
               {isLoggedIn && visibleCartItems.length > 0 ? (
                 <Link
@@ -358,9 +359,9 @@ function CartPage() {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 Stock and prices are checked again at checkout
               </p>
-              <p className="cart-summary__note cart-summary__note--rx">
+              {!focusedPrescriptionId && <p className="cart-summary__note cart-summary__note--rx">
                 Need a prescription medicine? Upload your prescription first, then continue once it has been approved.
-              </p>
+              </p>}
             </div>
           </div>
         )}

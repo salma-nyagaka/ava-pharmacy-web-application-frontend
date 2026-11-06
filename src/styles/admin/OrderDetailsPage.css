@@ -915,3 +915,22 @@
 .od-page .od-disclosure { min-height: 0; }
 .od-page .od-item { padding: 12px; }
 .od-page .od-summary { padding: 14px 0 0; }
+
+/* Staff detail page, including the standalone pharmacist route. */
+.category-management > .staff-order-details { max-width: 1120px; margin-inline: auto; padding: 24px; }
+.staff-order-details .od-header__title { gap: 10px; }
+.staff-order-details .od-header__actions .btn { min-height: 34px; padding: 7px 12px; border-radius: 7px; font-size: .75rem; }
+.staff-order-details .od-timeline { padding: 14px 16px; margin-bottom: 18px; border-radius: 10px; }
+.staff-order-details .od-step__dot { width: 24px; height: 24px; font-size: .68rem; }
+.staff-order-details .od-step__label { font-size: .72rem; }
+.staff-order-details .od-customer__avatar { width: 34px; height: 34px; min-width: 34px; font-size: .7rem; }
+.staff-order-details .od-customer__name { font-size: .8rem; }
+.staff-order-details .od-customer__contact { font-size: .72rem; overflow-wrap: anywhere; }
+.staff-order-details .od-customer > div { min-width: 0; }
+.staff-order-details .od-detail-row { font-size: .75rem; gap: 12px; }
+.staff-order-details .od-detail-row strong { font-size: .75rem; line-height: 1.6; overflow-wrap: anywhere; }
+.staff-order-details .od-summary__row { font-size: .8rem; padding-block: 4px; }
+.staff-order-details .od-summary__row--total { font-size: .95rem; }
+.staff-order-details .od-note-form label { font-size: .75rem; }
+.staff-order-details .od-side .btn { min-height: 34px; font-size: .75rem; padding: 7px 12px; border-radius: 7px; }
+@media (max-width: 600px) { .category-management > .staff-order-details { padding: 16px; } .staff-order-details .od-timeline { overflow-x: auto; } }

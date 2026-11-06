@@ -195,6 +195,7 @@ function App() {
             <Route path="compliance" element={<Navigate to="/" replace />} />
             <Route path="product-recalls" element={<Navigate to="/account" replace />} />
             <Route path="pharmacist/credentials" element={<RoleRoute allowedRoles={['pharmacist']}><main className="category-management review-forms"><PharmacistCredentialPanel /></main></RoleRoute>} />
+            <Route path="pharmacist/orders/:id" element={<RoleRoute allowedRoles={['pharmacist', 'admin']}><main className="category-management"><OrderDetailsPage backTo="/pharmacist/dashboard?view=orders" /></main></RoleRoute>} />
             <Route path="pharmacist/dashboard" element={<RoleRoute allowedRoles={['pharmacist', 'admin']}><PharmacistDashboardPage /></RoleRoute>} />
             <Route path="lab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'admin']}><LabDashboardPage /></RoleRoute>} />
             <Route path="ab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'lab_technician', 'admin']}><LegacyLabDashboardRedirect /></RoleRoute>} />
