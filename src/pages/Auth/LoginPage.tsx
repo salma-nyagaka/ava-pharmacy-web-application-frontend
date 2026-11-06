@@ -35,7 +35,8 @@ function LoginPage() {
   const [website, setWebsite] = useState('')
   const [challengeToken, setChallengeToken] = useState('')
   const [challengeResetKey, setChallengeResetKey] = useState(0)
-  const challengeRequired = isBotChallengeEnabled()
+  const [serverRequiresChallenge, setServerRequiresChallenge] = useState(false)
+  const challengeRequired = isBotChallengeEnabled() || serverRequiresChallenge
 
   if (isLoggedIn && user) {
     return <Navigate to={getPostLoginPath(user.role, redirect)} replace />
@@ -69,6 +70,10 @@ function LoginPage() {
       setChallengeResetKey((key) => key + 1)
       type ApiErr = { response?: { data?: { error?: { message?: string; details?: { errors?: { details?: Record<string, string[]> } } } } } }
       const axiosErr = err as ApiErr
+      // A backend challenge requirement must remain visible even when the build lacks a site key.
+      if (JSON.stringify(axiosErr?.response?.data ?? {}).includes('BOT_CHALLENGE_REQUIRED')) {
+        setServerRequiresChallenge(true)
+      }
       const details = axiosErr?.response?.data?.error?.details?.errors?.details
       if (details && typeof details === 'object') {
         const mapped: Record<string, string> = {}
@@ -242,7 +247,7 @@ function LoginPage() {
               <div className="login-captcha" aria-label="Security verification">
                 <span className="login-captcha__label">Security verification</span>
                 <TurnstileChallenge action="login" onToken={setChallengeToken} resetKey={challengeResetKey} />
-                <p>{challengeToken ? 'Verification complete. You can sign in.' : 'Complete the check above to continue.'}</p>
+                {isBotChallengeEnabled() && <p>{challengeToken ? 'Verification complete. You can sign in.' : 'Complete the check above to continue.'}</p>}
               </div>
             )}
 

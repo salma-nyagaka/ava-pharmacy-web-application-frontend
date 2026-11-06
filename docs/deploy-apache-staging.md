@@ -77,3 +77,23 @@ and uploads `dist/` to:
 ```text
 /var/www/avapharmacy-frontend-staging
 ```
+
+## CAPTCHA configuration
+
+Before building, set repository or staging environment Actions variables:
+
+- `VITE_CAPTCHA_PROVIDER`: `turnstile` (default) or `hcaptcha`.
+- `VITE_TURNSTILE_SITE_KEY` or `VITE_HCAPTCHA_SITE_KEY`: the selected provider's public site key.
+
+Register `app-staging.avapharmacy.co.ke` with that provider. Configure the backend
+with the same `BOT_CHALLENGE_PROVIDER` and matching `TURNSTILE_SECRET_KEY` or
+`HCAPTCHA_SECRET_KEY`. Secret keys belong only on the backend. Production uses
+the same Actions variables with its own registered hostname and matching keys.
+
+Vite embeds public keys at build time; changing them requires rebuilding and
+redeploying. Staging and production builds fail if the selected public key is
+missing. For a local staging build, provide these variables in `.env.staging.local`
+or the shell. Do not use provider test keys for deployed environments.
+
+After deployment, verify that the login widget appears, verification enables
+sign-in, and an expired or rejected token requires a fresh check.

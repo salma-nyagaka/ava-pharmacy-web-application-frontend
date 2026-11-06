@@ -29,6 +29,10 @@ jobs:
         run: npm ci
 
       - name: Build for staging
+        env:
+          VITE_CAPTCHA_PROVIDER: ${{ vars.VITE_CAPTCHA_PROVIDER || 'turnstile' }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY || secrets.VITE_TURNSTILE_SITE_KEY }}
+          VITE_HCAPTCHA_SITE_KEY: ${{ vars.VITE_HCAPTCHA_SITE_KEY || secrets.VITE_HCAPTCHA_SITE_KEY }}
         run: npm run build:staging
 
       - name: Verify staging directory
