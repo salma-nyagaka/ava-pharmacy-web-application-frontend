@@ -45,7 +45,7 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     void refresh()
-  }, [])
+  }, [refresh])
 
   const value = useMemo(
     () => ({ settings, isLoading, error, refresh, save }),

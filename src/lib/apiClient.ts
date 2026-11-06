@@ -116,11 +116,17 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    const hadAccessToken = !!localStorage.getItem('ava_access_token')
+    const hadAccessToken = !!localStorage.getItem('ava_access_token') || !!originalRequest.headers?.Authorization
     if (error.response?.status === 401 && !originalRequest._retry && hadAccessToken) {
       const refreshToken = localStorage.getItem('ava_refresh_token')
       if (!refreshToken) {
         clearSession()
+        if (String(originalRequest.method).toLowerCase() === 'get' && !originalRequest._anonymousRetry) {
+          originalRequest._retry = true
+          originalRequest._anonymousRetry = true
+          delete originalRequest.headers?.Authorization
+          return apiClient(originalRequest)
+        }
         return Promise.reject(error)
       }
 
@@ -146,6 +152,11 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null)
         clearSession()
+        if (String(originalRequest.method).toLowerCase() === 'get' && !originalRequest._anonymousRetry) {
+          originalRequest._anonymousRetry = true
+          delete originalRequest.headers?.Authorization
+          return apiClient(originalRequest)
+        }
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

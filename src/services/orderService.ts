@@ -2,6 +2,8 @@ import { apiClient } from '../lib/apiClient'
 import { buildBotPayload } from './botProtectionService'
 
 export interface OrderItem {
+  variant?: { id: number; name: string; image?: string | null }
+  variant_name?: string
   id: number
   product_id?: number | null
   product_slug?: string | null
@@ -54,6 +56,7 @@ export interface PaymentIntent {
 }
 
 export interface Order {
+  inventory_committed?: boolean
   id: number
   order_number: string
   status: string
@@ -135,6 +138,7 @@ export interface PublicTrackingOrder {
 }
 
 export interface OrderTrackingResult {
+  can_view_details?: boolean
   order_id: string
   order_number: string
   current_status: string

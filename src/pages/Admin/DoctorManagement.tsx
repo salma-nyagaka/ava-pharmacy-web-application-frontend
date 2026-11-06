@@ -1,3 +1,8 @@
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import { apiClient } from '../../lib/apiClient'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
+import { adminUserService } from '../../services/adminUserService'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import '../../styles/admin/AdminShared.css'
@@ -127,6 +132,7 @@ const mapDoctor = (api: AdminDoctorApi): DoctorProfile => {
 
   return {
     id: String(idValue),
+    userId: typeof api.user === 'number' ? api.user : undefined,
     reference: api.reference ? String(api.reference) : undefined,
     name,
     type: normalizeDoctorType(api.type ?? api.registration_type ?? api.professional_type),
@@ -180,10 +186,6 @@ function DoctorManagement() {
 
   // Manage
   const [manageDoctor, setManageDoctor] = useState<DoctorProfile | null>(null)
-  const [manageFee, setManageFee] = useState('')
-  const [manageCommission, setManageCommission] = useState('')
-  const [manageSaving, setManageSaving] = useState(false)
-  const [manageError, setManageError] = useState('')
   const [provisioningId, setProvisioningId] = useState<string | null>(null)
   const [provisionError, setProvisionError] = useState('')
   const [provisionSuccess, setProvisionSuccess] = useState('')
@@ -269,7 +271,8 @@ function DoctorManagement() {
   const PAGE_SIZE = 6
   const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / PAGE_SIZE))
   const pagedDoctors = filteredDoctors.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
-  const pendingDoctors = doctors.filter((d) => d.status === 'Pending')
+  const typeDoctors = doctors.filter(d => selectedType === 'all' || d.type === selectedType)
+  const pendingDoctors = typeDoctors.filter((d) => d.status === 'Pending')
   const pageEntityLabel = pageType === 'Pediatrician' ? 'Pediatrician' : pageType === 'Doctor' ? 'Doctor' : 'Professional'
   const pageEntityPlural = pageType === 'Pediatrician' ? 'Pediatricians' : pageType === 'Doctor' ? 'Doctors' : 'Doctors & Specialists'
   const visibleDoctorNotifications = notifications.filter((notification) => {
@@ -300,13 +303,8 @@ function DoctorManagement() {
   }, [showVerifyModal, selectedPendingDoctor?.id])
 
   // Stats
-  const stats = useMemo(() => ({
-    active: doctors.filter((d) => d.status === 'Active').length,
-    pending: doctors.filter((d) => d.status === 'Pending').length,
-    pendingActivation: doctors.filter((d) => d.status === 'Pending activation').length,
-    suspended: doctors.filter((d) => d.status === 'Suspended').length,
-    rejected: doctors.filter((d) => d.status === 'Rejected' || d.status === 'Deactivated').length,
-  }), [doctors])
+  const { count: databaseCount } = useAdminRecordStats('doctors', pageType === 'Doctor' ? 'doctor' : pageType === 'Pediatrician' ? 'pediatrician' : 'all', doctors)
+
 
   // ── Verify ────────────────────────────────────────────
   const openVerifyModal = () => {
@@ -358,41 +356,23 @@ function DoctorManagement() {
   // ── Manage ────────────────────────────────────────────
   const openManageModal = (doctor: DoctorProfile) => {
     setManageDoctor(doctor)
-    setManageFee(String(doctor.consultFee || ''))
-    setManageCommission(String(doctor.commission || ''))
-    setManageError('')
     setProvisionError('')
     setProvisionSuccess('')
     loadDoctorDetail(doctor.id)
   }
 
-  const handleSaveCommercials = async () => {
-    if (!manageDoctor) return
-    const consultFee = Number(manageFee)
-    const commission = Number(manageCommission)
-    if (!Number.isFinite(consultFee) || consultFee < 0 || !Number.isFinite(commission) || commission < 0 || commission > 100) {
-      setManageError('Enter a valid consultation fee and commission percentage.')
-      return
-    }
-    setManageSaving(true)
-    setManageError('')
+  const handleResendActivation = async () => {
+    if (!manageDoctor?.userId) return
+    setProvisioningId(manageDoctor.id)
+    setProvisionError('')
+    setProvisionSuccess('')
     try {
-      const updated = mapDoctor(await adminDoctorService.updateDoctor(
-        manageDoctor.id,
-        { consult_fee: consultFee, commission },
-        manageDoctor.type,
-      ))
-      setManageDoctor(updated)
-      setDoctors((prev) => prev.map((doctor) => doctor.id === updated.id ? { ...doctor, ...updated } : doctor))
-      setDetailCache((prev) => ({ ...prev, [updated.id]: updated }))
-      setProvisionSuccess('Fee and commission saved.')
+      await adminUserService.resendActivation(manageDoctor.userId)
+      setProvisionSuccess('Activation email resent successfully.')
     } catch (error) {
-      const message = error instanceof AdminDoctorError || error instanceof Error
-        ? error.message
-        : 'Unable to save fee and commission.'
-      setManageError(message)
+      setProvisionError(error instanceof Error ? error.message : 'Unable to resend the activation email.')
     } finally {
-      setManageSaving(false)
+      setProvisioningId(null)
     }
   }
 
@@ -416,6 +396,20 @@ function DoctorManagement() {
     }
   }
 
+  const downloadDocument = async (doc: DoctorDocument) => {
+    if (!doc.file) return
+    try {
+      const response = await apiClient.get(doc.file, { responseType: 'blob' })
+      const blob = response.data as Blob
+      if (blob.type.includes('json') || blob.type.includes('text/html')) throw new Error('The document is unavailable.')
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      const filename = decodeURIComponent(new URL(doc.file, window.location.origin).pathname.split('/').pop() || doc.name)
+      link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch { setDetailError('Unable to download the document. Please try again.'); setVerifyError('Unable to download the document. Please try again.') }
+  }
+
   const renderDocumentList = (documents: DoctorDocument[]) => (
     <div className="dm-doc-list">
       {documents.map((doc) => (
@@ -424,11 +418,11 @@ function DoctorManagement() {
             <span className="dm-doc-item__name">{doc.name}</span>
             {doc.note && <span className="dm-doc-item__note">{doc.note}</span>}
           </div>
-          <span className={`dm-doc-status dm-doc-status--${doc.status.toLowerCase()}`}>{doc.status}</span>
+          <span className={`dm-doc-status dm-doc-status--${doc.status.toLowerCase()}`}>{formatStatus(doc.status)}</span>
           {doc.file ? (
             <div className="dm-doc-actions">
               <a className="dm-doc-action" href={doc.file} target="_blank" rel="noreferrer">Open</a>
-              <a className="dm-doc-action dm-doc-action--ghost" href={doc.file} download>Download</a>
+              <button type="button" className="dm-doc-action dm-doc-action--ghost" onClick={() => void downloadDocument(doc)}>Download</button>
             </div>
           ) : (
             <span className="dm-doc-missing-link">No file</span>
@@ -514,7 +508,7 @@ function DoctorManagement() {
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Total</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : doctors.length}</strong>
+            <strong className="cm-kpi-card__value">{databaseCount('total')}</strong>
           </div>
           <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -523,7 +517,7 @@ function DoctorManagement() {
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Active</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '—' : stats.active}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{databaseCount('active')}</strong>
           </div>
           <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -532,7 +526,7 @@ function DoctorManagement() {
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Pending</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{loading ? '—' : stats.pending}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{databaseCount('pending')}</strong>
           </div>
           <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -541,7 +535,7 @@ function DoctorManagement() {
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Pending activation</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{loading ? '—' : stats.pendingActivation}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{databaseCount('pendingActivation')}</strong>
           </div>
           <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M4 4h16v16H4z"/><path d="m4 7 8 6 8-6"/></svg>
@@ -550,7 +544,7 @@ function DoctorManagement() {
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Blocked</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '—' : stats.suspended + stats.rejected}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{databaseCount('blocked')}</strong>
           </div>
           <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
@@ -573,10 +567,10 @@ function DoctorManagement() {
         <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
           <div className="cm-search-box">
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
-            <input type="search" placeholder="Search by name, email, specialty…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input aria-label="Search by name, email, specialty" type="search" placeholder="Search by name, email, specialty…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           {pageType === 'all' ? (
-            <select className="cm-filter-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+            <select aria-label="Filter clinician type" className="cm-filter-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
               <option value="all">All types</option>
               <option value="Doctor">Doctors</option>
               <option value="Pediatrician">Pediatricians</option>
@@ -586,11 +580,11 @@ function DoctorManagement() {
               <option value={pageType}>{pageEntityPlural}</option>
             </select>
           )}
-          <select className="cm-filter-select" value={selectedSpecialty} onChange={(e) => setSelectedSpecialty(e.target.value)}>
+          <select aria-label="Filter by specialty" className="cm-filter-select" value={selectedSpecialty} onChange={(e) => setSelectedSpecialty(e.target.value)}>
             <option value="all">All specialties</option>
             {specialties.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+          <select aria-label="Filter by status" className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
             <option value="all">All statuses</option>
             <option value="Active">Active</option>
             <option value="Pending">Pending</option>
@@ -641,7 +635,7 @@ function DoctorManagement() {
                 </td>
                 <td>
                   <span className={`admin-status ${statusClass(doctor.status)}`}>
-                    {doctor.status}
+                    {formatStatus(doctor.status)}
                   </span>
                   {(doctor.status === 'Suspended' || doctor.status === 'Rejected' || doctor.status === 'Deactivated') && (doctor.statusNote || doctor.rejectionNote) && (
                     <p className="dm-suspension-reason">{doctor.statusNote || doctor.rejectionNote}</p>
@@ -696,10 +690,10 @@ function DoctorManagement() {
       {/* ── Verify Modal ──────────────────────────────────── */}
       {showVerifyModal && (
         <div className="modal-overlay" onClick={() => setShowVerifyModal(false)}>
-          <div className="dm-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog busy={verifySubmitting} onClose={() => setShowVerifyModal(false)} className="dm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <h2>Review application</h2>
-              <button className="modal__close" type="button" onClick={() => setShowVerifyModal(false)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setShowVerifyModal(false)}>×</button>
             </div>
             <div className="modal__content">
               {loading ? (
@@ -710,8 +704,8 @@ function DoctorManagement() {
                 <>
                   {pendingDoctors.length > 1 && (
                     <div className="form-group">
-                      <label>Application</label>
-                      <select value={selectedPendingDoctor?.id} onChange={(e) => { setSelectedPendingId(e.target.value); setVerifyAction(null); setVerifyNote(''); setVerifyNoteError(false); setVerifyError('') }}>
+                      <label htmlFor="field-doctormanagement-731-33070">Application</label>
+                      <select id="field-doctormanagement-731-33070" value={selectedPendingDoctor?.id} onChange={(e) => { setSelectedPendingId(e.target.value); setVerifyAction(null); setVerifyNote(''); setVerifyNoteError(false); setVerifyError('') }}>
                         {pendingDoctors.map((d) => <option key={d.id} value={d.id}>{d.name} - {d.specialty}</option>)}
                       </select>
                     </div>
@@ -761,8 +755,8 @@ function DoctorManagement() {
 
                       {(verifyAction === 'request_docs' || verifyAction === 'reject') && (
                         <div className="form-group" style={{ marginTop: '0.75rem' }}>
-                          <label>{verifyAction === 'reject' ? 'Rejection reason' : 'Documents needed'} <span className="dm-required">Required</span></label>
-                          <textarea
+                          <label htmlFor="field-doctormanagement-782-36967">{verifyAction === 'reject' ? 'Rejection reason' : 'Documents needed'} <span className="dm-required">Required</span></label>
+                          <textarea id="field-doctormanagement-782-36967"
                             rows={3}
                             value={verifyNote}
                             onChange={(e) => { setVerifyNote(e.target.value); setVerifyNoteError(false) }}
@@ -784,17 +778,17 @@ function DoctorManagement() {
               </button>
             </div>
             {verifyError && <p className="dm-field-error" style={{ marginTop: '0.75rem' }}>{verifyError}</p>}
-          </div>
+          </Dialog>
         </div>
       )}
 
       {/* ── Manage Modal ──────────────────────────────────── */}
       {manageDoctorDetails && (
         <div className="modal-overlay" onClick={() => setManageDoctor(null)}>
-          <div className="dm-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setManageDoctor(null)} className="dm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <h2>{manageDoctorDetails.type} details</h2>
-              <button className="modal__close" type="button" onClick={() => setManageDoctor(null)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setManageDoctor(null)}>×</button>
             </div>
             <div className="modal__content">
               {/* Profile header */}
@@ -813,7 +807,7 @@ function DoctorManagement() {
                 <div className="dm-detail-row"><span>Phone</span><span>{manageDoctorDetails.phone}</span></div>
                 <div className="dm-detail-row"><span>License</span><span>{manageDoctorDetails.license}</span></div>
                 <div className="dm-detail-row"><span>Languages</span><span>{manageDoctorDetails.languages.join(', ') || '-'}</span></div>
-                <div className="dm-detail-row"><span>Status</span><span>{manageDoctorDetails.status}</span></div>
+                <div className="dm-detail-row"><span>Status</span><span>{formatStatus(manageDoctorDetails.status)}</span></div>
                 {manageDoctorDetails.verifiedAt && <div className="dm-detail-row"><span>Verified</span><span>{manageDoctorDetails.verifiedAt}</span></div>}
                 {manageDoctorDetails.rating > 0 && <div className="dm-detail-row"><span>Rating</span><span>★ {manageDoctorDetails.rating.toFixed(1)}</span></div>}
                 {manageDoctorDetails.availability && <div className="dm-detail-row"><span>Availability</span><span>{manageDoctorDetails.availability}</span></div>}
@@ -826,38 +820,12 @@ function DoctorManagement() {
                 </div>
               )}
 
-              <p className="dm-section-label" style={{ marginTop: '1rem' }}>Fees & earnings</p>
+              <p className="dm-section-label" style={{ marginTop: '1rem' }}>Consultation fee</p>
               <div className="dm-detail-grid">
-                <div className="form-group">
-                  <label>Consultation fee</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={manageFee}
-                    onChange={(event) => setManageFee(event.target.value)}
-                    placeholder="1500"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Ava commission %</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    value={manageCommission}
-                    onChange={(event) => setManageCommission(event.target.value)}
-                    placeholder="6.67"
-                  />
-                </div>
+                <div><strong>Patient pays</strong><p>KSh 1,500</p></div>
+                <div><strong>Clinician receives</strong><p>KSh 1,000</p></div>
+                <div><strong>AVA Pharmacy receives</strong><p>KSh 500</p></div>
               </div>
-              {Number.isFinite(Number(manageFee)) && Number.isFinite(Number(manageCommission)) && (
-                <p className="dm-hint" style={{ marginTop: '0.5rem' }}>
-                  Clinician earns KSh {Math.max(0, Number(manageFee) - (Number(manageFee) * Number(manageCommission) / 100)).toLocaleString()} per paid consultation.
-                </p>
-              )}
-              {manageError && <p className="dm-field-error">{manageError}</p>}
-
               <p className="dm-section-label" style={{ marginTop: '1rem' }}>Documents</p>
               {renderDocumentList(manageDoctorDetails.documents)}
               {detailLoadingId === manageDoctorDetails.id && (
@@ -867,18 +835,21 @@ function DoctorManagement() {
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setManageDoctor(null)}>Close</button>
-              <button className="btn btn--outline btn--sm" type="button" onClick={handleSaveCommercials} disabled={manageSaving}>
-                {manageSaving ? 'Saving...' : 'Save fee'}
-              </button>
-              {manageDoctorDetails.status === 'Active' && (
+
+              {!manageDoctorDetails.userId && ['Active', 'Pending activation'].includes(manageDoctorDetails.status) && (
                 <button className="btn btn--primary btn--sm" type="button" onClick={handleProvisionAccount} disabled={provisioningId === manageDoctorDetails.id}>
                   {provisioningId === manageDoctorDetails.id ? 'Provisioning…' : 'Provision account'}
+                </button>
+              )}
+              {manageDoctorDetails.userId && manageDoctorDetails.status === 'Pending activation' && (
+                <button className="btn btn--primary btn--sm" type="button" onClick={handleResendActivation} disabled={provisioningId === manageDoctorDetails.id}>
+                  {provisioningId === manageDoctorDetails.id ? 'Sending…' : 'Resend activation email'}
                 </button>
               )}
             </div>
             {provisionError && <p className="dm-field-error" style={{ marginTop: '0.75rem' }}>{provisionError}</p>}
             {provisionSuccess && <p className="dm-hint" style={{ marginTop: '0.5rem' }}>{provisionSuccess}</p>}
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

@@ -1,0 +1,233 @@
+[
+  {
+    "heading": "Dashboard Overview",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/dashboard",
+    "width": 354
+  },
+  {
+    "heading": "Products",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/products",
+    "width": 354
+  },
+  {
+    "heading": "Inventory Management",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/inventory",
+    "width": 354
+  },
+  {
+    "heading": "Orders",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/orders",
+    "width": 354
+  },
+  {
+    "heading": "Prescription Management",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/prescriptions",
+    "width": 354
+  },
+  {
+    "heading": "Doctors & Specialists",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/doctors",
+    "width": 354
+  },
+  {
+    "heading": "Laboratory operations",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/lab-partners",
+    "width": 354
+  },
+  {
+    "heading": "Lab Tests",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/lab-tests",
+    "width": 354
+  },
+  {
+    "heading": "Invoices & Payments",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/invoices?view=payouts",
+    "width": 354
+  },
+  {
+    "heading": "Support & Escalations",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/support",
+    "width": 354
+  },
+  {
+    "heading": "Settings Management",
+    "mainWidth": 266.54119873046875,
+    "overflow": false,
+    "path": "/admin/settings",
+    "width": 354
+  },
+  {
+    "heading": "Dashboard Overview",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/dashboard",
+    "width": 698
+  },
+  {
+    "heading": "Products",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/products",
+    "width": 698
+  },
+  {
+    "heading": "Inventory Management",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/inventory",
+    "width": 698
+  },
+  {
+    "heading": "Orders",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/orders",
+    "width": 698
+  },
+  {
+    "heading": "Prescription Management",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/prescriptions",
+    "width": 698
+  },
+  {
+    "heading": "Doctors & Specialists",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/doctors",
+    "width": 698
+  },
+  {
+    "heading": "Laboratory operations",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/lab-partners",
+    "width": 698
+  },
+  {
+    "heading": "Lab Tests",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/lab-tests",
+    "width": 698
+  },
+  {
+    "heading": "Invoices & Payments",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/invoices?view=payouts",
+    "width": 698
+  },
+  {
+    "heading": "Support & Escalations",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/support",
+    "width": 698
+  },
+  {
+    "heading": "Settings Management",
+    "mainWidth": 610.1775512695312,
+    "overflow": false,
+    "path": "/admin/settings",
+    "width": 698
+  },
+  {
+    "heading": "Dashboard Overview",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/dashboard",
+    "width": 1309
+  },
+  {
+    "heading": "Products",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/products",
+    "width": 1309
+  },
+  {
+    "heading": "Inventory Management",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/inventory",
+    "width": 1309
+  },
+  {
+    "heading": "Orders",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/orders",
+    "width": 1309
+  },
+  {
+    "heading": "Prescription Management",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/prescriptions",
+    "width": 1309
+  },
+  {
+    "heading": "Doctors & Specialists",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/doctors",
+    "width": 1309
+  },
+  {
+    "heading": "Laboratory operations",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/lab-partners",
+    "width": 1309
+  },
+  {
+    "heading": "Lab Tests",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/lab-tests",
+    "width": 1309
+  },
+  {
+    "heading": "Invoices & Payments",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/invoices?view=payouts",
+    "width": 1309
+  },
+  {
+    "heading": "Support & Escalations",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/support",
+    "width": 1309
+  },
+  {
+    "heading": "Settings Management",
+    "mainWidth": 1069.0908203125,
+    "overflow": false,
+    "path": "/admin/settings",
+    "width": 1309
+  }
+]

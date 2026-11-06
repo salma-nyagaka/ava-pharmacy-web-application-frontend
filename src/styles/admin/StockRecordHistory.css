@@ -1,0 +1,39 @@
+.stock-history { margin: 4px 0; padding: 20px; border: 1px solid #dce6e8; border-radius: 12px; background: #fff; color: #334155; }
+.stock-history__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.stock-history__header h3 { margin: 0; font-size: 1rem; font-weight: 700; color: #102b32; }
+.stock-history__header p { margin: 5px 0 0; font-size: .8rem; color: #64748b; }
+.stock-history__count { flex-shrink: 0; padding: 5px 10px; border-radius: 20px; background: #eef7f4; color: #075b52; font-size: .75rem; font-weight: 600; }
+.stock-history__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.stock-history__toolbar > span { font-size: .75rem; color: #64748b; }
+.stock-history__search { position: relative; flex: 1; max-width: 420px; }
+.stock-history__search svg { position: absolute; width: 16px; height: 16px; top: 50%; left: 12px; transform: translateY(-50%); color: #64748b; pointer-events: none; }
+.stock-history__search input { box-sizing: border-box; width: 100%; height: 38px; border: 1px solid #dce3e9; border-radius: 8px; padding: 8px 12px 8px 36px; background: #f8fafc; font: inherit; font-size: .8rem; }
+.stock-history__table { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+.stock-history__table table { width: 100%; min-width: 850px; border-collapse: collapse; }
+.stock-history .stock-history__table th { padding: 10px 12px; background: #f8fafc; font-size: .68rem; font-weight: 600; text-align: left; letter-spacing: .03em; color: #64748b; white-space: nowrap; }
+.stock-history .stock-history__table td { padding: 12px; border-top: 1px solid #edf1f5; vertical-align: top; font-size: .78rem; line-height: 1.5; background: #fff; }
+.stock-history__table small { display: block; margin-top: 3px; color: #64748b; font-size: .7rem; }
+.stock-history__table strong { font-weight: 600; }
+.stock-history__type { display: inline-flex; padding: 3px 8px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; text-transform: capitalize; white-space: nowrap; font-size: .7rem; }
+.stock-history__delta { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stock-history__delta span { font-size: .65rem; font-weight: 400; }
+.stock-history__delta--increase { color: #15803d; }
+.stock-history__delta--decrease { color: #be123c; }
+.stock-history__delta--neutral { color: #475569; }
+.stock-history__table .stock-history__balance { display: flex; gap: 7px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stock-history__balance b { color: #334155; }
+.stock-history__reason { max-width: 260px; overflow-wrap: anywhere; }
+.stock-history__actor { font-weight: 500; }
+.stock-history__empty { padding: 28px 16px; text-align: center; color: #64748b; font-size: .8rem; }
+.stock-history__empty strong { color: #334155; }
+.stock-history__empty p { margin: 6px 0 12px; }
+.stock-history__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; font-size: .75rem; color: #64748b; }
+.stock-history__footer nav { display: flex; gap: 6px; }
+.stock-history__footer button { padding: 6px 12px; border: 1px solid #dce3e9; border-radius: 6px; background: #fff; font: inherit; color: #334155; cursor: pointer; }
+.stock-history__footer button:disabled { opacity: .45; cursor: not-allowed; }
+.stock-history :is(input, button, [tabindex]):focus-visible { outline: 2px solid #075b52; outline-offset: 2px; }
+@media (max-width: 650px) { .stock-history { padding: 14px; } .stock-history__header { align-items: flex-start; } .stock-history__toolbar { flex-wrap: wrap; gap: 8px; } .stock-history__search { max-width: none; flex-basis: 100%; } }
+.stock-history__header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+.stock-history__close { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 6px 10px; border: 1px solid #dce3e9; border-radius: 7px; background: white; color: #475569; font: inherit; font-size: .75rem; cursor: pointer; }
+.stock-history__close svg { width: 16px; height: 16px; }
+.stock-history__close:hover { background: #f1f5f9; color: #102b32; }

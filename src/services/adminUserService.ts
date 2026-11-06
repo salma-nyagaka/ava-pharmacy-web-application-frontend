@@ -1,10 +1,18 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/avapharmacy/api/v1').replace(/\/$/, '')
+import { apiFetch } from '../lib/apiFetch'
+import { apiClient } from '../lib/apiClient'
+
+const API_BASE_URL = String(apiClient.defaults.baseURL).replace(/\/$/, '')
 
 export interface PharmacistCreatePayload {
   firstName: string
   lastName: string
   email: string
   phone: string
+  licenseCountry?: string
+  licenseBoard?: string
+  licenseExpiry?: string
+  credentialEvidence?: number | null
+  licenseDocument?: File
   licenseNumber: string
   branchLocation: string
   position: string
@@ -219,17 +227,20 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
 
 export const adminUserService = {
   async listUsers() {
-    const response = await fetch(`${API_BASE_URL}/admin/users/`, {
-      headers: {
-        ...getAuthHeaders(),
-      },
-    })
-    const payload = await handleResponse<unknown>(response)
-    return normalizeAdminUsersPayload(payload)
+    const users: AdminUserApi[] = []
+    let next: string | null = `${API_BASE_URL}/admin/users/`
+    while (next) {
+      const response = await apiFetch(next, { headers: { ...getAuthHeaders() } })
+      const payload = await handleResponse<unknown>(response)
+      users.push(...normalizeAdminUsersPayload(payload))
+      const page = payload as { meta?: { next?: string }; next?: string }
+      next = page.meta?.next ?? page.next ?? null
+    }
+    return users
   },
 
   async getUser(id: number) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -239,7 +250,7 @@ export const adminUserService = {
   },
 
   async updateUser(id: number, payload: AdminUserUpdatePayload) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -251,10 +262,12 @@ export const adminUserService = {
     return normalizeAdminUserPayload(body)
   },
 
-  async suspendUser(id: number) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/suspend/`, {
+  async suspendUser(id: number, reason = '') {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/suspend/`, {
       method: 'POST',
+      body: JSON.stringify({ reason }),
       headers: {
+        'Content-Type': 'application/json',
         ...getAuthHeaders(),
       },
     })
@@ -263,7 +276,7 @@ export const adminUserService = {
   },
 
   async activateUser(id: number) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/activate/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/activate/`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -274,31 +287,28 @@ export const adminUserService = {
   },
 
   async createPharmacist(payload: PharmacistCreatePayload) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({
-        first_name: payload.firstName,
-        last_name: payload.lastName,
-        email: payload.email,
-        phone: payload.phone,
-        role: 'pharmacist',
-        address: payload.address || payload.branchLocation,
-        pharmacist_license_number: payload.licenseNumber,
-        pharmacist_branch_location: payload.branchLocation,
-        pharmacist_position: payload.position,
-        pharmacist_permissions: payload.pharmacistPermissions,
-      }),
+    const form = new FormData()
+    const fields: Record<string, string> = {
+      first_name: payload.firstName, last_name: payload.lastName, email: payload.email,
+      phone: payload.phone, role: 'pharmacist', address: payload.address || payload.branchLocation,
+      pharmacist_license_number: payload.licenseNumber,
+      pharmacist_license_country: payload.licenseCountry || '',
+      pharmacist_license_board: payload.licenseBoard || '',
+      pharmacist_branch_location: payload.branchLocation, pharmacist_position: payload.position,
+    }
+    Object.entries(fields).forEach(([key, value]) => form.append(key, value))
+    if (payload.licenseExpiry) form.append('pharmacist_license_expiry', payload.licenseExpiry)
+    if (payload.licenseDocument) form.append('pharmacist_license_document', payload.licenseDocument)
+    payload.pharmacistPermissions.forEach(permission => form.append('pharmacist_permissions', permission))
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/`, {
+      method: 'POST', headers: { ...getAuthHeaders() }, body: form,
     })
     const responsePayload = await handleResponse<unknown>(response)
     return normalizeAdminUserPayload(responsePayload)
   },
 
   async resendActivation(id: number) {
-    const response = await fetch(`${API_BASE_URL}/admin/users/${id}/resend-activation/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/resend-activation/`, {
       method: 'POST',
       headers: { ...getAuthHeaders() },
     })
@@ -306,7 +316,7 @@ export const adminUserService = {
   },
 
   async activateStaffPassword(payload: { token: string; new_password: string; new_password_confirm: string; accepted_terms: boolean }) {
-    const response = await fetch(`${API_BASE_URL}/auth/professional/activate/`, {
+    const response = await apiFetch(`${API_BASE_URL}/auth/professional/activate/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

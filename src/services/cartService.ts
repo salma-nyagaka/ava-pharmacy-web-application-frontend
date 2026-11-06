@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios'
 import { apiClient } from '../lib/apiClient'
 import {
   CartItem,
@@ -27,7 +28,7 @@ function mapApiItem(item: Record<string, unknown>): CartItem {
     serverItemId: item.id as number,
     name: (variant.name ?? product.name ?? '') as string,
     brand: (product.brand_name ?? (product.brand as Record<string, unknown> | undefined)?.name ?? '') as string,
-    price: parseFloat((item.unit_price ?? item.price ?? '0') as string),
+    price: parseFloat((item.unit_price ?? item.price ?? variant.effective_price ?? variant.price ?? '0') as string),
     quantity: (item.quantity ?? 1) as number,
     image: (product.image ?? '') as string,
     stockSource: ((product.inventory_status ?? '') === 'out_of_stock' ? undefined : ((product.stock_source ?? 'branch') as 'branch' | 'warehouse')),
@@ -49,8 +50,13 @@ export const cartService = {
   mergeLocalCart: async () => {
     if (!isAuthenticated()) return { data: loadCartItems() }
     const localItems = loadCartItems()
-    if (!localItems.length) return cartService.list()
-    await apiClient.post('/cart/merge/', {
+    if (!localItems.length) {
+      const cart = await cartService.list()
+      dispatchCartEvent()
+      return cart
+    }
+    try {
+      await apiClient.post('/cart/merge/', {
       items: localItems.map((item) => ({
         product_id: item.productId ?? item.id,
         variant_id: item.variantId,
@@ -59,7 +65,13 @@ export const cartService = {
         otc_screening: item.otcScreening,
       })),
     })
-    clearCartItems()
+      clearCartItems()
+      sessionStorage.removeItem('ava_cart_merge_warning')
+    } catch (error) {
+      const data = isAxiosError(error) ? error.response?.data : undefined
+      const detail = data?.error?.message ?? data?.detail ?? 'Please try again.'
+      sessionStorage.setItem('ava_cart_merge_warning', `Your guest cart was kept on this device because it could not be merged: ${detail}`)
+    }
     dispatchCartEvent()
     return cartService.list()
   },
@@ -99,10 +111,10 @@ export const cartService = {
       const items: CartItem[] = ((res.data?.data?.items ?? res.data?.items ?? []) as Record<string, unknown>[]).map(mapApiItem)
       dispatchCartEvent()
       return { data: items }
-    } catch {
-      const updated = addItemToCart(nextItem, quantity)
-      dispatchCartEvent()
-      return { data: updated }
+    } catch (error) {
+      const data = isAxiosError(error) ? error.response?.data : undefined
+      const message = data?.error?.message ?? data?.detail
+      throw new Error(typeof message === 'string' ? message : 'Unable to update cart. Please try again.')
     }
   },
 
@@ -118,10 +130,10 @@ export const cartService = {
       const items: CartItem[] = ((res.data?.data?.items ?? res.data?.items ?? []) as Record<string, unknown>[]).map(mapApiItem)
       dispatchCartEvent()
       return { data: items }
-    } catch {
-      const updated = updateCartItemQuantity(itemId, quantity, prescriptionId)
-      dispatchCartEvent()
-      return { data: updated }
+    } catch (error) {
+      const data = isAxiosError(error) ? error.response?.data : undefined
+      const message = data?.error?.message ?? data?.detail
+      throw new Error(typeof message === 'string' ? message : 'Unable to update cart. Please try again.')
     }
   },
 
@@ -137,10 +149,10 @@ export const cartService = {
       const items: CartItem[] = ((res.data?.data?.items ?? res.data?.items ?? []) as Record<string, unknown>[]).map(mapApiItem)
       dispatchCartEvent()
       return { data: items }
-    } catch {
-      const updated = removeCartItem(itemId, prescriptionId)
-      dispatchCartEvent()
-      return { data: updated }
+    } catch (error) {
+      const data = isAxiosError(error) ? error.response?.data : undefined
+      const message = data?.error?.message ?? data?.detail
+      throw new Error(typeof message === 'string' ? message : 'Unable to update cart. Please try again.')
     }
   },
 
@@ -167,20 +179,10 @@ export const cartService = {
       dispatchCartEvent()
       dispatchFavouritesEvent()
       return { data: items }
-    } catch {
-      addFavourite({
-        id: item.id,
-        productId: item.productId,
-        variantId: item.variantId,
-        name: item.name,
-        brand: item.brand,
-        price: item.price,
-        image: item.image,
-        stockSource: item.stockSource ?? 'out',
-      })
-      const updated = removeCartItem(item.id, item.prescriptionId)
-      dispatchCartEvent()
-      return { data: updated }
+    } catch (error) {
+      const data = isAxiosError(error) ? error.response?.data : undefined
+      const message = data?.error?.message ?? data?.detail
+      throw new Error(typeof message === 'string' ? message : 'Unable to update cart. Please try again.')
     }
   },
 
@@ -194,10 +196,10 @@ export const cartService = {
       await apiClient.delete('/cart/clear/')
       dispatchCartEvent()
       return { data: [] }
-    } catch {
-      clearCartItems()
-      dispatchCartEvent()
-      return { data: [] }
+    } catch (error) {
+      const data = isAxiosError(error) ? error.response?.data : undefined
+      const message = data?.error?.message ?? data?.detail
+      throw new Error(typeof message === 'string' ? message : 'Unable to update cart. Please try again.')
     }
   },
 

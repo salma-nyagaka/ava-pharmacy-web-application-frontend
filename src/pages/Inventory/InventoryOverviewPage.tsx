@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext'
 import { useEffect, useState } from 'react'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import {
@@ -44,6 +45,8 @@ function flattenInventoryRows(items: InventoryItem[]): InventoryItem[] {
 }
 
 function InventoryOverviewPage() {
+  const { user } = useAuth()
+  const canManageOrderPushes = user?.role === 'admin'
   const [tab, setTab] = useState<Tab>('stock')
   const [items, setItems] = useState<InventoryItem[]>([])
   const [failedPushes, setFailedPushes] = useState<FailedOrderPush[]>([])
@@ -84,7 +87,7 @@ function InventoryOverviewPage() {
     setSyncing(true)
     setSyncMsg('')
     void triggerInventorySync().then((res) => {
-      setSyncMsg(`Synced successfully — ${res.updated_count} items updated`)
+      setSyncMsg(`Synced successfully - ${res.updated_count} items updated`)
       setLastSynced(res.synced_at)
       loadItems()
     }).catch(() => {
@@ -147,7 +150,7 @@ function InventoryOverviewPage() {
             >
               Stock levels
             </button>
-            <button
+            {canManageOrderPushes && <button
               className={`inv-tab ${tab === 'failed_pushes' ? 'inv-tab--active' : ''}`}
               type="button"
               onClick={() => setTab('failed_pushes')}
@@ -156,7 +159,7 @@ function InventoryOverviewPage() {
               {failedPushes.length > 0 && (
                 <span className="inv-tab__badge">{failedPushes.length}</span>
               )}
-            </button>
+            </button>}
           </div>
 
           {tab === 'stock' && (
@@ -165,6 +168,7 @@ function InventoryOverviewPage() {
               <div className="inv-filters">
                 <input
                   type="search"
+                  aria-label="Search inventory products"
                   placeholder="Search product…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -172,6 +176,7 @@ function InventoryOverviewPage() {
                   className="inv-filters__search"
                 />
                 <select
+                  aria-label="Filter inventory by location"
                   value={locationFilter}
                   onChange={(e) => setLocationFilter(e.target.value)}
                   className="inv-filters__select"
@@ -224,13 +229,13 @@ function InventoryOverviewPage() {
                         <td>{item.batch_number || 'Default'}</td>
                         <td>{item.quantity_on_hand}</td>
                         <td>{item.reorder_level ?? item.low_stock_threshold}</td>
-                        <td>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('en-KE') : '—'}</td>
-                        <td>{item.shelf_location || '—'}</td>
+                        <td>{item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('en-KE') : '-'}</td>
+                        <td>{item.shelf_location || '-'}</td>
                         <td>{statusPill(item)}</td>
                         <td>
                           {item.last_synced_at
                             ? new Date(item.last_synced_at).toLocaleString('en-KE')
-                            : '—'}
+                            : '-'}
                         </td>
                         <td>
                           <button className="btn btn--outline btn--sm" type="button">Adjust</button>
@@ -262,7 +267,7 @@ function InventoryOverviewPage() {
                     <tr key={push.id}>
                       <td><strong>{push.order_number}</strong></td>
                       <td>{push.attempts}</td>
-                      <td className="inv-error-cell">{push.last_error || '—'}</td>
+                      <td className="inv-error-cell">{push.last_error || '-'}</td>
                       <td>{new Date(push.last_tried_at).toLocaleString('en-KE')}</td>
                       <td>
                         <button

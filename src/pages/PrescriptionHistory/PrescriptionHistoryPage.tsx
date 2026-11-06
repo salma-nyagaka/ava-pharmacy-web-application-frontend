@@ -1,3 +1,6 @@
+import { preferredScrollBehavior } from '../../utils/motion'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PrescriptionClarificationMessage, PrescriptionRecord } from '../../data/prescriptions'
@@ -55,6 +58,7 @@ function PrescriptionHistoryPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const targetPrescription = searchParams.get('prescription')
+  const openedNotificationTarget = useRef<string | null>(null)
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
   const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
@@ -110,17 +114,6 @@ function PrescriptionHistoryPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!prescriptions.length) return
-    if (!targetPrescription) return
-    const match = prescriptions.find((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
-    if (!match) return
-    setExpandedId(match.id)
-    setActiveRx(match)
-    window.requestAnimationFrame(() => {
-      rowRefs.current[match.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    })
-  }, [prescriptions, targetPrescription])
 
   useEffect(() => {
     if (!activeRx) return
@@ -145,10 +138,10 @@ function PrescriptionHistoryPage() {
 
   const totalPages = Math.max(1, Math.ceil(sortedPrescriptions.length / PAGE_SIZE))
   const pageStart = (currentPage - 1) * PAGE_SIZE
-  const pagedPrescriptions = sortedPrescriptions.slice(pageStart, pageStart + PAGE_SIZE)
+  const pagedPrescriptions = useMemo(() => sortedPrescriptions.slice(pageStart, pageStart + PAGE_SIZE), [sortedPrescriptions, pageStart])
 
   useEffect(() => {
-    if (!targetPrescription) return
+    if (!targetPrescription || openedNotificationTarget.current === targetPrescription) return
     const targetIndex = sortedPrescriptions.findIndex((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
     if (targetIndex >= 0) {
       setCurrentPage(Math.floor(targetIndex / PAGE_SIZE) + 1)
@@ -156,13 +149,14 @@ function PrescriptionHistoryPage() {
   }, [sortedPrescriptions, targetPrescription])
 
   useEffect(() => {
-    if (!targetPrescription) return
+    if (!targetPrescription || openedNotificationTarget.current === targetPrescription) return
     const match = pagedPrescriptions.find((rx) => String(rx.backendId) === targetPrescription || rx.id === targetPrescription)
     if (!match) return
+    openedNotificationTarget.current = targetPrescription
     setExpandedId(match.id)
     setActiveRx(match)
     window.requestAnimationFrame(() => {
-      rowRefs.current[match.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      rowRefs.current[match.id]?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'center' })
     })
   }, [pagedPrescriptions, targetPrescription])
 
@@ -251,6 +245,8 @@ function PrescriptionHistoryPage() {
       return
     }
 
+    if (files.length > 5) { setMessage('You can upload up to 5 prescription files.'); return }
+    if (files.some(file => file.size > 5 * 1024 * 1024)) { setMessage('Each prescription file must be 5 MB or smaller.'); return }
     setResubmittingId(rx.backendId)
     try {
       const response = await prescriptionService.resubmit(rx.backendId, files)
@@ -447,7 +443,7 @@ function PrescriptionHistoryPage() {
                   <td>{rx.doctor}</td>
                   <td>{rx.submitted}</td>
                   <td>
-                    <span className={`status-pill ${statusPillClass(rx.status)}`}>{rx.status}</span>
+                    <span className={`status-pill ${statusPillClass(rx.status)}`}>{formatStatus(rx.status)}</span>
                   </td>
                   <td>
                     <span className="status-pill status-pill--info">{rx.dispatchStatus}</span>
@@ -565,7 +561,7 @@ function PrescriptionHistoryPage() {
 
       {activeRx && (
         <div className="modal-overlay" onClick={() => setActiveRx(null)}>
-          <div className="modal rx-modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog onClose={() => setActiveRx(null)} className="modal rx-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header rx-modal__header">
               <div className="rx-modal__header-main">
                 <p className="rx-modal__eyebrow">Prescription</p>
@@ -573,8 +569,8 @@ function PrescriptionHistoryPage() {
                 <p className="rx-modal__sub">Review pharmacist updates, files, and clarification messages for this prescription.</p>
               </div>
               <div className="rx-modal__header-side">
-                <span className={`status-pill ${statusPillClass(activeRx.status)}`}>{activeRx.status}</span>
-                <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
+                <span className={`status-pill ${statusPillClass(activeRx.status)}`}>{formatStatus(activeRx.status)}</span>
+                <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
               </div>
             </div>
             <div className="modal__content rx-modal__content">
@@ -684,7 +680,7 @@ function PrescriptionHistoryPage() {
               )}
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

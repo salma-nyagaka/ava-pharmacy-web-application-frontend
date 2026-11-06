@@ -883,3 +883,56 @@
 
   .co-section { padding: 1.25rem; }
 }
+
+/* Compact checkout form and order summary. */
+.co-page { padding-bottom: 32px; }
+.co-page > .container { max-width: 1120px; }
+.co-breadcrumbs { padding-top: 16px; font-size: .72rem; }
+.co-header { padding: 14px 0 18px; }
+.co-header__title { font-size: 1.35rem; }
+.co-header__count { font-size: .7rem; padding: 3px 8px; }
+.co-steps { margin-bottom: 20px; }
+.co-step { width: 110px; gap: 6px; }
+.co-step__bubble { width: 30px; height: 30px; font-size: .75rem; }
+.co-step__label { font-size: .7rem; }
+.co-steps__track { top: 15px; left: calc(50% - 110px); width: 220px; }
+.co-layout { grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; }
+.co-main { min-width: 0; }
+.co-section { padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px #0f172a04; }
+.co-section__head { gap: 8px; margin-bottom: 18px; }
+.co-section__icon { width: 30px; height: 30px; border-radius: 8px; }
+.co-section__icon svg { width: 16px; height: 16px; }
+.co-section__title { font-size: .95rem; }
+.co-form { gap: 12px; }
+.co-form__row { gap: 12px; }
+.co-field { gap: 5px; min-width: 0; }
+.co-field__label { font-size: .75rem; }
+.co-field__input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 38px; padding: 8px 10px; font-size: .8125rem; border-width: 1px; }
+.co-page .co-note, .co-page .co-check { font-size: .72rem; line-height: 1.6; }
+.co-page .btn { min-height: 38px; padding: 8px 14px; font-size: .8rem; border-radius: 8px; }
+.co-payment-methods { gap: 10px; }
+.co-pm { padding: 12px; gap: 10px; border-radius: 9px; }
+.co-pm__icon { width: 34px; height: 34px; border-radius: 8px; }
+.co-pm__icon svg { width: 20px; height: 20px; }
+.co-pm__text strong { font-size: .8rem; }
+.co-pm__text span { font-size: .7rem; }
+.co-mpesa-opt { padding: 10px 12px; }
+.co-mpesa-opt strong { font-size: .8rem; }
+.co-mpesa-opt p { font-size: .7rem; }
+.co-paybill-box, .co-payment-status, .co-payment-notice { padding: 12px; font-size: .75rem; border-radius: 8px; }
+.co-review-grid { gap: 12px; }
+.co-review-block { padding: 14px; border-radius: 9px; }
+.co-review-block__title, .co-review-items__title { font-size: .8rem; }
+.co-review-block__text, .co-review-item { font-size: .78rem; line-height: 1.6; }
+.co-review-block__meta, .co-review-item__name em { font-size: .7rem; }
+.co-actions { gap: 10px; padding-top: 16px; }
+.co-summary { padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px #0f172a04; }
+.co-summary__title { margin-bottom: 14px; font-size: .95rem; }
+.co-summary__items { gap: 10px; padding-bottom: 14px; margin-bottom: 14px; }
+.co-summary__item, .co-summary__row { font-size: .78rem; gap: 10px; }
+.co-summary__item-name em, .co-summary__note { font-size: .7rem; line-height: 1.6; }
+.co-summary__row { padding-block: 9px; }
+.co-summary__row--total { font-size: .9rem; padding-top: 12px; }
+.co-summary__row--total span:last-child { font-size: 1.1rem; }
+@media (max-width: 900px) { .co-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .co-section, .co-summary { padding: 16px; } .co-form__row { grid-template-columns: minmax(0, 1fr); } .co-step { width: 90px; } .co-steps__track { width: 180px; left: calc(50% - 90px); } }

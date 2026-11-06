@@ -1,3 +1,5 @@
+import BrandDirectory from '../BrandDirectory'
+import { STAFF_DASHBOARDS } from '../../utils/roleNavigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import '../../styles/components/Header.css'
@@ -7,10 +9,15 @@ import { useCatalog } from '../../context/CatalogContext'
 import { loadBanners } from '../../data/banners'
 import { cartService } from '../../services/cartService'
 import { favouritesService } from '../../services/favouritesService'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
 import { useAuth } from '../../context/AuthContext'
 import { faqService } from '../../services/faqService'
 
 function Header() {
+  const { settings } = useSiteSettings()
+  const deliveryMessage = settings.freeDeliveryThreshold > 0
+    ? `Free delivery on orders from KSh ${settings.freeDeliveryThreshold.toLocaleString('en-KE')}`
+    : 'Free delivery on all orders'
   const ALL_CATEGORIES_KEY = 'all'
   const navigate = useNavigate()
   const location = useLocation()
@@ -54,16 +61,28 @@ function Header() {
 
   useEffect(() => {
     setIsAccountsOpen(false)
-  }, [location.pathname])
+    setIsMenuOpen(false)
+    setIsSearchOpen(false)
+    setActiveMenu(null)
+  }, [location.pathname, location.search])
 
   useEffect(() => {
+    let active = true
+    let requestId = 0
     const refresh = () => {
-      void cartService.count().then((response) => setCartCount(response.data))
+      const currentRequest = ++requestId
+      void cartService.count().then((response) => {
+        if (active && currentRequest === requestId) setCartCount(response.data)
+      })
     }
+    setCartCount(0)
     refresh()
     const unsubscribe = cartService.subscribe(() => { refresh() })
-    return unsubscribe
-  }, [])
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [user?.id])
 
   useEffect(() => {
     const refresh = () => {
@@ -73,7 +92,7 @@ function Header() {
     return favouritesService.subscribe(refresh)
   }, [])
 
-  const { categories, brands, healthConcerns } = useCatalog()
+  const { categories, brands, healthConcerns, loading: catalogLoading, error: catalogError, refreshCatalog } = useCatalog()
   const orderedCategories = useMemo(
     () => sortCategoriesByPreferredOrder(categories),
     [categories]
@@ -82,7 +101,8 @@ function Header() {
 
   const [activeCategory, setActiveCategory] = useState(defaultCategorySlug)
   const banners = loadBanners()
-  const activeBanner = banners.find((banner) => banner.status === 'active')
+  const storedBanner = banners.find((banner) => banner.status === 'active')
+  const activeBanner = storedBanner?.id === 'banner-001' ? { ...storedBanner, message: deliveryMessage } : storedBanner
 
 
 
@@ -112,35 +132,29 @@ function Header() {
       ? orderedCategories[0]
       : orderedCategories.find((category) => category.slug === activeCategory) || orderedCategories[0]
   const activeCategoryLabel = activeCategory === ALL_CATEGORIES_KEY ? 'All Products' : activeCategoryData?.name ?? 'Shop by Category'
+  const activeSubcategories = activeCategoryData?.subcategories ?? []
   const megaPanelItems =
     activeCategory === ALL_CATEGORIES_KEY
-      ? orderedCategories.flatMap((category) =>
-          category.subcategories.map((item) => ({
-            id: `${category.slug}-${item.slug}`,
+      ? []
+      : activeSubcategories.length > 0
+        ? activeSubcategories.map((item) => ({
+            id: `subcategory-${item.slug}`,
             name: item.name,
-            categoryName: category.name,
-            path: buildSubcategoryPath(category.slug, item.slug),
+            path: buildSubcategoryPath(activeCategoryData!.slug, item.slug),
           }))
-        )
-      : (activeCategoryData?.subcategories ?? []).map((item) => ({
-          id: item.slug,
-          name: item.name,
-          categoryName: null,
-          path: buildSubcategoryPath(activeCategoryData.slug, item.slug),
-        }))
+        : (activeCategoryData?.products ?? []).map((product) => ({
+            id: `product-${product.id}`,
+            name: product.name,
+            path: `/product/${product.id}`,
+          }))
   const itemsSplitIndex = Math.ceil(megaPanelItems.length / 2)
   const itemsColumnOne = megaPanelItems.slice(0, itemsSplitIndex)
   const itemsColumnTwo = megaPanelItems.slice(itemsSplitIndex)
 
   const closeActiveMenu = () => setActiveMenu(null)
 
-  const staffDashboard = user?.role === 'admin'
-    ? { label: 'Dashboard', path: '/admin/dashboard' }
-    : user?.role === 'doctor'
-      ? { label: 'Dashboard', path: '/doctor/dashboard' }
-      : user?.role === 'pharmacist'
-        ? { label: 'Dashboard', path: '/pharmacist/dashboard' }
-        : null
+  const dashboardPath = STAFF_DASHBOARDS[user?.role || '']
+  const staffDashboard = dashboardPath ? { label: 'Dashboard', path: dashboardPath } : null
 
   const closeMenus = () => {
     setActiveMenu(null)
@@ -166,7 +180,16 @@ function Header() {
   }
 
   return (
-    <header className="header">
+    <header onKeyDown={(event) => {
+      if (event.key === 'Escape') {
+        const selector = isAccountsOpen ? '.header__accounts > button' : isSearchOpen ? '.header__action-btn--search-mobile' : '.header__menu-toggle'
+        event.currentTarget.querySelector<HTMLButtonElement>(selector)?.focus()
+        setIsAccountsOpen(false)
+        setIsMenuOpen(false)
+        setIsSearchOpen(false)
+        setActiveMenu(null)
+      }
+    }} className="header">
       {/* Top Bar */}
       <div className="header__topbar">
         <div className="container">
@@ -190,7 +213,7 @@ function Header() {
                     <circle cx="5.5" cy="18.5" r="1.5"/>
                     <circle cx="18.5" cy="18.5" r="1.5"/>
                   </svg>
-                  {activeBanner?.message ?? `Free delivery for orders above KSh 2500/-`}
+                  {activeBanner?.message ?? deliveryMessage}
                 </span>
               )}
             </div>
@@ -210,12 +233,12 @@ function Header() {
         <div className="container">
           <div className="header__main-content">
             {/* Logo */}
-            <Link to="/" className="header__logo">
+            <Link to="/" className="header__logo" aria-label="Ava Pharmacy home">
               <img src={logo} alt="" className="header__logo-img" />
             </Link>
 
             {/* Search Bar */}
-            <div className={`header__search ${isSearchOpen ? 'header__search--active' : ''}`}>
+            <div id="header-search" className={`header__search ${isSearchOpen ? 'header__search--active' : ''}`}>
               <svg className="header__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/>
                 <path d="m21 21-4.35-4.35"/>
@@ -223,6 +246,7 @@ function Header() {
               <input
                 type="text"
                 placeholder="Search medicines, brands, and services"
+                aria-label="Search medicines, brands, and services"
                 className="header__search-input"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
@@ -238,7 +262,7 @@ function Header() {
 
             {/* Actions */}
             <div className="header__actions">
-              <button className="header__action-btn header__action-btn--search-mobile" onClick={toggleSearch}>
+              <button type="button" aria-label={isSearchOpen ? 'Close search' : 'Open search'} aria-expanded={isSearchOpen} aria-controls="header-search" className="header__action-btn header__action-btn--search-mobile" onClick={toggleSearch}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"/>
                   <path d="m21 21-4.35-4.35"/>
@@ -250,7 +274,7 @@ function Header() {
                   ref={accountsRef}
                   className={`header__accounts ${isAccountsOpen ? 'header__accounts--open' : ''}`}
                 >
-                  <button className="header__action-btn" type="button" onClick={() => setIsAccountsOpen(prev => !prev)}>
+                  <button aria-label="Account options" aria-expanded={isAccountsOpen} className="header__action-btn" type="button" onClick={() => setIsAccountsOpen(prev => !prev)}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                       <circle cx="12" cy="7" r="4"/>
@@ -260,7 +284,7 @@ function Header() {
                     </span>
                   </button>
                   {staffDashboard && (
-                    <Link to={staffDashboard.path} className="header__action-btn header__action-btn--dashboard">
+                    <Link aria-label={staffDashboard.label} to={staffDashboard.path} className="header__action-btn header__action-btn--dashboard">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="3" y="3" width="7" height="7" rx="1"/>
                         <rect x="14" y="3" width="7" height="7" rx="1"/>
@@ -278,6 +302,19 @@ function Header() {
                           <circle cx="12" cy="7" r="4"/>
                         </svg>
                         Account
+                      </Link>
+                      <Link to="/account/notifications" className="had-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>
+                        </svg>
+                        Notifications
+                      </Link>
+                      <Link to="/account/support" className="had-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-3 3V11.5a8.5 8.5 0 0 1 8.5-8.5h3a8.5 8.5 0 0 1 8.5 8.5Z"/>
+                          <path d="M7 9h8M7 13h5"/>
+                        </svg>
+                        Support requests
                       </Link>
                       <Link to="/account/orders" className="had-link">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -308,6 +345,7 @@ function Header() {
               ) : (
                 <Link
                   to="/login"
+                  aria-label="Log in"
                   className="header__action-btn"
                   aria-disabled={isLoading ? 'true' : undefined}
                 >
@@ -319,7 +357,7 @@ function Header() {
                 </Link>
               )}
 
-<Link to="/account/favourites" className="header__action-btn header__action-btn--fav">
+<Link aria-label="Favourites" to="/account/favourites" className="header__action-btn header__action-btn--fav">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                 </svg>
@@ -327,7 +365,7 @@ function Header() {
                 <span className="header__action-text">Favourites</span>
               </Link>
 
-<Link to="/cart" className="header__action-btn header__action-btn--cart">
+<Link aria-label={`Cart, ${cartCount} items`} to="/cart" className="header__action-btn header__action-btn--cart">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="9" cy="21" r="1"/>
                   <circle cx="20" cy="21" r="1"/>
@@ -337,7 +375,7 @@ function Header() {
                 <span className="header__action-text">Cart</span>
               </Link>
 
-              <button className="header__menu-toggle" onClick={toggleMenu}>
+              <button type="button" aria-label={isMenuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={isMenuOpen} aria-controls="primary-navigation" className="header__menu-toggle" onClick={toggleMenu}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   {isMenuOpen ? (
                     <path d="M18 6L6 18M6 6l12 12"/>
@@ -356,7 +394,7 @@ function Header() {
       </div>
 
       {/* Navigation */}
-      <nav className={`header__nav ${isMenuOpen ? 'header__nav--open' : ''}`} aria-label="Primary">
+      <nav id="primary-navigation" className={`header__nav ${isMenuOpen ? 'header__nav--open' : ''}`} aria-label="Primary">
         <div className="container">
           <ul className="header__nav-list">
             <li
@@ -410,9 +448,28 @@ function Header() {
                   </div>
                   <div className="mega-panel__col mega-panel__values">
                     <h4>{activeCategoryLabel}</h4>
+                    {catalogError && categories.length === 0 && (
+                      <div className="catalog-load-state" role="alert">
+                        <p>{catalogError}</p>
+                        <button type="button" onClick={() => { void refreshCatalog(true) }}>Try again</button>
+                      </div>
+                    )}
+                    {catalogLoading && categories.length === 0 && <p className="catalog-load-state">Loading catalogue…</p>}
                     {activeCategory === ALL_CATEGORIES_KEY ? (
                       <div className="mega-panel__all-grid">
-                        {categories.filter((cat) => cat.subcategories.length > 0).map((cat) => (
+                        {categories.map((cat) => {
+                          const entries = cat.subcategories.length > 0
+                            ? cat.subcategories.map((sub) => ({
+                                id: `subcategory-${sub.slug}`,
+                                name: sub.name,
+                                path: buildSubcategoryPath(cat.slug, sub.slug),
+                              }))
+                            : cat.products.slice(0, 4).map((product) => ({
+                                id: `product-${product.id}`,
+                                name: product.name,
+                                path: `/product/${product.id}`,
+                              }))
+                          return (
                           <div key={cat.slug} className="mega-panel__cat-group">
                             <Link
                               to={`/products?category=${encodeURIComponent(cat.slug)}`}
@@ -422,19 +479,20 @@ function Header() {
                               {cat.name}
                             </Link>
                             <ul className="mega-panel__cat-group-list">
-                              {cat.subcategories.map((sub) => (
-                                <li key={sub.slug}>
+                              {entries.map((entry) => (
+                                <li key={entry.id}>
                                   <Link
-                                    to={buildSubcategoryPath(cat.slug, sub.slug)}
+                                    to={entry.path}
                                     onClick={closeMenus}
                                   >
-                                    {sub.name}
+                                    {entry.name}
                                   </Link>
                                 </li>
                               ))}
                             </ul>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     ) : (
                       <div className="mega-panel__values-grid">
@@ -481,6 +539,7 @@ function Header() {
                 <span className="header__nav-caret">▾</span>
               </button>
               <div className="conditions-panel">
+                {catalogError && healthConcerns.length === 0 && <p className="catalog-load-state" role="alert">{catalogError}</p>}
                 <div className="conditions-panel__grid">
                   {healthConcerns.map((condition) => (
                     <Link
@@ -516,18 +575,10 @@ function Header() {
                     <h4>Brands</h4>
                     <p>Explore our trusted pharmacy and beauty partners.</p>
                   </div>
-                  {/* <Link to="/brands" onClick={closeMenus} className="brands-panel__view-all">View all</Link> */}
+                  <Link to="/brands" onClick={closeMenus} className="brands-panel__view-all">View all</Link>
                 </div>
-                <div className="brands-panel__grid">
-                  {brands.map((brand) => (
-                    <Link key={brand.id} to={`/products?brand=${encodeURIComponent(brand.slug)}`} onClick={closeMenus} className="brands-panel__card">
-                      <span className="brands-panel__logo">
-                        {brand.logo ? (<img src={brand.logo} alt={`${brand.name} logo`} className="brands-panel__logo-img" />) : (<span className="brands-panel__logo-img" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{brand.name.charAt(0)}</span>)}
-                      </span>
-                      <span>{brand.name}</span>
-                    </Link>
-                  ))}
-                </div>
+                {catalogError && brands.length === 0 && <p className="catalog-load-state" role="alert">{catalogError}</p>}
+                <BrandDirectory brands={brands} pageSize={24} onSelect={closeMenus} />
               </div>
             </li>
             <li className="header__nav-item" onMouseEnter={closeActiveMenu}>

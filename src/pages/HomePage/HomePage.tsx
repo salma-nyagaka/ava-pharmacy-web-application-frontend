@@ -1,3 +1,4 @@
+import { preferredScrollBehavior } from '../../utils/motion'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
@@ -14,6 +15,7 @@ import type { CatalogProduct } from '../../data/products'
 import { categoryCardImages } from '../../data/categoryCardImages'
 import HomeSearch from '../../components/HomeSearch/HomeSearch'
 import LazySection from '../../components/LazySection/LazySection'
+import ContentBlocks from '../../components/ContentBlocks/ContentBlocks'
 import '../../styles/pages/HomePage.css'
 
 const FEATURED_PRODUCTS_LIMIT = 5
@@ -36,14 +38,25 @@ function HomePage() {
   const [homeBannersLoading, setHomeBannersLoading] = useState(true)
   const [bannerRefreshTick, setBannerRefreshTick] = useState(0)
   const [activeHeroIndex, setActiveHeroIndex] = useState(0)
+  const [heroPaused, setHeroPaused] = useState(false)
+  const [heroInteracting, setHeroInteracting] = useState(false)
+  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => setReducedMotion(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
 
   const valueBannerItems = [
-    { key: 'delivery', title: 'Free Delivery',       subtitle: `On orders over KSh 2500/-`, link: '/help', color: 'green'  },
-    { key: 'support',  title: 'Expert Pharmacists',  subtitle: 'Professional guidance, 24/7',   link: '/doctor-consultation', color: 'blue'   },
-    { key: 'quality',  title: 'Genuine Products',    subtitle: 'Certified & lab-verified stock', link: '/about',               color: 'purple' },
-    { key: 'secure',   title: 'Flexible Payments',   subtitle: 'M-Pesa, card & cash on delivery',link: '/help',               color: 'amber'  },
+    { key: 'delivery', title: 'Free Delivery',       subtitle: settings.freeDeliveryThreshold > 0 ? `On orders from KSh ${settings.freeDeliveryThreshold.toLocaleString('en-KE')}` : 'On all orders', color: 'green'  },
+    { key: 'support',  title: 'Expert Pharmacists',  subtitle: settings.pharmacistConsultationHours, color: 'blue'   },
+    { key: 'quality',  title: 'Genuine Products',    subtitle: 'Certified & lab-verified stock',               color: 'purple' },
+    { key: 'secure',   title: 'M-Pesa Payments',    subtitle: 'Pay with STK Push or Paybill',               color: 'amber'  },
   ]
 
+  const { products: offerProducts, loading: offersLoading } = useProducts({ on_offer: true, inventory_status: 'available', page_size: 5 })
   const { products: catalogProducts, loading: catalogLoading } = useProducts({ page_size: 48 })
   const { products: latestStockedProducts, loading: newLoading } = useProducts({
     page_size: 5,
@@ -237,12 +250,12 @@ function HomePage() {
   }, [visibleHomeBanners.length])
 
   useEffect(() => {
-    if (!hasMultipleHeroBanners) return undefined
+    if (!hasMultipleHeroBanners || heroPaused || heroInteracting || reducedMotion) return undefined
     const timer = window.setInterval(() => {
       setActiveHeroIndex((current) => (current + 1) % visibleHomeBanners.length)
     }, 6000)
     return () => window.clearInterval(timer)
-  }, [hasMultipleHeroBanners, visibleHomeBanners.length])
+  }, [hasMultipleHeroBanners, visibleHomeBanners.length, heroPaused, heroInteracting, reducedMotion])
 
   const featuredProducts = useMemo(() => {
     const seen = new Set<number>()
@@ -264,12 +277,17 @@ function HomePage() {
 
   const newProducts = useMemo(() => latestStockedProducts.slice(0, 5), [latestStockedProducts])
 
+  const topRatedProducts = useMemo(
+    () => featuredProducts.filter((product) => product.reviews > 0 && product.rating > 0).slice(0, 5),
+    [featuredProducts],
+  )
+
   const spotlightOfferProducts = useMemo(() => {
-    return [...catalogProducts]
+    return [...offerProducts]
       .filter((product) => isAvailableProduct(product) && isDealProduct(product))
       .sort((a, b) => getDealSavings(b) - getDealSavings(a))
       .slice(0, 5)
-  }, [catalogProducts])
+  }, [offerProducts])
 
   const productJsonLd = useMemo(() => {
     const items = [...spotlightOfferProducts, ...featuredProducts, ...newProducts]
@@ -375,7 +393,7 @@ function HomePage() {
     const gapValue = window.getComputedStyle(track).gap || window.getComputedStyle(track).columnGap || '24'
     const gap = Number.parseFloat(gapValue) || 24
     const amount = (cardWidth + gap) * 2
-    track.scrollBy({ left: direction === 'next' ? amount : -amount, behavior: 'smooth' })
+    track.scrollBy({ left: direction === 'next' ? amount : -amount, behavior: preferredScrollBehavior() })
   }
 
   const handleCategoryKeyDown = (event: React.KeyboardEvent, direction: 'prev' | 'next') => {
@@ -537,7 +555,7 @@ function HomePage() {
 
     if (!target) {
       return (
-        <div className={className} key={banner.id || index}>
+        <div className={className} aria-hidden={index !== activeHeroIndex} key={banner.id || index}>
           {slideContent}
         </div>
       )
@@ -545,14 +563,14 @@ function HomePage() {
 
     if (isExternal) {
       return (
-        <a className={className} href={target} rel="noreferrer" target="_blank" key={banner.id || index}>
+        <a className={className} aria-hidden={index !== activeHeroIndex} tabIndex={index === activeHeroIndex ? 0 : -1} href={target} rel="noreferrer" target="_blank" key={banner.id || index}>
           {slideContent}
         </a>
       )
     }
 
     return (
-      <Link className={className} to={target} key={banner.id || index}>
+      <Link className={className} aria-hidden={index !== activeHeroIndex} tabIndex={index === activeHeroIndex ? 0 : -1} to={target} key={banner.id || index}>
         {slideContent}
       </Link>
     )
@@ -672,11 +690,12 @@ function HomePage() {
 
   return (
     <div className="home">
-      <a href="#main-content" className="skip-to-content">
-        Skip to main content
-      </a>
       {/* Hero banner */}
-      <section className="hero-carousel" id="main-content" aria-label="Ava Pharmacy online pharmacy and care services">
+      <section className="hero-carousel"
+        onMouseEnter={() => setHeroInteracting(true)} onMouseLeave={() => setHeroInteracting(false)}
+        onFocus={() => setHeroInteracting(true)}
+        onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHeroInteracting(false) }}
+        aria-roledescription="carousel" aria-label="Ava Pharmacy online pharmacy and care services">
         <h1 className="hero-carousel__sr-title">
           Ava Pharmacy: online pharmacy, doctor consultations, lab tests and prescriptions delivered across Kenya
         </h1>
@@ -688,7 +707,7 @@ function HomePage() {
               <span className="hero-placeholder__eyebrow">Ava Pharmacy · Kenya</span>
               <h2 className="hero-placeholder__title">Medicines & care, delivered to your door</h2>
               <p className="hero-placeholder__text">
-                Order genuine medicines, book doctor and pediatric consultations, upload prescriptions, and schedule lab tests — all from one place.
+                Order genuine medicines, book doctor and pediatric consultations, upload prescriptions, and schedule lab tests - all from one place.
               </p>
               <div className="hero-placeholder__cta">
                 <Link to="/products" className="hero-placeholder__btn hero-placeholder__btn--primary">
@@ -730,13 +749,13 @@ function HomePage() {
                     <path d="M9 18l6-6-6-6" />
                   </svg>
                 </button>
-                <div className="hero-carousel__dots" role="tablist" aria-label="Hero banners">
+                <button className="hero-carousel__pause" type="button" aria-pressed={heroPaused} onClick={() => setHeroPaused((paused) => !paused)}>{heroPaused ? 'Resume slides' : 'Pause slides'}</button>
+                <div className="hero-carousel__dots" role="group" aria-label="Hero banners">
                   {visibleHomeBanners.map((banner, index) => (
                     <button
                       className={`hero-carousel__dot${index === activeHeroIndex ? ' hero-carousel__dot--active' : ''}`}
                       type="button"
-                      role="tab"
-                      aria-selected={index === activeHeroIndex}
+                      aria-pressed={index === activeHeroIndex}
                       aria-label={`Show hero banner ${index + 1}: ${banner.title || banner.message || 'promotion'}`}
                       key={banner.id || index}
                       onClick={() => setActiveHeroIndex(index)}
@@ -758,7 +777,7 @@ function HomePage() {
         <div className="container">
           <div className="promo-banner__strip">
             {valueBannerItems.map((item, i) => (
-              <Link key={item.title} to={item.link} className="promo-banner__item">
+              <div key={item.title} className="promo-banner__item">
                 <span className={`promo-banner__icon promo-banner__icon--${item.color}`}>
                   {renderBannerIcon(item.key)}
                 </span>
@@ -767,7 +786,7 @@ function HomePage() {
                   <span>{item.subtitle}</span>
                 </div>
                 {i < valueBannerItems.length - 1 && <div className="promo-banner__divider" />}
-              </Link>
+              </div>
             ))}
           </div>
         </div>
@@ -836,7 +855,7 @@ function HomePage() {
       <section className="section offers-preview home-section--offers">
         <div className="container">
           {renderSectionHeader('offers', 'Limited time', 'Products On Offer', 'Monthly deals on health essentials, while stocks last.')}
-          {catalogLoading ? (
+          {offersLoading ? (
             renderSkeletonGrid(5, true)
           ) : spotlightOfferProducts.length === 0 ? (
             <div className="empty-state">
@@ -864,13 +883,13 @@ function HomePage() {
           {renderSectionHeader('top', 'Customer favourites', 'Top Rated Products', 'Highly rated by shoppers like you.')}
           {featuredLoading && catalogLoading ? (
             renderSkeletonGrid(5)
-          ) : featuredProducts.length === 0 ? (
+          ) : topRatedProducts.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-state__message">No top rated products available at the moment.</p>
+              <p className="empty-state__message">No verified product ratings are available yet.</p>
             </div>
           ) : (
             <div className="products__grid">
-              {featuredProducts.map((product) => renderProductCard(product, 'featured'))}
+              {topRatedProducts.map((product) => renderProductCard(product, 'featured'))}
             </div>
           )}
           <div className="featured-products__cta">
@@ -999,6 +1018,8 @@ function HomePage() {
       </section>
       </LazySection>
 
+      <ContentBlocks />
+
       {/* Trust & compliance band */}
       <section className="home-trust" aria-label="Pharmacy accreditation and licensing">
         <div className="container">
@@ -1011,8 +1032,8 @@ function HomePage() {
                 </svg>
               </span>
               <div>
-                <strong>Pharmacy & Poisons Board registered</strong>
-                <span>{settings.healthSafetyCode || settings.premisesRegistrationNumber || 'Licensed pharmacy practice in Kenya'}</span>
+                <strong>Pharmacy registration details</strong>
+                <span>{settings.healthSafetyCode || settings.premisesRegistrationNumber || 'Registration details awaiting verification'}</span>
               </div>
             </div>
             <div className="home-trust__item">

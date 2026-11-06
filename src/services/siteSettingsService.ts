@@ -30,7 +30,7 @@ export interface SiteSettings {
   activeDeliveryZones: string[]
 }
 
-export interface SiteSettingsUpdatePayload extends SiteSettings {}
+export type SiteSettingsUpdatePayload = SiteSettings
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   supportEmail: 'support@avapharmacy.co.ke',

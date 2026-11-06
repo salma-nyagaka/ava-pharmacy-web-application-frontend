@@ -1,3 +1,8 @@
+import ClinicalNotes from '../../components/ClinicalNotes'
+import { preferredScrollBehavior } from '../../utils/motion'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
+import ConsultationAttachments from '../../components/ConsultationAttachments'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -25,6 +30,7 @@ import {
 import { useConsultationSocket } from '../../hooks/useConsultationSocket'
 import '../../styles/pages/ConsultationPage.css'
 import '../../styles/pages/AccountConsultationsPage.css'
+import '../../styles/pages/DoctorConsultation.css'
 
 type ConsultationViewState = 'form' | 'waiting' | 'chatting' | 'completed'
 type ConsultationStatusKey = ConsultationRecord['status']
@@ -70,7 +76,8 @@ function sortConsultations(items: ConsultationRecord[]) {
   })
 }
 
-function getTypeConfig(_consultation: ConsultationRecord) {
+function getTypeConfig(consultation: ConsultationRecord) {
+  void consultation
   return { color: '#ec4899', bg: 'rgba(236,72,153,0.1)', label: 'Doctor' }
 }
 
@@ -85,9 +92,9 @@ function getInitials(name: string) {
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleString('en-KE', {
     day: 'numeric',
     month: 'short',
@@ -204,7 +211,7 @@ function DoctorConsultation() {
       setProfileHydrated(true)
     }).catch(() => undefined)
     return () => { mounted = false }
-  }, [user?.id])
+  }, [user])
 
   useEffect(() => {
     let isMounted = true
@@ -279,10 +286,10 @@ function DoctorConsultation() {
     }, 2500)
 
     return () => window.clearInterval(timer)
-  }, [currentConsultation?.id, currentConsultation?.status])
+  }, [currentConsultation])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({ behavior: preferredScrollBehavior() })
   }, [currentConsultation?.messages.length])
 
   const token = typeof window !== 'undefined' ? (localStorage.getItem('ava_access_token') ?? null) : null
@@ -307,6 +314,7 @@ function DoctorConsultation() {
         sender: m.sender,
         senderName: m.senderName,
         message: m.message,
+        messageType: m.messageType,
         sentAt: m.sentAt,
       }))
       if (!newMsgs.length) return prev
@@ -353,7 +361,7 @@ function DoctorConsultation() {
     setPaymentNotice('')
     setSubmitError('')
     window.requestAnimationFrame(() => {
-      document.getElementById('dc-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById('dc-form')?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start' })
     })
   }
 
@@ -456,7 +464,7 @@ function DoctorConsultation() {
     setPaymentStatus('review')
     setPaymentNotice('Choose STK Push or Paybill. The consultation will only start after payment is successful.')
     window.requestAnimationFrame(() => {
-      document.getElementById('dc-payment-step')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      document.getElementById('dc-payment-step')?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'center' })
     })
   }
 
@@ -593,7 +601,7 @@ function DoctorConsultation() {
       }
     }, 5000)
     return () => window.clearInterval(timer)
-  }, [handleFinalizePaidIntent, paymentIntent?.id, paymentStatus])
+  }, [handleFinalizePaidIntent, paymentIntent, paymentStatus])
 
   useEffect(() => {
     if (paymentStatus !== 'waiting') {
@@ -680,7 +688,7 @@ function DoctorConsultation() {
     const itemCountLabel = `${itemTotal} item${itemTotal === 1 ? '' : 's'}`
 
     return (
-      <div className="dc-rx-modal" role="dialog" aria-modal="true" aria-labelledby="dc-rx-modal-title">
+      <Dialog onClose={() => setActivePrescriptionModal(null)} className="dc-rx-modal" role="dialog" aria-modal="true" aria-labelledby="dc-rx-modal-title">
         <div className="dc-rx-modal__backdrop" onClick={() => setActivePrescriptionModal(null)} />
         <div className="dc-rx-modal__panel">
           <div className="dc-rx-modal__header">
@@ -781,13 +789,13 @@ function DoctorConsultation() {
             </button>
           </div>
         </div>
-      </div>
+      </Dialog>
     )
   }
 
   const renderConsultationWorkspace = () => (
     <>
-    <div className="dc-page ac-page dc-hub-page">
+    <div className="dc-page dc-doctor-page ac-page dc-hub-page">
       <div className="container">
         <div className="ac-header">
           <div>
@@ -910,6 +918,7 @@ function DoctorConsultation() {
 
                   {isExpanded && (
                     <div className="ac-card__body">
+                      <ClinicalNotes key={consultation.id} consultationId={consultation.id} />
                       <div className="ac-card__summary">
                         <p className="ac-card__summary-label">Reason for consultation</p>
                         <p className="ac-card__summary-text">{consultation.issue || 'No summary recorded yet.'}</p>
@@ -1022,7 +1031,7 @@ function DoctorConsultation() {
   )
 
   if (isLoading) {
-    return <div className="dc-page" />
+    return <div className="dc-page dc-doctor-page" />
   }
 
   if (!isChatOpen && !showStartForm) {
@@ -1032,7 +1041,7 @@ function DoctorConsultation() {
   if (viewState === 'waiting' && currentConsultation) {
     return (
       <>
-      <div className="dc-page">
+      <div className="dc-page dc-doctor-page">
         <div className="dc-waiting">
           <div className="dc-waiting__shell">
             <section className="dc-waiting__summary" aria-label="Consultation status">
@@ -1119,7 +1128,7 @@ function DoctorConsultation() {
     const latestPrescription = currentConsultation.prescriptions?.[0] ?? null
 
     return (
-      <div className="dc-page">
+      <div className="dc-page dc-doctor-page">
         <div className="container">
           <div className="dc-active-shell">
             <div className="dc-chat">
@@ -1161,6 +1170,19 @@ function DoctorConsultation() {
                   </div>
                 )}
                 {currentConsultation.messages.map((message) => {
+                  if (message.messageType === 'e_prescription') {
+                    const issued = currentConsultation.prescriptions.find(item => message.message.includes(item.reference))
+                    const dispensing = issued ? customerPrescriptions.find(item => item.clinicianPrescriptionId === issued.id) : null
+                    return <div key={message.id} className="dc-prescription-notice" role="status">
+                      <div className="dc-prescription-notice__heading">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M14 2H5v20h14V7l-5-5ZM14 2v6h5M8 14h8M12 10v8"/></svg>
+                        <strong>New prescription issued</strong>
+                        <time dateTime={message.sentAt}>{formatDateTime(message.sentAt)}</time>
+                      </div>
+                      <p>{message.message}</p>
+                      <Link className="btn btn--outline btn--sm" to={dispensing?.backendId ? `/prescriptions?prescription=${dispensing.backendId}` : '/prescriptions'}>View prescription</Link>
+                    </div>
+                  }
                   const isPatient = message.sender === user?.id
                   return (
                     <div key={message.id} className={`dc-msg dc-msg--${isPatient ? 'patient' : 'doctor'}`}>
@@ -1180,8 +1202,9 @@ function DoctorConsultation() {
               {typingUsers.length > 0 && (
                 <p className="dc-chat__typing">{typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</p>
               )}
+              <ConsultationAttachments key={currentConsultation.id} consultationId={currentConsultation.id} refreshKey={currentConsultation.messages.length} />
               <div className="dc-chat__input">
-                <input
+                <input aria-label="Type your message"
                   type="text"
                   placeholder="Type your message..."
                   value={messageInput}
@@ -1198,10 +1221,11 @@ function DoctorConsultation() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 </button>
               </div>
-              {submitError && <p className="dc-field-error dc-chat__error">{submitError}</p>}
+              {submitError && <p role="alert" className="dc-field-error dc-chat__error">{submitError}</p>}
             </div>
 
             <aside className="dc-chat-panel" aria-label="Consultation details">
+              <ClinicalNotes key={currentConsultation?.id} consultationId={currentConsultation?.id} />
               <div className="dc-chat-panel__card dc-chat-panel__card--doctor">
                 <div className="dc-chat-panel__avatar">{getInitials(clinicianName)}</div>
                 <div>
@@ -1266,7 +1290,7 @@ function DoctorConsultation() {
                     </div>
                     <div className="dc-chat-detail">
                       <span>Status</span>
-                      <strong>{latestPrescription.status}</strong>
+                      <strong>{formatStatus(latestPrescription.status)}</strong>
                     </div>
                     <button
                       type="button"
@@ -1293,7 +1317,7 @@ function DoctorConsultation() {
 
         {showEndConfirm && (
           <div className="modal-overlay" onClick={() => setShowEndConfirm(false)}>
-            <div className="dc-confirm" onClick={(event) => event.stopPropagation()}>
+            <Dialog busy={isEndingConsultation} onClose={() => setShowEndConfirm(false)} className="dc-confirm" onClick={(event) => event.stopPropagation()}>
               <h3>End consultation?</h3>
               <p>This will mark the consultation as completed.</p>
               <div className="dc-confirm__actions">
@@ -1302,7 +1326,7 @@ function DoctorConsultation() {
                   {isEndingConsultation ? 'Ending…' : 'End & finish'}
                 </button>
               </div>
-            </div>
+            </Dialog>
           </div>
         )}
       </div>
@@ -1314,7 +1338,7 @@ function DoctorConsultation() {
   }
 
   return (
-    <div className="dc-page">
+    <div className="dc-page dc-doctor-page">
       <a href="#dc-form" className="skip-to-content">Skip to form</a>
 
       <section className="page-hero page-hero--doctor">
@@ -1379,7 +1403,7 @@ function DoctorConsultation() {
 
               <div className="dc-form-section">
                 <div className="dc-form-section__heading">
-                  <span>3</span>
+                  <span>2</span>
                   <div>
                     <h3>Health measurements</h3>
                     <p>{profileHydrated ? 'We pulled your saved measurements. Review them and choose whether to update your profile.' : 'Add the latest available measurements.'}</p>
@@ -1395,13 +1419,13 @@ function DoctorConsultation() {
                 </div>
                 <div className="dc-form-row">
                   <div className="dc-field"><label htmlFor="dc-glucose">Blood glucose (mmol/L)</label><input id="dc-glucose" type="number" min="0" step="0.01" value={formData.bloodGlucoseMmolL} onChange={(event) => setField('bloodGlucoseMmolL', event.target.value)} /></div>
-                  {profileHydrated && <label className="dc-field" style={{ alignSelf: 'end' }}><span>Update saved bio data?</span><input type="checkbox" checked={saveBioData} onChange={(event) => setSaveBioData(event.target.checked)} /> Yes, save these measurements to my profile</label>}
+                  {profileHydrated && <label className="dc-field dc-bio-save"><span>Update saved bio data?</span><input type="checkbox" checked={saveBioData} onChange={(event) => setSaveBioData(event.target.checked)} /> Yes, save these measurements to my profile</label>}
                 </div>
               </div>
 
               <div className="dc-form-section">
                 <div className="dc-form-section__heading">
-                  <span>2</span>
+                  <span>3</span>
                   <div>
                     <h3>Care preference</h3>
                     <p>Choose a specialty or leave it as a general consultation.</p>

@@ -168,7 +168,7 @@ function SmoothAreaChart({ data }: { data: FullReports['daily_revenue'] }) {
                   <text x={tipX + 10} y={PT + 36} fontSize="10" fill="#6ee7b7" fontFamily="inherit">{fmtKshFull(d.revenue)}</text>
                   <text x={tipX + 10} y={PT + 50} fontSize="10" fill="#c7d2fe" fontFamily="inherit">{fmt(d.orders)} orders</text>
                   <text x={tipX + 10} y={PT + 64} fontSize="9.5" fill="#94a3b8" fontFamily="inherit">
-                    AOV: {d.orders > 0 ? fmtKsh(d.revenue / d.orders) : '—'}
+                    AOV: {d.orders > 0 ? fmtKsh(d.revenue / d.orders) : '-'}
                   </text>
                 </>
               )}
@@ -209,7 +209,7 @@ function DonutChart({
   if (grandTotal === 0) {
     return (
       <div className="rpt-donut" style={{ width: size }}>
-        <div className="rpt-donut__empty" style={{ width: size, height: size }}>—</div>
+        <div className="rpt-donut__empty" style={{ width: size, height: size }}>-</div>
       </div>
     )
   }
@@ -885,7 +885,7 @@ function Reports() {
             </div>
           </div>
           <div className="rpt-products-toolbar">
-            <input
+            <input aria-label="Search products"
               type="search" placeholder="Search products…"
               value={productSearch} onChange={(e) => setProductSearch(e.target.value)}
               className="rpt-products-search"

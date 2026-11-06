@@ -1,3 +1,4 @@
+import { formatStatus } from '../../utils/formatStatus'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -22,9 +23,9 @@ function getInitials(name: string) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
@@ -277,11 +278,11 @@ function UserDetailsPage() {
             <div className="ud-detail-list">
               <div className="ud-row">
                 <span className="ud-row__label">Phone</span>
-                <span className="ud-row__value">{user.phone || '—'}</span>
+                <span className="ud-row__value">{user.phone || '-'}</span>
               </div>
               <div className="ud-row">
                 <span className="ud-row__label">Address</span>
-                <span className="ud-row__value">{user.address || '—'}</span>
+                <span className="ud-row__value">{user.address || '-'}</span>
               </div>
               <div className="ud-row">
                 <span className="ud-row__label">Last order</span>
@@ -344,7 +345,7 @@ function UserDetailsPage() {
                     <span className="ud-history__id">{order.order_number}</span>
                     <span className="ud-history__date">{formatDate(order.created_at)}</span>
                     <span className="ud-history__amount">{formatPrice(order.total)}</span>
-                    <span className="ud-badge ud-badge--delivered">{order.status}</span>
+                    <span className="ud-badge ud-badge--delivered">{formatStatus(order.status)}</span>
                   </li>
                 ))}
               </ul>

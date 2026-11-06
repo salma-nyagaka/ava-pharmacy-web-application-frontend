@@ -3,7 +3,7 @@ import { apiClient, extractAuthTokens, refreshAccessToken, saveTokens, clearToke
 import { buildBotPayload, type BotProtectionPayload } from '../services/botProtectionService'
 import { cartService } from '../services/cartService'
 
-export type UserRole = 'patient' | 'customer' | 'doctor' | 'pediatrician' | 'pharmacist' | 'admin' | 'lab_partner' | 'lab_technician'
+export type UserRole = 'patient' | 'customer' | 'doctor' | 'pediatrician' | 'pharmacist' | 'admin' | 'lab_partner' | 'lab_technician' | 'ppb_inspector' | 'inventory_staff'
 
 export interface User {
   id: number
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<User> => {
     setIsLoading(true)
     try {
-      const res = await apiClient.post('/auth/login/', { email, password, ...buildBotPayload(), ...botPayload })
+      const res = await apiClient.post('/auth/login/', { email: email.trim().toLowerCase(), password, ...buildBotPayload(), ...botPayload })
       const data = res.data?.data ?? res.data
       const { access, refresh } = extractAuthTokens(data)
       saveTokens(access, refresh)
@@ -107,7 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const refresh = localStorage.getItem('ava_refresh_token')
     try {
       if (refresh) await apiClient.post('/auth/logout/', { refresh })
-    } catch {}
+    } catch {
+      // Local session cleanup must still complete if server-side logout fails.
+    }
     clearTokens()
     localStorage.removeItem('ava_user')
     setUser(null)

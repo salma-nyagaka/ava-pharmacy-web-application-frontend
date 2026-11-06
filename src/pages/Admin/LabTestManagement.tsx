@@ -1,21 +1,56 @@
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import Dialog from '../../components/Dialog/Dialog'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   LabCategoryDef,
-  LabTest,
-  loadLabCategoryDefs,
-  loadLabTests,
-  loadSampleTypes,
-  saveLabCategoryDefs,
-  saveLabTests,
-  saveSampleTypes,
 } from '../../data/labs'
+import {
+  createAdminLabTest,
+  deleteAdminLabTest,
+  fetchAdminLabTests,
+  updateAdminLabTest,
+  type LabTest as ApiLabTest,
+} from '../../services/labService'
 import { logAdminAction } from '../../data/adminAudit'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/LabTestManagement.css'
 
 const PAGE_SIZE = 8
+
+type LabTest = {
+  backendId: number
+  id: string
+  name: string
+  category: string
+  categoryValue: string
+  price: number
+  turnaround: string
+  sampleType: string
+  description: string
+}
+
+const DEFAULT_CATEGORIES: LabCategoryDef[] = [
+  { name: 'Blood', color: '#ef4444' },
+  { name: 'Cardiac', color: '#ec4899' },
+  { name: 'Infectious', color: '#f59e0b' },
+  { name: 'Wellness', color: '#10b981' },
+  { name: 'Metabolic', color: '#8b5cf6' },
+]
+const DEFAULT_SAMPLE_TYPES = ['Blood', 'Urine', 'Stool', 'Saliva', 'Swab', 'Sputum', 'Biopsy']
+
+const toManagedTest = (test: ApiLabTest): LabTest => ({
+  backendId: test.id,
+  id: test.reference,
+  name: test.name,
+  category: test.categoryLabel,
+  categoryValue: test.category,
+  price: test.price,
+  turnaround: test.turnaround,
+  sampleType: test.sampleType,
+  description: test.description,
+})
 
 const PRESET_COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#14b8a6',
@@ -42,18 +77,11 @@ const blankDraft = (test?: LabTest): TestDraft => ({
   description: test?.description ?? '',
 })
 
-const nextId = (tests: LabTest[]) => {
-  const max = tests.reduce((m, t) => {
-    const n = Number.parseInt(t.id.replace('LAB-T-', ''), 10)
-    return Number.isFinite(n) ? Math.max(m, n) : m
-  }, 0)
-  return `LAB-T-${String(max + 1).padStart(3, '0')}`
-}
-
 function LabTestManagement() {
-  const [tests, setTests] = useState<LabTest[]>(() => loadLabTests())
-  const [categories, setCategories] = useState<LabCategoryDef[]>(() => loadLabCategoryDefs())
-  const [sampleTypes, setSampleTypes] = useState<string[]>(() => loadSampleTypes())
+  const [tests, setTests] = useState<LabTest[]>([])
+  const [categories, setCategories] = useState<LabCategoryDef[]>(DEFAULT_CATEGORIES)
+  const [sampleTypes, setSampleTypes] = useState<string[]>(DEFAULT_SAMPLE_TYPES)
+  const [loadError, setLoadError] = useState('')
 
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<string>('all')
@@ -73,9 +101,15 @@ function LabTestManagement() {
   const [newCatColor, setNewCatColor] = useState(PRESET_COLORS[0])
   const [newSample, setNewSample] = useState('')
 
-  useEffect(() => { saveLabTests(tests) }, [tests])
-  useEffect(() => { saveLabCategoryDefs(categories) }, [categories])
-  useEffect(() => { saveSampleTypes(sampleTypes) }, [sampleTypes])
+  useEffect(() => {
+    void fetchAdminLabTests()
+      .then((items) => {
+        const mapped = items.map(toManagedTest)
+        setTests(mapped)
+        setSampleTypes((current) => Array.from(new Set([...current, ...mapped.map((test) => test.sampleType).filter(Boolean)])))
+      })
+      .catch(() => setLoadError('Unable to load lab tests from the server.'))
+  }, [])
   useEffect(() => { setPage(1) }, [search, catFilter])
 
   const categoryMap = useMemo(() => {
@@ -93,11 +127,10 @@ function LabTestManagement() {
     })
   }, [tests, search, catFilter])
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: tests.length }
-    for (const c of categories) counts[c.name] = tests.filter((t) => t.category === c.name).length
-    return counts
-  }, [tests, categories])
+  const { count: databaseCount, counts: databaseCounts } = useAdminRecordStats('lab_tests', 'all', tests)
+  const categoryCounts: Record<string, number> = { all: databaseCounts?.total ?? 0 }
+  for (const category of categories) categoryCounts[category.name] = databaseCounts?.['category:' + category.name] ?? 0
+
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -114,7 +147,7 @@ function LabTestManagement() {
     setEditId(t.id); setDraft(blankDraft(t)); setFormErr(''); setModalOpen(true)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const name = draft.name.trim()
     const turnaround = draft.turnaround.trim()
     const sampleType = draft.sampleType.trim()
@@ -125,22 +158,37 @@ function LabTestManagement() {
       setFormErr('All fields are required. Price must be greater than 0.')
       return
     }
-    const payload: LabTest = { id: editId ?? nextId(tests), name, category, price, turnaround, sampleType, description }
-    if (editId) {
-      setTests((p) => p.map((t) => (t.id === editId ? payload : t)))
-      logAdminAction({ action: 'Edit lab test', entity: 'Lab Test', entityId: editId, detail: `${name} (${category})` })
-    } else {
-      setTests((p) => [payload, ...p])
-      logAdminAction({ action: 'Create lab test', entity: 'Lab Test', entityId: payload.id, detail: `${name} (${category})` })
+    const categoryDef = categories.find((item) => item.name === category)
+    const categoryValue = categoryDef?.name.toLowerCase() ?? category.toLowerCase()
+    const payload = { name, category: categoryValue, price, turnaround, sample_type: sampleType, description, is_active: true }
+    try {
+      if (editId) {
+        const current = tests.find((test) => test.id === editId)
+        if (!current) return
+        const saved = toManagedTest(await updateAdminLabTest(current.backendId, payload))
+        setTests((items) => items.map((test) => test.id === editId ? saved : test))
+        logAdminAction({ action: 'Edit lab test', entity: 'Lab Test', entityId: editId, detail: `${name} (${category})` })
+      } else {
+        const saved = toManagedTest(await createAdminLabTest(payload))
+        setTests((items) => [saved, ...items])
+        logAdminAction({ action: 'Create lab test', entity: 'Lab Test', entityId: saved.id, detail: `${name} (${category})` })
+      }
+      setModalOpen(false)
+    } catch {
+      setFormErr('The lab test could not be saved. Please try again.')
     }
-    setModalOpen(false)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return
-    setTests((p) => p.filter((t) => t.id !== deleteTarget.id))
-    logAdminAction({ action: 'Delete lab test', entity: 'Lab Test', entityId: deleteTarget.id, detail: deleteTarget.name })
-    setDeleteTarget(null)
+    try {
+      await deleteAdminLabTest(deleteTarget.backendId)
+      setTests((items) => items.filter((test) => test.id !== deleteTarget.id))
+      logAdminAction({ action: 'Delete lab test', entity: 'Lab Test', entityId: deleteTarget.id, detail: deleteTarget.name })
+      setDeleteTarget(null)
+    } catch {
+      setLoadError('The lab test could not be deleted.')
+    }
   }
 
   const addCategory = () => {
@@ -182,15 +230,12 @@ function LabTestManagement() {
         </div>
         <div className="lt-header-actions">
           <Link className="btn btn--outline btn--sm" to="/admin/lab-requests">Patient requests</Link>
-          <button className="lt-icon-btn" type="button" onClick={() => setCatMgrOpen(true)}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Categories & sample types
-          </button>
           <button className="btn btn--primary" type="button" onClick={openCreate}>
             + Add lab test
           </button>
         </div>
       </div>
+      {loadError && <div className="admin-alert admin-alert--error" role="alert">{loadError}</div>}
 
       {/* Category pills */}
       <div className="lt-pills">
@@ -199,7 +244,7 @@ function LabTestManagement() {
           className={`lt-pill ${catFilter === 'all' ? 'lt-pill--active lt-pill--all' : ''}`}
           onClick={() => setCatFilter('all')}
         >
-          <span className="lt-pill__count">{categoryCounts.all}</span>
+          <span className="lt-pill__count">{databaseCount('total')}</span>
           <span className="lt-pill__label">All</span>
         </button>
         {categories.map((cat) => (
@@ -211,7 +256,7 @@ function LabTestManagement() {
             onClick={() => setCatFilter(cat.name)}
           >
             <span className="lt-pill__dot" />
-            <span className="lt-pill__count">{categoryCounts[cat.name] ?? 0}</span>
+            <span className="lt-pill__count">{databaseCounts ? categoryCounts[cat.name] ?? 0 : '—'}</span>
             <span className="lt-pill__label">{cat.name}</span>
           </button>
         ))}
@@ -221,7 +266,7 @@ function LabTestManagement() {
       <div className="lt-toolbar">
         <div className="lt-search">
           <svg className="lt-search__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input
+          <input aria-label="Search by name, ID, or sample type"
             className="lt-search__input"
             type="text"
             placeholder="Search by name, ID, or sample type…"
@@ -323,13 +368,13 @@ function LabTestManagement() {
       {/* ── Catalogue management modal ── */}
       {catMgrOpen && (
         <div className="lt-overlay" onClick={() => setCatMgrOpen(false)}>
-          <div className="lt-modal lt-modal--wide" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setCatMgrOpen(false)} className="lt-modal lt-modal--wide" onClick={(e) => e.stopPropagation()}>
             <div className="lt-modal__header">
               <div>
                 <h2>Manage catalogue</h2>
                 <p className="lt-modal__sub">Add or remove categories and sample types used across lab tests.</p>
               </div>
-              <button className="modal__close" type="button" onClick={() => setCatMgrOpen(false)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setCatMgrOpen(false)}>×</button>
             </div>
 
             {/* Tabs */}
@@ -355,7 +400,7 @@ function LabTestManagement() {
                 <>
                   {/* Add category */}
                   <div className="lt-mgt-add-row">
-                    <input
+                    <input aria-label="New category name"
                       type="text"
                       className="lt-mgt-input"
                       placeholder="New category name…"
@@ -418,7 +463,7 @@ function LabTestManagement() {
                 <>
                   {/* Add sample type */}
                   <div className="lt-mgt-add-row">
-                    <input
+                    <input aria-label="New sample type"
                       type="text"
                       className="lt-mgt-input"
                       placeholder="New sample type…"
@@ -469,14 +514,14 @@ function LabTestManagement() {
             <div className="lt-modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setCatMgrOpen(false)}>Done</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {/* Delete confirmation */}
       {deleteTarget && (
         <div className="lt-overlay" onClick={() => setDeleteTarget(null)}>
-          <div className="lt-confirm-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setDeleteTarget(null)} className="lt-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="lt-confirm-modal__icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             </div>
@@ -486,14 +531,14 @@ function LabTestManagement() {
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setDeleteTarget(null)}>Cancel</button>
               <button className="lt-confirm-del" type="button" onClick={confirmDelete}>Yes, delete</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {/* Add / Edit modal */}
       {modalOpen && (
         <div className="lt-overlay" onClick={() => setModalOpen(false)}>
-          <div className="lt-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setModalOpen(false)} className="lt-modal" onClick={(e) => e.stopPropagation()}>
             <div className="lt-modal__header">
               <div>
                 <h2>{editId ? 'Edit lab test' : 'Add new lab test'}</h2>
@@ -501,7 +546,7 @@ function LabTestManagement() {
                   {editId ? `Editing ${editId}` : 'New test will appear in the catalogue immediately.'}
                 </p>
               </div>
-              <button className="modal__close" type="button" onClick={() => setModalOpen(false)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setModalOpen(false)}>×</button>
             </div>
 
             <div className="lt-modal__body">
@@ -556,7 +601,7 @@ function LabTestManagement() {
                 {editId ? 'Save changes' : 'Add test'}
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

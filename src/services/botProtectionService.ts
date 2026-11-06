@@ -1,4 +1,6 @@
 const DEVICE_ID_KEY = 'ava_device_id'
+export const CAPTCHA_PROVIDER = import.meta.env.VITE_CAPTCHA_PROVIDER === 'hcaptcha' ? 'hcaptcha' : 'turnstile'
+export const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY ?? ''
 export const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? ''
 
 export type BotProtectionPayload = {
@@ -37,5 +39,5 @@ export function appendBotPayload(formData: FormData, website = '', challengeToke
 }
 
 export function isBotChallengeEnabled() {
-  return TURNSTILE_SITE_KEY.trim().length > 0
+  return (CAPTCHA_PROVIDER === 'hcaptcha' ? HCAPTCHA_SITE_KEY : TURNSTILE_SITE_KEY).trim().length > 0
 }

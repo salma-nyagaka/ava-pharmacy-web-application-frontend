@@ -166,11 +166,12 @@ function OrderTrackingPage() {
       setTracking(result)
       setActiveLookup(payload)
       if (!silent) setError('')
-    } catch (lookupError: any) {
+    } catch (lookupError: unknown) {
       if (silent) return
       setTracking(null)
       setActiveLookup(null)
-      const message = lookupError?.response?.data?.error?.message || 'We could not find an order matching those details.'
+      const message = (lookupError as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message || 'We could not find an order matching those details.'
       setError(message)
     } finally {
       if (!silent) setIsSubmitting(false)
@@ -229,7 +230,7 @@ function OrderTrackingPage() {
           <div className="track-page-header">
             <span>Order tracking</span>
             <h1>Track your AVA Pharmacy order</h1>
-            <p>Enter your order number and checkout contact to see the latest payment, packing, and delivery updates.</p>
+            <p>Enter your order number and checkout contact to see the latest packing and delivery updates.</p>
           </div>
 
           <div className="track-card track-hero">
@@ -248,7 +249,7 @@ function OrderTrackingPage() {
                 </div>
                 <div>
                   <strong>3</strong>
-                  <span>View status, payment, delivery address, and item details.</span>
+                  <span>View delivery progress. Sign in for your private order details.</span>
                 </div>
               </div>
               {searchParams.get('order') && (
@@ -408,7 +409,7 @@ function OrderTrackingPage() {
                     </div>
                   </div>
 
-                  <div className="track-card">
+                  {tracking.can_view_details !== false && <div className="track-card">
                     <div className="track-card__head">
                       <span className="track-card__icon">
                         <MapPinIcon />
@@ -433,11 +434,11 @@ function OrderTrackingPage() {
                         <strong>{order.delivery_notes || 'None'}</strong>
                       </div>
                     </div>
-                  </div>
+                  </div>}
                 </div>
 
                 <div className="track-right">
-                  <div className="track-card">
+                  {tracking.can_view_details !== false && <div className="track-card">
                     <div className="track-card__head">
                       <span className="track-card__icon">
                         <PackageIcon />
@@ -482,7 +483,8 @@ function OrderTrackingPage() {
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </div>}
+                  {tracking.can_view_details === false && <p>Sign in to your account to view medicines, payment and delivery details.</p>}
 
                   <div className="track-card">
                     <div className="track-card__head">

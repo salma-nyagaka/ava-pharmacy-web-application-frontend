@@ -53,27 +53,36 @@ function mapPayout(raw: Record<string, unknown>): AdminPayout {
     taskId: String(raw.source_reference ?? ''),
     reconciliationStatus: ({ unmatched: 'Unmatched', matched: 'Matched', exception: 'Exception' } as const)[reconciliation] ?? 'Unmatched',
     retryCount: Number(raw.retry_count ?? 0),
+    auditLogs: Array.isArray(raw.audit_logs) ? raw.audit_logs as AdminPayout['auditLogs'] : [],
   }
 }
 
 export const payoutService = {
+  async recipients(): Promise<Array<{ id: string; name: string; role: PayoutRole }>> {
+    const response = await apiClient.get('/admin/payout-recipients/')
+    return list<{ id: number; name: string; role: string }>(response.data).map(raw => ({ id: String(raw.id), name: raw.name, role: ROLE_FROM_API[raw.role] }))
+  },
+  async mine(): Promise<AdminPayout[]> {
+    const response = await apiClient.get('/payouts/mine/', { params: { page_size: 500 } })
+    return list<Record<string, unknown>>(response.data).map(mapPayout)
+  },
   async list(): Promise<AdminPayout[]> {
     const response = await apiClient.get('/admin/payouts/', { params: { page_size: 500, ordering: '-requested_at' } })
     return list<Record<string, unknown>>(response.data).map(mapPayout)
   },
-  async create(payload: { recipient?: number; recipientName: string; role: PayoutRole; period: string; amount: number; method: PayoutMethod; notes?: string; sourceReference?: string }): Promise<AdminPayout> {
+  async create(payload: { recipient?: number; recipientName: string; role: PayoutRole; period: string; amount: number; method: PayoutMethod; notes?: string; sourceReference?: string; sourceType?: string; commission?: number; withholding?: number; deduction?: number }): Promise<AdminPayout> {
     const response = await apiClient.post('/admin/payouts/', {
       recipient: payload.recipient,
       recipient_name: payload.recipientName,
       role: ROLE_TO_API[payload.role],
       period: payload.period,
-      source_type: 'manual_adjustment',
+      source_type: payload.sourceType || 'manual_adjustment',
       source_reference: payload.sourceReference || '',
-      idempotency_key: payload.sourceReference ? `manual:${payload.sourceReference}` : null,
+      idempotency_key: payload.sourceReference ? `${payload.sourceType || "manual_adjustment"}:${payload.sourceReference}` : null,
       gross_amount: payload.amount,
-      commission_amount: 0,
-      withholding_amount: 0,
-      deduction_amount: 0,
+      commission_amount: payload.commission ?? 0,
+      withholding_amount: payload.withholding ?? 0,
+      deduction_amount: payload.deduction ?? 0,
       currency: 'KES',
       method: METHOD_TO_API[payload.method],
       notes: payload.notes || '',

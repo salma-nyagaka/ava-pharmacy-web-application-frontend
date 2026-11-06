@@ -33,6 +33,7 @@ export interface AdminPayout {
   withholdingAmount?: number
   deductionAmount?: number
   providerTransactionId?: string
+  auditLogs?: Array<{ id: number; actor_name?: string; action: string; from_status: string; to_status: string; reason: string; created_at: string }>
   retryCount?: number
 }
 

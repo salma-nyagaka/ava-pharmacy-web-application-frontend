@@ -1,4 +1,4 @@
-/* Health Services Page — token-driven, brand-led, single accent per card */
+/* Health Services Page - token-driven, brand-led, single accent per card */
 .hs-page {
   background: var(--color-background);
   color: var(--color-text-primary);
@@ -276,7 +276,7 @@
   color: #fff;
 }
 
-/* Featured card (legacy — no longer used; all cards are equal) */
+/* Featured card (legacy - no longer used; all cards are equal) */
 .hs-service-card--feature { display: none; }
 
 /* ── How it works ─────────────────────────────────────── */

@@ -1,3 +1,4 @@
+import type { AxiosResponse } from 'axios'
 import { apiClient } from '../lib/apiClient'
 import {
   PrescriptionAuditEntry,
@@ -95,6 +96,7 @@ export interface PharmacistCatalogVariant {
   inventory_status: string
   available_quantity: number
   can_select: boolean
+  unavailable_reason?: string
 }
 
 const STATUS_FROM_API: Record<string, PrescriptionRecord['status']> = {
@@ -233,14 +235,16 @@ function mapPrescription(record: ApiPrescription): PrescriptionRecord {
 async function listPrescriptions(scope: PrescriptionListScope = 'role'): Promise<PrescriptionRecord[]> {
   if (!isAuthenticated()) return []
   try {
-    const res = await apiClient.get(listEndpoint(scope))
-    const payload = res.data?.data ?? res.data ?? []
-    const items = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.results)
-        ? payload.results
-        : []
-    return items.map(mapPrescription)
+    const records: PrescriptionRecord[] = []
+    let next: string | null = listEndpoint(scope)
+    while (next) {
+      const res: AxiosResponse = await apiClient.get(next)
+      const payload = res.data?.data ?? res.data ?? []
+      const items = Array.isArray(payload) ? payload : Array.isArray(payload?.results) ? payload.results : []
+      records.push(...items.map(mapPrescription))
+      next = res.data?.meta?.next ?? res.data?.next ?? null
+    }
+    return records
   } catch (error) {
     if (!shouldUseLocalFallback(error)) throw error
     const fallbackRecords = loadPrescriptionRecords()
@@ -376,6 +380,15 @@ export const prescriptionService = {
     }
     return prescriptionService.list()
   },
+  editPending: async (backendId: number, payload: { patient: string; doctor: string; notes: string; files: File[] }) => {
+    const formData = new FormData()
+    formData.append('patient_name', payload.patient.trim())
+    formData.append('doctor_name', payload.doctor.trim())
+    formData.append('notes', payload.notes.trim())
+    payload.files.forEach((file) => formData.append('files', file))
+    const response = await apiClient.patch(`/prescriptions/${backendId}/edit/`, formData)
+    return { data: mapPrescription(response.data?.data ?? response.data) }
+  },
   resubmit: async (backendId: number, files: File[]) => {
     const formData = new FormData()
     files.forEach((file) => formData.append('files', file))
@@ -392,6 +405,7 @@ export const prescriptionService = {
   },
   pharmacistReview: async (backendId: number, payload: {
     action: 'approve' | 'reject' | 'request_clarification'
+    doctor_name?: string; prescriber_registration?: string; prescriber_verification_reference?: string; prescribed_on?: string; valid_until?: string; authenticity_method?: string; authenticity_evidence?: string
     notes?: string
     items?: Array<{
       name: string

@@ -1,3 +1,4 @@
+import { dashboardForRole } from '../../utils/roleNavigation'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
@@ -6,24 +7,6 @@ type RoleRouteProps = {
   children: React.ReactNode
 }
 
-function dashboardForRole(role?: string) {
-  switch ((role ?? '').toLowerCase()) {
-    case 'admin':
-      return '/admin/dashboard'
-    case 'doctor':
-      return '/doctor/dashboard'
-    case 'pediatrician':
-      return '/pediatrician/dashboard'
-    case 'pharmacist':
-      return '/pharmacist/dashboard'
-    case 'lab_partner':
-      return '/lab/dashboard'
-    case 'lab_technician':
-      return '/labtech/dashboard'
-    default:
-      return '/'
-  }
-}
 
 export default function RoleRoute({ allowedRoles, children }: RoleRouteProps) {
   const { user, isLoggedIn, isLoading } = useAuth()

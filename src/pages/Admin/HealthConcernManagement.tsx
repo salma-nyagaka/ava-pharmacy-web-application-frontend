@@ -1,3 +1,6 @@
+import AdminKpiStats from '../../components/AdminKpiStats'
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import Dialog from '../../components/Dialog/Dialog'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { adminProductService, ApiHealthConcern } from '../../services/adminProductService'
 import '../../styles/admin/AdminShared.css'
@@ -10,9 +13,9 @@ type SortDirection = 'asc' | 'desc'
 type SortField = 'name' | 'status' | 'created_at'
 
 function formatDate(value?: string): string {
-  if (!value) return '—'
+  if (!value) return '-'
   const d = new Date(value)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
+  return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function compareCreatedAt(left?: string, right?: string): number {
@@ -134,7 +137,7 @@ function HealthConcernManagement() {
       if (sortField === 'name') comparison = left.name.localeCompare(right.name)
       else if (sortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
       else comparison = compareCreatedAt(left.created_at, right.created_at)
-      return sortDirection === 'asc' ? comparison : -comparison
+      return sortDirection === 'asc' ? (comparison || left.id - right.id) : -(comparison || left.id - right.id)
     })
     return items
   }, [filtered, sortField, sortDirection])
@@ -153,7 +156,8 @@ function HealthConcernManagement() {
     }
   }, [currentPage, totalPages])
 
-  const activeCount = concerns.filter((c) => c.is_active).length
+  const { count: databaseCount } = useAdminRecordStats('health_concerns', 'all', concerns)
+
   const hasFilters = search.trim().length > 0 || selectedStatus !== 'all'
 
   const clearFilters = () => {
@@ -199,27 +203,20 @@ function HealthConcernManagement() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="cm-kpi-grid">
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Health Concerns</span>
-            <strong className="cm-kpi-card__value">{loading ? '—' : concerns.length}</strong>
-            <span className="cm-kpi-card__delta">{loading ? '' : `${activeCount} active · ${concerns.length - activeCount} inactive`}</span>
-          </div>
-        </div>
-      </div>
+      <AdminKpiStats items={[
+        { label: 'Health concerns', value: databaseCount('total') },
+        { label: 'Active', value: databaseCount('active') },
+        { label: 'Inactive', value: databaseCount('inactive') },
+      ]} />
 
-      {/* ── Toolbar ── */}
       <div className="cm-toolbar">
+
         <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
           <div className="cm-search-box">
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
               <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
             </svg>
-            <input
+            <input aria-label="Search health concerns"
               type="search"
               placeholder="Search health concerns…"
               value={search}
@@ -233,7 +230,7 @@ function HealthConcernManagement() {
               </button>
             )}
           </div>
-          <select
+          <select aria-label="Filter by status"
             className="cm-filter-select"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value as 'all' | 'active' | 'inactive')}
@@ -327,11 +324,11 @@ function HealthConcernManagement() {
                       <td>
                         {c.image
                           ? <a className="cm-cell-link" href={c.image} target="_blank" rel="noreferrer">View image</a>
-                          : <span className="cm-cell-muted">—</span>}
+                          : <span className="cm-cell-muted">-</span>}
                       </td>
                       <td>
                         <span className="cm-cell-desc">
-                          {c.description || <span className="cm-name-cell__id">—</span>}
+                          {c.description || <span className="cm-name-cell__id">-</span>}
                         </span>
                       </td>
                       <td>
@@ -415,7 +412,7 @@ function HealthConcernManagement() {
       {/* ── Create / Edit Modal ── */}
       {showModal && (
         <div className="cm-overlay" onClick={closeModal}>
-          <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog busy={saving} onClose={closeModal} className="cm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="cm-modal__header">
               <div>
                 <h2>{editing ? 'Edit Health Concern' : 'New Health Concern'}</h2>
@@ -494,7 +491,7 @@ function HealthConcernManagement() {
                 </button>
               </div>
             </form>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

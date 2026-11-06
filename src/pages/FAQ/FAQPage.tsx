@@ -39,7 +39,9 @@ function FAQPage() {
         </nav>
 
         <header className="faq-page__hero">
-          <h1>Frequently Asked Questions</h1>
+          <span className="faq-page__eyebrow">Help centre</span>
+          <h1>Frequently asked questions</h1>
+          <p>Quick answers about shopping, prescriptions and delivery.</p>
         </header>
 
         {loading ? (
@@ -48,12 +50,13 @@ function FAQPage() {
           <p className="faq-page__state faq-page__state--error">{error}</p>
         ) : (
           <section className="faq-page__content" aria-label="Frequently asked questions">
-            {categories.length > 2 && (
+            {categories.length > 1 && (
               <div className="faq-page__categories" aria-label="FAQ categories">
                 {categories.map((category) => (
                   <button
                     key={category}
                     className={activeCategory === category ? 'is-active' : ''}
+                    aria-pressed={activeCategory === category}
                     type="button"
                     onClick={() => setActiveCategory(category)}
                   >
@@ -66,14 +69,11 @@ function FAQPage() {
             <div className="faq-page__list">
               {faqColumns.map((column, columnIndex) => (
                 <div className="faq-page__column" key={columnIndex}>
-                  {column.map((faq, faqIndex) => (
+                  {column.map((faq) => (
                     <details key={faq.id} className="faq-page__item">
                       <summary>
                         <span className="faq-page__chevron" aria-hidden="true" />
                         <span>
-                          <span className="faq-page__number" aria-hidden="true">
-                            {columnIndex * columnBreak + faqIndex + 1}.
-                          </span>
                           {faq.question}
                         </span>
                       </summary>
@@ -83,6 +83,7 @@ function FAQPage() {
                 </div>
               ))}
             </div>
+            <div className="faq-page__support"><span>Still need help?</span><Link to="/contact">Contact our team <span aria-hidden="true">→</span></Link></div>
           </section>
         )}
       </div>

@@ -1,3 +1,6 @@
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adminDashboardService, ApiInvoice } from '../../services/adminDashboardService'
@@ -78,12 +81,12 @@ function InvoiceModal({ invoice, onClose }: { invoice: ApiInvoice; onClose: () =
 
   return (
     <div className="inv-modal-overlay" onClick={onClose}>
-      <div className="inv-modal" onClick={(e) => e.stopPropagation()}>
+      <Dialog onClose={onClose} className="inv-modal" onClick={(e) => e.stopPropagation()}>
         <div className="inv-modal__toolbar">
           <span className="inv-modal__title">Invoice #{invoice.order_number}</span>
           <div className="inv-modal__actions">
             <button className="btn btn--outline" type="button" onClick={handlePrint}>Print / Download PDF</button>
-            <button className="btn btn--ghost inv-modal__close" type="button" onClick={onClose}>✕ Close</button>
+            <button aria-label="Close dialog" className="btn btn--ghost inv-modal__close" type="button" onClick={onClose}>✕ Close</button>
           </div>
         </div>
 
@@ -95,7 +98,7 @@ function InvoiceModal({ invoice, onClose }: { invoice: ApiInvoice; onClose: () =
               <h2>INVOICE</h2>
               <p>#{invoice.order_number}</p>
               <p>{fmtDate(invoice.created_at)}</p>
-              <p><span className={statusClass(invoice.payment_status)}>Payment: {invoice.payment_status}</span></p>
+              <p><span className={statusClass(invoice.payment_status)}>Payment: {formatStatus(invoice.payment_status)}</span></p>
             </div>
           </div>
 
@@ -117,12 +120,12 @@ function InvoiceModal({ invoice, onClose }: { invoice: ApiInvoice; onClose: () =
               <h4>Payment</h4>
               <p>Method: {invoice.payment_method}</p>
               {invoice.payment_reference && <p>Ref: {invoice.payment_reference}</p>}
-              <p>Status: <span className={paymentStatusClass(invoice.payment_status)}>{invoice.payment_status}</span></p>
+              <p>Status: <span className={paymentStatusClass(invoice.payment_status)}>{formatStatus(invoice.payment_status)}</span></p>
             </div>
             <div className="inv-print__section">
               <h4>Order Details</h4>
               <p>Order: {invoice.order_number}</p>
-              <p>Status: <span className={statusClass(invoice.status)}>{invoice.status}</span></p>
+              <p>Status: <span className={statusClass(invoice.status)}>{formatStatus(invoice.status)}</span></p>
               {invoice.coupon_code && <p>Coupon: {invoice.coupon_code}</p>}
               {invoice.delivery_notes && <p>Notes: {invoice.delivery_notes}</p>}
             </div>
@@ -149,7 +152,7 @@ function InvoiceModal({ invoice, onClose }: { invoice: ApiInvoice; onClose: () =
                   <td style={{ color: '#6b7280', fontSize: '0.8rem' }}>{item.product_sku}</td>
                   <td style={{ textAlign: 'right' }}>{item.quantity}</td>
                   <td style={{ textAlign: 'right' }}>{fmtKsh(item.unit_price)}</td>
-                  <td style={{ textAlign: 'right', color: '#dc2626' }}>{Number(item.discount_total) > 0 ? `-${fmtKsh(item.discount_total)}` : '—'}</td>
+                  <td style={{ textAlign: 'right', color: '#dc2626' }}>{Number(item.discount_total) > 0 ? `-${fmtKsh(item.discount_total)}` : '-'}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtKsh(item.subtotal)}</td>
                 </tr>
               ))}
@@ -172,7 +175,7 @@ function InvoiceModal({ invoice, onClose }: { invoice: ApiInvoice; onClose: () =
             Thank you for choosing AvaPharma · support@avapharmacy.com
           </div>
         </div>
-      </div>
+      </Dialog>
     </div>
   )
 }
@@ -224,6 +227,8 @@ function Invoices() {
     }
   }
 
+  const { count: databaseCount } = useAdminRecordStats('invoices', 'all', invoices)
+
   return (
     <div className="admin-page invoices-page">
       <div className="admin-page__header">
@@ -260,7 +265,7 @@ function Invoices() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Total Invoices</span>
-            <strong className="cm-kpi-card__value">{total.toLocaleString()}</strong>
+            <strong className="cm-kpi-card__value">{databaseCount('total')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -268,8 +273,8 @@ function Invoices() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Shown (this page)</span>
-            <strong className="cm-kpi-card__value">{invoices.length}</strong>
+            <span className="cm-kpi-card__label">Paid invoices</span>
+            <strong className="cm-kpi-card__value">{databaseCount('paid')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -277,27 +282,27 @@ function Invoices() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Page</span>
-            <strong className="cm-kpi-card__value">{page} / {totalPages}</strong>
+            <span className="cm-kpi-card__label">Unpaid invoices</span>
+            <strong className="cm-kpi-card__value">{databaseCount('unpaid')}</strong>
           </div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="admin-page__filters" style={{ marginBottom: '1rem' }}>
-        <input
+        <input aria-label="Search by order #, customer, email"
           type="search"
           placeholder="Search by order #, customer, email…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All order statuses</option>
           {STATUS_OPTIONS.filter(Boolean).map((s) => (
             <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
           ))}
         </select>
-        <select value={paymentStatusFilter} onChange={(e) => setPaymentStatusFilter(e.target.value)}>
+        <select aria-label="Filter by payment status" value={paymentStatusFilter} onChange={(e) => setPaymentStatusFilter(e.target.value)}>
           <option value="">All payment statuses</option>
           {PAYMENT_STATUS_OPTIONS.filter(Boolean).map((s) => (
             <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ')}</option>
@@ -347,8 +352,8 @@ function Invoices() {
                   <td>{inv.customer_name}</td>
                   <td className="inv-row__email">{inv.customer_email}</td>
                   <td className="inv-row__date">{fmtDate(inv.created_at)}</td>
-                  <td><span className={statusClass(inv.status)}>{inv.status}</span></td>
-                  <td><span className={paymentStatusClass(inv.payment_status)}>{inv.payment_status}</span></td>
+                  <td><span className={statusClass(inv.status)}>{formatStatus(inv.status)}</span></td>
+                  <td><span className={paymentStatusClass(inv.payment_status)}>{formatStatus(inv.payment_status)}</span></td>
                   <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmtKsh(inv.total)}</td>
                   <td>
                     <button

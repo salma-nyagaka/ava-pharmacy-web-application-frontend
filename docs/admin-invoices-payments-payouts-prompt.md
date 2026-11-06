@@ -1,4 +1,4 @@
-# Admin Invoices, Payments, Payouts, and Reporting — Implementation Prompt
+# Admin Invoices, Payments, Payouts, and Reporting - Implementation Prompt
 
 Use this prompt when extending the Ava Pharmacy admin finance module.
 

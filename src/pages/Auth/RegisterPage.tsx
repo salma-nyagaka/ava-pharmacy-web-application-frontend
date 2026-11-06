@@ -51,7 +51,7 @@ function RegisterPage() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<string[]>([])
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [verificationSentTo, setVerificationSentTo] = useState('')
@@ -69,20 +69,49 @@ function RegisterPage() {
   ]
   const passwordMeetsRules = pwRules.every((rule) => rule.pass)
   const passwordsMatch = password.length > 0 && password === passwordConfirm
-  const showRules = password.length > 0
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
+    if (loading) return
+    setError([])
     setFieldErrors({})
 
-    if (!passwordMeetsRules) {
-      setFieldErrors({ password: 'Password does not meet all requirements.' })
+    const errors: Record<string, string> = {}
+    const requiredFields = [
+      ['first_name', firstName, 'First name is required.'],
+      ['last_name', lastName, 'Last name is required.'],
+      ['email', email, 'Email address is required.'],
+      ['phone', phone, 'Phone number is required.'],
+      ['delivery_address', deliveryAddress, 'Delivery address is required.'],
+      ['city', city, 'County / City is required.'],
+      ['date_of_birth', dateOfBirth, 'Date of birth is required.'],
+      ['gender', gender, 'Please select your gender or Prefer not to say.'],
+      ['password', password, 'Password is required.'],
+      ['password_confirm', passwordConfirm, 'Please confirm your password.'],
+    ]
+    for (const [field, value, message] of requiredFields) {
+      if (!value.trim()) errors[field] = message
+    }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = 'Enter a valid email address.'
+    }
+    if (dateOfBirth && dateOfBirth > today) {
+      errors.date_of_birth = 'Date of birth cannot be in the future.'
+    }
+    if (password && !passwordMeetsRules) {
+      errors.password = 'Use at least 8 characters, including uppercase, lowercase, a number and a special character.'
+    }
+    if (passwordConfirm && !passwordsMatch) {
+      errors.password_confirm = 'Passwords do not match.'
+    }
+    setFieldErrors(errors)
+    if (Object.keys(errors).length) {
       return
     }
-
-    if (!passwordsMatch) {
-      setFieldErrors({ password_confirm: 'Passwords do not match.' })
+    if (challengeRequired && !challengeToken) {
+      setError(['Please complete the security check.'])
       return
     }
 
@@ -100,7 +129,7 @@ function RegisterPage() {
         delivery_address: deliveryAddress.trim(),
         city: city.trim(),
         county: city.trim(),
-        date_of_birth: dateOfBirth || null,
+        date_of_birth: dateOfBirth,
         gender,
         ...buildBotPayload(website, challengeToken),
       })
@@ -125,9 +154,9 @@ function RegisterPage() {
           }
         }
         setFieldErrors(mapped)
-        if (leftover.length) setError(leftover.join(' '))
+        setError(leftover)
       } else {
-        setError(axiosErr?.response?.data?.error?.message ?? 'Registration failed. Please try again.')
+        setError([axiosErr?.response?.data?.error?.message ?? 'Registration failed. Please try again.'])
       }
     } finally {
       setLoading(false)
@@ -162,7 +191,7 @@ function RegisterPage() {
   }
 
   return (
-    <div className="login-page">
+    <div className="login-page register-page">
       {/* Left brand panel */}
       <div className="login-brand">
         <div className="login-brand__inner">
@@ -201,8 +230,8 @@ function RegisterPage() {
 
           <div className="login-brand__stats">
             <div className="login-brand__stat">
-              <strong>Licensed</strong>
-              <span>Pharmacy</span>
+              <strong>Pharmacy</strong>
+              <span>Support</span>
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
@@ -211,7 +240,7 @@ function RegisterPage() {
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
-              <strong>24/7</strong>
+              <strong>Help</strong>
               <span>Support</span>
             </div>
           </div>
@@ -237,6 +266,7 @@ function RegisterPage() {
               aria-hidden="true"
               style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
             />
+            <div className="register-fields">
             <div className="login-form-row">
               <div className="login-field">
                 <label htmlFor="first-name">First name</label>
@@ -249,6 +279,8 @@ function RegisterPage() {
                   </span>
                   <input
                     id="first-name"
+                  aria-invalid={Boolean(fieldErrors.first_name)}
+                  aria-describedby={fieldErrors.first_name ? 'first-name-error' : undefined}
                     type="text"
                     placeholder="Sarah"
                     value={firstName}
@@ -258,7 +290,7 @@ function RegisterPage() {
                     required
                   />
                 </div>
-                {fieldErrors.first_name && <span className="login-field__error">{fieldErrors.first_name}</span>}
+                {fieldErrors.first_name && <span id="first-name-error" className="login-field__error" role="alert">{fieldErrors.first_name}</span>}
               </div>
               <div className="login-field">
                 <label htmlFor="last-name">Last name</label>
@@ -271,6 +303,8 @@ function RegisterPage() {
                   </span>
                   <input
                     id="last-name"
+                  aria-invalid={Boolean(fieldErrors.last_name)}
+                  aria-describedby={fieldErrors.last_name ? 'last-name-error' : undefined}
                     type="text"
                     placeholder="Mwangi"
                     value={lastName}
@@ -279,7 +313,7 @@ function RegisterPage() {
                     required
                   />
                 </div>
-                {fieldErrors.last_name && <span className="login-field__error">{fieldErrors.last_name}</span>}
+                {fieldErrors.last_name && <span id="last-name-error" className="login-field__error" role="alert">{fieldErrors.last_name}</span>}
               </div>
             </div>
 
@@ -294,6 +328,8 @@ function RegisterPage() {
                 </span>
                 <input
                   id="register-email"
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  aria-describedby={fieldErrors.email ? 'register-email-error' : undefined}
                   type="email"
                   placeholder="you@example.com"
                   value={email}
@@ -302,7 +338,7 @@ function RegisterPage() {
                   required
                 />
               </div>
-              {fieldErrors.email && <span className="login-field__error">{fieldErrors.email}</span>}
+              {fieldErrors.email && <span id="register-email-error" className="login-field__error" role="alert">{fieldErrors.email}</span>}
             </div>
 
             <div className="login-field">
@@ -315,15 +351,18 @@ function RegisterPage() {
                 </span>
                 <input
                   id="register-phone"
+                  aria-invalid={Boolean(fieldErrors.phone)}
+                  aria-describedby={fieldErrors.phone ? 'register-phone-error' : undefined}
                   type="tel"
                   placeholder="+254 700 000 000"
                   value={phone}
-                  onChange={(e) => { setPhone(e.target.value); clearField('phone') }}
+                  onChange={(e) => { const value = e.target.value; if (/^\+?[0-9]*$/.test(value)) { setPhone(value); clearField('phone') } else { setFieldErrors(previous => ({ ...previous, phone: 'Use digits and an optional leading + only.' })) } }}
+                  inputMode="tel" pattern="[+]?[0-9]+"
                   className={fieldErrors.phone ? 'login-field__input--error' : ''}
                   required
                 />
               </div>
-              {fieldErrors.phone && <span className="login-field__error">{fieldErrors.phone}</span>}
+              {fieldErrors.phone && <span id="register-phone-error" className="login-field__error" role="alert">{fieldErrors.phone}</span>}
             </div>
 
             <div className="login-field">
@@ -337,15 +376,17 @@ function RegisterPage() {
                 </span>
                 <input
                   id="register-address"
+                  aria-invalid={Boolean(fieldErrors.delivery_address)}
+                  aria-describedby={fieldErrors.delivery_address ? 'register-address-error' : undefined}
                   type="text"
-                  placeholder="Building, street, estate, or pickup notes"
+                  placeholder="Street, building or estate"
                   value={deliveryAddress}
                   onChange={(e) => { setDeliveryAddress(e.target.value); clearField('delivery_address') }}
                   className={fieldErrors.delivery_address ? 'login-field__input--error' : ''}
                   required
                 />
               </div>
-              {fieldErrors.delivery_address && <span className="login-field__error">{fieldErrors.delivery_address}</span>}
+              {fieldErrors.delivery_address && <span id="register-address-error" className="login-field__error" role="alert">{fieldErrors.delivery_address}</span>}
             </div>
 
             <div className="login-form-row">
@@ -360,6 +401,8 @@ function RegisterPage() {
                   </span>
                   <input
                     id="register-city"
+                  aria-invalid={Boolean(fieldErrors.city)}
+                  aria-describedby={fieldErrors.city ? 'register-city-error' : undefined}
                     type="text"
                     placeholder="Nairobi"
                     value={city}
@@ -368,10 +411,10 @@ function RegisterPage() {
                     required
                   />
                 </div>
-                {(fieldErrors.city || fieldErrors.county) && <span className="login-field__error">{fieldErrors.city || fieldErrors.county}</span>}
+                {(fieldErrors.city || fieldErrors.county) && <span id="register-city-error" className="login-field__error" role="alert">{fieldErrors.city || fieldErrors.county}</span>}
               </div>
               <div className="login-field">
-                <label htmlFor="register-dob">Date of birth <span className="login-field__optional">Optional</span></label>
+                <label htmlFor="register-dob">Date of birth <span aria-hidden="true">*</span></label>
                 <div className="login-field__input-wrap">
                   <span className="login-field__icon">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -381,18 +424,22 @@ function RegisterPage() {
                   </span>
                   <input
                     id="register-dob"
+                  aria-invalid={Boolean(fieldErrors.date_of_birth)}
+                  aria-describedby={fieldErrors.date_of_birth ? 'register-dob-error' : undefined}
                     type="date"
+                    required
+                    max={today}
                     value={dateOfBirth}
                     onChange={(e) => { setDateOfBirth(e.target.value); clearField('date_of_birth') }}
                     className={fieldErrors.date_of_birth ? 'login-field__input--error' : ''}
                   />
                 </div>
-                {fieldErrors.date_of_birth && <span className="login-field__error">{fieldErrors.date_of_birth}</span>}
+                {fieldErrors.date_of_birth && <span id="register-dob-error" className="login-field__error" role="alert">{fieldErrors.date_of_birth}</span>}
               </div>
             </div>
 
             <div className="login-field">
-              <label htmlFor="register-gender">Gender <span className="login-field__optional">Optional</span></label>
+              <label htmlFor="register-gender">Gender</label>
               <div className="login-field__input-wrap">
                 <span className="login-field__icon">
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -402,18 +449,22 @@ function RegisterPage() {
                 </span>
                 <select
                   id="register-gender"
+                  required
+                  aria-invalid={Boolean(fieldErrors.gender)}
+                  aria-describedby={fieldErrors.gender ? 'register-gender-error' : undefined}
                   value={gender}
                   onChange={(e) => { setGender(e.target.value); clearField('gender') }}
                   className={fieldErrors.gender ? 'login-field__input--error' : ''}
                 >
-                  <option value="">Prefer not to say</option>
+                  <option value="">Select gender</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
                   <option value="female">Female</option>
                   <option value="male">Male</option>
                   <option value="non_binary">Non-binary</option>
                   <option value="other">Other</option>
                 </select>
               </div>
-              {fieldErrors.gender && <span className="login-field__error">{fieldErrors.gender}</span>}
+              {fieldErrors.gender && <span id="register-gender-error" className="login-field__error" role="alert">{fieldErrors.gender}</span>}
             </div>
 
             <div className="login-field">
@@ -427,10 +478,12 @@ function RegisterPage() {
                 </span>
                 <input
                   id="register-password"
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  aria-describedby={fieldErrors.password ? 'register-password-error' : undefined}
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Create a secure password"
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); clearField('password'); setError('') }}
+                  onChange={(e) => { setPassword(e.target.value); clearField('password'); setError([]) }}
                   className={fieldErrors.password ? 'login-field__input--error' : ''}
                   required
                 />
@@ -443,18 +496,9 @@ function RegisterPage() {
                   <EyeIcon open={showPassword} />
                 </button>
               </div>
-              {fieldErrors.password && <span className="login-field__error">{fieldErrors.password}</span>}
+              {fieldErrors.password && <span id="register-password-error" className="login-field__error" role="alert">{fieldErrors.password}</span>}
 
-              {showRules && (
-                <ul className="pw-rules">
-                  {pwRules.map((r) => (
-                    <li key={r.key} className={r.pass ? 'pw-rules__item pw-rules__item--pass' : 'pw-rules__item'}>
-                      {r.pass ? <CheckIcon /> : <DotIcon />}
-                      {r.label}
-                    </li>
-                  ))}
-                </ul>
-              )}
+
             </div>
 
             <div className="login-field">
@@ -468,10 +512,12 @@ function RegisterPage() {
                 </span>
                 <input
                   id="register-password-confirm"
+                  aria-invalid={Boolean(fieldErrors.password_confirm)}
+                  aria-describedby={fieldErrors.password_confirm ? 'register-password-confirm-error' : undefined}
                   type={showPasswordConfirm ? 'text' : 'password'}
                   placeholder="Re-enter your password"
                   value={passwordConfirm}
-                  onChange={(e) => { setPasswordConfirm(e.target.value); clearField('password_confirm'); setError('') }}
+                  onChange={(e) => { setPasswordConfirm(e.target.value); clearField('password_confirm'); setError([]) }}
                   className={fieldErrors.password_confirm ? 'login-field__input--error' : ''}
                   required
                 />
@@ -484,29 +530,32 @@ function RegisterPage() {
                   <EyeIcon open={showPasswordConfirm} />
                 </button>
               </div>
-              {fieldErrors.password_confirm && <span className="login-field__error">{fieldErrors.password_confirm}</span>}
-              {passwordConfirm && (
-                <ul className="pw-rules pw-rules--compact">
-                  <li className={passwordsMatch ? 'pw-rules__item pw-rules__item--pass' : 'pw-rules__item'}>
-                    {passwordsMatch ? <CheckIcon /> : <DotIcon />}
-                    Passwords match
-                  </li>
-                </ul>
-              )}
+              {fieldErrors.password_confirm && <span id="register-password-confirm-error" className="login-field__error" role="alert">{fieldErrors.password_confirm}</span>}
             </div>
+
+            </div>
+
+                <ul className="pw-rules" aria-label="Password requirements">
+                  {pwRules.map((r) => (
+                    <li key={r.key} className={r.pass ? 'pw-rules__item pw-rules__item--pass' : 'pw-rules__item'}>
+                      {r.pass ? <CheckIcon /> : <DotIcon />}
+                      {r.label}
+                    </li>
+                  ))}
+                </ul>
 
             <TurnstileChallenge action="register" onToken={setChallengeToken} resetKey={challengeResetKey} />
 
-            {error && (
-              <div className="login-error">
+            {error.length > 0 && (
+              <div className="login-error" role="alert">
                 <svg viewBox="0 0 16 16" fill="currentColor">
                   <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 5zm0 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
                 </svg>
-                {error}
+                <span>{error.join(' ')}</span>
               </div>
             )}
 
-            <button type="submit" className="login-submit" disabled={loading || !passwordMeetsRules || !passwordsMatch || (challengeRequired && !challengeToken)}>
+            <button type="submit" className="login-submit" disabled={loading}>
               {loading ? <><span className="login-spinner" />Creating account…</> : 'Create account'}
             </button>
 

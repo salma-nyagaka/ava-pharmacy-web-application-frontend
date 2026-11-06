@@ -1,5 +1,48 @@
 /* ── Root ── */
 .lrm-root { min-height: 100vh; }
+.lrm-root--embedded { min-height: 0; }
+.lrm-embedded-page { padding: 0; }
+.lrm-embedded-page__content { max-width: none; }
+
+/* Keep the request grid inside the exact same workspace body geometry used by
+   the offerings and technicians tables on the Lab Partners tab. */
+.lp-workspace.lrm-request-list { margin-top: 1.25rem; }
+.lp-workspace.lrm-request-list > .lp-workspace__body { padding: 1.25rem; }
+.lp-workspace.lrm-request-list .cm-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+}
+.lp-workspace.lrm-request-list .cm-table { width: 100%; min-width: 100%; }
+
+.lrm-root:not(.lrm-root--embedded) .lrm-queue-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8faff, #fff);
+}
+
+.lrm-root:not(.lrm-root--embedded) .lrm-queue-intro h2 { margin: 0; color: #172554; font-size: 1rem; }
+.lrm-root:not(.lrm-root--embedded) .lrm-queue-intro p { margin: 0.3rem 0 0; color: #64748b; font-size: 0.82rem; }
+
+.lrm-root:not(.lrm-root--embedded) .lrm-queue-tabs { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+.lrm-queue-tabs__tab { border: 1px solid #e2e8f0; border-radius: 999px; padding: 0.43rem 0.65rem; background: #fff; color: #475569; font-size: 0.76rem; font-weight: 700; cursor: pointer; }
+.lrm-queue-tabs__tab:hover { border-color: #a5b4fc; color: #4338ca; }
+.lrm-queue-tabs__tab--active { border-color: #4f46e5; background: #4f46e5; color: #fff; }
+.lrm-queue-tabs__tab span { display: inline-block; min-width: 1rem; margin-left: 0.15rem; padding: 0.03rem 0.25rem; border-radius: 999px; background: #eef2ff; color: #4338ca; font-size: 0.66rem; }
+.lrm-queue-tabs__tab--active span { background: rgba(255, 255, 255, 0.2); color: #fff; }
+
+.lrm-status-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.22rem 0.5rem; font-size: 0.72rem; font-weight: 750; white-space: nowrap; }
+.lrm-status-pill--active { color: #9a6700; background: #fff7db; }
+.lrm-status-pill--ready { color: #4338ca; background: #eef2ff; }
+.lrm-status-pill--complete { color: #047857; background: #d1fae5; }
+.lrm-status-pill--cancelled { color: #b91c1c; background: #fee2e2; }
 
 /* ── Stats ── */
 .lrm-stats {
@@ -99,6 +142,23 @@
   position: relative;
   flex: 1;
   min-width: 220px;
+}
+
+.lrm-search input {
+  width: 100%;
+  height: 36px;
+  padding: 0 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.lrm-search input:focus {
+  outline: none;
+  border-color: var(--color-primary, #4338ca);
+  box-shadow: 0 0 0 3px rgb(67 56 202 / 0.08);
 }
 
 .lrm-search__icon {
@@ -261,6 +321,11 @@
   font-size: 0.78rem;
   color: #d1d5db;
   font-style: italic;
+}
+
+@media (max-width: 900px) {
+  .lrm-queue-intro { align-items: flex-start; flex-direction: column; }
+  .lrm-queue-tabs { justify-content: flex-start; }
 }
 
 .lrm-status-cell {

@@ -1,0 +1,44 @@
+.dc-doctor-page { background: #f7fafb; }
+.dc-doctor-page .dc-body { gap: 24px; padding-block: 28px; align-items: start; }
+.dc-doctor-page .dc-form-card { padding: 24px; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 4px 20px #0f172a05; }
+.dc-doctor-page .dc-form-card__header { gap: 16px; padding-bottom: 20px; margin-bottom: 20px; }
+.dc-doctor-page .dc-form-card__title { font-size: 1.3rem; line-height: 1.4; }
+.dc-doctor-page .dc-form-card__sub { font-size: .8125rem; line-height: 1.7; color: #64748b; }
+.dc-doctor-page .dc-form-section { margin-bottom: 20px; padding-bottom: 20px; }
+.dc-doctor-page .dc-form-section__heading { margin-bottom: 14px; }
+.dc-doctor-page .dc-form-row { gap: 16px; }
+.dc-doctor-page .dc-field { min-width: 0; }
+.dc-doctor-page .dc-field label { font-size: .8rem; color: #334155; }
+.dc-doctor-page .dc-field :is(input:not([type=checkbox]), select, textarea) { box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; padding: 10px 12px; font-size: .85rem; }
+.dc-doctor-page .dc-field input[type=checkbox] { width: 16px; height: 16px; accent-color: #075b52; }
+.dc-doctor-page .dc-sidebar__card { border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: none; }
+.dc-doctor-page .dc-active-shell { grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; padding-top: 24px; }
+.dc-doctor-page .dc-chat { min-width: 0; min-height: 620px; border-radius: 14px; background: #fff; box-shadow: 0 4px 20px #0f172a06; }
+.dc-doctor-page .dc-chat__header { gap: 16px; padding: 14px 16px; flex-wrap: wrap; }
+.dc-doctor-page .dc-chat__header-actions { flex-wrap: wrap; gap: 8px; }
+.dc-doctor-page .dc-chat__doc-avatar { width: 40px; height: 40px; border-radius: 10px; font-size: .8rem; }
+.dc-doctor-page .dc-chat__doc-name { font-size: .95rem; }
+.dc-doctor-page .dc-chat__doc-spec { font-size: .75rem; }
+.dc-doctor-page .dc-chat__notice { padding: 10px 16px; }
+.dc-doctor-page .dc-chat__notice p { font-size: .75rem; line-height: 1.6; }
+.dc-doctor-page .dc-chat__notice span { background: #edf7f3; color: #075b52; }
+.dc-doctor-page .dc-chat__messages { min-height: 180px; padding: 20px 16px; gap: 12px; background: #f7fafb; }
+.dc-doctor-page .dc-msg { min-width: 0; max-width: 82%; }
+.dc-doctor-page .dc-msg__bubble { padding: 10px 14px; box-shadow: none; overflow-wrap: anywhere; }
+.dc-doctor-page .dc-msg__bubble p { font-size: .85rem; line-height: 1.6; }
+.dc-doctor-page .dc-msg--patient .dc-msg__bubble { background: #075b52; border-color: #075b52; }
+.dc-doctor-page .dc-chat__input { padding: 14px 16px; gap: 10px; background: #fff; }
+.dc-doctor-page .dc-chat__input input { min-width: 0; min-height: 42px; font-size: .85rem; border-radius: 10px; }
+.dc-doctor-page .dc-chat__input .btn { width: 42px; height: 42px; min-height: 42px; flex-shrink: 0; }
+.dc-doctor-page .dc-chat-panel { min-width: 0; }
+.dc-doctor-page .dc-chat-panel__card { padding: 16px; border-radius: 12px; background: #fff; box-shadow: none; }
+.dc-doctor-page .dc-chat-detail { padding-block: 10px; font-size: .78rem; }
+@media (max-width: 1000px) { .dc-doctor-page .dc-active-shell { grid-template-columns: minmax(0, 1fr); } .dc-doctor-page .dc-chat-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } }
+@media (max-width: 600px) { .dc-doctor-page .dc-form-card { padding: 16px; } .dc-doctor-page .dc-body { padding-block: 16px; } .dc-doctor-page .dc-chat-panel { grid-template-columns: 1fr; } .dc-doctor-page .dc-chat { height: auto; min-height: 640px; } .dc-doctor-page .dc-chat__messages { max-height: 50dvh; } }
+.dc-doctor-page .dc-form-row + .dc-form-row { margin-top: 14px; }
+.dc-doctor-page .dc-bio-save { align-self: end; display: flex; flex-direction: row; align-items: flex-start; flex-wrap: wrap; justify-content: flex-start; gap: 6px; padding: 10px 12px; border-radius: 8px; background: #f1f7f5; font-size: .75rem; line-height: 1.6; color: #475569; }
+.dc-doctor-page .dc-bio-save > span { flex-basis: 100%; font-weight: 600; }
+.dc-doctor-page .dc-bio-save input { flex-shrink: 0; margin: 3px 4px 0 0; }
+.dc-doctor-page .ac-empty { padding: 28px 20px; border-radius: 12px; }
+.dc-doctor-page .ac-empty__title { font-size: 1rem; }
+.dc-doctor-page .ac-empty__sub { font-size: .8125rem; line-height: 1.6; }

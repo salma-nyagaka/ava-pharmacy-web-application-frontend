@@ -1,3 +1,7 @@
+import PrescriptionVerificationPanel from '../../components/PrescriptionVerificationPanel'
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { logAdminAction } from '../../data/adminAudit'
@@ -99,13 +103,8 @@ function PrescriptionManagement() {
   const totalPages = Math.max(1, Math.ceil(filteredPrescriptions.length / PAGE_SIZE))
   const pagedPrescriptions = filteredPrescriptions.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  const stats = useMemo(() => ({
-    pending: prescriptions.filter((p) => p.status === 'Pending').length,
-    approved: prescriptions.filter((p) => p.status === 'Approved').length,
-    clarification: prescriptions.filter((p) => p.status === 'Clarification').length,
-    rejected: prescriptions.filter((p) => p.status === 'Rejected').length,
-    inTransit: prescriptions.filter((p) => p.status === 'Approved' && !['Not started', 'Delivered'].includes(p.dispatchStatus)).length,
-  }), [prescriptions])
+  const { count: databaseCount } = useAdminRecordStats('prescriptions', 'all', prescriptions)
+
 
   const dispatchStepIndex = activeRx ? DISPATCH_STEPS.indexOf(activeRx.dispatchStatus) : -1
   const nextDispatch = activeRx && dispatchStepIndex < DISPATCH_STEPS.length - 1 ? DISPATCH_STEPS[dispatchStepIndex + 1] : null
@@ -126,9 +125,11 @@ function PrescriptionManagement() {
     <div className="category-management admin-page">
       <div className="category-management__header">
         <div>
-          <h1>Prescription Management</h1>
+
+            <h1>Prescription Management</h1>
           <p className="px-subtitle">Review, approve, and track prescription fulfilment.</p>
         </div>
+
       </div>
 
       {/* Stats */}
@@ -139,7 +140,7 @@ function PrescriptionManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Pending</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.pending}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{databaseCount('pending')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card" onClick={() => setSelectedStatus('Approved')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
@@ -148,7 +149,7 @@ function PrescriptionManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Approved</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.approved}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{databaseCount('approved')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card" onClick={() => setSelectedStatus('Clarification')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
@@ -157,7 +158,7 @@ function PrescriptionManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Clarification</span>
-            <strong className="cm-kpi-card__value">{stats.clarification}</strong>
+            <strong className="cm-kpi-card__value">{databaseCount('clarification')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card" onClick={() => setSelectedStatus('Rejected')} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
@@ -166,7 +167,7 @@ function PrescriptionManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Rejected</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{stats.rejected}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{databaseCount('rejected')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -175,15 +176,15 @@ function PrescriptionManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">In Transit</span>
-            <strong className="cm-kpi-card__value">{stats.inTransit}</strong>
+            <strong className="cm-kpi-card__value">{databaseCount('inTransit')}</strong>
           </div>
         </div>
       </div>
 
       {/* Pending banner */}
-      {stats.pending > 0 && (
+      {Number(databaseCount('pending')) > 0 && (
         <div className="px-pending-banner">
-          <span>⏳ <strong>{stats.pending}</strong> prescription{stats.pending > 1 ? 's' : ''} awaiting review</span>
+          <span>⏳ <strong>{databaseCount('pending')}</strong> prescription{Number(databaseCount('pending')) > 1 ? 's' : ''} awaiting review</span>
           <button className="px-pending-banner__btn" type="button" onClick={() => setSelectedStatus('Pending')}>
             Filter pending →
           </button>
@@ -195,20 +196,20 @@ function PrescriptionManagement() {
         <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
           <div className="cm-search-box">
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
-            <input type="search" placeholder="Search by ID, patient, doctor, pharmacist…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input aria-label="Search by ID, patient, doctor, pharmacist" type="search" placeholder="Search by ID, patient, doctor, pharmacist…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-          <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as 'all' | PrescriptionStatus)}>
+          <select aria-label="Filter by status" className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as 'all' | PrescriptionStatus)}>
             <option value="all">All statuses</option>
             <option value="Pending">Pending</option>
             <option value="Approved">Approved</option>
             <option value="Clarification">Clarification</option>
             <option value="Rejected">Rejected</option>
           </select>
-          <select className="cm-filter-select" value={selectedDispatch} onChange={(e) => setSelectedDispatch(e.target.value as 'all' | DispatchStatus)}>
+          <select aria-label="Filter by dispatch status" className="cm-filter-select" value={selectedDispatch} onChange={(e) => setSelectedDispatch(e.target.value as 'all' | DispatchStatus)}>
             <option value="all">All dispatch stages</option>
             {DISPATCH_STEPS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select className="cm-filter-select" value={selectedPharmacist} onChange={(e) => setSelectedPharmacist(e.target.value)}>
+          <select aria-label="Filter by pharmacist" className="cm-filter-select" value={selectedPharmacist} onChange={(e) => setSelectedPharmacist(e.target.value)}>
             <option value="all">All handlers</option>
             <option value="Unassigned">Unhandled</option>
           </select>
@@ -245,7 +246,7 @@ function PrescriptionManagement() {
                   <span className={rx.pharmacist === 'Unassigned' ? 'px-unassigned' : 'px-pharmacist'}>{rx.pharmacist}</span>
                 </td>
                 <td>
-                  <span className={`admin-status ${statusClass(rx.status)}`}>{rx.status}</span>
+                  <span className={`admin-status ${statusClass(rx.status)}`}>{formatStatus(rx.status)}</span>
                 </td>
                 <td><span className="admin-status admin-status--info">{rx.dispatchStatus}</span></td>
                 <td className="px-date">{rx.submitted}</td>
@@ -280,20 +281,20 @@ function PrescriptionManagement() {
       {/* ── Prescription Detail Modal ── */}
       {activeRx && (
         <div className="modal-overlay" onClick={() => setActiveRx(null)}>
-          <div className="px-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setActiveRx(null)} className="px-modal" onClick={(e) => e.stopPropagation()}>
 
             {/* Modal header */}
             <div className="px-modal__header">
               <div className="px-modal__header-left">
                 <span className="px-modal__rx-id">{activeRx.id}</span>
-                <span className={`admin-status ${statusClass(activeRx.status)}`}>{activeRx.status}</span>
+                <span className={`admin-status ${statusClass(activeRx.status)}`}>{formatStatus(activeRx.status)}</span>
                 {activeRx.pharmacist !== 'Unassigned' && (
                   <span className="px-modal__assigned-pill">Fulfilled by {activeRx.pharmacist}</span>
                 )}
               </div>
               <div className="px-modal__header-right">
                 <span className="px-modal__submitted">Submitted {activeRx.submitted}</span>
-                <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
+                <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
               </div>
             </div>
 
@@ -314,6 +315,11 @@ function PrescriptionManagement() {
                     <span className="px-info-value">{activeRx.doctor || '-'}</span>
                   </div>
                 </div>
+
+                {activeRx.backendId && <PrescriptionVerificationPanel id={activeRx.backendId} onSaved={async () => {
+                  const response = await prescriptionService.list()
+                  setPrescriptions(response.data)
+                }} />}
 
                 {/* Files with preview */}
                 {activeRx.files.length > 0 && (
@@ -425,7 +431,7 @@ function PrescriptionManagement() {
                   {/* Clarification input */}
                   {showClarificationInput && (
                     <div className="px-clarification-box">
-                      <textarea
+                      <textarea aria-label="Enter the clarification message for the patient"
                         className="px-clarification-textarea"
                         placeholder="Enter the clarification message for the patient…"
                         value={clarificationNote}
@@ -490,8 +496,8 @@ function PrescriptionManagement() {
                   {showOverride && (
                     <div className="px-override-fields">
                       <div className="form-group">
-                        <label>New status</label>
-                        <select value={overrideStatus} onChange={(e) => setOverrideStatus(e.target.value as PrescriptionStatus)}>
+                        <label htmlFor="field-prescriptionmanagement-494-26009">New status</label>
+                        <select id="field-prescriptionmanagement-494-26009" value={overrideStatus} onChange={(e) => setOverrideStatus(e.target.value as PrescriptionStatus)}>
                           <option value="Approved">Approved</option>
                           <option value="Pending">Pending</option>
                           <option value="Clarification">Clarification</option>
@@ -499,8 +505,8 @@ function PrescriptionManagement() {
                         </select>
                       </div>
                       <div className="form-group">
-                        <label>Justification</label>
-                        <input type="text" placeholder="Reason…" value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} />
+                        <label htmlFor="field-prescriptionmanagement-503-26668">Justification</label>
+                        <input id="field-prescriptionmanagement-503-26668" type="text" placeholder="Reason…" value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} />
                       </div>
                       <button className="btn btn--primary btn--sm" type="button" onClick={handleOverride}>Apply override</button>
                     </div>
@@ -513,7 +519,7 @@ function PrescriptionManagement() {
             <div className="px-modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

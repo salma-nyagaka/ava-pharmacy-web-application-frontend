@@ -1,3 +1,4 @@
+import { formatPaymentMethod } from '../../utils/formatStatus'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useSiteSettings } from '../../context/SiteSettingsContext'
@@ -108,10 +109,13 @@ function OrderConfirmationPage() {
     return (
       <div className="oc-page">
         <div className="container">
-          <div style={{ padding: '4rem 0', textAlign: 'center', color: '#64748b' }}>
-            <p style={{ marginBottom: '1.5rem' }}>{error || 'Order not found.'}</p>
-            <Link to="/account/orders" className="btn btn--primary">View Order History</Link>
-          </div>
+          <section className="oc-empty" aria-labelledby="oc-empty-title">
+            <span className="oc-empty__icon" aria-hidden="true"><PackageIcon /></span>
+            <h1 id="oc-empty-title">Find your order</h1>
+            <p>{error === 'Order not found.' ? 'Your order confirmation appears after checkout. You can view existing orders in your account.' : error || 'View your order details and delivery updates in your account.'}</p>
+            <Link to="/account/orders" className="btn btn--primary">View order history</Link>
+            <Link to="/products" className="oc-empty__link">Continue shopping</Link>
+          </section>
         </div>
       </div>
     )
@@ -126,7 +130,7 @@ function OrderConfirmationPage() {
     .join(' ')
   const orderDate = formatOrderDate(order.created_at)
   const estimatedDelivery = order.shipping_method?.estimated_delivery_window || '1-2 business days'
-  const paymentLabel = paymentMethodLabel[order.payment_method] ?? order.payment_method.replace(/_/g, ' ')
+  const paymentLabel = paymentMethodLabel[order.payment_method] ?? formatPaymentMethod(order.payment_method)
   const discountTotal = Number(order.discount_total)
   const supportHref = `tel:${formatPhoneHref(settings.supportPhone)}`
 
@@ -199,7 +203,7 @@ function OrderConfirmationPage() {
           </div>
           <div className="oc-banner__text">
             <p className="oc-banner__eyebrow">Order confirmed</p>
-            <h1 className="oc-banner__title">Thank you for choosing AVA Pharmacy</h1>
+            <h1 className="oc-banner__title">Your order is confirmed</h1>
             <p className="oc-banner__sub">
               Thank you{customerName ? `, ${customerName.split(' ')[0]}` : ''}. We've received your order and will start preparing it shortly.
             </p>

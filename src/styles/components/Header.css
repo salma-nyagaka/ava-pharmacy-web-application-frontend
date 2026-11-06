@@ -116,6 +116,8 @@
 
 .header__search-input {
   flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
   border: none;
   background: transparent;
   padding: 0.6rem 0.7rem;
@@ -1293,3 +1295,23 @@
     right: 0.25rem;
   }
 }
+
+.catalog-load-state {
+  color: #64748b;
+  padding: 1rem 0;
+}
+
+.catalog-load-state button {
+  background: transparent;
+  border: 0;
+  color: #e81750;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* The enclosing pill provides the search field's visible focus indicator. */
+.header__search .header__search-input:focus-visible { outline: none; box-shadow: none; }
+.header__search-btn { flex-shrink: 0; }

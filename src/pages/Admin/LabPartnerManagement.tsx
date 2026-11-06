@@ -1,693 +1,333 @@
-import { useEffect, useMemo, useState } from 'react'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  adminLabPartnerService,
+  type AdminLabPartnerApi,
+  type AdminLaboratoryFacilityApi,
+  type AdminLabTechnicianApi,
+} from '../../services/adminLabPartnerService'
+import LabRequestManagement from './LabRequestManagement'
+import LabApprovalQueue from './LabApprovalQueue'
+import { fetchLabTests, type LabTest } from '../../services/labService'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/LabPartnerManagement.css'
-import {
-  adminLabPartnerService,
-  AdminLabPartnerApi,
-  AdminLabPartnerError,
-  AdminLabTechnicianApi,
-} from '../../services/adminLabPartnerService'
 
-type LabPartnerStatus = 'Pending' | 'Verified' | 'Suspended'
-type LabTechnicianStatus = 'Active' | 'Pending' | 'Suspended'
+type FacilityTab = 'overview' | 'offerings' | 'technicians'
+type OperationsTab = 'applications' | 'network' | 'requests'
+type PartnerQueue = 'pending' | 'verified'
+type FacilityReviewAction = 'verify' | 'request_changes' | 'suspend'
+type FacilityOffering = NonNullable<AdminLaboratoryFacilityApi['offerings']>[number]
 
-interface LabTechnicianView {
-  id: number
-  name: string
-  email: string
-  phone: string
-  status: LabTechnicianStatus
-  specialty: string
-  accountProvisioned: boolean
-  statusNote: string
-  rejectionNote: string
+const blankPartner = { name: '', email: '', phone: '', contactName: '', notes: '' }
+
+function statusClass(status?: string) {
+  if (status === 'verified' || status === 'active') return 'status-pill status-pill--success'
+  if (status === 'suspended' || status === 'rejected') return 'status-pill status-pill--danger'
+  return 'status-pill status-pill--warning'
 }
 
-interface LabPartnerView {
-  id: number
-  reference: string
-  name: string
-  email: string
-  phone: string
-  location: string
-  contactName: string
-  accreditation: string
-  licenseNumber: string
-  county: string
-  address: string
-  payoutMethod: 'M-Pesa' | 'Bank Transfer'
-  payoutAccount: string
-  notes: string
-  status: LabPartnerStatus
-  statusNote: string
-  rejectionNote: string
-  submittedAt: string
-  verifiedAt: string
-  documents: string[]
-  techs: LabTechnicianView[]
-  accountProvisioned: boolean
-}
-
-const payoutMethods = ['M-Pesa', 'Bank Transfer'] as const
-const PAGE_SIZE = 6
-
-type PartnerDraft = {
-  name: string
-  email: string
-  phone: string
-  location: string
-  contactName: string
-  accreditation: string
-  licenseNumber: string
-  payoutMethod: (typeof payoutMethods)[number]
-  payoutAccount: string
-  notes: string
-}
-
-const blankPartner = (): PartnerDraft => ({
-  name: '',
-  email: '',
-  phone: '',
-  location: '',
-  contactName: '',
-  accreditation: '',
-  licenseNumber: '',
-  payoutMethod: 'M-Pesa' as const,
-  payoutAccount: '',
-  notes: '',
-})
-
-const toPartnerStatus = (value?: string): LabPartnerStatus => {
-  const normalized = (value || '').toLowerCase()
-  if (normalized === 'verified') return 'Verified'
-  if (normalized === 'suspended') return 'Suspended'
-  return 'Pending'
-}
-
-const toTechStatus = (value?: string): LabTechnicianStatus => {
-  const normalized = (value || '').toLowerCase()
-  if (normalized === 'active') return 'Active'
-  if (normalized === 'suspended') return 'Suspended'
-  return 'Pending'
-}
-
-const toPartnerStatusValue = (value: LabPartnerStatus) => value.toLowerCase() as 'pending' | 'verified' | 'suspended'
-const toPayoutLabel = (value?: string) => (value === 'bank_transfer' ? 'Bank Transfer' : 'M-Pesa')
-const toPayoutValue = (value: 'M-Pesa' | 'Bank Transfer') => (value === 'Bank Transfer' ? 'bank_transfer' : 'mpesa')
-const formatDate = (value?: string | null) => {
-  if (!value) return '—'
+function formatDate(value?: string | null) {
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value.slice(0, 10)
-  return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' })
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-KE', { dateStyle: 'medium' })
 }
 
-const mapTech = (tech: AdminLabTechnicianApi): LabTechnicianView => ({
-  id: Number(tech.id ?? 0),
-  name: tech.name || tech.user_name || 'Unnamed technician',
-  email: tech.email || tech.user_email || '—',
-  phone: tech.phone || tech.user_phone || '—',
-  status: toTechStatus(tech.status),
-  specialty: tech.specialty || '',
-  accountProvisioned: Boolean(tech.user || tech.user_email),
-  statusNote: tech.status_note || '',
-  rejectionNote: tech.rejection_note || '',
-})
+function errorMessage(error: unknown) {
+  const data = (error as { response?: { data?: { detail?: string; message?: string } } })?.response?.data
+  return data?.detail ?? data?.message ?? (error instanceof Error ? error.message : 'The request could not be completed.')
+}
 
-const mapPartner = (partner: AdminLabPartnerApi): LabPartnerView => ({
-  id: Number(partner.id ?? 0),
-  reference: partner.reference || '',
-  name: partner.name || 'Unnamed partner',
-  email: partner.email || partner.user_email || '—',
-  phone: partner.phone || '—',
-  location: partner.location || '',
-  contactName: partner.contact_name || '',
-  accreditation: partner.accreditation || '',
-  licenseNumber: partner.license_number || '',
-  county: partner.county || '',
-  address: partner.address || '',
-  payoutMethod: toPayoutLabel(partner.payout_method),
-  payoutAccount: partner.payout_account || '',
-  notes: partner.notes || '',
-  status: toPartnerStatus(partner.status),
-  statusNote: partner.status_note || '',
-  rejectionNote: partner.rejection_note || '',
-  submittedAt: formatDate(partner.submitted_at),
-  verifiedAt: formatDate(partner.verified_at),
-  documents: Array.isArray(partner.documents) ? partner.documents.map((doc) => doc.name || 'Document') : [],
-  techs: Array.isArray(partner.technicians) ? partner.technicians.map(mapTech) : [],
-  accountProvisioned: Boolean(partner.user || partner.user_email),
-})
+function facilityReadiness(facility: AdminLaboratoryFacilityApi) {
+  const missing = [
+    !facility.license_number && 'licence number',
+    !(facility.documents?.length) && 'compliance document',
+  ].filter(Boolean) as string[]
+  return missing.length ? `Needs ${missing.join(', ')}` : 'Ready for review'
+}
 
-function LabPartnerManagement() {
-  const [partners, setPartners] = useState<LabPartnerView[]>([])
+export default function LabPartnerManagement() {
+  const [partners, setPartners] = useState<AdminLabPartnerApi[]>([])
+  const [operationsTab, setOperationsTab] = useState<OperationsTab>('applications')
+  const [partnerQueue, setPartnerQueue] = useState<PartnerQueue>('pending')
+  const [facilities, setFacilities] = useState<AdminLaboratoryFacilityApi[]>([])
+  const [availableTests, setAvailableTests] = useState<LabTest[]>([])
+  const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null)
+  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null)
+  const [facilityTab, setFacilityTab] = useState<FacilityTab>('overview')
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | LabPartnerStatus>('all')
-  const [currentPage, setCurrentPage] = useState(1)
   const [showAdd, setShowAdd] = useState(false)
-  const [showManage, setShowManage] = useState(false)
-  const [draft, setDraft] = useState(blankPartner())
-  const [selectedPartnerId, setSelectedPartnerId] = useState<number | null>(null)
-  const [manageStatus, setManageStatus] = useState<LabPartnerStatus>('Pending')
-  const [managePayoutMethod, setManagePayoutMethod] = useState<'M-Pesa' | 'Bank Transfer'>('M-Pesa')
-  const [managePayoutAccount, setManagePayoutAccount] = useState('')
-  const [manageNotes, setManageNotes] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [rowLoadingId, setRowLoadingId] = useState<number | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [draft, setDraft] = useState(blankPartner)
+  const [partnerDocuments, setPartnerDocuments] = useState<File[]>([])
+  const [facilityPrompt, setFacilityPrompt] = useState<{ facility: AdminLaboratoryFacilityApi; action: FacilityReviewAction } | null>(null)
+  const [technicianPrompt, setTechnicianPrompt] = useState<AdminLabTechnicianApi | null>(null)
+  const [promptNote, setPromptNote] = useState('')
+  const [editingOffering, setEditingOffering] = useState<FacilityOffering | null>(null)
+  const [showAddOffering, setShowAddOffering] = useState(false)
+  const [newOfferingTestId, setNewOfferingTestId] = useState('')
+  const [offeringDraft, setOfferingDraft] = useState({ price: '', turnaround: '', homeCollection: true })
 
-  const loadPartners = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const payload = await adminLabPartnerService.listPartners()
-      setPartners(payload.map(mapPartner))
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unable to load lab partners.'
-      setError(message)
+      const [partnerData, facilityData, testData] = await Promise.all([
+        adminLabPartnerService.listPartners(),
+        adminLabPartnerService.listFacilities(),
+        fetchLabTests(),
+      ])
+      setPartners(partnerData)
+      setFacilities(facilityData)
+      setAvailableTests(testData.filter((test) => test.isActive))
+    } catch (requestError) {
+      setError(errorMessage(requestError))
     } finally {
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    loadPartners()
   }, [])
 
-  const managePartner = useMemo(
-    () => partners.find((partner) => partner.id === selectedPartnerId) ?? null,
-    [partners, selectedPartnerId],
+  useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    if (operationsTab === 'network') setPartnerQueue('verified')
+  }, [operationsTab])
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void load()
+    }
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [load])
+
+  const queuePartners = useMemo(() => partners.filter((partner) => partner.status === partnerQueue), [partners, partnerQueue])
+  const selectedPartner = useMemo(() => queuePartners.find((partner) => Number(partner.id) === selectedPartnerId) ?? null, [queuePartners, selectedPartnerId])
+  const selectedFacilities = useMemo(
+    () => facilities.filter((facility) => Number(facility.partner) === selectedPartnerId),
+    [facilities, selectedPartnerId],
+  )
+  const selectedFacility = useMemo(
+    () => selectedFacilities.find((facility) => Number(facility.id) === selectedFacilityId) ?? null,
+    [selectedFacilities, selectedFacilityId],
   )
 
   useEffect(() => {
-    if (!managePartner) return
-    setManageStatus(managePartner.status)
-    setManagePayoutMethod(managePartner.payoutMethod)
-    setManagePayoutAccount(managePartner.payoutAccount)
-    setManageNotes(managePartner.notes)
-  }, [managePartner])
+    if (loading || queuePartners.length === 0) return
+    const partnerId = selectedPartnerId && queuePartners.some((partner) => Number(partner.id) === selectedPartnerId) ? selectedPartnerId : Number(queuePartners[0].id)
+    if (partnerId !== selectedPartnerId) {
+      setSelectedPartnerId(partnerId)
+    }
+    const firstFacility = facilities.find((facility) => Number(facility.partner) === partnerId && facility.status === 'verified')
+    if (firstFacility && !selectedFacilityId) {
+      setSelectedFacilityId(Number(firstFacility.id))
+      setFacilityTab('overview')
+    }
+  }, [facilities, loading, queuePartners, selectedFacilityId, selectedPartnerId])
 
-  const stats = useMemo(() => ({
-    pending: partners.filter((p) => p.status === 'Pending').length,
-    verified: partners.filter((p) => p.status === 'Verified').length,
-    suspended: partners.filter((p) => p.status === 'Suspended').length,
-  }), [partners])
-
-  const filtered = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase()
-    return partners.filter((partner) => {
-      if (statusFilter !== 'all' && partner.status !== statusFilter) return false
-      if (!q) return true
-      return [partner.name, partner.email, partner.phone, partner.location, partner.reference]
-        .some((value) => value.toLowerCase().includes(q))
-    })
-  }, [partners, searchTerm, statusFilter])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, statusFilter])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const startIndex = (currentPage - 1) * PAGE_SIZE
-  const pagedPartners = filtered.slice(startIndex, startIndex + PAGE_SIZE)
-
-  useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages)
-  }, [currentPage, totalPages])
-
-  const openAdd = () => {
-    setDraft(blankPartner())
-    setFieldErrors({})
-    setFeedback('')
-    setShowAdd(true)
-  }
-
-  const openManage = (partner: LabPartnerView) => {
-    setSelectedPartnerId(partner.id)
-    setFieldErrors({})
-    setFeedback('')
-    setShowManage(true)
-  }
-
-  const handleApiError = (err: unknown, fallback: string) => {
-    if (err instanceof AdminLabPartnerError) {
-      setFieldErrors(err.fieldErrors)
-      setError(err.message || fallback)
+  const selectPartnerFromDropdown = (partnerId: number | null) => {
+    if (!partnerId) {
+      closePartner()
       return
     }
-    setError(err instanceof Error ? err.message : fallback)
+    setSelectedPartnerId(partnerId)
+    setSelectedFacilityId(Number(facilities.find((facility) => Number(facility.partner) === partnerId && facility.status === 'verified')?.id ?? 0) || null)
+    setFacilityTab('overview')
   }
 
-  const handleAdd = async () => {
-    setSubmitting(true)
-    setFieldErrors({})
-    setError('')
+  const selectLabFromDropdown = (facilityId: number | null) => {
+    if (!facilityId) {
+      setSelectedFacilityId(null)
+      return
+    }
+    const facility = facilities.find((item) => Number(item.id) === facilityId)
+    if (!facility) return
+    setSelectedPartnerId(Number(facility.partner))
+    setSelectedFacilityId(facilityId)
+    setFacilityTab('overview')
+  }
+
+  const closePartner = () => {
+    setSelectedPartnerId(null)
+    setSelectedFacilityId(null)
+  }
+
+  const replaceFacility = (updated: AdminLaboratoryFacilityApi) => {
+    setFacilities((current) => current.map((facility) => facility.id === updated.id ? updated : facility))
+  }
+
+  const facilityAction = async (facility: AdminLaboratoryFacilityApi, action: FacilityReviewAction, note?: string) => {
+    if (!facility.id) return
+    setSaving(true); setError(''); setFeedback('')
+    try {
+      replaceFacility(await adminLabPartnerService.actionFacility(facility.id, { action, note }))
+      setFeedback(`${facility.name} review updated.`)
+    } catch (requestError) { setError(errorMessage(requestError)) } finally { setSaving(false) }
+  }
+
+  const openFacilityPrompt = (facility: AdminLaboratoryFacilityApi, action: FacilityReviewAction) => {
+    if (action === 'verify') { void facilityAction(facility, action); return }
+    setPromptNote('')
+    setFacilityPrompt({ facility, action })
+  }
+
+  const submitFacilityPrompt = async () => {
+    if (!facilityPrompt || !promptNote.trim()) return
+    await facilityAction(facilityPrompt.facility, facilityPrompt.action, promptNote.trim())
+    setFacilityPrompt(null)
+    setPromptNote('')
+  }
+
+  const openOfferingEditor = (offering: FacilityOffering) => {
+    setOfferingDraft({
+      price: String(offering.price ?? ''),
+      turnaround: offering.turnaround ?? '',
+      homeCollection: offering.home_collection_available !== false,
+    })
+    setEditingOffering(offering)
+  }
+
+  const saveOffering = async () => {
+    if (!selectedFacility?.id || !editingOffering?.test || !offeringDraft.price || !offeringDraft.turnaround.trim()) return
+    const price = Number(offeringDraft.price)
+    if (!Number.isFinite(price) || price <= 0) { setError('Enter a valid price for this test.'); return }
+    const offerings = selectedFacility.offerings ?? []
+    setSaving(true); setError(''); setFeedback('')
+    try {
+      const updated = await adminLabPartnerService.updateFacility(selectedFacility.id, {
+        test_ids: offerings.map((item) => Number(item.test)).filter(Boolean),
+        test_offerings: offerings.filter((item) => item.test).map((item) => ({
+          test: Number(item.test),
+          price: item.id === editingOffering.id ? price : item.price ?? 0,
+          turnaround: item.id === editingOffering.id ? offeringDraft.turnaround.trim() : item.turnaround ?? '',
+          home_collection_available: item.id === editingOffering.id ? offeringDraft.homeCollection : item.home_collection_available !== false,
+        })),
+      })
+      replaceFacility(updated)
+      setFeedback(`${editingOffering.test_name || 'Test'} updated.`)
+      setEditingOffering(null)
+    } catch (requestError) { setError(errorMessage(requestError)) } finally { setSaving(false) }
+  }
+
+  const saveNewOffering = async () => {
+    if (!selectedFacility?.id || !newOfferingTestId || !offeringDraft.price || !offeringDraft.turnaround.trim()) return
+    const testId = Number(newOfferingTestId)
+    const price = Number(offeringDraft.price)
+    if (!Number.isFinite(price) || price <= 0) { setError('Enter a valid price for this test.'); return }
+    const offerings = selectedFacility.offerings ?? []
+    setSaving(true); setError(''); setFeedback('')
+    try {
+      const updated = await adminLabPartnerService.updateFacility(selectedFacility.id, {
+        test_ids: [...offerings.map((item) => Number(item.test)).filter(Boolean), testId],
+        test_offerings: [
+          ...offerings.filter((item) => item.test).map((item) => ({ test: Number(item.test), price: item.price ?? 0, turnaround: item.turnaround ?? '', home_collection_available: item.home_collection_available !== false })),
+          { test: testId, price, turnaround: offeringDraft.turnaround.trim(), home_collection_available: offeringDraft.homeCollection },
+        ],
+      })
+      replaceFacility(updated)
+      setShowAddOffering(false)
+      setNewOfferingTestId('')
+      setFeedback('Test added to the catalogue.')
+    } catch (requestError) { setError(errorMessage(requestError)) } finally { setSaving(false) }
+  }
+
+  const updateTechnician = async (technician: AdminLabTechnicianApi, action: 'approve' | 'reject', note?: string) => {
+    if (!technician.id) return
+    setSaving(true); setError(''); setFeedback('')
+    try {
+      const updated = await adminLabPartnerService.actionTechnician(technician.id, { action, note })
+      setFacilities((current) => current.map((facility) => ({
+        ...facility,
+        technicians: facility.technicians?.map((item) => item.id === updated.id ? { ...item, ...updated } : item),
+      })))
+      setFeedback(`${updated.name || updated.user_name || 'Technician'} ${action === 'approve' ? 'activated' : 'suspended'}.`)
+    } catch (requestError) { setError(errorMessage(requestError)) } finally { setSaving(false) }
+  }
+
+  const createPartner = async () => {
+    setSaving(true); setError('')
     try {
       const created = await adminLabPartnerService.createPartner({
-        name: draft.name.trim(),
-        email: draft.email.trim(),
-        phone: draft.phone.trim(),
-        location: draft.location.trim(),
-        contact_name: draft.contactName.trim(),
-        accreditation: draft.accreditation.trim(),
-        license_number: draft.licenseNumber.trim(),
-        payout_method: toPayoutValue(draft.payoutMethod),
-        payout_account: draft.payoutAccount.trim(),
-        notes: draft.notes.trim(),
+        name: draft.name.trim(), email: draft.email.trim(), phone: draft.phone.trim(),
+        contact_name: draft.contactName.trim(), notes: draft.notes.trim(), documents: partnerDocuments,
       })
-      setPartners((prev) => [mapPartner(created), ...prev])
+      setPartners((current) => [created, ...current])
+      setDraft(blankPartner)
+      setPartnerDocuments([])
       setShowAdd(false)
-      setFeedback('Lab partner created.')
-    } catch (err) {
-      handleApiError(err, 'Unable to create lab partner.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleVerify = async (partner: LabPartnerView) => {
-    setRowLoadingId(partner.id)
-    setError('')
-    setFeedback('')
-    try {
-      const updated = await adminLabPartnerService.actionPartner(partner.id, { action: 'verify' })
-      setPartners((prev) => prev.map((item) => (item.id === partner.id ? mapPartner(updated) : item)))
-      setFeedback(`Verified ${partner.name}.`)
-    } catch (err) {
-      handleApiError(err, 'Unable to verify lab partner.')
-    } finally {
-      setRowLoadingId(null)
-    }
-  }
-
-  const handleManageSave = async () => {
-    if (!managePartner) return
-    setSubmitting(true)
-    setFieldErrors({})
-    setError('')
-    try {
-      const updated = await adminLabPartnerService.updatePartner(managePartner.id, {
-        status: toPartnerStatusValue(manageStatus),
-        payout_method: toPayoutValue(managePayoutMethod),
-        payout_account: managePayoutAccount.trim(),
-        notes: manageNotes.trim(),
-      })
-      setPartners((prev) => prev.map((item) => (item.id === managePartner.id ? mapPartner(updated) : item)))
-      setFeedback(`Updated ${managePartner.name}.`)
-      setShowManage(false)
-    } catch (err) {
-      handleApiError(err, 'Unable to update lab partner.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleProvisionPartner = async () => {
-    if (!managePartner) return
-    setSubmitting(true)
-    setError('')
-    try {
-      const response = await adminLabPartnerService.provisionPartnerAccount(managePartner.id)
-      await loadPartners()
-      setFeedback(response.activation_email?.sent_to ? `Activation email sent to ${response.activation_email.sent_to}.` : response.detail)
-    } catch (err) {
-      handleApiError(err, 'Unable to provision partner account.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleProvisionTech = async (tech: LabTechnicianView) => {
-    setRowLoadingId(tech.id)
-    setError('')
-    try {
-      const response = await adminLabPartnerService.provisionTechnicianAccount(tech.id)
-      await loadPartners()
-      setFeedback(response.activation_email?.sent_to ? `Activation email sent to ${response.activation_email.sent_to}.` : response.detail)
-    } catch (err) {
-      handleApiError(err, 'Unable to provision technician account.')
-    } finally {
-      setRowLoadingId(null)
-    }
-  }
-
-  const handleApproveTech = async (tech: LabTechnicianView) => {
-    setRowLoadingId(tech.id)
-    setError('')
-    try {
-      await adminLabPartnerService.actionTechnician(tech.id, { action: 'approve' })
-      await loadPartners()
-      setFeedback(`Approved ${tech.name}.`)
-    } catch (err) {
-      handleApiError(err, 'Unable to approve technician.')
-    } finally {
-      setRowLoadingId(null)
-    }
+      setFeedback('Lab partner created. Verify the legal account before facility onboarding.')
+    } catch (requestError) { setError(errorMessage(requestError)) } finally { setSaving(false) }
   }
 
   return (
     <div className="category-management admin-page lp-page">
       <div className="category-management__header">
-        <div>
-          <h1>Lab Partners</h1>
-          <p className="lp-subtitle">Review partner onboarding, verify applications, and manage lab technicians.</p>
-        </div>
-        <button className="btn btn--outline btn--sm" type="button" onClick={loadPartners}>
-          Refresh
-        </button>
+        <div><h1>Laboratory operations</h1><p className="lp-subtitle">Manage laboratory partners, facilities, patient pickup requests, and results workflows.</p></div>
+        {operationsTab === 'network' && <div className="cm-row-actions"><button className="btn btn--outline btn--sm" type="button" onClick={() => void load()}>Refresh</button><button className="btn btn--primary btn--sm" type="button" onClick={() => setShowAdd(true)}>Add partner</button></div>}
       </div>
 
-      {error && <div className="cm-inline-error" style={{ marginBottom: '1rem' }}>{error}</div>}
-      {feedback && <div className="cm-inline-success" style={{ marginBottom: '1rem' }}>{feedback}</div>}
-
-      <div className="cm-kpi-grid">
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Total Partners</span>
-            <strong className="cm-kpi-card__value">{partners.length}</strong>
-          </div>
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Verified</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{stats.verified}</strong>
-          </div>
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Pending</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.pending}</strong>
-          </div>
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Suspended</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{stats.suspended}</strong>
-          </div>
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-          </div>
-        </div>
+      <div className="lp-operations-tabs" role="tablist" aria-label="Laboratory operations">
+        <button type="button" role="tab" aria-selected={operationsTab === 'applications'} className={operationsTab === 'applications' ? 'lp-operations-tabs__tab lp-operations-tabs__tab--active' : 'lp-operations-tabs__tab'} onClick={() => setOperationsTab('applications')}>Applications</button>
+        <button type="button" role="tab" aria-selected={operationsTab === 'network'} className={operationsTab === 'network' ? 'lp-operations-tabs__tab lp-operations-tabs__tab--active' : 'lp-operations-tabs__tab'} onClick={() => setOperationsTab('network')}>Approved network</button>
+        <button type="button" role="tab" aria-selected={operationsTab === 'requests'} className={operationsTab === 'requests' ? 'lp-operations-tabs__tab lp-operations-tabs__tab--active' : 'lp-operations-tabs__tab'} onClick={() => setOperationsTab('requests')}>Lab Requests</button>
       </div>
 
-      <div className="cm-toolbar">
-        <button className="btn btn--primary btn--sm" type="button" onClick={openAdd}>
-          Add Lab Partner
-        </button>
-        <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
-          <div className="cm-search-box">
-            <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
-            <input type="search" placeholder="Search by partner name, email, phone, or location" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
-          </div>
-          <select className="cm-filter-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | LabPartnerStatus)}>
-            <option value="all">All statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Verified">Verified</option>
-            <option value="Suspended">Suspended</option>
-          </select>
-        </div>
-      </div>
+      {operationsTab === 'requests' ? <LabRequestManagement embedded /> : operationsTab === 'applications' ? <LabApprovalQueue /> : <>
 
-      <div className="cm-panel">
-        <div className="cm-table-wrap">
-          <table className="cm-table">
-            <thead>
-              <tr>
-                <th>Partner</th>
-                <th>Contact</th>
-                <th>Techs</th>
-                <th>Status</th>
-                <th>Submitted</th>
-                <th className="cm-th-actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!loading && pagedPartners.map((partner) => (
-                <tr key={partner.id}>
-                  <td>
-                    <p className="lp-name">{partner.name}</p>
-                    {partner.contactName && <p className="lp-meta">Contact: {partner.contactName}</p>}
-                    <p className="lp-meta">{partner.location || partner.reference}</p>
-                  </td>
-                  <td>
-                    <p className="lp-meta">{partner.email}</p>
-                    <p className="lp-meta">{partner.phone}</p>
-                    {partner.accreditation && <p className="lp-meta">Accreditation: {partner.accreditation}</p>}
-                  </td>
-                  <td>
-                    <span className="lp-tech-count">{partner.techs.length} tech{partner.techs.length === 1 ? '' : 's'}</span>
-                  </td>
-                  <td>
-                    <span className={`lp-status lp-status--${partner.status.toLowerCase()}`}>{partner.status}</span>
-                  </td>
-                  <td>{partner.submittedAt}</td>
-                  <td>
-                    <div className="cm-row-actions">
-                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => openManage(partner)}>
-                        Manage
-                      </button>
-                      {partner.status === 'Pending' && (
-                        <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => handleVerify(partner)} disabled={rowLoadingId === partner.id}>
-                          {rowLoadingId === partner.id ? 'Verifying…' : 'Verify'}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {loading && (
-                <tr>
-                  <td colSpan={6} className="lp-empty">Loading lab partners…</td>
-                </tr>
-              )}
-              {!loading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="lp-empty">No lab partners match your filters.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <section className="lp-explorer" aria-label="Laboratory information explorer">
+        <div className="lp-explorer__heading"><h2>Approved laboratory network</h2><p>Select an approved legal partner, then a verified laboratory to manage its profile, test catalogue, and technicians.</p></div>
+        <div className="lp-explorer__controls">
+          <label><span>1. Lab partner</span><select disabled={loading} value={selectedPartnerId ?? ''} onChange={(event) => selectPartnerFromDropdown(event.target.value ? Number(event.target.value) : null)}><option value="">{loading ? 'Loading lab partners…' : 'Select a lab partner'}</option>{queuePartners.map((partner) => <option key={partner.id} value={partner.id}>{partner.name} · {partner.reference}</option>)}</select></label>
+          <label><span>2. Laboratory</span><select disabled={!selectedPartnerId} value={selectedFacilityId ?? ''} onChange={(event) => selectLabFromDropdown(event.target.value ? Number(event.target.value) : null)}><option value="">{selectedPartnerId ? 'Select a laboratory' : 'Choose a partner first'}</option>{selectedFacilities.filter((facility) => facility.status === 'verified').map((facility) => <option key={facility.id} value={facility.id}>{facility.name} · {facility.county || 'Location pending'}</option>)}</select></label>
         </div>
-      </div>
+        <p className="lp-explorer__hint">{selectedFacility ? `Managing ${selectedFacility.name}.` : selectedPartner ? 'Choose one of this partner’s verified laboratories.' : partners.length === 0 ? 'No partners have been added yet. Add a partner to begin.' : 'Choose an approved partner to begin.'}</p>
+      </section>
 
-      {filtered.length > PAGE_SIZE && (
-        <div className="lp-pagination">
-          <span className="lp-pagination__info">
-            Showing {startIndex + 1}-{Math.min(startIndex + PAGE_SIZE, filtered.length)} of {filtered.length}
-          </span>
-          <div className="lp-pagination__controls">
-            <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>Prev</button>
-            <div className="pagination__pages">
-              {Array.from({ length: totalPages }, (_, index) => {
-                const page = index + 1
-                return (
-                  <button key={page} className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`} type="button" onClick={() => setCurrentPage(page)}>
-                    {page}
-                  </button>
-                )
-              })}
-            </div>
-            <button className="pagination__button" type="button" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>Next</button>
-          </div>
-        </div>
-      )}
+      {error && <div className="cm-inline-error">{error}</div>}
+      {feedback && <div className="cm-inline-success">{feedback}</div>}
 
-      {showAdd && (
-        <div className="modal-overlay" onClick={() => setShowAdd(false)}>
-          <div className="modal lp-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="modal__header">
-              <h2>Register lab partner</h2>
-              <button className="modal__close" onClick={() => setShowAdd(false)}>×</button>
-            </div>
-            <div className="modal__content">
-              <div className="form-group">
-                <label>Partner name</label>
-                <input value={draft.name} onChange={(event) => setDraft((p) => ({ ...p, name: event.target.value }))} />
-                {fieldErrors.name && <p className="pr-field__err">{fieldErrors.name}</p>}
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Email</label>
-                  <input value={draft.email} onChange={(event) => setDraft((p) => ({ ...p, email: event.target.value }))} />
-                  {fieldErrors.email && <p className="pr-field__err">{fieldErrors.email}</p>}
-                </div>
-                <div className="form-group">
-                  <label>Phone</label>
-                  <input value={draft.phone} onChange={(event) => setDraft((p) => ({ ...p, phone: event.target.value }))} />
-                  {fieldErrors.phone && <p className="pr-field__err">{fieldErrors.phone}</p>}
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Location</label>
-                <input value={draft.location} onChange={(event) => setDraft((p) => ({ ...p, location: event.target.value }))} />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Contact name</label>
-                  <input value={draft.contactName} onChange={(event) => setDraft((p) => ({ ...p, contactName: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label>Accreditation</label>
-                  <input value={draft.accreditation} onChange={(event) => setDraft((p) => ({ ...p, accreditation: event.target.value }))} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>License number</label>
-                  <input value={draft.licenseNumber} onChange={(event) => setDraft((p) => ({ ...p, licenseNumber: event.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label>Payout account</label>
-                  <input value={draft.payoutAccount} onChange={(event) => setDraft((p) => ({ ...p, payoutAccount: event.target.value }))} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Payout method</label>
-                  <select value={draft.payoutMethod} onChange={(event) => setDraft((p) => ({ ...p, payoutMethod: event.target.value as 'M-Pesa' | 'Bank Transfer' }))}>
-                    {payoutMethods.map((method) => <option key={method} value={method}>{method}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Notes</label>
-                  <input value={draft.notes} onChange={(event) => setDraft((p) => ({ ...p, notes: event.target.value }))} />
-                </div>
-              </div>
-            </div>
-            <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" onClick={() => setShowAdd(false)}>Cancel</button>
-              <button className="btn btn--primary btn--sm" onClick={handleAdd} disabled={submitting}>{submitting ? 'Saving…' : 'Save partner'}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {showManage && managePartner && (
-        <div className="modal-overlay" onClick={() => setShowManage(false)}>
-          <div className="modal lp-modal lp-modal--wide" onClick={(event) => event.stopPropagation()}>
-            <div className="modal__header">
-              <div>
-                <h2>{managePartner.name}</h2>
-                <p className="lp-modal__subtitle">
-                  {managePartner.contactName ? `${managePartner.contactName} · ` : ''}
-                  {managePartner.email} · {managePartner.phone}
-                </p>
-              </div>
-              <button className="modal__close" onClick={() => setShowManage(false)}>×</button>
-            </div>
-            <div className="modal__content">
-              <div className="lp-manage-grid">
-                <div>
-                  <p className="lp-section-title">Partner details</p>
-                  <div className="lp-detail-card">
-                    <div><span>Reference</span><strong>{managePartner.reference || '—'}</strong></div>
-                    <div><span>Location</span><strong>{managePartner.location || '—'}</strong></div>
-                    {managePartner.county && <div><span>County</span><strong>{managePartner.county}</strong></div>}
-                    {managePartner.address && <div><span>Address</span><strong>{managePartner.address}</strong></div>}
-                    <div><span>Submitted</span><strong>{managePartner.submittedAt}</strong></div>
-                    {managePartner.verifiedAt !== '—' && <div><span>Verified</span><strong>{managePartner.verifiedAt}</strong></div>}
-                    {managePartner.licenseNumber && <div><span>License</span><strong>{managePartner.licenseNumber}</strong></div>}
-                    {managePartner.accreditation && <div><span>Accreditation</span><strong>{managePartner.accreditation}</strong></div>}
-                    {managePartner.statusNote && <div><span>Status note</span><strong>{managePartner.statusNote}</strong></div>}
-                    {managePartner.rejectionNote && <div><span>Rejection note</span><strong>{managePartner.rejectionNote}</strong></div>}
-                  </div>
-                  <div className="lp-docs" style={{ marginTop: '1rem' }}>
-                    <p className="lp-section-title">Documents</p>
-                    {managePartner.documents.length > 0 ? (
-                      <div className="lp-docs__list">
-                        {managePartner.documents.map((doc) => <span key={doc} className="lp-doc-chip">{doc}</span>)}
-                      </div>
-                    ) : (
-                      <div className="lp-empty-state">No documents uploaded.</div>
-                    )}
-                  </div>
-                  <div className="form-group" style={{ marginTop: '1rem' }}>
-                    <label>Update status</label>
-                    <select value={manageStatus} onChange={(event) => setManageStatus(event.target.value as LabPartnerStatus)}>
-                      <option value="Pending">Pending</option>
-                      <option value="Verified">Verified</option>
-                      <option value="Suspended">Suspended</option>
-                    </select>
-                  </div>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Payout method</label>
-                      <select value={managePayoutMethod} onChange={(event) => setManagePayoutMethod(event.target.value as 'M-Pesa' | 'Bank Transfer')}>
-                        {payoutMethods.map((method) => <option key={method} value={method}>{method}</option>)}
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Payout account</label>
-                      <input value={managePayoutAccount} onChange={(event) => setManagePayoutAccount(event.target.value)} />
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label>Notes</label>
-                    <input value={manageNotes} onChange={(event) => setManageNotes(event.target.value)} />
-                  </div>
-                  {!managePartner.accountProvisioned && managePartner.status === 'Verified' && (
-                    <button className="btn btn--outline btn--sm" type="button" onClick={handleProvisionPartner} disabled={submitting}>
-                      {submitting ? 'Provisioning…' : 'Provision login account'}
-                    </button>
-                  )}
+      {selectedPartner && <section className="lp-workspace">
+          {partnerQueue === 'verified' &&
+          <div className="lp-workspace__header"><div><h2>{selectedPartner.name}</h2><p>{selectedPartner.reference} · Legal partner workspace</p></div><span className={statusClass(selectedPartner.status)}>{formatStatus(selectedPartner.status)}</span></div>
+          }
+          <div className="lp-workspace__body">
+            <section className="lrm-section">
+              {!selectedFacilities.length && <p>No laboratories have been registered by this partner.</p>}
+              {selectedFacility && <>
+                <div className="lp-facility-context"><div><p>Selected laboratory</p><h3>{selectedFacility.name}</h3><span>{selectedFacility.reference} · {selectedFacility.county}</span></div><div className="lp-facility-context__status"><span className={statusClass(selectedFacility.status)}>{formatStatus(selectedFacility.status)}</span>{facilityTab === 'overview' && <div className="cm-row-actions">{selectedFacility.status !== 'verified' && <button className="btn btn--primary btn--sm" disabled={saving || selectedPartner.status !== 'verified'} title={selectedPartner.status !== 'verified' ? 'Verify the legal partner before reviewing this laboratory.' : undefined} type="button" onClick={() => openFacilityPrompt(selectedFacility, 'verify')}>Verify facility</button>}<button className="btn btn--outline btn--sm" disabled={saving} type="button" onClick={() => openFacilityPrompt(selectedFacility, 'request_changes')}>Request changes</button>{selectedFacility.status !== 'suspended' && <button className="btn btn--ghost btn--sm" disabled={saving} type="button" onClick={() => openFacilityPrompt(selectedFacility, 'suspend')}>Suspend</button>}</div>}</div></div>
+                <div className="lp-tabs lp-tabs--facility" role="tablist" aria-label="Selected laboratory">
+                  <button className={facilityTab === 'overview' ? 'lp-tabs__tab lp-tabs__tab--active' : 'lp-tabs__tab'} type="button" onClick={() => setFacilityTab('overview')}>Overview</button>
+                  <button className={facilityTab === 'offerings' ? 'lp-tabs__tab lp-tabs__tab--active' : 'lp-tabs__tab'} type="button" onClick={() => setFacilityTab('offerings')}>Test catalogue <span>{selectedFacility.offerings?.length ?? 0}</span></button>
+                  <button className={facilityTab === 'technicians' ? 'lp-tabs__tab lp-tabs__tab--active' : 'lp-tabs__tab'} type="button" onClick={() => setFacilityTab('technicians')}>Technicians <span>{selectedFacility.technicians?.length ?? 0}</span></button>
                 </div>
-                <div>
-                  <p className="lp-section-title">Lab technicians</p>
-                  {managePartner.techs.length > 0 ? (
-                    <ul className="lp-tech-simple">
-                      {managePartner.techs.map((tech) => (
-                        <li key={tech.id} className="lp-tech-simple__item">
-                          <div className="lp-tech-simple__main">
-                            <span className="lp-tech-simple__name">{tech.name}</span>
-                            <span className="lp-tech-simple__meta">{tech.email} · {tech.phone}</span>
-                            {tech.specialty && <span className="lp-tech-simple__meta">{tech.specialty}</span>}
-                            {tech.statusNote && <span className="lp-tech-simple__meta">{tech.statusNote}</span>}
-                            {tech.rejectionNote && <span className="lp-tech-simple__meta">{tech.rejectionNote}</span>}
-                          </div>
-                          <div style={{ display: 'grid', gap: '0.4rem', justifyItems: 'end' }}>
-                            <span className={`lp-tech-status ${tech.status === 'Active' ? 'lp-tech-status--active' : 'lp-tech-status--inactive'}`}>{tech.status}</span>
-                            {tech.status === 'Pending' && (
-                              <button className="btn btn--outline btn--sm" type="button" onClick={() => handleApproveTech(tech)} disabled={rowLoadingId === tech.id}>
-                                {rowLoadingId === tech.id ? 'Approving…' : 'Approve'}
-                              </button>
-                            )}
-                            {!tech.accountProvisioned && tech.status === 'Active' && managePartner.status === 'Verified' && (
-                              <button className="btn btn--outline btn--sm" type="button" onClick={() => handleProvisionTech(tech)} disabled={rowLoadingId === tech.id}>
-                                {rowLoadingId === tech.id ? 'Provisioning…' : 'Provision account'}
-                              </button>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="lp-empty-state">No technicians added yet.</div>
-                  )}
-                  <div className="lp-empty-state" style={{ marginTop: '1rem' }}>Lab partners add technicians from their own dashboard. Admin stays in a review and provisioning role.</div>
-                </div>
-              </div>
-            </div>
-            <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" onClick={() => setShowManage(false)}>Close</button>
-              <button className="btn btn--primary btn--sm" onClick={handleManageSave} disabled={submitting}>{submitting ? 'Saving…' : 'Save changes'}</button>
-            </div>
+                {facilityTab === 'overview' && <><div className="lrm-info-grid"><div><small>Location</small><br /><strong>{selectedFacility.county || '-'}</strong><br />{selectedFacility.address || 'Address not supplied'}</div><div><small>Collection</small><br />{selectedFacility.home_collection_enabled ? 'Home sample collection' : 'Facility visits only'}<br />{selectedFacility.physical_result_pickup_enabled ? 'Physical pickup available' : 'Digital results only'}</div><div><small>Review readiness</small><br /><strong>{facilityReadiness(selectedFacility)}</strong><br />{selectedFacility.status_note || 'No review note'}</div><div><small>Facility licence</small><br /><strong>{selectedFacility.license_number || '-'}</strong><br />Expires {formatDate(selectedFacility.license_expiry)}</div><div><small>Accreditation</small><br /><strong>{selectedFacility.accreditation || '-'}</strong></div><div><small>Contact</small><br /><strong>{selectedFacility.phone || '-'}</strong><br />{selectedFacility.email || '-'}</div></div><div className={selectedFacility.documents?.length ? 'lp-overview-documents' : 'lp-overview-documents lp-overview-documents--missing'}><strong>Compliance documents</strong><span>{(selectedFacility.documents ?? []).map((document) => `${document.name} (${document.status})`).join(', ') || 'No facility compliance document has been uploaded.'}</span></div></>}
+                {facilityTab === 'offerings' && <><div className="lp-catalogue-toolbar"><p className="lp-catalogue-gate">{selectedFacility.status === 'verified' && selectedFacility.is_active !== false ? 'Update approved laboratory test details as needed.' : 'The test catalogue is locked until this laboratory is verified.'}</p><button className="btn btn--primary btn--sm" disabled={selectedFacility.status !== 'verified' || selectedFacility.is_active === false || availableTests.every((test) => (selectedFacility.offerings ?? []).some((offering) => Number(offering.test) === test.id))} type="button" onClick={() => { const nextTest = availableTests.find((test) => !(selectedFacility.offerings ?? []).some((offering) => Number(offering.test) === test.id)); setNewOfferingTestId(nextTest ? String(nextTest.id) : ''); setOfferingDraft({ price: String(nextTest?.price ?? ''), turnaround: nextTest?.turnaround ?? '', homeCollection: selectedFacility.home_collection_enabled !== false }); setShowAddOffering(true) }}>Add test</button></div><div className="cm-table-wrap"><table className="cm-table"><thead><tr><th>Test</th><th>Price</th><th>Turnaround</th><th>Home collection</th><th>Actions</th></tr></thead><tbody>{(selectedFacility.offerings ?? []).map((offering) => <tr key={offering.id}><td>{offering.test_name}</td><td>KSh {Number(offering.price ?? 0).toLocaleString()}</td><td>{offering.turnaround}</td><td>{offering.home_collection_available ? 'Yes' : 'No'}</td><td><button className="btn btn--outline btn--sm" disabled={selectedFacility.status !== 'verified' || selectedFacility.is_active === false} title={selectedFacility.status !== 'verified' ? 'Verify this laboratory before editing its test catalogue.' : undefined} type="button" onClick={() => openOfferingEditor(offering)}>Edit</button></td></tr>)}{!selectedFacility.offerings?.length && <tr><td colSpan={5}>No active tests in this catalogue.</td></tr>}</tbody></table></div></>}
+                {facilityTab === 'technicians' && <div className="cm-table-wrap"><table className="cm-table"><thead><tr><th>Technician</th><th>Specialty</th><th>Account</th><th>Status</th><th>Actions</th></tr></thead><tbody>{(selectedFacility.technicians ?? []).map((technician) => <tr key={technician.id}><td><strong>{technician.name || technician.user_name}</strong><br /><small>{technician.email || technician.user_email}</small></td><td>{technician.specialty || '-'}</td><td>{technician.user ? 'Provisioned' : 'Pending'}</td><td><span className={statusClass(technician.status)}>{formatStatus(technician.status)}</span></td><td>{technician.status === 'active' ? <button className="btn btn--outline btn--sm" disabled={saving} type="button" onClick={() => { setPromptNote(''); setTechnicianPrompt(technician) }}>Suspend</button> : <button className="btn btn--primary btn--sm" disabled={saving} type="button" onClick={() => void updateTechnician(technician, 'approve')}>Activate</button>}</td></tr>)}{!selectedFacility.technicians?.length && <tr><td colSpan={5}>No technicians assigned to this laboratory.</td></tr>}</tbody></table></div>}
+                {facilityTab === 'overview' && Boolean(selectedFacility.documents?.length) && <div className="cm-row-actions lp-facility-actions">{(selectedFacility.documents ?? []).map((document) => document.download_url && <button key={document.id} className="btn btn--outline btn--sm" type="button" onClick={() => void adminLabPartnerService.downloadFacilityDocument(document.download_url!, document.name || 'facility-document')}>Download {document.name}</button>)}</div>}
+              </>}
+            </section>
           </div>
-        </div>
-      )}
+      </section>}
+      </>}
+
+      {facilityPrompt && <div className="modal-overlay" onClick={() => setFacilityPrompt(null)}><Dialog busy={saving} onClose={() => setFacilityPrompt(null)} className="modal" onClick={(event) => event.stopPropagation()}><div className="modal__header"><h2>{facilityPrompt.action === 'suspend' ? 'Suspend facility' : 'Request facility changes'}</h2><button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setFacilityPrompt(null)}>×</button></div><div className="modal__content"><p>Provide a clear note for {facilityPrompt.facility.name}.</p><div className="form-group"><label htmlFor="field-labpartnermanagement-320-24165">{facilityPrompt.action === 'suspend' ? 'Suspension reason' : 'Required changes'}</label><textarea id="field-labpartnermanagement-320-24165" autoFocus value={promptNote} onChange={(event) => setPromptNote(event.target.value)} /></div><div className="modal__actions"><button className="btn btn--ghost" type="button" onClick={() => setFacilityPrompt(null)}>Cancel</button><button className="btn btn--primary" type="button" disabled={saving || !promptNote.trim()} onClick={() => void submitFacilityPrompt()}>{saving ? 'Saving…' : 'Confirm'}</button></div></div></Dialog></div>}
+
+
+      {technicianPrompt && <div className="modal-overlay" onClick={() => setTechnicianPrompt(null)}><Dialog busy={saving} onClose={() => setTechnicianPrompt(null)} className="modal" onClick={(event) => event.stopPropagation()}><div className="modal__header"><h2>Suspend technician</h2><button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setTechnicianPrompt(null)}>×</button></div><div className="modal__content"><p>Provide the reason for suspending {technicianPrompt.name || technicianPrompt.user_name}.</p><div className="form-group"><label htmlFor="field-labpartnermanagement-323-25340">Suspension reason</label><textarea id="field-labpartnermanagement-323-25340" autoFocus value={promptNote} onChange={(event) => setPromptNote(event.target.value)} /></div><div className="modal__actions"><button className="btn btn--ghost" type="button" onClick={() => setTechnicianPrompt(null)}>Cancel</button><button className="btn btn--primary" type="button" disabled={saving || !promptNote.trim()} onClick={() => { void updateTechnician(technicianPrompt, 'reject', promptNote.trim()).then(() => { setTechnicianPrompt(null); setPromptNote('') }) }}>{saving ? 'Saving…' : 'Suspend technician'}</button></div></div></Dialog></div>}
+
+      {editingOffering && <div className="modal-overlay" onClick={() => setEditingOffering(null)}><Dialog busy={saving} onClose={() => setEditingOffering(null)} className="modal" onClick={(event) => event.stopPropagation()}><div className="modal__header"><h2>Edit test catalogue entry</h2><button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setEditingOffering(null)}>×</button></div><div className="modal__content"><div className="form-group"><label htmlFor="field-labpartnermanagement-325-26478">Test</label><input id="field-labpartnermanagement-325-26478" disabled value={editingOffering.test_name || 'Selected test'} /></div><div className="form-group"><label htmlFor="field-labpartnermanagement-325-26679">Price (KSh)</label><input id="field-labpartnermanagement-325-26679" type="number" min="1" value={offeringDraft.price} onChange={(event) => setOfferingDraft((current) => ({ ...current, price: event.target.value }))} /></div><div className="form-group"><label htmlFor="field-labpartnermanagement-325-26972">Turnaround time</label><input id="field-labpartnermanagement-325-26972" value={offeringDraft.turnaround} onChange={(event) => setOfferingDraft((current) => ({ ...current, turnaround: event.target.value }))} /></div><label className="lp-checkbox"><input type="checkbox" checked={offeringDraft.homeCollection} onChange={(event) => setOfferingDraft((current) => ({ ...current, homeCollection: event.target.checked }))} /> Home sample collection available</label><div className="modal__actions"><button className="btn btn--ghost" type="button" onClick={() => setEditingOffering(null)}>Cancel</button><button className="btn btn--primary" type="button" disabled={saving} onClick={() => void saveOffering()}>{saving ? 'Saving…' : 'Save changes'}</button></div></div></Dialog></div>}
+
+      {showAddOffering && <div className="modal-overlay" onClick={() => setShowAddOffering(false)}><Dialog busy={saving} onClose={() => setShowAddOffering(false)} className="modal" onClick={(event) => event.stopPropagation()}><div className="modal__header"><h2>Add test to catalogue</h2><button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setShowAddOffering(false)}>×</button></div><div className="modal__content"><div className="form-group"><label htmlFor="field-labpartnermanagement-327-28255">Test</label><select id="field-labpartnermanagement-327-28255" value={newOfferingTestId} onChange={(event) => { const test = availableTests.find((item) => item.id === Number(event.target.value)); setNewOfferingTestId(event.target.value); setOfferingDraft((current) => ({ ...current, price: String(test?.price ?? ''), turnaround: test?.turnaround ?? '' })) }}><option value="">Select a test</option>{availableTests.filter((test) => !(selectedFacility?.offerings ?? []).some((offering) => Number(offering.test) === test.id)).map((test) => <option key={test.id} value={test.id}>{test.name}</option>)}</select></div><div className="form-group"><label htmlFor="field-labpartnermanagement-327-28936">Price (KSh)</label><input id="field-labpartnermanagement-327-28936" type="number" min="1" value={offeringDraft.price} onChange={(event) => setOfferingDraft((current) => ({ ...current, price: event.target.value }))} /></div><div className="form-group"><label htmlFor="field-labpartnermanagement-327-29229">Turnaround time</label><input id="field-labpartnermanagement-327-29229" value={offeringDraft.turnaround} onChange={(event) => setOfferingDraft((current) => ({ ...current, turnaround: event.target.value }))} /></div><label className="lp-checkbox"><input type="checkbox" checked={offeringDraft.homeCollection} onChange={(event) => setOfferingDraft((current) => ({ ...current, homeCollection: event.target.checked }))} /> Home sample collection available</label><div className="modal__actions"><button className="btn btn--ghost" type="button" onClick={() => setShowAddOffering(false)}>Cancel</button><button className="btn btn--primary" type="button" disabled={saving || !newOfferingTestId || !offeringDraft.price || !offeringDraft.turnaround.trim()} onClick={() => void saveNewOffering()}>{saving ? 'Saving…' : 'Add test'}</button></div></div></Dialog></div>}
+
+      {operationsTab === 'network' && showAdd && <div className="modal-overlay" onClick={() => setShowAdd(false)}><Dialog busy={saving} onClose={() => setShowAdd(false)} className="modal" onClick={(event) => event.stopPropagation()}><div className="modal__header"><h2>Add legal lab partner</h2><button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setShowAdd(false)}>×</button></div><div className="modal__content"><div className="form-group"><label htmlFor="field-labpartnermanagement-329-30593">Organisation name</label><input id="field-labpartnermanagement-329-30593" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /></div><div className="form-group"><label htmlFor="field-labpartnermanagement-329-30852">Contact name</label><input id="field-labpartnermanagement-329-30852" value={draft.contactName} onChange={(event) => setDraft((current) => ({ ...current, contactName: event.target.value }))} /></div><div className="form-group"><label htmlFor="field-labpartnermanagement-329-31120">Email</label><input id="field-labpartnermanagement-329-31120" type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} /></div><div className="form-group"><label htmlFor="field-labpartnermanagement-329-31382">Phone</label><input id="field-labpartnermanagement-329-31382" value={draft.phone} onChange={(event) => setDraft((current) => ({ ...current, phone: event.target.value }))} /></div><div className="form-group"><label htmlFor="field-labpartnermanagement-329-31631">Required legal/compliance documents</label><input id="field-labpartnermanagement-329-31631" type="file" multiple accept="application/pdf,image/jpeg,image/png" onChange={(event) => setPartnerDocuments(Array.from(event.target.files ?? []))} /><small>{partnerDocuments.length ? `${partnerDocuments.length} document${partnerDocuments.length === 1 ? '' : 's'} selected` : 'Upload at least one PDF, JPG, or PNG document.'}</small></div><div className="form-group"><label htmlFor="field-labpartnermanagement-329-32131">Notes</label><textarea id="field-labpartnermanagement-329-32131" value={draft.notes} onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))} /></div><div className="modal__actions"><button className="btn btn--ghost" type="button" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn btn--primary" type="button" disabled={saving || !draft.name.trim() || !draft.email.trim() || !draft.phone.trim() || partnerDocuments.length === 0} onClick={() => void createPartner()}>{saving ? 'Saving…' : 'Create application'}</button></div></div></Dialog></div>}
     </div>
   )
 }
-
-export default LabPartnerManagement

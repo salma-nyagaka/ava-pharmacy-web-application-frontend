@@ -1,3 +1,4 @@
+import NewsletterForm from './NewsletterForm'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useCatalog } from '../../context/CatalogContext'
@@ -46,11 +47,12 @@ function Footer() {
     <footer className="footer">
       <div className="footer__main">
         <div className="container">
+          <NewsletterForm />
           <div className="footer__grid">
 
             {/* Brand Column */}
             <div className="footer__brand">
-              <Link to="/" className="footer__logo">
+              <Link to="/" className="footer__logo" aria-label="Ava Pharmacy home">
                 <img src={logo} alt="" />
               </Link>
               <p className="footer__description">
@@ -134,22 +136,6 @@ function Footer() {
               <Link to="/contact" className="footer__location-link">Contact Us</Link>
             </div>
 
-            <div className="footer__column">
-              <h4 className="footer__title">Pharmacy Compliance</h4>
-              <ul className="footer__links footer__links--compliance">
-                <li>Health Safety Code: {settings.healthSafetyCode || 'Pending PPB issue'}</li>
-                <li>Premises Reg: {settings.premisesRegistrationNumber || 'Pending update'}</li>
-                <li>Online License: {settings.onlinePharmacyLicenseNumber || 'Pending update'}</li>
-                <li>Superintendent: {settings.superintendentName || 'Pending update'} {settings.superintendentRegistrationNumber ? `(${settings.superintendentRegistrationNumber})` : ''}</li>
-                <li>Pharmacist available: {settings.pharmacistConsultationHours || settings.supportHours}</li>
-                <li>
-                  <a href={settings.ppbWebsite} target="_blank" rel="noopener noreferrer">
-                    {settings.ppbContactName}
-                  </a>
-                </li>
-                <li>{settings.ppbContactPhone} · {settings.ppbContactEmail}</li>
-              </ul>
-            </div>
 
           </div>
         </div>

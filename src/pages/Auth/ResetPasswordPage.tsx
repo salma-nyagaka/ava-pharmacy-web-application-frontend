@@ -15,6 +15,8 @@ function ResetPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [confirmError, setConfirmError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const rules = [
@@ -28,13 +30,14 @@ function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!rules.every((r) => r.pass)) {
-      setError('Password does not meet all requirements.')
+      setPasswordError('Use at least 8 characters, including uppercase, lowercase, a number and a special character.')
       return
     }
     if (password !== confirm) {
-      setError('Passwords do not match.')
+      setConfirmError('Passwords do not match.')
       return
     }
+    setPasswordError(''); setConfirmError('')
     setLoading(true)
     setError('')
     try {
@@ -76,7 +79,7 @@ function ResetPasswordPage() {
   }
 
   return (
-    <div className="login-page">
+    <div className={`login-page${success ? ' password-reset-confirmation' : ''}`}>
       <div className="login-brand">
         <div className="login-brand__inner">
           <div className="login-brand__logo-wrap">
@@ -93,8 +96,8 @@ function ResetPasswordPage() {
           </div>
           <div className="login-brand__stats">
             <div className="login-brand__stat">
-              <strong>Licensed</strong>
-              <span>Pharmacy</span>
+              <strong>Pharmacy</strong>
+              <span>Support</span>
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
@@ -103,7 +106,7 @@ function ResetPasswordPage() {
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
-              <strong>24/7</strong>
+              <strong>Help</strong>
               <span>Support</span>
             </div>
           </div>
@@ -113,15 +116,14 @@ function ResetPasswordPage() {
       <div className="login-form-panel">
         <div className="login-form-inner">
           {success ? (
-            <>
-              <div className="login-form-header">
-                <h2 className="login-form-header__title">Password updated</h2>
-                <p className="login-form-header__sub">Your password has been reset successfully. You can now sign in.</p>
+            <section className="reset-confirmation" aria-labelledby="password-updated-title" role="status">
+              <div className="reset-confirmation__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
               </div>
-              <p className="login-register" style={{ marginTop: '1.5rem' }}>
-                <Link to="/login">Sign in</Link>
-              </p>
-            </>
+              <h2 id="password-updated-title">Password updated</h2>
+              <p>Your password has been reset successfully. You can now sign in with your new password.</p>
+              <Link className="reset-confirmation__signin" style={{ marginTop: '24px' }} to="/login">Sign in <span aria-hidden="true">→</span></Link>
+            </section>
           ) : (
             <>
               <div className="login-form-header">
@@ -141,10 +143,11 @@ function ResetPasswordPage() {
                     </span>
                     <input
                       id="rp-password"
+                      aria-invalid={Boolean(passwordError)} aria-describedby={passwordError ? 'rp-password-error' : undefined}
                       type={showPassword ? 'text' : 'password'}
                       placeholder="New password"
                       value={password}
-                      onChange={(e) => { setPassword(e.target.value); setError('') }}
+                      onChange={(e) => { setPassword(e.target.value); setPasswordError(''); setError('') }}
                       autoComplete="new-password"
                       autoFocus
                     />
@@ -168,6 +171,7 @@ function ResetPasswordPage() {
                       )}
                     </button>
                   </div>
+                  {passwordError && <p id="rp-password-error" className="login-field__error" role="alert">{passwordError}</p>}
                   {password && (
                     <ul className="pw-rules">
                       {rules.map((r) => (
@@ -197,10 +201,11 @@ function ResetPasswordPage() {
                     </span>
                     <input
                       id="rp-confirm"
+                      aria-invalid={Boolean(confirmError)} aria-describedby={confirmError ? 'rp-confirm-error' : undefined}
                       type={showConfirm ? 'text' : 'password'}
                       placeholder="Confirm new password"
                       value={confirm}
-                      onChange={(e) => { setConfirm(e.target.value); setError('') }}
+                      onChange={(e) => { setConfirm(e.target.value); setConfirmError(''); setError('') }}
                       autoComplete="new-password"
                     />
                     <button
@@ -225,6 +230,7 @@ function ResetPasswordPage() {
                   </div>
                 </div>
 
+                {confirmError && <p id="rp-confirm-error" className="login-field__error" role="alert">{confirmError}</p>}
                 {error && (
                   <div className="login-error">
                     <svg viewBox="0 0 16 16" fill="currentColor">

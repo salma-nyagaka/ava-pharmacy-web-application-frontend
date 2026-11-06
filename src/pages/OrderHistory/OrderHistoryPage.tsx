@@ -1,3 +1,4 @@
+import { formatStatus } from '../../utils/formatStatus'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { STATUS_CFG, type Order, type OrderStatus } from '../../data/ordersData'
@@ -252,7 +253,7 @@ function ReviewModal({ order, onClose }: { order: Order; onClose: () => void }) 
 
         <div className="rm-text-section">
           <p className="rm-label">Tell us more <span className="rm-optional">(optional)</span></p>
-          <textarea
+          <textarea aria-label="Your product review"
             className="rm-textarea"
             rows={4}
             placeholder="What did you like or dislike? How was the delivery and packaging?"
@@ -294,6 +295,7 @@ function OrderHistoryPage() {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortKey>('newest')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [reorderError, setReorderError] = useState('')
   const [reorderingId, setReorderingId] = useState<number | null>(null)
   const [reviewOrder, setReviewOrder] = useState<Order | null>(null)
   const { orders, loading, error } = useOrders()
@@ -329,16 +331,20 @@ function OrderHistoryPage() {
   const visible = sorted.slice(0, visibleCount)
 
   const handleReorder = async (order: Order) => {
+    if (reorderingId !== null) return
+    setReorderError('')
     const reorderable = order.productItems.filter((item) => item.productId)
-    if (reorderable.length === 0) return
+    if (reorderable.length !== order.productItems.length || reorderable.length === 0) {
+      setReorderError('Some products from this order are no longer available to reorder.'); return
+    }
     setReorderingId(order.apiId)
     try {
       for (const item of reorderable) {
-        await cartService.add({ id: item.productId as number, name: item.name, brand: 'Reorder', price: item.price }, item.qty)
+        await cartService.add({ id: item.productId as number, productId: item.productId as number, variantId: item.variantId, name: item.name, brand: 'Reorder', price: item.price }, item.qty)
       }
       navigate('/cart')
-    } catch {
-      // silent — user can retry from the order detail page
+    } catch (err) {
+      setReorderError(err instanceof Error ? err.message : 'Unable to add items to your cart.')
     } finally {
       setReorderingId(null)
     }
@@ -360,6 +366,7 @@ function OrderHistoryPage() {
         <span aria-current="page">My Orders</span>
       </nav>
 
+      {reorderError && <p role="alert" className="ohp-error">{reorderError}</p>}
       <div className="ohp-header">
         <div>
           <h1 className="ohp-header__title">My Orders</h1>
@@ -465,7 +472,7 @@ function OrderHistoryPage() {
 
                     <div className="ohp-row__right">
                       <span className="ohp-row__status" style={{ color: cfg.color, background: cfg.bg }}>
-                        {order.status}
+                        {formatStatus(order.status)}
                       </span>
                       <span className="ohp-row__total">{formatPrice(order.total)}</span>
                       <div className="ohp-row__actions">
@@ -487,7 +494,7 @@ function OrderHistoryPage() {
                             className="ohp-row__review"
                             type="button"
                             onClick={() => void handleReorder(order)}
-                            disabled={reorderingId === order.apiId}
+                            disabled={reorderingId !== null}
                           >
                             {reorderingId === order.apiId ? 'Adding…' : 'Reorder'}
                           </button>

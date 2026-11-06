@@ -1,3 +1,4 @@
+import { preferredScrollBehavior } from '../../utils/motion'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
@@ -75,7 +76,7 @@ function ProductDetailPage() {
   const parsedId = Number.parseInt(routeId ?? '0', 10) || 0
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
   }, [routeId])
 
   useEffect(() => {
@@ -89,7 +90,12 @@ function ProductDetailPage() {
     setIsLoading(true)
     setLoadError('')
 
-    void Promise.all([fetchProductById(parsedId), fetchProductReviews(parsedId)])
+    void fetchProductById(parsedId).then(async (detail) => {
+      const variant = detail.variants.find((item) => item.id === parsedId)
+        ?? detail.variants.find((item) => item.is_active && (item.available_quantity ?? 0) > 0)
+        ?? detail.variants.find((item) => item.is_active)
+      return [detail, variant ? await fetchProductReviews(variant.id) : []] as [ProductDetail, ProductReview[]]
+    })
       .then(async ([detail, productReviews]) => {
         if (!active) return
         setProduct(detail)
@@ -192,7 +198,7 @@ function ProductDetailPage() {
 
   useEffect(() => {
     if (!product || searchParams.get('review') !== '1') return
-    document.getElementById('write-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.getElementById('write-review')?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start' })
   }, [product, searchParams])
 
   const imageGallery = useMemo(() => {
@@ -207,8 +213,8 @@ function ProductDetailPage() {
     : product?.original_price
       ? Number.parseFloat(product.original_price)
       : null
-  const averageRating = product?.average_rating ?? 0
-  const reviewCount = product?.review_count ?? 0
+  const averageRating = selectedVariant?.average_rating ?? product?.average_rating ?? 0
+  const reviewCount = selectedVariant?.review_count ?? product?.review_count ?? 0
   const featureList = normalizeFeatures(product?.features ?? [])
 
   const stockSource: StockSource = selectedVariant?.stock_source === 'warehouse' || liveAvailability?.stock_source === 'warehouse'
@@ -371,9 +377,10 @@ function ProductDetailPage() {
     setReviewError('')
     setReviewSuccess('')
     try {
-      await submitProductReview(product.id, { rating: reviewRating, comment: reviewComment.trim() })
-      const updatedReviews = await fetchProductReviews(product.id)
+      await submitProductReview(commerceVariantId ?? parsedId, { rating: reviewRating, comment: reviewComment.trim() })
+      const updatedReviews = await fetchProductReviews(commerceVariantId ?? parsedId)
       setReviews(updatedReviews)
+      setProduct(await fetchProductById(parsedId))
       setReviewSuccess('Your review has been saved.')
     } catch (error: unknown) {
       const message =
@@ -449,7 +456,7 @@ function ProductDetailPage() {
 
           <div className="pdp__info">
             <span className="pdp__brand">{product.brand?.name ?? product.brand_name}</span>
-            <h1 className="pdp__title">{product.name}</h1>
+            <h1 className="pdp__title">{selectedVariant?.name ?? product.name}</h1>
 
             <div className="pdp__rating-section">
               <div className="pdp__stars">{renderStars(averageRating)}</div>
@@ -463,6 +470,18 @@ function ProductDetailPage() {
                 <span className="pdp__savings">Save {Math.round((1 - currentPrice / originalPrice) * 100)}%</span>
               )}
             </div>
+
+            {product.variants.filter((variant) => variant.is_active).length > 1 && (
+              <div className="pdp__variant-picker">
+                <label htmlFor="product-variant">Strength / pack size</label>
+                <select id="product-variant" value={selectedVariant?.id ?? ''}
+                  onChange={(event) => { setQuantity(1); navigate(`/product/${event.target.value}`) }}>
+                  {product.variants.filter((variant) => variant.is_active).map((variant) => (
+                    <option key={variant.id} value={variant.id}>{variant.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <p className="pdp__sku">SKU: {selectedVariant?.sku ?? product.sku}</p>
 
@@ -575,7 +594,7 @@ function ProductDetailPage() {
                 )}
                 <div className="quantity-selector">
                   <button onClick={() => setQuantity(Math.max(1, quantity - 1))} type="button">-</button>
-                  <input
+                  <input aria-label="Quantity"
                     type="number"
                     value={quantity}
                     onChange={(event) => setQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
@@ -668,6 +687,11 @@ function ProductDetailPage() {
                   <p>{product.directions}</p>
                 </>
               )}
+              {selectedVariant?.supply_hold_reason && <p role="status">{selectedVariant.supply_hold_reason}</p>}
+              {selectedVariant?.contraindications && <><h4>When this medicine may be unsuitable</h4><p>{selectedVariant.contraindications}</p></>}
+              {selectedVariant?.side_effects && <><h4>Possible side effects</h4><p>{selectedVariant.side_effects}</p></>}
+              {selectedVariant?.storage_instructions && <><h4>Storage</h4><p>{selectedVariant.storage_instructions}</p></>}
+              {selectedVariant?.pil_source_url && <p><a href={selectedVariant.pil_source_url} target="_blank" rel="noopener noreferrer">Patient information leaflet</a> — {selectedVariant.pil_version}. Reviewed {selectedVariant.pil_reviewed_at?.slice(0,10)}. Ask the pharmacist for advice specific to you.</p>}
               {product.warnings && (
                 <>
                   <h4>Warnings</h4>
@@ -706,7 +730,7 @@ function ProductDetailPage() {
                 </button>
               ))}
             </div>
-            <textarea
+            <textarea aria-label="Your product review"
               value={reviewComment}
               onChange={(event) => setReviewComment(event.target.value)}
               placeholder="Share your experience with this product."

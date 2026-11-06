@@ -500,3 +500,26 @@
   .ase-banner { flex-direction: column; text-align: center; }
   .ase-banner__badge { display: inline-block; }
 }
+
+/* Account deactivation panel. */
+.ase-card.ase-deactivate { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; padding: 20px 24px; border: 1px solid #f1d7dc; border-radius: 12px; box-shadow: none; }
+.ase-deactivate__copy { flex: 1 1 340px; }
+.ase-deactivate h3 { margin: 0 0 6px; color: #172b3a; font-size: 1rem; line-height: 1.4; font-weight: 700; }
+.ase-deactivate__copy p { max-width: 75ch; margin: 0; font-size: .8125rem; line-height: 1.7; color: #64748b; }
+.ase-deactivate .ase-btn { justify-content: center; min-height: 40px; padding: 9px 16px; border-radius: 8px; font-size: .8rem; line-height: 1.4; font-weight: 600; }
+.ase-btn--danger-outline { background: #fff; color: #be123c; border: 1px solid #e9b6c2; }
+.ase-btn--danger-outline:hover { background: #fff1f2; border-color: #be123c; }
+.ase-btn--danger { background: #be123c; border: 1px solid #be123c; color: #fff; }
+.ase-btn--danger:hover:not(:disabled) { background: #9f1239; }
+.ase-btn--secondary { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+.ase-btn--secondary:hover:not(:disabled) { background: #f8fafc; }
+.ase-deactivate__confirmation { flex-basis: 100%; padding: 16px; border: 1px solid #f1d7dc; border-radius: 8px; background: #fff7f8; display: flex; flex-wrap: wrap; gap: 10px; }
+.ase-deactivate__confirmation p { flex-basis: 100%; margin: 0 0 2px; font-size: .8125rem; font-weight: 600; color: #881337; }
+.ase-deactivate .ase-deactivate__error { flex-basis: 100%; margin: 0; font-size: .8rem; color: #be123c; }
+.ase-deactivate .ase-btn:disabled { opacity: .55; cursor: not-allowed; }
+.ase-deactivate .ase-btn:focus-visible { outline: 2px solid #be123c; outline-offset: 3px; }
+@media (max-width: 560px) { .ase-card.ase-deactivate { padding: 18px; gap: 16px; } .ase-deactivate__copy { flex-basis: 100%; } .ase-deactivate > .ase-btn { width: 100%; } }
+.ase-password-reset { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.ase-password-reset p { margin: 0; font-size: .8125rem; line-height: 1.7; color: #64748b; }
+.ase-password-reset strong { color: #334155; overflow-wrap: anywhere; }
+.ase-password-reset a { margin-top: 4px; text-decoration: none; }

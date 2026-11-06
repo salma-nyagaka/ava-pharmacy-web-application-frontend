@@ -1,3 +1,10 @@
+import PrescriptionDuration from '../../components/PrescriptionDuration'
+import ClinicalNotes from '../../components/ClinicalNotes'
+import { useWorkspaceView } from '../../hooks/useWorkspaceView'
+import { preferredScrollBehavior } from '../../utils/motion'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
+import ConsultationAttachments from '../../components/ConsultationAttachments'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -102,6 +109,8 @@ function mapBackendConsultation(record: ConsultationRecord, doctorId: string): C
     backendId: record.id,
     doctorId,
     patientName: record.patientName || 'Patient',
+    patientPhone: record.patientPhone,
+    patientEmail: record.patientEmail,
     patientAge: record.patientAge ?? 0,
     issue: record.issue,
     status: CONSULT_STATUS_FROM_API[record.status] ?? 'Waiting',
@@ -196,12 +205,14 @@ function mapBackendPrescription(rx: ClinicianPrescription, doctorId: string): Do
 }
 
 function mapBackendEarnings(records: ClinicianEarningRecord[], doctorId: string): DoctorEarning[] {
-  const grouped = new Map<string, { period: string; consults: number; revenue: number; lastEarnedAt: string }>()
+  const grouped = new Map<string, { period: string; consults: number; revenue: number; lastEarnedAt: string; paid: number; held: boolean; lastPaidAt: string }>()
   records.forEach((record) => {
     const earnedAt = record.earned_at ? new Date(record.earned_at) : new Date()
     const key = `${earnedAt.getFullYear()}-${String(earnedAt.getMonth() + 1).padStart(2, '0')}`
     const period = earnedAt.toLocaleDateString('en-KE', { month: 'long', year: 'numeric' })
-    const existing = grouped.get(key) ?? { period, consults: 0, revenue: 0, lastEarnedAt: record.earned_at }
+    const existing = grouped.get(key) ?? { period, consults: 0, revenue: 0, lastEarnedAt: record.earned_at, paid: 0, held: false, lastPaidAt: '' }
+    if (record.payout?.status === 'paid') { existing.paid += 1; existing.lastPaidAt = record.payout.paid_at || existing.lastPaidAt }
+    if (['on_hold', 'reversed', 'failed'].includes(record.payout?.status || '')) existing.held = true
     existing.consults += 1
     existing.revenue += Number(record.amount || 0)
     existing.lastEarnedAt = record.earned_at || existing.lastEarnedAt
@@ -216,8 +227,8 @@ function mapBackendEarnings(records: ClinicianEarningRecord[], doctorId: string)
       period: value.period,
       consults: value.consults,
       revenue: value.revenue,
-      payoutDate: 'Next payout cycle',
-      status: 'Scheduled' as const,
+      payoutDate: value.paid === value.consults && value.lastPaidAt ? new Date(value.lastPaidAt).toLocaleDateString('en-KE') : 'Not fully recorded as paid',
+      status: value.paid === value.consults ? 'Paid' as const : value.held ? 'On hold' as const : 'Scheduled' as const,
     }))
 }
 
@@ -270,17 +281,16 @@ function timelineTime(value: string) {
   return Number.isFinite(time) ? time : 0
 }
 
-function patientProfileSeed(name: string) {
-  const safeName = name.toLowerCase().replace(/[^a-z]+/g, '.').replace(/^\.+|\.+$/g, '') || 'patient'
+function buildPatientProfile(consultation?: Consultation) {
   return {
     gender: 'Not recorded',
-    phone: '+254 700 000 000',
-    email: `${safeName}@example.com`,
-    allergies: ['No known drug allergies'],
-    chronicConditions: ['None recorded'],
-    currentMedication: ['None recorded'],
+    phone: consultation?.patientPhone || 'Not recorded',
+    email: consultation?.patientEmail || 'Not recorded',
+    allergies: ['Not recorded'],
+    chronicConditions: ['Not recorded'],
+    currentMedication: ['Not recorded'],
     bloodGroup: 'Not recorded',
-    documents: ['Medical record', 'Consultation attachment'],
+    documents: [] as string[],
   }
 }
 
@@ -316,7 +326,7 @@ function WaitTimer({ since }: { since: string | Date | undefined }) {
 function DoctorDashboardPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<DoctorTab>('queue')
+  const [activeTab, setActiveTab] = useWorkspaceView<DoctorTab>(['queue', 'prescriptions', 'patients', 'earnings'], 'queue')
   const isAdminPreview = user?.role === 'admin'
   const doctors = useMemo(() => loadDoctorProfiles(), [])
   const doctor = useMemo(() => {
@@ -394,7 +404,7 @@ function DoctorDashboardPage() {
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null)
 
   useEffect(() => {
-    consultEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    consultEndRef.current?.scrollIntoView({ behavior: preferredScrollBehavior() })
   }, [consultThread?.messages])
 
   useEffect(() => {
@@ -429,11 +439,11 @@ function DoctorDashboardPage() {
         setEarnings(mappedEarnings)
       } catch {
         if (!cancelled) {
-          setWorkspaceError('Unable to load the live doctor workspace. Showing saved local data.')
-          setConsultations(loadConsultations())
-          setThreads(loadDoctorMessages())
-          setPrescriptions(loadDoctorPrescriptions())
-          setEarnings(loadDoctorEarnings().filter((e) => e.doctorId === activeDoctorId))
+          setWorkspaceError('Unable to load the live doctor workspace. Please try again.')
+          setConsultations([])
+          setThreads([])
+          setPrescriptions([])
+          setEarnings([])
         }
       } finally {
         if (!cancelled) setWorkspaceLoading(false)
@@ -447,6 +457,13 @@ function DoctorDashboardPage() {
     () => consultations.filter((c) => c.doctorId === activeDoctorId && !c.pediatric),
     [consultations, activeDoctorId]
   )
+
+  const notificationOpened = useRef(false)
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get('consultation'))
+    const record = doctorConsultations.find(item => item.backendId === id)
+    if (!notificationOpened.current && record) { setSelectedConsult(record); notificationOpened.current = true }
+  }, [doctorConsultations])
 
   const queueItems = useMemo(() => {
     const q = queueSearch.trim().toLowerCase()
@@ -1317,11 +1334,12 @@ function DoctorDashboardPage() {
                     <input
                       className="dd-search-input"
                       type="text"
+                      aria-label="Search by patient, issue, ID"
                       placeholder="Search by patient, issue, ID…"
                       value={queueSearch}
                       onChange={(e) => setQueueSearch(e.target.value)}
                     />
-                    {queueSearch && <button className="dd-search-clear" onClick={() => setQueueSearch('')}>×</button>}
+                    {queueSearch && <button aria-label="Clear search" type="button" className="dd-search-clear" onClick={() => setQueueSearch('')}>×</button>}
                   </div>
                   <span className="dd-count">{queueItems.length} consultation{queueItems.length !== 1 ? 's' : ''}</span>
                 </div>
@@ -1342,7 +1360,7 @@ function DoctorDashboardPage() {
                     </thead>
                     <tbody>
                       {queueItems.map((item) => {
-                        const linkedRx = doctorPrescriptions.find((rx) => prescriptionMatchesConsultation(rx, item.id))
+                        const linkedRx = doctorPrescriptions.find((rx) => prescriptionMatchesConsultation(rx, item))
                         return (
                           <tr
                             key={item.id}
@@ -1379,7 +1397,7 @@ function DoctorDashboardPage() {
                               {linkedRx ? (
                                 <div className="dd-rx-linked">
                                   <strong>{linkedRx.id}</strong>
-                                  <span>{linkedRx.status} · {linkedRx.items.length} item{linkedRx.items.length !== 1 ? 's' : ''}</span>
+                                  <span>{formatStatus(linkedRx.status)} · {linkedRx.items.length} item{linkedRx.items.length !== 1 ? 's' : ''}</span>
                                 </div>
                               ) : (
                                 <span className="dd-rx-empty">Not issued</span>
@@ -1390,7 +1408,7 @@ function DoctorDashboardPage() {
                                 className="dd-status-pill"
                                 style={STATUS_PILL_STYLES[item.status] ?? { background: 'rgba(100,116,139,0.12)', color: '#1e293b' }}
                               >
-                                {item.status}
+                                {formatStatus(item.status)}
                               </span>
                             </td>
                             <td>
@@ -1461,7 +1479,7 @@ function DoctorDashboardPage() {
                 {selectedConsult ? (
                   <div className="dd-workspace-card">
                     {(() => {
-                      const linkedRx = doctorPrescriptions.find((rx) => prescriptionMatchesConsultation(rx, selectedConsult.id))
+                      const linkedRx = doctorPrescriptions.find((rx) => prescriptionMatchesConsultation(rx, selectedConsult))
                       return (
                         <>
                     <div className="dd-workspace-card__header">
@@ -1476,7 +1494,7 @@ function DoctorDashboardPage() {
                         className="dd-status-pill"
                         style={STATUS_PILL_STYLES[selectedConsult.status] ?? { background: 'rgba(100,116,139,0.12)', color: '#1e293b' }}
                       >
-                        {selectedConsult.status}
+                        {formatStatus(selectedConsult.status)}
                       </span>
                     </div>
                     <div className="dd-workspace-card__body">
@@ -1573,7 +1591,8 @@ function DoctorDashboardPage() {
                 <input
                   className="dd-search-input"
                   type="text"
-                  placeholder="Search prescriptions…"
+                  aria-label="Search prescriptions"
+                      placeholder="Search prescriptions…"
                   value={prescriptionSearch}
                   onChange={(e) => setPrescriptionSearch(e.target.value)}
                 />
@@ -1629,7 +1648,7 @@ function DoctorDashboardPage() {
                             ? { background: 'rgba(37,99,235,0.12)', color: '#1e3a8a' }
                             : { background: 'rgba(245,158,11,0.12)', color: '#92400e' }
                         }>
-                          {rx.status}
+                          {formatStatus(rx.status)}
                         </span>
                       </td>
                       <td>
@@ -1677,7 +1696,8 @@ function DoctorDashboardPage() {
                   <input
                     className="dd-search-input"
                     type="text"
-                    placeholder="Search patients..."
+                    aria-label="Search patients"
+                      placeholder="Search patients..."
                     value={patientSearch}
                     onChange={(e) => setPatientSearch(e.target.value)}
                   />
@@ -1761,7 +1781,7 @@ function DoctorDashboardPage() {
 
             {selectedPatient && (() => {
               const patient = patientRecords.find((record) => record.name === selectedPatient)
-              const profile = patientProfileSeed(selectedPatient)
+              const profile = buildPatientProfile(doctorConsultations.find((consultation) => consultation.patientName === selectedPatient))
               const patientConsults = doctorConsultations.filter((consultation) => consultation.patientName === selectedPatient)
               const patientRx = doctorPrescriptions.filter((rx) => rx.patientName === selectedPatient)
               const activeRx = patientRx.filter((rx) => rx.status === 'Draft' || rx.status === 'Sent')
@@ -1771,7 +1791,7 @@ function DoctorDashboardPage() {
               return (
                 <>
                   <div className="dd-overlay" onClick={() => setSelectedPatient(null)} />
-                  <section className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
+                  <Dialog onClose={() => setSelectedPatient(null)} className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
                   <div className="dd-patient-profile__header">
                     <div className="dd-td-patient">
                       <div className="dd-td-patient__avatar">{initials(selectedPatient)}</div>
@@ -1826,7 +1846,7 @@ function DoctorDashboardPage() {
                                 <td>{medicationSummary(rx.items)}</td>
                                 <td>{rx.notes || 'Not recorded'}</td>
                                 <td>{rx.items[0]?.dosage || '-'}</td>
-                                <td>{rx.status}</td>
+                                <td>{formatStatus(rx.status)}</td>
                                 <td>
                                   <div className="dd-actions-cell">
                                     <button className="dd-action-btn" type="button">View</button>
@@ -1845,7 +1865,7 @@ function DoctorDashboardPage() {
                     <div className="dd-profile-card">
                       <h3>Documents</h3>
                       <div className="dd-documents-grid">
-                        {[...profile.documents, 'Lab Reports', 'Imaging', 'Prescriptions'].map((document) => (
+                        {profile.documents.map((document) => (
                           <div key={document} className="dd-document-chip">
                             <span>{document}</span>
                             <button type="button">Preview</button>
@@ -1855,7 +1875,7 @@ function DoctorDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  </section>
+                  </Dialog>
                 </>
               )
             })()}
@@ -1864,7 +1884,7 @@ function DoctorDashboardPage() {
 
         {activeTab === 'queue' && selectedPatient && (() => {
           const patient = patientRecords.find((record) => record.name === selectedPatient)
-          const profile = patientProfileSeed(selectedPatient)
+          const profile = buildPatientProfile(doctorConsultations.find((consultation) => consultation.patientName === selectedPatient))
           const patientConsults = doctorConsultations.filter((consultation) => consultation.patientName === selectedPatient)
           const patientRx = doctorPrescriptions.filter((rx) => rx.patientName === selectedPatient)
           const activeRx = patientRx.filter((rx) => rx.status === 'Draft' || rx.status === 'Sent')
@@ -1874,7 +1894,7 @@ function DoctorDashboardPage() {
           return (
             <>
               <div className="dd-overlay" onClick={() => setSelectedPatient(null)} />
-              <section className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
+              <Dialog onClose={() => setSelectedPatient(null)} className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
                 <div className="dd-patient-profile__header">
                   <div className="dd-td-patient">
                     <div className="dd-td-patient__avatar">{initials(selectedPatient)}</div>
@@ -1929,7 +1949,7 @@ function DoctorDashboardPage() {
                               <td>{medicationSummary(rx.items)}</td>
                               <td>{rx.notes || 'Not recorded'}</td>
                               <td>{rx.items[0]?.dosage || '-'}</td>
-                              <td>{rx.status}</td>
+                              <td>{formatStatus(rx.status)}</td>
                               <td>
                                 <div className="dd-actions-cell">
                                   <button className="dd-action-btn" type="button">View</button>
@@ -1948,7 +1968,7 @@ function DoctorDashboardPage() {
                   <div className="dd-profile-card">
                     <h3>Documents</h3>
                     <div className="dd-documents-grid">
-                      {[...profile.documents, 'Lab Reports', 'Imaging', 'Prescriptions'].map((document) => (
+                      {profile.documents.map((document) => (
                         <div key={document} className="dd-document-chip">
                           <span>{document}</span>
                           <button type="button">Preview</button>
@@ -1958,7 +1978,7 @@ function DoctorDashboardPage() {
                     </div>
                   </div>
                 </div>
-              </section>
+              </Dialog>
             </>
           )
         })()}
@@ -2010,7 +2030,7 @@ function DoctorDashboardPage() {
 
             <div className="dd-table-card">
               <div className="dd-toolbar">
-                <h3 className="dd-toolbar__title">Monthly breakdown</h3>
+                <h3 className="dd-toolbar__title">Monthly breakdown</h3><p>Payout status reflects administrative payment records. Confirm actual receipt through your bank or M-Pesa.</p>
               </div>
               <div className="cm-panel cm-table-wrap dd-table-wrap">
                 <table className="cm-table dd-table">
@@ -2037,7 +2057,7 @@ function DoctorDashboardPage() {
                               ? { background: 'rgba(245,158,11,0.12)', color: '#92400e' }
                               : { background: 'rgba(239,68,68,0.12)', color: '#991b1b' }
                           }>
-                            {entry.status}
+                            {formatStatus(entry.status)}
                           </span>
                         </td>
                         <td className="dd-td-meta">{entry.payoutDate}</td>
@@ -2111,8 +2131,9 @@ function DoctorDashboardPage() {
                   ))}
                   <div ref={consultEndRef} />
                 </div>
+                {consultThread?.backendConsultationId && <ConsultationAttachments key={consultThread.backendConsultationId} consultationId={consultThread.backendConsultationId} refreshKey={consultThread.messages.length} />}
                 <div className="dd-sp-chat-input">
-                  <input
+                  <input aria-label="Type your message"
                     type="text"
                     placeholder="Type your message…"
                     value={consultMessage}
@@ -2132,6 +2153,7 @@ function DoctorDashboardPage() {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   </button>
                 </div>
+                <ClinicalNotes key={selectedConsult.backendId} consultationId={selectedConsult.backendId} editable />
                 <div className="dd-sp-footer">
                   <div className="dd-sp-actions">
                     <button
@@ -2188,6 +2210,7 @@ function DoctorDashboardPage() {
                 </div>
 
                 <div className="dd-sp-body">
+                  <ClinicalNotes key={selectedConsult.backendId} consultationId={selectedConsult.backendId} editable />
                   <div className="dd-sp-section">
                     <p className="dd-sp-section-title">Patient</p>
                     <div className="dd-sp-patient">
@@ -2216,12 +2239,12 @@ function DoctorDashboardPage() {
                     <div className="dd-sp-field">
                       <p className="dd-sp-field-label">Status</p>
                       <span className="dd-status-pill" style={STATUS_PILL_STYLES[selectedConsult.status] ?? { background: 'rgba(100,116,139,0.12)', color: '#1e293b' }}>
-                        {selectedConsult.status}
+                        {formatStatus(selectedConsult.status)}
                       </span>
                     </div>
                   </div>
                   {(() => {
-                    const linkedRx = doctorPrescriptions.find((rx) => prescriptionMatchesConsultation(rx, selectedConsult.id))
+                    const linkedRx = doctorPrescriptions.find((rx) => prescriptionMatchesConsultation(rx, selectedConsult))
                     return (
                       <div className={`dd-handoff-card dd-handoff-card--panel ${linkedRx ? 'dd-handoff-card--ready' : ''}`}>
                         <div>
@@ -2369,7 +2392,7 @@ function DoctorDashboardPage() {
                       </div>
                       <div className="dd-rx-catalog-cell">
                         <label>Medicine</label>
-                        <select
+                        <select aria-label="Medicine variant"
                           value={item.variantId ? String(item.variantId) : ''}
                           disabled={rxLockedByPayment}
                           onFocus={loadPrescriptionCatalog}
@@ -2384,7 +2407,7 @@ function DoctorDashboardPage() {
                             </option>
                           ))}
                         </select>
-                        <input
+                        <input aria-label="Medicine variant"
                           type="text"
                           placeholder="Filter medicine list"
                           disabled={rxLockedByPayment}
@@ -2420,7 +2443,7 @@ function DoctorDashboardPage() {
                       </div>
                       <div className="dd-rx-dose-cell">
                         <label>Dose <span className="dd-rx-required">*</span></label>
-                        <input
+                        <input aria-label="Dose"
                           type="text"
                           required
                           placeholder="e.g. 500 mg"
@@ -2429,13 +2452,13 @@ function DoctorDashboardPage() {
                           onChange={(e) => updateRxItem(idx, { dosage: e.target.value })}
                         />
                         <label>Frequency <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. TID" disabled={rxLockedByPayment} value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
+                        <input aria-label="Frequency" type="text" required placeholder="e.g. TID" disabled={rxLockedByPayment} value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
                         <label>Duration <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. 3/7, 2/52, 1/12" disabled={rxLockedByPayment} value={item.duration ?? ''} onChange={(e) => updateRxItem(idx, { duration: e.target.value })} />
+                        <PrescriptionDuration value={item.duration ?? ''} disabled={rxLockedByPayment} onChange={duration => updateRxItem(idx, { duration })} />
                       </div>
                       <div className="dd-rx-qty-cell">
                         <label>Qty <span className="dd-rx-required">*</span></label>
-                        <input
+                        <input aria-label="Quantity"
                           type="number"
                           min={1}
                           required
@@ -2445,7 +2468,7 @@ function DoctorDashboardPage() {
                           onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })}
                         />
                         <label>Measurement <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. tablets, ml" disabled={rxLockedByPayment} value={item.quantityMeasurement ?? ''} onChange={(e) => updateRxItem(idx, { quantityMeasurement: e.target.value })} />
+                        <input aria-label="Quantity measurement unit" type="text" required placeholder="e.g. tablets, ml" disabled={rxLockedByPayment} value={item.quantityMeasurement ?? ''} onChange={(e) => updateRxItem(idx, { quantityMeasurement: e.target.value })} />
                       </div>
                     </div>
                   ))}

@@ -3,6 +3,7 @@ import type { Order as ApiOrder } from '../services/orderService'
 export type OrderStatus = 'Pending' | 'Confirmed' | 'Processing' | 'In Transit' | 'Delivered' | 'Cancelled' | 'Refunded'
 
 export interface OrderItem {
+  variantId?: number
   productId: number | null
   productSlug: string | null
   name: string
@@ -51,9 +52,9 @@ function parseAmount(value: string | null | undefined) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
@@ -135,6 +136,7 @@ export function mapApiOrder(order: ApiOrder): Order {
     products: items.map((item) => item.product_name),
     productItems: items.map((item) => ({
       productId: item.product_id ?? null,
+      variantId: item.variant?.id,
       productSlug: item.product_slug ?? null,
       name: item.product_name,
       qty: item.quantity,

@@ -1,3 +1,5 @@
+import { preferredScrollBehavior } from '../../utils/motion'
+import Dialog from '../../components/Dialog/Dialog'
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
@@ -44,7 +46,7 @@ const DISPATCH_CFG: Record<PrescriptionRecord['dispatchStatus'], { label: string
 }
 
 function formatDate(value: string) {
-  if (!value) return '—'
+  if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString('en-KE', {
@@ -182,6 +184,68 @@ function PrescriptionUploadPage() {
   const [replyNotice, setReplyNotice] = useState<Record<string, string>>({})
   const [activeRx, setActiveRx] = useState<PrescriptionRecord | null>(null)
 
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [editPatient, setEditPatient] = useState('')
+  const [editDoctor, setEditDoctor] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editFiles, setEditFiles] = useState<File[]>([])
+  const [editError, setEditError] = useState('')
+
+  useEffect(() => {
+    setIsEditing(false)
+    setEditError('')
+    setEditFiles([])
+  }, [activeRx?.id])
+
+  const closePrescription = () => {
+    if (!isSavingEdit) setActiveRx(null)
+  }
+
+  const startEditing = () => {
+    if (!activeRx) return
+    setEditPatient(activeRx.patient)
+    setEditDoctor(activeRx.doctor === 'Doctor not specified' ? '' : activeRx.doctor)
+    setEditNotes(activeRx.notes)
+    setEditFiles([])
+    setEditError('')
+    setIsEditing(true)
+  }
+
+  const savePendingEdit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!activeRx?.backendId || isSavingEdit) return
+    if (!editPatient.trim() || !editDoctor.trim()) {
+      setEditError('Enter the patient’s name and prescribing doctor’s name.')
+      return
+    }
+    if (activeRx.files.length + editFiles.length > 5) {
+      setEditError('You can keep at most 5 files on a prescription.')
+      return
+    }
+    if (editFiles.some((file) => file.size > 5 * 1024 * 1024 || !['application/pdf', 'image/jpeg', 'image/png'].includes(file.type))) {
+      setEditError('Upload PDF, JPG, or PNG files no larger than 5 MB each.')
+      return
+    }
+    setIsSavingEdit(true)
+    setEditError('')
+    try {
+      const { data } = await prescriptionService.editPending(activeRx.backendId, {
+        patient: editPatient, doctor: editDoctor, notes: editNotes, files: editFiles,
+      })
+      setPrescriptions((current) => current.map((rx) => rx.backendId === data.backendId ? data : rx))
+      setActiveRx(data)
+      setIsEditing(false)
+      setEditFiles([])
+    } catch (error) {
+      const detail = (error as { response?: { data?: { error?: { message?: string }; detail?: string } } }).response?.data
+      setEditError(detail?.error?.message || detail?.detail || 'Could not save your changes. Please try again.')
+      loadPrescriptions()
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
   const patientName = user?.name ?? 'Guest'
 
   const loadPrescriptions = () => {
@@ -269,37 +333,35 @@ function PrescriptionUploadPage() {
   }, [activeRx, prescriptions])
 
   const addFiles = (files: File[]) => {
-    setUploadedFiles((prev) => {
-      const merged = [...prev]
-      files.forEach((file) => {
-        if (!merged.some((existing) => existing.name === file.name && existing.size === file.size)) {
-          merged.push(file)
-        }
-      })
-      return merged
+    if (files.some((file) => !['application/pdf', 'image/jpeg', 'image/png'].includes(file.type))) {
+      setUploadError('Unsupported file type. Please upload a PDF, JPG, or PNG file.')
+      return
+    }
+    if (files.some((file) => file.size > 5 * 1024 * 1024)) {
+      setUploadError('Each prescription file must be 5 MB or smaller.')
+      return
+    }
+    const merged = [...uploadedFiles]
+    files.forEach((file) => {
+      if (!merged.some((existing) => existing.name === file.name && existing.size === file.size)) merged.push(file)
     })
+    if (merged.length > 5) {
+      setUploadError('You can upload up to 5 prescription files.')
+      return
+    }
+    setUploadedFiles(merged)
     setUploadError('')
   }
 
   const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files ?? []).filter((file) =>
-      ['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)
-    )
-    if (selectedFiles.length) {
-      addFiles(selectedFiles)
-    } else if (event.target.files?.length) {
-      setUploadError('Unsupported file type. Please upload a PDF, JPG, or PNG file.')
-    }
+    addFiles(Array.from(event.target.files ?? []))
     event.target.value = ''
   }
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault()
     setIsDragging(false)
-    const files = Array.from(event.dataTransfer.files).filter((file) =>
-      ['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)
-    )
-    if (files.length) addFiles(files)
+    addFiles(Array.from(event.dataTransfer.files))
   }
 
   const removeFile = (index: number) => {
@@ -307,6 +369,11 @@ function PrescriptionUploadPage() {
   }
 
   const handleSubmit = () => {
+    if (!doctorName.trim()) {
+      setUploadError('Please enter the prescribing doctor’s name.')
+      document.getElementById('rx-doctor')?.focus()
+      return
+    }
     if (uploadedFiles.length === 0) {
       setUploadError('Please attach at least one prescription file.')
       return
@@ -360,13 +427,13 @@ function PrescriptionUploadPage() {
   const openUploadForm = () => {
     setSubmitted(false)
     setShowUploadForm(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
   }
 
   const closeUploadForm = () => {
     setSubmitted(false)
     setShowUploadForm(false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
   }
 
   const handleClarificationReply = (rx: PrescriptionRecord, event: FormEvent<HTMLFormElement>) => {
@@ -661,8 +728,8 @@ function PrescriptionUploadPage() {
           </div>
 
           {activeRx && (
-            <div className="modal-overlay" onClick={() => setActiveRx(null)}>
-              <div className="modal rx-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-overlay" onClick={closePrescription}>
+              <Dialog busy={isSavingEdit || sendingReplyId === activeRx.backendId} onClose={closePrescription} className="modal rx-modal" onClick={(event) => event.stopPropagation()}>
                 <div className="modal__header rx-modal__header">
                   <div className="rx-modal__header-main">
                     <p className="rx-modal__eyebrow">Prescription</p>
@@ -676,11 +743,36 @@ function PrescriptionUploadPage() {
                     <span className="ac-card__status rup-dispatch-status" style={{ color: dispatchStatusForPrescription(activeRx).color, background: dispatchStatusForPrescription(activeRx).bg }}>
                       {dispatchStatusForPrescription(activeRx).label}
                     </span>
-                    <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
+                    <button aria-label="Close dialog" className="modal__close" type="button" disabled={isSavingEdit} onClick={closePrescription}>×</button>
                   </div>
                 </div>
 
                 <div className="modal__content rx-modal__content">
+                  {isEditing && activeRx.status === 'Pending' && activeRx.source !== 'e_prescription' && (
+                    <form id="pending-prescription-edit" className="rup-meta" onSubmit={savePendingEdit}>
+                      <h3>Edit pending prescription</h3>
+                      <fieldset disabled={isSavingEdit} style={{ border: 0, padding: 0, margin: 0 }}>
+                        <div className="rup-field">
+                          <label htmlFor="edit-rx-patient">Patient name *</label>
+                          <input id="edit-rx-patient" required maxLength={200} value={editPatient} onChange={(event) => setEditPatient(event.target.value)} />
+                        </div>
+                        <div className="rup-field">
+                          <label htmlFor="edit-rx-doctor">Prescribing doctor *</label>
+                          <input id="edit-rx-doctor" required maxLength={200} value={editDoctor} onChange={(event) => setEditDoctor(event.target.value)} />
+                        </div>
+                        <div className="rup-field">
+                          <label htmlFor="edit-rx-notes">Notes for pharmacist</label>
+                          <textarea id="edit-rx-notes" rows={3} value={editNotes} onChange={(event) => setEditNotes(event.target.value)} />
+                        </div>
+                        <div className="rup-field">
+                          <label htmlFor="edit-rx-files">Add documents</label>
+                          <input id="edit-rx-files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={(event) => setEditFiles(Array.from(event.target.files ?? []))} />
+                          <small>Existing uploads are kept. Up to 5 files total, 5 MB each.</small>
+                        </div>
+                      </fieldset>
+                    </form>
+                  )}
+                  {editError && <p className="rup-error" role="alert">{editError}</p>}
                   <ul className="rup-modal-facts" aria-label="Prescription details">
                     <li><span>Patient</span><strong>{activeRx.patient}</strong></li>
                     <li><span>Doctor</span><strong>{activeRx.doctor || 'Not provided'}</strong></li>
@@ -698,9 +790,9 @@ function PrescriptionUploadPage() {
                         {activeRx.files.map((file, index) => {
                           const href = resolveMediaUrl(file) || file
                           return (
-                            <a key={`${file}-${index}`} className="rx-modal__file-pill" href={href} target="_blank" rel="noreferrer">
+                            <a key={`${file}-${index}`} className="rx-modal__file-pill" href={href} download rel="noreferrer">
                               <span>{formatFileLabel(file, index)}</span>
-                              <small>Open</small>
+                              <small>Download</small>
                             </a>
                           )
                         })}
@@ -762,7 +854,7 @@ function PrescriptionUploadPage() {
                               <p className="rup-clarification-form__hint">Your message will be added to this thread.</p>
                             </div>
                           </div>
-                          <textarea
+                          <textarea aria-label="Type a short response"
                             value={replyDrafts[activeRx.id] || ''}
                             onChange={(event) => {
                               setReplyDrafts((current) => ({ ...current, [activeRx.id]: event.target.value }))
@@ -797,7 +889,7 @@ function PrescriptionUploadPage() {
                           <li key={`${item.backendId || item.name}-${item.name}`} className="rx-approved-items__row">
                             <div>
                               <p className="rx-approved-items__name">{item.productName || item.name}</p>
-                              <p className="rx-approved-items__meta">{item.dose} · {item.frequency} · Qty {item.qty}</p>
+                              <p className="rx-approved-items__meta">{item.variantName || item.variantSku} · {item.dose} · {item.frequency}{item.duration ? ` · ${item.duration}` : ''} · Qty {item.qty} {item.quantityMeasurement || ''}</p>
                             </div>
                             {item.isPaidFor && <span className="status-pill status-pill--success">Paid</span>}
                           </li>
@@ -808,12 +900,18 @@ function PrescriptionUploadPage() {
                 </div>
 
                 <div className="modal__footer rx-modal__footer">
+                  {activeRx.status === 'Pending' && activeRx.source !== 'e_prescription' && activeRx.backendId && (
+                    isEditing ? <>
+                      <button className="btn btn--primary btn--sm" type="submit" form="pending-prescription-edit" disabled={isSavingEdit}>{isSavingEdit ? 'Saving...' : 'Save changes'}</button>
+                      <button className="btn btn--outline btn--sm" type="button" disabled={isSavingEdit} onClick={() => { setIsEditing(false); setEditError('') }}>Cancel edit</button>
+                    </> : <button className="btn btn--primary btn--sm" type="button" onClick={startEditing}>Edit prescription</button>
+                  )}
                   {hasUnpaidApprovedItems(activeRx) && (
                     <Link to={`/cart?prescription=${encodeURIComponent(activeRx.id)}`} className="btn btn--outline btn--sm">Open cart</Link>
                   )}
-                  <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
+                  <button className="btn btn--outline btn--sm" type="button" onClick={closePrescription}>Close</button>
                 </div>
-              </div>
+              </Dialog>
             </div>
           )}
         </div>
@@ -928,10 +1026,11 @@ function PrescriptionUploadPage() {
                     onDrop={handleDrop}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(event) => event.key === 'Enter' && fileInputRef.current?.click()}
+                    onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInputRef.current?.click() } }}
                   >
                     <input
                       ref={fileInputRef}
+                      aria-label="Prescription files"
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
                       multiple
@@ -982,10 +1081,21 @@ function PrescriptionUploadPage() {
                     </div>
                   )}
 
+                  {uploadError && (
+                    <p className="rup-error" role="alert">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      {uploadError}
+                    </p>
+                  )}
+
                   <div className="rup-meta">
                     <div className="rup-field">
-                      <label htmlFor="rx-doctor">Prescribing doctor <span className="rup-field__optional">optional</span></label>
-                      <input id="rx-doctor" type="text" placeholder="Dr. Jane Doe" value={doctorName} onChange={(event) => setDoctorName(event.target.value)} />
+                      <label htmlFor="rx-doctor">Prescribing doctor <span aria-hidden="true">*</span></label>
+                      <input id="rx-doctor" type="text" required maxLength={200} placeholder="Dr. Jane Doe" value={doctorName} onChange={(event) => setDoctorName(event.target.value)} />
                     </div>
                     <div className="rup-field">
                       <label htmlFor="rx-notes">Notes for pharmacist <span className="rup-field__optional">optional</span></label>
@@ -999,16 +1109,7 @@ function PrescriptionUploadPage() {
                     </div>
                   </div>
 
-                  {uploadError && (
-                    <p className="rup-error">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                      {uploadError}
-                    </p>
-                  )}
+
 
                   <TurnstileChallenge action="prescription_upload" onToken={setChallengeToken} resetKey={challengeResetKey} />
 

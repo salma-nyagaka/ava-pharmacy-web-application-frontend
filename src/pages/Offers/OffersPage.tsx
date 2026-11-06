@@ -272,16 +272,16 @@ function OffersPage() {
               <div className="filter-panel__section">
                 <h4 className="filter-panel__heading">Price Range</h4>
                 <div className="price-inputs">
-                  <input type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
+                  <input aria-label="Minimum price in KSh" type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
                   <span className="price-sep">–</span>
-                  <input type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
+                  <input aria-label="Maximum price in KSh" type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
                 </div>
               </div>
 
               <div className="filter-panel__section">
                 <h4 className="filter-panel__heading">Discount Range</h4>
                 <div className="price-inputs">
-                  <input
+                  <input aria-label="Minimum discount percentage"
                     type="number"
                     min="0"
                     max="100"
@@ -291,7 +291,7 @@ function OffersPage() {
                     onChange={(e) => setMinDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
                   />
                   <span className="price-sep">–</span>
-                  <input
+                  <input aria-label="Maximum discount percentage"
                     type="number"
                     min="0"
                     max="100"
@@ -330,7 +330,7 @@ function OffersPage() {
                   <svg className="plp__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                   </svg>
-                  <input
+                  <input aria-label="Search offers"
                     type="text"
                     className="plp__search-input"
                     placeholder="Search offers…"
@@ -341,7 +341,7 @@ function OffersPage() {
                     <button className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>
                   )}
                 </div>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="plp__sort-select">
+                <select aria-label="Sort products" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="plp__sort-select">
                   <option value="savings">Most savings</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>

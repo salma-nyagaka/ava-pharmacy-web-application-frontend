@@ -9,6 +9,7 @@ export interface DoctorDocument {
 }
 
 export interface DoctorProfile {
+  userId?: number
   id: string
   reference?: string
   name: string
@@ -49,6 +50,8 @@ export interface Consultation {
   backendId?: number
   doctorId: string
   patientName: string
+  patientPhone?: string
+  patientEmail?: string
   patientAge: number
   issue: string
   status: 'Waiting' | 'In progress' | 'Completed' | 'Cancelled'
@@ -61,8 +64,13 @@ export interface Consultation {
   pediatric?: boolean
   guardianName?: string
   childName?: string
+  childPatientId?: number | null
   childAge?: number
   weightKg?: number
+  heightCm?: number
+  bmi?: string
+  childSnapshot?: Record<string, unknown>
+  guardianSnapshot?: Record<string, unknown>
   consentStatus?: 'Pending' | 'Granted'
   dosageAlert?: boolean
 }
@@ -71,6 +79,7 @@ export interface DoctorMessage {
   id: string
   sender: 'doctor' | 'patient' | 'system'
   text: string
+  sentAtRaw?: string
   time: string
 }
 
@@ -530,6 +539,14 @@ const defaultEarnings: DoctorEarning[] = [
   },
 ]
 
+// Legacy fixtures are retained only as type/documentation examples. Runtime
+// loaders below deliberately return no browser-persisted clinical records.
+void defaultDoctors
+void defaultConsultations
+void defaultMessageThreads
+void defaultPrescriptions
+void defaultEarnings
+
 const defaultRules: DoctorRules = {
   defaultConsultFee: 1500,
   defaultCommission: 15,
@@ -560,57 +577,29 @@ const safeLoad = <T,>(key: string, fallback: T): T => {
   }
 }
 
-const loadWithDemoRows = <T extends { id: string }>(key: string, demoRows: T[]): T[] => {
-  if (typeof window === 'undefined') return demoRows
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) {
-      window.localStorage.setItem(key, JSON.stringify(demoRows))
-      return demoRows
-    }
-    const parsed = JSON.parse(raw)
-    const stored = Array.isArray(parsed) ? parsed.filter((item): item is T => Boolean(item?.id)) : []
-    const merged = [...stored]
-    demoRows.forEach((demoRow) => {
-      if (!merged.some((item) => item.id === demoRow.id)) merged.push(demoRow)
-    })
-    if (merged.length !== stored.length) {
-      window.localStorage.setItem(key, JSON.stringify(merged))
-    }
-    return merged
-  } catch {
-    return demoRows
-  }
-}
-
-export const loadDoctorProfiles = () => safeLoad(STORAGE.doctors, defaultDoctors)
+export const loadDoctorProfiles = (): DoctorProfile[] => []
 export const saveDoctorProfiles = (doctors: DoctorProfile[]) => {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE.doctors, JSON.stringify(doctors))
+  void doctors
 }
 
-export const loadConsultations = () => loadWithDemoRows<Consultation>(STORAGE.consultations, defaultConsultations)
+export const loadConsultations = (): Consultation[] => []
 export const saveConsultations = (consultations: Consultation[]) => {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE.consultations, JSON.stringify(consultations))
+  void consultations
 }
 
-export const loadDoctorMessages = () => loadWithDemoRows<DoctorMessageThread>(STORAGE.messages, defaultMessageThreads)
+export const loadDoctorMessages = (): DoctorMessageThread[] => []
 export const saveDoctorMessages = (threads: DoctorMessageThread[]) => {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE.messages, JSON.stringify(threads))
+  void threads
 }
 
-export const loadDoctorPrescriptions = () => loadWithDemoRows<DoctorPrescription>(STORAGE.prescriptions, defaultPrescriptions)
+export const loadDoctorPrescriptions = (): DoctorPrescription[] => []
 export const saveDoctorPrescriptions = (prescriptions: DoctorPrescription[]) => {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE.prescriptions, JSON.stringify(prescriptions))
+  void prescriptions
 }
 
-export const loadDoctorEarnings = () => loadWithDemoRows<DoctorEarning>(STORAGE.earnings, defaultEarnings)
+export const loadDoctorEarnings = (): DoctorEarning[] => []
 export const saveDoctorEarnings = (earnings: DoctorEarning[]) => {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(STORAGE.earnings, JSON.stringify(earnings))
+  void earnings
 }
 
 export const loadDoctorRules = () => safeLoad(STORAGE.rules, defaultRules)

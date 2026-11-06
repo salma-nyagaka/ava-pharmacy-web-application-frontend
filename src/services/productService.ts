@@ -44,6 +44,20 @@ export interface ProductDetail extends Product {
 }
 
 export interface ProductVariant {
+  regulatory_scope?: string
+  prescription_classification?: string
+  contraindications?: string
+  side_effects?: string
+  directions?: string
+  warnings?: string
+  pil_source_url?: string
+  pil_version?: string
+  pil_reviewed_at?: string
+  storage_instructions?: string
+  supply_hold_reason?: string
+
+  average_rating?: number
+  review_count?: number
   id: number
   sku: string
   name: string
@@ -84,6 +98,7 @@ export interface FetchProductsOptions {
 }
 
 export interface ProductFilters {
+  on_offer?: boolean
   category?: string
   subcategory?: string
   brand?: string
@@ -92,6 +107,8 @@ export interface ProductFilters {
   ordering?: string
   page?: number
   page_size?: number
+  brands?: string
+  min_rating?: number
   min_price?: number
   max_price?: number
   requires_prescription?: boolean
@@ -189,11 +206,7 @@ export async function fetchProducts(
   const params = Object.fromEntries(
     Object.entries(filters).filter(([, v]) => v !== undefined && v !== '' && v !== null)
   )
-  const endpoint = filters.search ? '/products/search/' : '/products/'
-  if (filters.search) {
-    delete params.search
-    params.q = filters.search
-  }
+  const endpoint = '/products/'
 
   const res = await apiClient.get(endpoint, { params })
   const firstPage = extractProductCollection(res.data)
@@ -269,6 +282,13 @@ export interface NavSubcategory {
   slug: string
 }
 
+export interface NavCategoryProduct {
+  id: number
+  name: string
+  slug: string
+  requiresPrescription: boolean
+}
+
 export interface NavCategory {
   id: number
   name: string
@@ -277,11 +297,11 @@ export interface NavCategory {
   description: string
   path: string
   subcategories: NavSubcategory[]
+  products: NavCategoryProduct[]
 }
 
 export async function fetchNavCategories(): Promise<NavCategory[]> {
-  try {
-    const res = await apiClient.get('/product-categories/')
+  const res = await apiClient.get('/product-categories/')
     const raw: Array<{
       id: number
       name: string
@@ -290,6 +310,7 @@ export async function fetchNavCategories(): Promise<NavCategory[]> {
       description: string
       is_active: boolean
       subcategories?: Array<{ id: number; name: string; slug: string; is_active: boolean }>
+      products?: Array<{ id: number; name: string; slug: string; requires_prescription: boolean }>
     }> = Array.isArray(res.data?.data)
       ? res.data.data
       : Array.isArray(res.data?.results)
@@ -298,7 +319,7 @@ export async function fetchNavCategories(): Promise<NavCategory[]> {
           ? res.data
           : []
 
-    return raw
+  return raw
       .filter((c) => c.is_active)
       .map((c) => ({
         id: c.id,
@@ -310,38 +331,53 @@ export async function fetchNavCategories(): Promise<NavCategory[]> {
         subcategories: (c.subcategories ?? [])
           .filter((s) => s.is_active)
           .map((s) => ({ name: s.name, slug: s.slug })),
+        products: (c.products ?? []).map((product) => ({
+          id: product.id,
+          name: product.name,
+          slug: product.slug,
+          requiresPrescription: product.requires_prescription,
+        })),
       }))
-  } catch {
-    return []
-  }
 }
 
 export async function fetchNavBrands(): Promise<NavBrand[]> {
-  try {
-    const res = await apiClient.get('/brands/')
-    const raw: Array<{ id: number; name: string; slug: string; logo: string | null; is_active: boolean }> =
-      Array.isArray(res.data?.data) ? res.data.data
-      : Array.isArray(res.data?.results) ? res.data.results
-      : Array.isArray(res.data) ? res.data
-      : []
-    return raw.filter((b) => b.is_active).map((b) => ({ id: b.id, name: b.name, slug: b.slug, logo: resolveMediaUrl(b.logo) }))
-  } catch {
-    return []
+  const brands: NavBrand[] = []
+  let next: string | null = '/brands/'
+  const visited = new Set<string>()
+  while (next && !visited.has(next)) {
+    visited.add(next)
+    const res: { data: unknown } = await apiClient.get(next)
+    const payload = res.data as { data?: Array<NavBrand & { is_active: boolean }>; results?: Array<NavBrand & { is_active: boolean }>; meta?: { next?: unknown }; next?: unknown }
+    const raw: Array<NavBrand & { is_active: boolean }> =
+      Array.isArray(payload?.data) ? payload.data
+      : Array.isArray(payload?.results) ? payload.results
+      : Array.isArray(payload) ? payload : []
+    brands.push(...raw.filter((brand) => brand.is_active).map((brand) => ({
+      id: brand.id, name: brand.name, slug: brand.slug, logo: resolveMediaUrl(brand.logo),
+    })))
+    const following: unknown = payload?.meta?.next ?? payload?.next
+    next = typeof following === 'string' ? following : null
   }
+  return brands
 }
 
 export async function fetchNavHealthConcerns(): Promise<NavHealthConcern[]> {
-  try {
-    const res = await apiClient.get('/health-concerns/')
-    const raw: Array<{ id: number; name: string; slug: string; icon: string; is_active: boolean }> =
-      Array.isArray(res.data?.data) ? res.data.data
-      : Array.isArray(res.data?.results) ? res.data.results
-      : Array.isArray(res.data) ? res.data
-      : []
-    return raw.filter((c) => c.is_active).map((c) => ({ id: c.id, name: c.name, slug: c.slug, icon: c.icon ?? '' }))
-  } catch {
-    return []
+  const concerns: NavHealthConcern[] = []
+  let next: string | null = '/health-concerns/'
+  const visited = new Set<string>()
+  while (next && !visited.has(next)) {
+    visited.add(next)
+    const res: { data: unknown } = await apiClient.get(next)
+    const payload = res.data as { data?: Array<NavHealthConcern & { is_active: boolean }>; results?: Array<NavHealthConcern & { is_active: boolean }>; meta?: { next?: unknown }; next?: unknown }
+    const raw: Array<NavHealthConcern & { is_active: boolean }> =
+      Array.isArray(payload?.data) ? payload.data
+      : Array.isArray(payload?.results) ? payload.results
+      : Array.isArray(payload) ? payload : []
+    concerns.push(...raw.filter((c) => c.is_active).map((c) => ({ id: c.id, name: c.name, slug: c.slug, icon: c.icon ?? '' })))
+    const following: unknown = payload?.meta?.next ?? payload?.next
+    next = typeof following === 'string' ? following : null
   }
+  return concerns
 }
 
 export interface PublicBrand {
@@ -446,12 +482,12 @@ export async function fetchBanners(): Promise<PublicBanner[]> {
 }
 
 export async function fetchProductReviews(productId: number): Promise<ProductReview[]> {
-  const res = await apiClient.get(`/products/${productId}/reviews/`)
+  const res = await apiClient.get(`/variants/${productId}/reviews/`)
   return res.data?.data ?? []
 }
 
 export async function submitProductReview(productId: number, payload: { rating: number; comment: string }): Promise<ProductReview> {
-  const res = await apiClient.post(`/products/${productId}/reviews/`, payload)
+  const res = await apiClient.post(`/variants/${productId}/reviews/`, payload)
   return res.data?.data ?? res.data
 }
 

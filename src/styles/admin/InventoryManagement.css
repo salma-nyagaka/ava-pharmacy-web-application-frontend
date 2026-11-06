@@ -685,3 +685,32 @@
 }
 @media (max-width: 1023px) { .inventory-management, .im-page { padding: 1.5rem; } }
 @media (max-width: 640px) { .inventory-management, .im-page { padding: 1rem; } }
+
+.inventory-management .cm-kpi-card__body { min-width: 0; }
+.inventory-management .cm-kpi-card__label { white-space: normal; overflow-wrap: anywhere; }
+
+/* Native form controls must shrink with narrow modal grid tracks. */
+.adjust-field, .stock-form__section { min-width: 0; }
+.adjust-field input, .adjust-field select, .adjust-field textarea { min-width: 0; width: 100%; max-width: 100%; }
+@media (max-width: 480px) {
+  .modal--stock .modal__content { padding: 1rem; }
+  .modal--stock .stock-form__section { padding: 0.75rem; }
+  .modal--stock .modal__header { padding: 1rem; }
+}
+
+.inventory-stock-modal { width: min(820px, calc(100vw - 2rem)); max-height: 90vh; border-radius: 16px; overflow: hidden; }
+.inventory-stock-modal .modal__header { padding: 1.25rem 1.5rem; background: #f8fafc; }
+.inventory-stock-modal .modal__header h2 { font-size: 1.3rem; }
+.inventory-stock-modal .modal__content { padding: 1.25rem 1.5rem; }
+.inventory-stock-modal .adjust-info { display: block; padding: 0 0 .75rem; border: 0; margin: 0; background: none; }
+.inventory-stock-modal .stock-modal-help { margin: 0 0 1.25rem; color: #64748b; font-size: .85rem; line-height: 1.6; }
+.inventory-stock-modal .adjust-section__title { text-transform: none; letter-spacing: 0; font-size: .95rem; margin-bottom: .8rem; }
+.inventory-stock-modal .adjust-variant-card { border-radius: 10px; padding: 1.1rem; background: #fff; }
+.inventory-stock-modal .adjust-field { min-width: 0; }
+.inventory-stock-modal .adjust-field label { text-transform: none; letter-spacing: 0; font-size: .85rem; font-weight: 600; }
+.inventory-stock-modal .adjust-field input:not([type=checkbox]), .inventory-stock-modal .adjust-field select { width: 100%; min-width: 0; box-sizing: border-box; padding: .65rem .75rem; border-radius: 8px; min-height: 42px; font-size: .9rem; }
+.inventory-stock-modal .adjust-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+.inventory-stock-modal .adjust-field .adjust-checkbox { display: inline-flex; justify-content: flex-start; flex-direction: row; align-items: center; gap: .6rem; min-height: 40px; }
+.inventory-stock-modal .adjust-checkbox input[type=checkbox] { width: 17px; height: 17px; min-height: 0; padding: 0; margin: 0; accent-color: #0b6257; flex: 0 0 17px; }
+.inventory-stock-modal .modal__footer { padding: 1rem 1.5rem; gap: .75rem; background: #f8fafc; }
+@media(max-width:600px) { .inventory-stock-modal .adjust-grid { grid-template-columns: 1fr; } .inventory-stock-modal .modal__content { padding: 1rem; } }

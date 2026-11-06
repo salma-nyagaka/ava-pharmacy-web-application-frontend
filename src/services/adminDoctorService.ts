@@ -1,6 +1,10 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/avapharmacy/api/v1').replace(/\/$/, '')
+import { apiFetch } from '../lib/apiFetch'
+import { apiClient } from '../lib/apiClient'
+
+const API_BASE_URL = String(apiClient.defaults.baseURL).replace(/\/$/, '')
 
 export interface AdminDoctorApi {
+  user?: number | null
   id?: number | string
   name?: string
   first_name?: string
@@ -135,29 +139,24 @@ const unwrapItem = <T,>(payload: T | { data?: T } | null | undefined): T => {
   return payload as T
 }
 
-export const adminDoctorService = {
-  async listDoctors() {
-    const response = await fetch(`${API_BASE_URL}/admin/doctors/`, {
-      headers: {
-        ...getAuthHeaders(),
-      },
-    })
-    const payload = await handleResponse<AdminDoctorApi[] | { data?: AdminDoctorApi[]; results?: AdminDoctorApi[] }>(response)
-    return unwrapList(payload).map((item) => ({ ...item, type: item.type ?? 'doctor' }))
-  },
+async function allProfessionals(resource: 'doctors' | 'pediatricians') {
+  const rows: AdminDoctorApi[] = []
+  let next: string | null = `${API_BASE_URL}/admin/${resource}/`
+  while (next) {
+    const response = await apiFetch(next, { headers: { ...getAuthHeaders() } })
+    const payload = await handleResponse<AdminDoctorApi[] | { data?: AdminDoctorApi[]; results?: AdminDoctorApi[]; meta?: { next?: string }; next?: string }>(response)
+    rows.push(...unwrapList(payload))
+    next = Array.isArray(payload) ? null : payload.meta?.next ?? payload.next ?? null
+  }
+  return rows.map(item => ({ ...item, type: item.type ?? (resource === 'doctors' ? 'doctor' : 'pediatrician') }))
+}
 
-  async listPediatricians() {
-    const response = await fetch(`${API_BASE_URL}/admin/pediatricians/`, {
-      headers: {
-        ...getAuthHeaders(),
-      },
-    })
-    const payload = await handleResponse<AdminDoctorApi[] | { data?: AdminDoctorApi[]; results?: AdminDoctorApi[] }>(response)
-    return unwrapList(payload).map((item) => ({ ...item, type: item.type ?? 'pediatrician' }))
-  },
+export const adminDoctorService = {
+  async listDoctors() { return allProfessionals('doctors') },
+  async listPediatricians() { return allProfessionals('pediatricians') },
 
   async listNotifications() {
-    const response = await fetch(`${API_BASE_URL}/notifications/`, {
+    const response = await apiFetch(`${API_BASE_URL}/notifications/`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -168,7 +167,7 @@ export const adminDoctorService = {
 
   async getDoctor(id: number | string, professionalType: AdminProfessionalType = 'Doctor') {
     const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
-    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
       headers: {
         ...getAuthHeaders(),
       },
@@ -179,7 +178,7 @@ export const adminDoctorService = {
 
   async updateDoctor(id: number | string, payload: Pick<AdminDoctorApi, 'consult_fee' | 'commission'>, professionalType: AdminProfessionalType = 'Doctor') {
     const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
-    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/${resource}/${id}/`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -193,7 +192,7 @@ export const adminDoctorService = {
 
   async actionDoctor(id: number | string, payload: { action: DoctorAction; note?: string }, professionalType: AdminProfessionalType = 'Doctor') {
     const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
-    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/action/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/${resource}/${id}/action/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -207,7 +206,7 @@ export const adminDoctorService = {
 
   async provisionAccount(id: number | string, professionalType: AdminProfessionalType = 'Doctor') {
     const resource = professionalType === 'Pediatrician' ? 'pediatricians' : 'doctors'
-    const response = await fetch(`${API_BASE_URL}/admin/${resource}/${id}/provision-account/`, {
+    const response = await apiFetch(`${API_BASE_URL}/admin/${resource}/${id}/provision-account/`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),

@@ -1,0 +1,13 @@
+.ps-workspace { background: #f1f5f9; }
+.ps-tabs { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 24px; }
+.ps-tabs button { border: 0; border-radius: 8px; color: #475569; background: transparent; padding: 11px 20px; font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; }
+.ps-tabs button[aria-pressed=true] { background: #075b52; color: white; }
+.ps-content > .category-management, .admin-layout .ps-content > .category-management { padding: 0; min-height: 0; background: transparent; }
+.ps-content .category-management__header h1, .ps-content .category-management__header h2 { font-size: 1.15rem; margin: 0; }
+.ps-focus { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 16px 20px; margin-bottom: 22px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; }
+.ps-focus > div { flex: 1; display: grid; gap: 5px; }
+.ps-focus span { color: #475569; font-size: .75rem; }
+.ps-focus button, .ps-focus a { border: 1px solid #cbd5e1; border-radius: 6px; background: white; padding: 8px 12px; font: inherit; font-size: .8rem; cursor: pointer; text-decoration: none; color: #075b52; }
+.ps-search { min-width: 200px; width: min(100%, 420px); border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 8px; font: inherit; }
+.ps-workspace .cm-pagination { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; margin-top: 16px; }
+@media(max-width:600px) { .ps-tabs button { flex: 1; padding: 10px; } .ps-focus > div { flex-basis: 100%; } }

@@ -3898,3 +3898,52 @@
 .dc-doctor-item__avatar {
   background: var(--color-primary);
 }
+
+/* Smaller typography and proportions for paediatric waiting status. */
+.ped-page .dc-waiting { padding: 32px 20px; min-height: 0; }
+.ped-page .dc-waiting__shell { max-width: 1040px; gap: 20px; }
+.ped-page .dc-waiting__summary, .ped-page .dc-waiting__card { padding: 24px; border-radius: 14px; box-shadow: 0 4px 20px #0f172a06; }
+.ped-page .dc-waiting__summary h1 { font-size: 1.5rem; line-height: 1.4; margin-top: 10px; }
+.ped-page .dc-waiting__eyebrow { font-size: .65rem; }
+.ped-page .dc-waiting__lead { font-size: .8125rem; line-height: 1.8; margin-top: 10px; }
+.ped-page .dc-state-back { font-size: .75rem; padding: 7px 10px; margin-bottom: 16px; }
+.ped-page .dc-waiting__reference { margin-top: 16px; padding: 8px 10px; gap: 10px; }
+.ped-page .dc-waiting__reference span { font-size: .62rem; }
+.ped-page .dc-waiting__reference strong { font-size: .78rem; }
+.ped-page .dc-waiting__steps { gap: 10px; margin-top: 18px; }
+.ped-page .dc-waiting__step { padding: 12px; min-height: 64px; border-radius: 8px; }
+.ped-page .dc-waiting__step p { font-size: .7rem; line-height: 1.5; }
+.ped-page .dc-waiting__step span { width: 22px; height: 22px; font-size: .65rem; }
+.ped-page .dc-waiting__card-top { gap: 14px; }
+.ped-page .dc-waiting__avatar-wrap { width: 54px; height: 54px; flex-shrink: 0; }
+.ped-page .dc-waiting__avatar { width: 54px; height: 54px; font-size: 1rem; }
+.ped-page .dc-waiting__status-badge { font-size: .65rem; padding: 4px 8px; }
+.ped-page .dc-waiting__doctor-name { font-size: .95rem; margin-top: 8px; }
+.ped-page .dc-waiting__doctor-spec { font-size: .75rem; line-height: 1.7; }
+.ped-page .dc-waiting__meta { padding: 12px; margin-top: 16px; gap: 10px; }
+.ped-page .dc-waiting__meta-item { font-size: .75rem; line-height: 1.6; }
+.ped-page .dc-waiting__meta-item svg { width: 15px; height: 15px; }
+.ped-page .dc-waiting__status-line { margin-top: 16px; padding-block: 12px; gap: 12px; }
+.ped-page .dc-waiting__status-line p { font-size: .72rem; }
+.ped-page .dc-waiting__tip { font-size: .72rem; line-height: 1.8; }
+.ped-page .dc-waiting__actions { margin-top: 16px; gap: 10px; }
+.ped-page .dc-waiting__actions .btn { min-height: 36px; padding: 8px 12px; font-size: .75rem; border-radius: 8px; }
+@media (max-width: 600px) { .ped-page .dc-waiting { padding: 20px 16px; } .ped-page .dc-waiting__summary, .ped-page .dc-waiting__card { padding: 18px; } .ped-page .dc-waiting__summary h1 { font-size: 1.25rem; } }
+
+/* Compact chat composer with contextual feedback. */
+.dc-page .dc-chat__input { gap: 10px; padding: 12px 16px; align-items: center; }
+.dc-page .dc-chat__input input { box-sizing: border-box; min-width: 0; min-height: 40px; height: 40px; padding: 9px 12px; border-radius: 9px; font-size: .8125rem; line-height: 1.5; background: #fff; }
+.dc-page .dc-chat__input input::placeholder { color: #94a3b8; }
+.dc-page .dc-chat__input .btn { width: 40px; height: 40px; min-height: 40px; border-radius: 9px; box-shadow: none; }
+.dc-page .dc-chat__input .btn svg { width: 17px; height: 17px; }
+.dc-page .dc-chat__error { margin: 0 16px 12px; padding: 9px 12px; border: 1px solid #fecdd3; border-radius: 7px; background: #fff1f2; color: #9f1239; font-size: .72rem; line-height: 1.6; }
+
+/* Prescription events use a dedicated card rather than the chat status strip. */
+.dc-prescription-notice { align-self: center; box-sizing: border-box; width: min(100%, 620px); padding: 14px 16px; border: 1px solid #cfe5dc; border-radius: 10px; background: #f1f9f5; }
+.dc-prescription-notice__heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.dc-prescription-notice__heading svg { width: 18px; height: 18px; color: #075b52; flex-shrink: 0; }
+.dc-prescription-notice__heading strong { font-size: .8rem; font-weight: 600; color: #075b52; }
+.dc-prescription-notice__heading time { margin-left: auto; font-size: .65rem; color: #64748b; white-space: nowrap; }
+.dc-prescription-notice > p { margin: 8px 0 12px; font-size: .75rem; line-height: 1.7; color: #52665e; overflow-wrap: anywhere; }
+.dc-prescription-notice .btn { display: inline-flex; min-height: 32px; padding: 6px 10px; border: 1px solid #b6d2c4; border-radius: 7px; background: #fff; color: #075b52; font-size: .72rem; font-weight: 600; }
+@media (max-width: 480px) { .dc-prescription-notice__heading time { flex-basis: 100%; margin-left: 26px; } }

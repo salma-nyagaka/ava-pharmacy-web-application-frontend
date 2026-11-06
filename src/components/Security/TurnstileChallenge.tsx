@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { TURNSTILE_SITE_KEY } from '../../services/botProtectionService'
+import { CAPTCHA_PROVIDER, HCAPTCHA_SITE_KEY, TURNSTILE_SITE_KEY } from '../../services/botProtectionService'
 
 type TurnstileApi = {
   render: (
@@ -18,6 +18,7 @@ type TurnstileApi = {
 declare global {
   interface Window {
     turnstile?: TurnstileApi
+    hcaptcha?: TurnstileApi
   }
 }
 
@@ -28,8 +29,9 @@ type TurnstileChallengeProps = {
   className?: string
 }
 
-const SCRIPT_ID = 'ava-turnstile-script'
-const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+const SITE_KEY = CAPTCHA_PROVIDER === 'hcaptcha' ? HCAPTCHA_SITE_KEY : TURNSTILE_SITE_KEY
+const SCRIPT_ID = `ava-${CAPTCHA_PROVIDER}-script`
+const SCRIPT_SRC = CAPTCHA_PROVIDER === 'hcaptcha' ? 'https://js.hcaptcha.com/1/api.js?render=explicit' : 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 
 function loadTurnstileScript() {
   const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null
@@ -49,15 +51,16 @@ export function TurnstileChallenge({ action, onToken, resetKey = 0, className }:
   const widgetIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!TURNSTILE_SITE_KEY || !containerRef.current) return
+    if (!SITE_KEY || !containerRef.current) return
 
     let cancelled = false
     const script = loadTurnstileScript()
 
     const renderWidget = () => {
-      if (cancelled || !containerRef.current || !window.turnstile || widgetIdRef.current) return
-      widgetIdRef.current = window.turnstile.render(containerRef.current, {
-        sitekey: TURNSTILE_SITE_KEY,
+      const api = window[CAPTCHA_PROVIDER === 'hcaptcha' ? 'hcaptcha' : 'turnstile']
+      if (cancelled || !containerRef.current || !api || widgetIdRef.current) return
+      widgetIdRef.current = api.render(containerRef.current, {
+        sitekey: SITE_KEY,
         action,
         callback: onToken,
         'expired-callback': () => onToken(''),
@@ -65,7 +68,7 @@ export function TurnstileChallenge({ action, onToken, resetKey = 0, className }:
       })
     }
 
-    if (window.turnstile) {
+    if (window[CAPTCHA_PROVIDER === 'hcaptcha' ? 'hcaptcha' : 'turnstile']) {
       renderWidget()
     } else {
       script.addEventListener('load', renderWidget)
@@ -74,15 +77,15 @@ export function TurnstileChallenge({ action, onToken, resetKey = 0, className }:
     return () => {
       cancelled = true
       script.removeEventListener('load', renderWidget)
-      if (widgetIdRef.current && window.turnstile) {
-        window.turnstile.remove(widgetIdRef.current)
+      if (widgetIdRef.current && window[CAPTCHA_PROVIDER === 'hcaptcha' ? 'hcaptcha' : 'turnstile']) {
+        window[CAPTCHA_PROVIDER === 'hcaptcha' ? 'hcaptcha' : 'turnstile']?.remove(widgetIdRef.current)
       }
       widgetIdRef.current = null
       onToken('')
     }
   }, [action, onToken, resetKey])
 
-  if (!TURNSTILE_SITE_KEY) return null
+  if (!SITE_KEY) return null
 
   return <div className={className} ref={containerRef} />
 }

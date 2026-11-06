@@ -1,3 +1,4 @@
+import { STAFF_DASHBOARDS } from '../../utils/roleNavigation'
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
@@ -6,18 +7,10 @@ import { buildBotPayload, isBotChallengeEnabled } from '../../services/botProtec
 import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/pages/AuthPage.css'
 
-const STAFF_DASHBOARD_BY_ROLE: Record<string, string> = {
-  admin: '/admin/dashboard',
-  doctor: '/doctor/dashboard',
-  pediatrician: '/pediatrician/dashboard',
-  pharmacist: '/pharmacist/dashboard',
-  lab_partner: '/lab/dashboard',
-  lab_technician: '/labtech/dashboard',
-}
 
 function getPostLoginPath(role: string, redirect: string) {
   const normalizedRole = role.toLowerCase()
-  const staffDashboard = STAFF_DASHBOARD_BY_ROLE[normalizedRole]
+  const staffDashboard = STAFF_DASHBOARDS[normalizedRole]
 
   if (staffDashboard) {
     return staffDashboard
@@ -58,12 +51,17 @@ function LoginPage() {
       return
     }
 
+    if (challengeRequired && !challengeToken) {
+      setError('Please complete the security verification before signing in.')
+      return
+    }
+
     setLoading(true)
     setError('')
     setFieldErrors({})
 
     try {
-      const loggedInUser = await login(email.trim(), password, buildBotPayload(website, challengeToken))
+      const loggedInUser = await login(email.trim().toLowerCase(), password, buildBotPayload(website, challengeToken))
 
       navigate(getPostLoginPath(loggedInUser.role, redirect), { replace: true })
     } catch (err: unknown) {
@@ -133,8 +131,8 @@ function LoginPage() {
 
           <div className="login-brand__stats">
             <div className="login-brand__stat">
-              <strong>Licensed</strong>
-              <span>Pharmacy</span>
+              <strong>Pharmacy</strong>
+              <span>Support</span>
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
@@ -143,7 +141,7 @@ function LoginPage() {
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
-              <strong>24/7</strong>
+              <strong>Help</strong>
               <span>Support</span>
             </div>
           </div>
@@ -183,13 +181,15 @@ function LoginPage() {
                   type="email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); clearField('email') }}
+                  onChange={(e) => { setEmail(e.target.value.toLowerCase()); clearField('email') }}
                   autoComplete="email"
                   autoFocus
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
                   className={fieldErrors.email ? 'login-field__input--error' : ''}
                 />
               </div>
-              {fieldErrors.email && <span className="login-field__error">{fieldErrors.email}</span>}
+              {fieldErrors.email && <span id="login-email-error" className="login-field__error">{fieldErrors.email}</span>}
             </div>
 
             <div className="login-field">
@@ -211,6 +211,8 @@ function LoginPage() {
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); clearField('password') }}
                   autoComplete="current-password"
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
                   className={fieldErrors.password ? 'login-field__input--error' : ''}
                 />
                 <button
@@ -233,10 +235,16 @@ function LoginPage() {
                   )}
                 </button>
               </div>
-              {fieldErrors.password && <span className="login-field__error">{fieldErrors.password}</span>}
+              {fieldErrors.password && <span id="login-password-error" className="login-field__error">{fieldErrors.password}</span>}
             </div>
 
-            <TurnstileChallenge action="login" onToken={setChallengeToken} resetKey={challengeResetKey} />
+            {challengeRequired && (
+              <div className="login-captcha" aria-label="Security verification">
+                <span className="login-captcha__label">Security verification</span>
+                <TurnstileChallenge action="login" onToken={setChallengeToken} resetKey={challengeResetKey} />
+                <p>{challengeToken ? 'Verification complete. You can sign in.' : 'Complete the check above to continue.'}</p>
+              </div>
+            )}
 
             {error && (
               <div className="login-error">
@@ -262,17 +270,10 @@ function LoginPage() {
 
             <div className="login-divider"><span>or</span></div>
 
-            <Link to="/" className="login-guest">
-              Continue as guest
+            <Link to="/register" className="login-guest">
+              Create an account
             </Link>
           </form>
-
-          <p className="login-register">
-            Don&apos;t have an account?{' '}
-            <Link to="/register">
-              Create one free
-            </Link>
-          </p>
 
           <p className="login-professional">
             Are you a medical professional?{' '}

@@ -1,6 +1,7 @@
 import { apiClient } from '../lib/apiClient'
 
 export interface AccountProfile {
+  email_change?: { pending_email: string; sent_to: string[]; failed_to: string[] }
   id: number
   email: string
   first_name: string
@@ -23,6 +24,7 @@ export interface AccountProfile {
 }
 
 export interface AccountProfilePayload {
+  current_password?: string
   email?: string
   first_name?: string
   last_name?: string
@@ -96,9 +98,13 @@ export async function updateAccountProfile(payload: AccountProfilePayload): Prom
   return unwrap<AccountProfile>(res)
 }
 
-export async function changeAccountPassword(payload: PasswordChangePayload): Promise<{ detail: string }> {
+export async function changeAccountPassword(payload: PasswordChangePayload): Promise<{ detail: string; confirmation_email?: { sent_to: string[]; failed_to: string[] } }> {
   const res = await apiClient.post('/account/change-password/', payload)
   return unwrap<{ detail: string }>(res)
+}
+
+export async function deactivateAccount(): Promise<void> {
+  await apiClient.delete('/account/')
 }
 
 export async function fetchNotificationPreferences(): Promise<NotificationPreferences> {

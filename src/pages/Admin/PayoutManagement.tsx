@@ -1,9 +1,12 @@
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import { preferredScrollBehavior } from '../../utils/motion'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
 import '../../styles/admin/PayoutManagement.css'
 import { logAdminAction } from '../../data/adminAudit'
-import { loadDoctorProfiles } from '../../data/telemedicine'
 import {
   AdminPayout,
   PayoutMethod,
@@ -13,14 +16,16 @@ import {
 import { PayoutRule } from '../../data/payoutRules'
 import { payoutService } from '../../services/payoutService'
 
-const payoutMethods: PayoutMethod[] = ['Bank Transfer', 'M-Pesa', 'Card', 'Cheque', 'Cash']
+const payoutMethods: PayoutMethod[] = ['Bank Transfer', 'M-Pesa', 'Cheque', 'Cash']
 const basePayoutRoles: PayoutRole[] = ['Doctor', 'Pediatrician', 'Lab Technician', 'Lab Partner', 'Pharmacist']
 const payoutStatuses: PayoutStatus[] = ['Draft', 'Pending', 'Approved', 'Processing', 'On hold', 'Paid', 'Failed', 'Reversed', 'Cancelled']
 const formatCurrency = (value: number) => `KSh ${value.toLocaleString()}`
 
 const apiErrorMessage = (error: unknown) => {
   const candidate = error as { response?: { data?: { detail?: string; reason?: string; payment_reference?: string } }; message?: string }
-  const data = candidate.response?.data
+  const response = candidate.response?.data as { error?: { message?: string }; detail?: string; reason?: string; payment_reference?: string } | undefined
+  const data = response
+  if (response?.error?.message) return response.error.message
   return data?.detail ?? data?.reason ?? data?.payment_reference ?? candidate.message ?? 'The finance request could not be completed.'
 }
 
@@ -48,6 +53,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
   const [reference, setReference] = useState('')
   const [status] = useState<PayoutStatus>('Draft')
   const [notes, setNotes] = useState('')
+  const [actionBusy, setActionBusy] = useState(false)
   const [financeError, setFinanceError] = useState('')
   const [isSyncing, setIsSyncing] = useState(false)
   const hasFilters = searchTerm.trim().length > 0 || selectedRole !== 'all' || selectedStatus !== 'all'
@@ -58,20 +64,14 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
   const [paidTime, setPaidTime] = useState('')
   const [paidError, setPaidError] = useState('')
 
-  const doctors = useMemo(() => {
-    return loadDoctorProfiles().filter((profile) => profile.status !== 'Suspended')
-  }, [])
-
-  const recipientOptions = useMemo(() => {
-    if (recipientRole === 'Doctor') {
-      return doctors.filter((profile) => profile.type === 'Doctor')
-    }
-    if (recipientRole === 'Pediatrician') {
-      return doctors.filter((profile) => profile.type === 'Pediatrician')
-    }
-    return []
-  }, [doctors, recipientRole])
-
+  const [professionals, setProfessionals] = useState<Array<{ id: string; name: string; role: PayoutRole }>>([])
+  const recipientOptions = useMemo(() => professionals.filter(profile => profile.role === recipientRole), [professionals, recipientRole])
+  const [sourceType, setSourceType] = useState('manual_adjustment')
+  const [reasonTarget, setReasonTarget] = useState<{ payout: AdminPayout; action: 'hold' | 'cancel' | 'reverse' } | null>(null)
+  const [reasonValue, setReasonValue] = useState('')
+  const [commission, setCommission] = useState('0')
+  const [withholding, setWithholding] = useState('0')
+  const [deduction, setDeduction] = useState('0')
   const payoutRoles = useMemo(
     () => Array.from(new Set([...basePayoutRoles, ...rules.map((rule) => rule.role)])),
     [rules]
@@ -97,22 +97,9 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
   const startIndex = (currentPage - 1) * pageSize
   const pagedPayouts = filteredPayouts.slice(startIndex, startIndex + pageSize)
 
-  const stats = useMemo(() => {
-    const payableStatuses: PayoutStatus[] = ['Draft', 'Pending', 'Approved', 'Processing', 'On hold']
-    const pending = payouts.filter((payout) => payableStatuses.includes(payout.status)).length
-    const paid = payouts.filter((payout) => payout.status === 'Paid').length
-    const failed = payouts.filter((payout) => payout.status === 'Failed').length
-    const totalAmount = payouts
-      .filter((payout) => payout.status === 'Paid')
-      .reduce((sum, payout) => sum + payout.amount, 0)
-    const pendingAmount = payouts
-      .filter((payout) => payableStatuses.includes(payout.status))
-      .reduce((sum, payout) => sum + payout.amount, 0)
-    const failedAmount = payouts
-      .filter((payout) => payout.status === 'Failed')
-      .reduce((sum, payout) => sum + payout.amount, 0)
-    return { pending, paid, failed, totalAmount, pendingAmount, failedAmount }
-  }, [payouts])
+  const { count: databaseCount, counts: databaseCounts } = useAdminRecordStats('payouts', 'all', payouts)
+  const stats = { pending: databaseCounts?.pending ?? 0, paid: databaseCounts?.paid ?? 0, failed: databaseCounts?.failed ?? 0, totalAmount: databaseCounts?.totalAmount ?? 0, pendingAmount: databaseCounts?.pendingAmount ?? 0, failedAmount: databaseCounts?.failedAmount ?? 0 }
+
 
   const resetRegisterForm = () => {
     setRecipientRole('Doctor')
@@ -120,6 +107,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
     setRecipientName('')
     setPeriod('Feb 2026')
     setAmount('')
+    setSourceType('manual_adjustment'); setCommission('0'); setWithholding('0'); setDeduction('0')
     setMethod('Bank Transfer')
     setReference('')
     setNotes('')
@@ -130,7 +118,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
   const openRegisterTab = () => {
     setActiveTab('register')
     resetRegisterForm()
-    registerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    registerRef.current?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start' })
   }
 
   const openPaidModal = (payout: AdminPayout) => {
@@ -156,7 +144,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
     setSelectedRole('all')
     setSelectedStatus('Pending')
     setCurrentPage(1)
-    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    tableRef.current?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start' })
   }
 
   const handleAddRule = async () => {
@@ -252,7 +240,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
   const handleSyncEarnings = useCallback(async () => {
     setIsSyncing(true)
     try {
-      const [nextPayouts, nextRules] = await Promise.all([payoutService.list(), payoutService.listRules()])
+      const [nextPayouts, nextRules, nextProfessionals] = await Promise.all([payoutService.list(), payoutService.listRules(), payoutService.recipients()])
+      setProfessionals(nextProfessionals)
       setPayouts(nextPayouts)
       setRules(nextRules)
       setLastSyncAt(new Date().toISOString())
@@ -280,6 +269,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
 
   const runPayoutAction = async (payout: AdminPayout, action: string, extras: Record<string, unknown> = {}) => {
     if (!payout.backendId) return
+    setActionBusy(true)
     try {
       const updated = await payoutService.action(payout.backendId, action, extras)
       setPayouts((prev) => prev.map((item) => item.backendId === updated.backendId ? updated : item))
@@ -287,12 +277,11 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
       logAdminAction({ action: `Payout ${action.replace(/_/g, ' ')}`, entity: 'Payout', entityId: payout.id, detail: `${payout.recipientName} · ${updated.status}` })
     } catch (error) {
       setFinanceError(apiErrorMessage(error))
-    }
+    } finally { setActionBusy(false) }
   }
 
   const requestReasonAndRun = (payout: AdminPayout, action: 'hold' | 'cancel' | 'reverse') => {
-    const reason = window.prompt(`Enter the reason to ${action} payout ${payout.id}:`)
-    if (reason?.trim()) void runPayoutAction(payout, action, { reason: reason.trim() })
+    setReasonTarget({ payout, action }); setReasonValue('')
   }
 
   const confirmMarkPaid = async () => {
@@ -305,7 +294,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
     try {
       const updated = await payoutService.action(paidTarget.backendId, 'mark_paid', {
         payment_reference: paidRef.trim(), provider_transaction_id: paidRef.trim(),
-        method: paidMethod === 'M-Pesa' ? 'mpesa' : 'bank_transfer', paid_at: paidTime,
+        method: paidMethod === 'M-Pesa' ? 'mpesa' : 'bank_transfer', paid_at: new Date(paidTime).toISOString(),
       })
       setPayouts((prev) => prev.map((item) => item.backendId === updated.backendId ? updated : item))
       logAdminAction({ action: 'Mark payout as paid', entity: 'Payout', entityId: paidTarget.id, detail: `Paid via ${paidMethod} · Ref ${paidRef.trim()} · ${paidTime}` })
@@ -325,14 +314,16 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
       ? recipientOptions.find((profile) => profile.id === recipientId)?.name ?? ''
       : recipientName.trim()
 
-    if (!resolvedRecipientName || !period.trim() || !Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+    if (!recipientId || !reference.trim() || !resolvedRecipientName || !period.trim() || !Number.isFinite(normalizedAmount) || normalizedAmount <= 0 || [commission, withholding, deduction].some(value => !Number.isFinite(Number(value)) || Number(value) < 0) || Number(commission) + Number(withholding) + Number(deduction) > normalizedAmount) {
+      setFinanceError('Choose a recipient, enter a source reference and period, and check the gross amount and non-negative deductions.')
       return
     }
 
     try {
       const payout = await payoutService.create({
-        recipientName: resolvedRecipientName, role: recipientRole, period: period.trim(), amount: normalizedAmount,
-        method, notes: notes.trim() || undefined, sourceReference: reference.trim() || undefined,
+        recipient: Number(recipientId), recipientName: resolvedRecipientName, role: recipientRole, period: period.trim(), amount: normalizedAmount,
+        commission: Number(commission), withholding: Number(withholding), deduction: Number(deduction),
+        sourceType, method, notes: notes.trim() || undefined, sourceReference: reference.trim() || undefined,
       })
       setPayouts((prev) => [payout, ...prev])
       setFinanceError('')
@@ -368,7 +359,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
         <div>
           <div className="pm-title-row">
             <h1>Payments & reports</h1>
-            <span className="pm-auto-pill">Auto payouts enabled</span>
+            <span className="pm-auto-pill">Administrative ledger</span>
           </div>
           <p className="pm-subtitle">Create, report on, and manage provider payments across doctors, pediatricians, lab technicians, labs, and pharmacists.</p>
         </div>
@@ -388,6 +379,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
         </div>
       </div>}
 
+      <p className="pm-sync-banner">This ledger records approvals and externally verified payments. Process and Record paid do not send money to a bank or M-Pesa.</p>
       {lastSyncAt && (
         <div className="pm-sync-banner">
           <span>Last synced {lastSyncAt.slice(0, 10)} at {lastSyncAt.slice(11, 16)}</span>
@@ -395,6 +387,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
+      {actionBusy && <p role="status">Updating payout ledger…</p>}
       {financeError && (
         <div className="pm-pending-banner" role="alert">
           <span><strong>Finance action needs attention:</strong> {financeError}</span>
@@ -436,9 +429,9 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
           onClick={handleReviewPending}
           aria-pressed={selectedStatus === 'Pending'}
         >
-          <span className="pm-stat__value">{stats.pending}</span>
+          <span className="pm-stat__value">{databaseCount('pending')}</span>
           <span className="pm-stat__label">Pending</span>
-          <span className="pm-stat__meta">KSh {stats.pendingAmount.toLocaleString()} awaiting</span>
+          <span className="pm-stat__meta">KSh {databaseCount('pendingAmount').toLocaleString()} awaiting</span>
         </button>
         <button
           className={`pm-stat pm-stat--paid ${selectedStatus === 'Paid' ? 'pm-stat--active' : ''}`}
@@ -446,9 +439,9 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
           onClick={() => setSelectedStatus('Paid')}
           aria-pressed={selectedStatus === 'Paid'}
         >
-          <span className="pm-stat__value">{stats.paid}</span>
+          <span className="pm-stat__value">{databaseCount('paid')}</span>
           <span className="pm-stat__label">Paid</span>
-          <span className="pm-stat__meta">KSh {stats.totalAmount.toLocaleString()} disbursed</span>
+          <span className="pm-stat__meta">KSh {databaseCount('totalAmount').toLocaleString()} recorded</span>
         </button>
         <button
           className={`pm-stat pm-stat--failed ${selectedStatus === 'Failed' ? 'pm-stat--active' : ''}`}
@@ -456,12 +449,12 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
           onClick={() => setSelectedStatus('Failed')}
           aria-pressed={selectedStatus === 'Failed'}
         >
-          <span className="pm-stat__value">{stats.failed}</span>
+          <span className="pm-stat__value">{databaseCount('failed')}</span>
           <span className="pm-stat__label">Failed</span>
-          <span className="pm-stat__meta">KSh {stats.failedAmount.toLocaleString()} to retry</span>
+          <span className="pm-stat__meta">KSh {databaseCount('failedAmount').toLocaleString()} to retry</span>
         </button>
         <div className="pm-stat pm-stat--total" aria-hidden="true">
-          <span className="pm-stat__value">KSh {stats.totalAmount.toLocaleString()}</span>
+          <span className="pm-stat__value">KSh {databaseCount('totalAmount').toLocaleString()}</span>
           <span className="pm-stat__label">Total Paid</span>
           <span className="pm-stat__meta">Across all disbursements</span>
         </div>
@@ -480,15 +473,15 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
         <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
           <div className="cm-search-box">
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
-            <input type="search" placeholder="Search by payout ID, recipient, task ID, period, reference" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+            <input aria-label="Search by payout ID, recipient, task ID, period, reference" type="search" placeholder="Search by payout ID, recipient, task ID, period, reference" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
           </div>
-          <select className="cm-filter-select" value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as 'all' | PayoutRole)}>
+          <select aria-label="Filter by recipient role" className="cm-filter-select" value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as 'all' | PayoutRole)}>
             <option value="all">All roles</option>
             {payoutRoles.map((roleOption) => (
               <option key={roleOption} value={roleOption}>{roleOption}</option>
             ))}
           </select>
-          <select className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as 'all' | PayoutStatus)}>
+          <select aria-label="Filter by status" className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as 'all' | PayoutStatus)}>
             <option value="all">All statuses</option>
             {payoutStatuses.map((statusOption) => <option key={statusOption} value={statusOption}>{statusOption}</option>)}
           </select>
@@ -540,6 +533,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                 </td>
                 <td>
                   <span className="pm-amount">KSh {payout.amount.toLocaleString()}</span>
+                  <details><summary>Details &amp; audit</summary><p>Gross {formatCurrency(payout.grossAmount || 0)} · Commission {formatCurrency(payout.commissionAmount || 0)} · Withholding {formatCurrency(payout.withholdingAmount || 0)} · Other deductions {formatCurrency(payout.deductionAmount || 0)}</p><p>Administrative record; no transfer is executed here.</p>{payout.auditLogs?.map(log => <p key={log.id}>{log.action} · {log.actor_name || 'System'} · {new Date(log.created_at).toLocaleString('en-KE')}{log.reason ? ` · ${log.reason}` : ''}</p>)}</details>
                   {payout.notes && <span className="pm-meta">Note: {payout.notes}</span>}
                 </td>
                 <td>
@@ -548,32 +542,32 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                 </td>
                 <td>
                   <span className={`admin-status ${payout.status === 'Paid' ? 'admin-status--success' : ['Draft', 'Pending', 'Approved', 'Processing', 'On hold'].includes(payout.status) ? 'admin-status--warning' : 'admin-status--danger'}`}>
-                    {payout.status}
+                    {formatStatus(payout.status)}
                   </span>
                   {payout.reconciliationStatus && <span className="pm-meta">{payout.reconciliationStatus}</span>}
                 </td>
                 <td>
                   <div className="cm-row-actions">
                     {payout.status === 'Draft' && (
-                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'submit')}>Submit</button>
+                      <button disabled={actionBusy} className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'submit')}>Submit</button>
                     )}
                     {payout.status === 'Pending' && (
-                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'approve')}>Approve</button>
+                      <button disabled={actionBusy} className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'approve')}>Approve</button>
                     )}
                     {payout.status === 'Approved' && (
-                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'process')}>Process</button>
+                      <button disabled={actionBusy} className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'process')}>Process</button>
                     )}
                     {(payout.status === 'Approved' || payout.status === 'Processing') && (
-                      <button
+                      <button disabled={actionBusy}
                         className="cm-row-btn cm-row-btn--edit"
                         type="button"
                         onClick={() => openPaidModal(payout)}
                       >
-                        Mark paid
+                        Record paid
                       </button>
                     )}
                     {(payout.status === 'Approved' || payout.status === 'Processing') && (
-                      <button
+                      <button disabled={actionBusy}
                         className="cm-row-btn cm-row-btn--delete"
                         type="button"
                         onClick={() => void runPayoutAction(payout, 'mark_failed', { failure_message: 'Marked failed by finance admin' })}
@@ -582,22 +576,22 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                       </button>
                     )}
                     {payout.status === 'Failed' && (
-                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'retry')}>Retry</button>
+                      <button disabled={actionBusy} className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'retry')}>Retry</button>
                     )}
                     {['Pending', 'Approved', 'Processing'].includes(payout.status) && (
-                      <button className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => requestReasonAndRun(payout, 'hold')}>Hold</button>
+                      <button disabled={actionBusy} className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => requestReasonAndRun(payout, 'hold')}>Hold</button>
                     )}
                     {payout.status === 'On hold' && (
-                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'release')}>Release</button>
+                      <button disabled={actionBusy} className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'release')}>Release</button>
                     )}
                     {payout.status === 'Paid' && payout.reconciliationStatus !== 'Matched' && (
-                      <button className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'reconcile')}>Reconcile</button>
+                      <button disabled={actionBusy} className="cm-row-btn cm-row-btn--edit" type="button" onClick={() => void runPayoutAction(payout, 'reconcile')}>Reconcile</button>
                     )}
                     {payout.status === 'Paid' && (
-                      <button className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => requestReasonAndRun(payout, 'reverse')}>Reverse</button>
+                      <button disabled={actionBusy} className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => requestReasonAndRun(payout, 'reverse')}>Reverse</button>
                     )}
                     {['Draft', 'Pending', 'Approved', 'Failed', 'On hold'].includes(payout.status) && (
-                      <button className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => requestReasonAndRun(payout, 'cancel')}>Cancel</button>
+                      <button disabled={actionBusy} className="cm-row-btn cm-row-btn--delete" type="button" onClick={() => requestReasonAndRun(payout, 'cancel')}>Cancel</button>
                     )}
                   </div>
                 </td>
@@ -672,7 +666,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
             <div className="pm-rules__header">
               <div>
                 <h3>Payout rules</h3>
-                <p>Define the rate per completed task. Changes update auto payouts immediately.</p>
+                <p>Reference rates for manual task payouts. Saving a rule does not create a payout or transfer money. Consultation payouts use their recorded earnings.</p>
               </div>
             </div>
             <div className="pm-rules__table">
@@ -684,7 +678,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
               {rules.map((rule) => (
                 <div key={rule.role} className="pm-rules__row">
                   <span>{rule.role}</span>
-                  <input
+                  <input aria-label="Rule amount"
                     className="pm-rules__input"
                     type="number"
                     min={0}
@@ -724,8 +718,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
             </div>
             <div className="pm-rules-add">
               <div className="form-group">
-                <label>Role name</label>
-                <input
+                <label htmlFor="field-payoutmanagement-731-33889">Role name</label>
+                <input id="field-payoutmanagement-731-33889"
                   type="text"
                   value={newRuleRole}
                   onChange={(event) => { setNewRuleRole(event.target.value); setNewRuleError('') }}
@@ -733,8 +727,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                 />
               </div>
               <div className="form-group">
-                <label>Rate per task (KSh)</label>
-                <input
+                <label htmlFor="field-payoutmanagement-740-34326">Rate per task (KSh)</label>
+                <input id="field-payoutmanagement-740-34326"
                   type="number"
                   min={0}
                   value={newRuleAmount}
@@ -778,8 +772,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                   <p className="pm-section-label">Recipient</p>
                   <div className="pm-modal__grid">
                     <div className="form-group">
-                      <label>Recipient role</label>
-                      <select
+                      <label htmlFor="field-payoutmanagement-785-36334">Recipient role</label>
+                      <select id="field-payoutmanagement-785-36334"
                         value={recipientRole}
                         onChange={(event) => {
                           setRecipientRole(event.target.value as PayoutRole)
@@ -793,12 +787,12 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                       </select>
                     </div>
 
-                    {(recipientRole === 'Doctor' || recipientRole === 'Pediatrician') ? (
+                    
                       <div className="form-group">
-                        <label>Recipient</label>
-                        <select
+                        <label htmlFor="field-payoutmanagement-802-37111">Recipient</label>
+                        <select id="field-payoutmanagement-802-37111"
                           value={recipientId}
-                          onChange={(event) => setRecipientId(event.target.value)}
+                          onChange={(event) => { setRecipientId(event.target.value); const rule = rules.find(item => item.role === recipientRole && item.active); if (!amount && rule) setAmount(String(rule.amount)) }}
                         >
                           <option value="">Select recipient</option>
                           {recipientOptions.map((profile) => (
@@ -806,17 +800,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                           ))}
                         </select>
                       </div>
-                    ) : (
-                      <div className="form-group">
-                        <label>Recipient name</label>
-                        <input
-                          type="text"
-                          value={recipientName}
-                          onChange={(event) => setRecipientName(event.target.value)}
-                          placeholder="Enter recipient name"
-                        />
-                      </div>
-                    )}
+
                   </div>
                 </div>
 
@@ -824,8 +808,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                   <p className="pm-section-label">Payout details</p>
                   <div className="pm-modal__grid">
                     <div className="form-group">
-                      <label>Period</label>
-                      <input
+                      <label htmlFor="field-payoutmanagement-821-38140">Period</label>
+                      <input id="field-payoutmanagement-821-38140"
                         type="text"
                         value={period}
                         onChange={(event) => setPeriod(event.target.value)}
@@ -833,8 +817,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Amount (KSh)</label>
-                      <input
+                      <label htmlFor="field-payoutmanagement-830-38581">Gross amount (KSh)</label>
+                      <input id="field-payoutmanagement-830-38581"
                         type="number"
                         min={1}
                         value={amount}
@@ -843,35 +827,41 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Method</label>
-                      <select value={method} onChange={(event) => setMethod(event.target.value as PayoutMethod)}>
+                      <label htmlFor="field-payoutmanagement-840-39061">Method</label>
+                      <select id="field-payoutmanagement-840-39061" value={method} onChange={(event) => setMethod(event.target.value as PayoutMethod)}>
                         {payoutMethods.map((methodOption) => (
                           <option key={methodOption} value={methodOption}>{methodOption}</option>
                         ))}
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Reference</label>
-                      <input
+                      <label htmlFor="field-payoutmanagement-848-39585">Reference</label>
+                      <input id="field-payoutmanagement-848-39585"
                         type="text"
                         value={reference}
                         onChange={(event) => setReference(event.target.value)}
-                        placeholder="Auto-generated if empty"
+                        placeholder="Unique source reference (required)"
                       />
                     </div>
                   </div>
                 </div>
 
+                <label>Source type<select aria-label="Payout source type" value={sourceType} onChange={event => setSourceType(event.target.value)}><option value="manual_adjustment">Manual adjustment</option><option value="consultation">Completed paid consultation</option></select></label><p>For a consultation, use its CONS reference and recorded gross fee/commission. An earning is paid only once.</p>
+                <div className="pm-modal__section"><p className="pm-section-label">Deductions</p><div className="pm-modal__grid">
+                  <label>Commission<input aria-label="Commission amount" type="number" min="0" step="0.01" value={commission} onChange={event => setCommission(event.target.value)} /></label>
+                  <label>Withholding<input aria-label="Withholding amount" type="number" min="0" step="0.01" value={withholding} onChange={event => setWithholding(event.target.value)} /></label>
+                  <label>Other deductions<input aria-label="Other deductions" type="number" min="0" step="0.01" value={deduction} onChange={event => setDeduction(event.target.value)} /></label>
+                </div><p>Net amount: {formatCurrency(Number(amount || 0) - Number(commission) - Number(withholding) - Number(deduction))}</p></div>
                 <div className="pm-modal__section">
                   <p className="pm-section-label">Status & notes</p>
                   <div className="pm-modal__grid pm-modal__grid--single">
                     <div className="form-group">
-                      <label>Status</label>
-                      <input value={status} readOnly />
+                      <label htmlFor="field-payoutmanagement-869-41567">Status</label>
+                      <input id="field-payoutmanagement-869-41567" value={status} readOnly />
                     </div>
                     <div className="form-group">
-                      <label>Notes (optional)</label>
-                      <input
+                      <label htmlFor="field-payoutmanagement-873-41812">Notes (optional)</label>
+                      <input id="field-payoutmanagement-873-41812"
                         type="text"
                         value={notes}
                         onChange={(event) => setNotes(event.target.value)}
@@ -905,7 +895,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                     <span>Amount</span>
                     <strong>
                       {Number.isFinite(Number.parseFloat(amount)) && Number.parseFloat(amount) > 0
-                        ? formatCurrency(Number.parseFloat(amount))
+                        ? formatCurrency(Number.parseFloat(amount) - Number(commission) - Number(withholding) - Number(deduction))
                         : '-'}
                     </strong>
                   </div>
@@ -919,11 +909,11 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                   </div>
                   <div className="pm-summary-row">
                     <span>Reference</span>
-                    <strong>{reference.trim() || 'Auto-generated'}</strong>
+                    <strong>{reference.trim() || 'Required'}</strong>
                   </div>
                   <div className="pm-summary-row">
                     <span>Source</span>
-                    <strong>Manual entry</strong>
+                    <strong>{sourceType === 'consultation' ? 'Recorded consultation earning' : 'Manual adjustment'}</strong>
                   </div>
                   {notes.trim() && (
                     <div className="pm-summary-note">
@@ -947,27 +937,28 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
+      {reasonTarget && <Dialog onClose={() => setReasonTarget(null)} className="pm-modal" role="dialog" aria-label="Payout action reason"><div className="pm-modal__content"><h2>{reasonTarget.action} payout {reasonTarget.payout.id}</h2><label>Reason<input aria-label="Payout action reason" value={reasonValue} onChange={event => setReasonValue(event.target.value)} /></label><button type="button" onClick={() => setReasonTarget(null)}>Keep payout</button><button type="button" disabled={!reasonValue.trim()} onClick={() => { void runPayoutAction(reasonTarget.payout, reasonTarget.action, { reason: reasonValue.trim() }); setReasonTarget(null) }}>Confirm action</button></div></Dialog>}
       {showPaidModal && paidTarget && (
         <div className="modal-overlay" onClick={() => setShowPaidModal(false)}>
-          <div className="modal pm-paid-modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog onClose={() => setShowPaidModal(false)} className="modal pm-paid-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
               <h2>Mark payout as paid</h2>
-              <button className="modal__close" onClick={() => setShowPaidModal(false)}>×</button>
+              <button aria-label="Close dialog" type="button" className="modal__close" onClick={() => setShowPaidModal(false)}>×</button>
             </div>
             <div className="modal__content">
               <p className="pm-paid-modal__summary">
-                Confirm payment for <strong>{paidTarget.recipientName}</strong> - <strong>{formatCurrency(paidTarget.amount)}</strong>.
+                Record an externally verified payment for <strong>{paidTarget.recipientName}</strong> - <strong>{formatCurrency(paidTarget.amount)}</strong>.
               </p>
               <div className="form-group">
-                <label>Payment method</label>
-                <select value={paidMethod} onChange={(event) => setPaidMethod(event.target.value as 'M-Pesa' | 'Bank Transfer')}>
+                <label htmlFor="field-payoutmanagement-963-46701">Payment method</label>
+                <select id="field-payoutmanagement-963-46701" value={paidMethod} onChange={(event) => setPaidMethod(event.target.value as 'M-Pesa' | 'Bank Transfer')}>
                   <option value="M-Pesa">M-Pesa</option>
                   <option value="Bank Transfer">Bank Transfer</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Reference number</label>
-                <input
+                <label htmlFor="field-payoutmanagement-970-47164">Reference number</label>
+                <input id="field-payoutmanagement-970-47164"
                   type="text"
                   value={paidRef}
                   onChange={(event) => { setPaidRef(event.target.value); setPaidError('') }}
@@ -975,8 +966,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                 />
               </div>
               <div className="form-group">
-                <label>Time of payment</label>
-                <input
+                <label htmlFor="field-payoutmanagement-979-47598">Time of payment</label>
+                <input id="field-payoutmanagement-979-47598"
                   type="datetime-local"
                   value={paidTime}
                   onChange={(event) => { setPaidTime(event.target.value); setPaidError('') }}
@@ -992,7 +983,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                 Confirm payment
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

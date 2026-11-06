@@ -1,0 +1,29 @@
+/* Banner editor: fixed actions with a compact, independently scrolling body. */
+.cm-modal.banner-modal { width: min(680px, 100%); max-height: calc(100dvh - 48px); display: flex; flex-direction: column; overflow: hidden; border-radius: 16px; border: 1px solid #e2e8f0; }
+.banner-modal .cm-modal__header { flex-shrink: 0; padding: 20px 24px; align-items: flex-start; }
+.banner-modal .cm-modal__header h2 { font-size: 1.15rem; line-height: 1.4; }
+.banner-modal .cm-modal__header p { font-size: .8rem; line-height: 1.5; margin-top: 4px; color: #64748b; }
+.banner-modal .cm-modal__close { width: 32px; height: 32px; min-height: 32px; flex: 0 0 32px; border-radius: 8px; font-size: 1.2rem; }
+.banner-modal .cm-form { padding: 0; gap: 0; min-height: 0; overflow: hidden; }
+.banner-modal__body { overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.banner-modal .cm-form-grid { gap: 16px; align-items: start; }
+.banner-modal .cm-field { min-width: 0; gap: 6px; }
+.banner-modal .cm-field > span { font-size: .8rem; color: #334155; }
+.banner-modal .cm-field__optional { font-size: .7rem; font-weight: 400; font-style: normal; color: #94a3b8; margin-left: 4px; }
+.banner-modal .cm-field :is(.admin-input, .admin-select, .admin-textarea) { box-sizing: border-box; min-height: 40px; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; font-size: .85rem; line-height: 1.5; }
+.banner-modal .cm-field .admin-textarea { min-height: 88px; resize: vertical; }
+.banner-modal .cm-field :is(input, select, textarea):focus { border-color: #075b52; box-shadow: 0 0 0 3px #075b5210; }
+.banner-modal .cm-upload-note { font-size: .72rem; line-height: 1.5; color: #64748b; }
+.banner-modal__upload { padding: 14px; border: 1px dashed #cbd5e1; border-radius: 10px; background: #f8fafc; }
+.banner-modal .cm-file-input { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 0; border: 0; background: transparent; }
+.banner-modal .cm-file-input__button { padding: 8px 12px; background: white; color: #334155; border: 1px solid #cbd5e1; border-radius: 7px; font-size: .75rem; flex-shrink: 0; }
+.banner-modal .cm-file-input__text { font-size: .75rem; color: #64748b; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.banner-modal .cm-brand-preview { padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; gap: 12px; }
+.banner-modal .cm-brand-preview__img { width: 128px; height: 64px; object-fit: contain; border-radius: 6px; background: #fff; }
+.banner-modal .cm-brand-preview__meta { min-width: 0; font-size: .75rem; overflow-wrap: anywhere; }
+.banner-modal .cm-modal__actions { flex-shrink: 0; margin: 0; padding: 14px 24px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: flex-end; gap: 10px; }
+.banner-modal .cm-modal__actions .btn { min-height: 38px; font-size: .8rem; padding: 8px 16px; border-radius: 8px; }
+.banner-modal .cm-file-input__native:focus-visible + .cm-file-input { outline: 2px solid #075b52; outline-offset: 3px; }
+@media (max-width: 600px) { .cm-modal.banner-modal { max-height: calc(100dvh - 24px); } .banner-modal .cm-modal__header, .banner-modal__body { padding: 16px; } .banner-modal .cm-form-grid { grid-template-columns: 1fr; } .banner-modal .cm-modal__actions { padding: 12px 16px; } }
+.cm-modal.banner-modal { max-width: 680px; }
+.banner-modal .cm-modal__close { min-width: 32px; padding: 0; }

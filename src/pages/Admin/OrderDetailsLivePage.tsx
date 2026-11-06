@@ -1,5 +1,10 @@
+import { recordDeliveryConfirmation, orderUpdateError, type DeliveryConfirmation } from '../../services/adminOrderService'
+import OrderStatusConfirmation from '../../components/OrderStatusConfirmation'
+import '../../styles/admin/RefundModal.css'
+import { formatPaymentMethod, formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import {
   addAdminOrderNote,
   fetchAdminOrder,
@@ -13,7 +18,7 @@ import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/OrderDetailsPage.css'
 
 const formatCurrency = (value: string | number) => `KSh ${Number(value || 0).toLocaleString()}`
-const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '—'
+const formatDate = (value?: string | null) => value ? new Date(value).toLocaleString() : '-'
 
 const STATUS_FLOW = ['pending', 'processing', 'shipped', 'delivered'] as const
 type FlowStatus = typeof STATUS_FLOW[number]
@@ -36,7 +41,7 @@ const STATUS_ACTION_LABELS: Record<string, string> = {
 }
 
 function buildTrackingSteps(order: AdminOrder) {
-  const currentIndex = STATUS_FLOW.indexOf(order.status as FlowStatus)
+  const currentIndex = STATUS_FLOW.indexOf((order.status === 'paid' ? 'pending' : order.status) as FlowStatus)
   return STATUS_FLOW.map((status, index) => {
     const statusEvent = order.events.find((event) => event.event_type === `status_${status}`)
     return {
@@ -83,11 +88,12 @@ function getInitials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function OrderDetailsLivePage() {
+function OrderDetailsLivePage({ backTo = '/admin/orders' }: { backTo?: string }) {
   const { id } = useParams<{ id: string }>()
   const [order, setOrder] = useState<AdminOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [pendingStatus, setPendingStatus] = useState<'processing' | 'shipped' | 'delivered' | null>(null)
   const [showInvoice, setShowInvoice] = useState(false)
   const [showCancel, setShowCancel] = useState(false)
   const [showRefund, setShowRefund] = useState(false)
@@ -113,11 +119,12 @@ function OrderDetailsLivePage() {
     void loadOrder()
   }, [id])
 
-  const updateOrderStatus = async (status: 'processing' | 'shipped' | 'delivered' | 'cancelled') => {
-    if (!order) return
+  const updateOrderStatus = async (status: 'processing' | 'shipped' | 'delivered' | 'cancelled', delivery?: DeliveryConfirmation) => {
+    if (!order || isSaving) return
     setIsSaving(true)
     setError('')
     try {
+      if (status === 'delivered' && delivery) await recordDeliveryConfirmation(order.id, delivery)
       let updated = await updateAdminOrder(order.id, { status })
       if (actionNote.trim()) {
         updated = await addAdminOrderNote(order.id, actionNote.trim())
@@ -125,8 +132,9 @@ function OrderDetailsLivePage() {
       setOrder(updated)
       setActionNote('')
       setShowCancel(false)
-    } catch {
-      setError('Failed to update order status.')
+      setPendingStatus(null)
+    } catch (err) {
+      setError(orderUpdateError(err))
     } finally {
       setIsSaving(false)
     }
@@ -141,8 +149,7 @@ function OrderDetailsLivePage() {
     setIsSaving(true)
     setError('')
     try {
-      let updated = await refundAdminOrder(order.id)
-      updated = await addAdminOrderNote(order.id, `Refund reason: ${actionNote.trim()}`)
+      const updated = await refundAdminOrder(order.id, actionNote.trim())
       setOrder(updated)
       setActionNote('')
       setRefundReasonError(false)
@@ -215,24 +222,25 @@ function OrderDetailsLivePage() {
     )
   }
 
-  const flowIndex = STATUS_FLOW.indexOf(order.status as FlowStatus)
+  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
+  const flowIndex = STATUS_FLOW.indexOf((order.status === 'paid' ? 'pending' : order.status) as FlowStatus)
   const isTerminal = order.status === 'cancelled' || order.status === 'refunded'
-  const trackingSteps = buildTrackingSteps(order)
   const timelineEntries = buildTimelineEntries(order)
   const upcomingStatus = nextOrderStatus(order)
   const customerName = order.customer_name || `${order.shipping_first_name} ${order.shipping_last_name}`.trim() || 'Guest customer'
-  const customerEmail = order.customer_email || order.shipping_email || '—'
-  const customerPhone = order.customer_phone || order.shipping_phone || '—'
+  const customerEmail = order.customer_email || order.shipping_email || '-'
+  const customerPhone = order.customer_phone || order.shipping_phone || '-'
 
   return (
-    <div className="admin-page od-page">
+    <div className="admin-page od-page staff-order-details">
+      <Link to={backTo} className="od-back-link">← Back to orders</Link>
       <div className="od-header">
         <div className="od-header__left">
           <div className="od-header__title">
             <h1>{order.order_number}</h1>
             <span className={`od-status-badge od-status-badge--${order.status}`}>{STATUS_LABELS[order.status] ?? order.status}</span>
           </div>
-          <p className="od-header__meta">Placed on {formatDate(order.created_at)} · {order.customer_name || 'Guest customer'}</p>
+          <p className="od-header__meta">Placed on {formatDate(order.created_at)}</p>
         </div>
         <div className="od-header__actions">
           <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowInvoice(true)}>Download Invoice</button>
@@ -240,7 +248,7 @@ function OrderDetailsLivePage() {
             <button className="btn btn--outline btn--sm od-btn--cancel" type="button" onClick={() => setShowCancel(true)}>Cancel Order</button>
           )}
           {order.payment_status === 'paid' && order.status !== 'refunded' && (
-            <button className="btn btn--primary btn--sm" type="button" onClick={() => setShowRefund(true)}>Issue Refund</button>
+            <button className="btn btn--primary btn--sm" type="button" onClick={() => setShowRefund(true)}>Record external refund</button>
           )}
         </div>
       </div>
@@ -269,35 +277,17 @@ function OrderDetailsLivePage() {
         </div>
       )}
 
-      <div className="od-overview-strip">
-        <div className="od-overview-card">
-          <span className="od-overview-card__label">Customer</span>
-          <strong>{customerName}</strong>
-          <span>{customerEmail}</span>
-        </div>
-        <div className="od-overview-card">
-          <span className="od-overview-card__label">Payment</span>
-          <strong>{order.payment_method.replace(/_/g, ' ')}</strong>
-          <span>{order.payment_status.replace(/_/g, ' ')}</span>
-        </div>
-        <div className="od-overview-card">
-          <span className="od-overview-card__label">Items</span>
-          <strong>{order.items.reduce((sum, item) => sum + item.quantity, 0)} items</strong>
-          <span>Total {formatCurrency(order.total)}</span>
-        </div>
-      </div>
-
       <div className="od-grid">
         <div className="od-main">
           <div className="od-card">
             <div className="od-card__header">
               <p className="od-card__title">Order Items</p>
-              <span className="od-card__meta">{order.items.length} line items</span>
+              <span className="od-card__meta">{itemCount} {itemCount === 1 ? 'unit' : 'units'} · {order.items.length} {order.items.length === 1 ? 'product' : 'products'}</span>
             </div>
             <div className="od-items">
               {order.items.map((item) => (
                 <div key={item.id} className="od-item">
-                  <div className="od-item__icon">{item.product_name[0]}</div>
+                  
                   <div className="od-item__info">
                     <span className="od-item__name">{item.product_name}</span>
                     <span className="od-item__qty">{item.quantity} × {formatCurrency(item.unit_price)}</span>
@@ -313,27 +303,11 @@ function OrderDetailsLivePage() {
             </div>
           </div>
 
-          <div className="od-card">
-            <div className="od-card__header">
+          <details className="od-card od-disclosure">
+            <summary className="od-card__header">
               <p className="od-card__title">Fulfilment Activity</p>
               <span className="od-card__meta">{timelineEntries.length} updates</span>
-            </div>
-            <div className="od-staff-track od-staff-track--compact">
-              {trackingSteps.map((step, index) => (
-                <div
-                  key={step.status}
-                  className={`od-staff-track__step ${step.isDone ? 'od-staff-track__step--done' : ''} ${step.isCurrent ? 'od-staff-track__step--current' : ''}`}
-                >
-                  <div className="od-staff-track__dot">
-                    {step.isDone ? '✓' : step.isCurrent ? '●' : index + 1}
-                  </div>
-                  <div className="od-staff-track__copy">
-                    <strong>{step.label}</strong>
-                    <span>{formatDate(step.at)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            </summary>
             <div className="od-activity-list">
               {timelineEntries.map((entry) => (
                 <div key={entry.id} className={`od-activity-item od-activity-item--${entry.tone}`}>
@@ -345,32 +319,19 @@ function OrderDetailsLivePage() {
                 </div>
               ))}
             </div>
-          </div>
+          </details>
         </div>
 
         <div className="od-side">
           <div className="od-card od-card--sticky">
             <div className="od-card__header">
-              <p className="od-card__title">Actions</p>
-              <span className="od-card__meta">Update without leaving the page</span>
+              <p className="od-card__title">Manage order</p>
             </div>
             <div className="od-actions-panel">
+              {!upcomingStatus && <p className="od-manage-state">No further fulfilment actions.</p>}
               {upcomingStatus && (
-                <button className="btn btn--primary btn--sm od-actions-panel__primary" type="button" disabled={isSaving} onClick={() => void updateOrderStatus(upcomingStatus)}>
+                <button className="btn btn--primary btn--sm od-actions-panel__primary" type="button" disabled={isSaving} onClick={() => { setError(''); setPendingStatus(upcomingStatus) }}>
                   {STATUS_ACTION_LABELS[upcomingStatus]}
-                </button>
-              )}
-              <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowInvoice(true)}>
-                Download invoice
-              </button>
-              {!['cancelled', 'refunded', 'delivered'].includes(order.status) && (
-                <button className="btn btn--outline btn--sm od-btn--cancel" type="button" onClick={() => setShowCancel(true)}>
-                  Cancel order
-                </button>
-              )}
-              {order.payment_status === 'paid' && order.status !== 'refunded' && (
-                <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowRefund(true)}>
-                  Issue refund
                 </button>
               )}
             </div>
@@ -391,15 +352,15 @@ function OrderDetailsLivePage() {
               <div className="od-customer__avatar">{getInitials(customerName)}</div>
               <div>
                 <p className="od-customer__name">{customerName}</p>
-                {customerEmail !== '—' ? (
+                {customerEmail !== '-' ? (
                   <a className="od-customer__contact" href={`mailto:${customerEmail}`}>{customerEmail}</a>
                 ) : (
-                  <span className="od-customer__contact">—</span>
+                  <span className="od-customer__contact">-</span>
                 )}
-                {customerPhone !== '—' ? (
+                {customerPhone !== '-' ? (
                   <a className="od-customer__contact" href={`tel:${customerPhone}`}>{customerPhone}</a>
                 ) : (
-                  <span className="od-customer__contact">—</span>
+                  <span className="od-customer__contact">-</span>
                 )}
               </div>
             </div>
@@ -414,13 +375,13 @@ function OrderDetailsLivePage() {
               <p className="od-card__title">Payment</p>
             </div>
             <div className="od-detail-list">
-              <div className="od-detail-row"><span>Method</span><strong>{order.payment_method.replace(/_/g, ' ')}</strong></div>
-              <div className="od-detail-row"><span>Status</span><strong>{order.payment_status.replace(/_/g, ' ')}</strong></div>
-              <div className="od-detail-row"><span>Reference</span><strong>{order.payment_reference || '—'}</strong></div>
+              <div className="od-detail-row"><span>Method</span><strong>{formatPaymentMethod(order.payment_method)}</strong></div>
+              <div className="od-detail-row"><span>Status</span><strong>{formatStatus(order.payment_status)}</strong></div>
+              <div className="od-detail-row"><span>Reference</span><strong>{order.payment_reference || '-'}</strong></div>
               {order.payment_method === 'mpesa_paybill' && (
                 <>
-                  <div className="od-detail-row"><span>Paybill</span><strong>{order.paybill_number || '—'}</strong></div>
-                  <div className="od-detail-row"><span>{order.paybill_account_label || 'Account Number'}</span><strong>{order.paybill_account_reference || '—'}</strong></div>
+                  <div className="od-detail-row"><span>Paybill</span><strong>{order.paybill_number || '-'}</strong></div>
+                  <div className="od-detail-row"><span>{order.paybill_account_label || 'Account Number'}</span><strong>{order.paybill_account_reference || '-'}</strong></div>
                 </>
               )}
             </div>
@@ -432,8 +393,8 @@ function OrderDetailsLivePage() {
                 <p className="od-card__title">Paybill Confirmation</p>
               </div>
               <div className="od-detail-list">
-                <div className="od-detail-row"><span>Submitted reference</span><strong>{pendingPaybillIntent.submitted_reference || pendingPaybillIntent.provider_reference || '—'}</strong></div>
-                <div className="od-detail-row"><span>Payer phone</span><strong>{pendingPaybillIntent.phone_number || '—'}</strong></div>
+                <div className="od-detail-row"><span>Submitted reference</span><strong>{pendingPaybillIntent.submitted_reference || pendingPaybillIntent.provider_reference || '-'}</strong></div>
+                <div className="od-detail-row"><span>Payer phone</span><strong>{pendingPaybillIntent.phone_number || '-'}</strong></div>
               </div>
               <div className="od-actions-panel od-actions-panel--split">
                 <button className="btn btn--primary btn--sm" type="button" disabled={isSaving} onClick={() => void handlePaybillDecision(pendingPaybillIntent, 'succeeded')}>
@@ -447,10 +408,10 @@ function OrderDetailsLivePage() {
           )}
 
           {(order.notes.length > 0 || order.payment_intents.length > 0) && (
-            <div className="od-card">
-              <div className="od-card__header">
-                <p className="od-card__title">Notes & Payment Logs</p>
-              </div>
+            <details className="od-card od-disclosure">
+              <summary className="od-card__header">
+                <p className="od-card__title">Notes & payment logs</p>
+              </summary>
               {order.notes.length > 0 && (
                 <ul className="od-notes">
                   {order.notes.map((note) => (
@@ -467,30 +428,32 @@ function OrderDetailsLivePage() {
                         <span className={`status status--${intent.status}`}>{intent.status.replace(/_/g, ' ')}</span>
                       </div>
                       <p>Reference: <strong>{intent.reference}</strong></p>
-                      <p>Provider Ref: <strong>{intent.provider_reference || '—'}</strong></p>
+                      <p>Provider Ref: <strong>{intent.provider_reference || '-'}</strong></p>
                       {intent.last_error && <p className="od-payment-log__error">Latest error: {intent.last_error}</p>}
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </details>
           )}
         </div>
       </div>
 
+      {pendingStatus && <OrderStatusConfirmation orderNumber={order.order_number} status={STATUS_LABELS[pendingStatus]} busy={isSaving} error={error} onClose={() => setPendingStatus(null)} onConfirm={(delivery) => void updateOrderStatus(pendingStatus, delivery)} />}
+
       {showInvoice && (
         <div className="modal-overlay" onClick={() => setShowInvoice(false)}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog onClose={() => setShowInvoice(false)} className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
               <h2>Invoice - {order.order_number}</h2>
-              <button className="modal__close" type="button" onClick={() => setShowInvoice(false)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setShowInvoice(false)}>×</button>
             </div>
             <div className="modal__content">
               <div className="od-invoice">
                 <div className="od-invoice__meta">
                   <div className="od-invoice__row"><span>Customer</span><span>{order.customer_name}</span></div>
                   <div className="od-invoice__row"><span>Date</span><span>{formatDate(order.created_at)}</span></div>
-                  <div className="od-invoice__row"><span>Payment</span><span>{order.payment_method.replace(/_/g, ' ')}</span></div>
+                  <div className="od-invoice__row"><span>Payment</span><span>{formatPaymentMethod(order.payment_method)}</span></div>
                 </div>
                 <div className="od-invoice__divider" />
                 {order.items.map((item) => (
@@ -509,16 +472,16 @@ function OrderDetailsLivePage() {
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowInvoice(false)}>Close</button>
               <button className="btn btn--primary btn--sm" type="button" onClick={() => window.print()}>Print Invoice</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {showCancel && (
         <div className="modal-overlay" onClick={() => setShowCancel(false)}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog busy={isSaving} onClose={() => setShowCancel(false)} className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
               <h2>Cancel order</h2>
-              <button className="modal__close" type="button" onClick={() => setShowCancel(false)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setShowCancel(false)}>×</button>
             </div>
             <div className="modal__content">
               <p className="od-modal-warning">This will mark <strong>{order.order_number}</strong> as cancelled.</p>
@@ -533,39 +496,46 @@ function OrderDetailsLivePage() {
                 Cancel order
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {showRefund && (
         <div className="modal-overlay" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog busy={isSaving} onClose={() => { setShowRefund(false); setRefundReasonError(false) }} className="modal refund-modal" role="dialog" aria-modal="true" aria-labelledby="refund-modal-title" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
-              <h2>Issue refund</h2>
-              <button className="modal__close" type="button" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>×</button>
+              <div className="refund-modal__heading">
+                <h2 id="refund-modal-title">Record external refund</h2>
+                <p>Log a refund already completed outside this application.</p>
+              </div>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>×</button>
             </div>
             <div className="modal__content">
+              <p className="refund-modal__notice">No money is transferred by this action. Include the external payment reference in your reason.</p>
               <p className="od-modal-warning">Refund <strong>{formatCurrency(order.total)}</strong> to <strong>{order.customer_name}</strong>?</p>
               <div className="form-group" style={{ marginTop: '1rem' }}>
-                <label htmlFor="refund-note">Reason <span className="od-required">Required</span></label>
+                <label htmlFor="refund-note">Reason & payment reference <span className="od-required">*</span></label>
                 <input
                   id="refund-note"
                   type="text"
+                  required
+                  aria-invalid={refundReasonError}
+                  aria-describedby={refundReasonError ? 'refund-note-error' : undefined}
                   value={actionNote}
                   onChange={(event) => { setActionNote(event.target.value); setRefundReasonError(false) }}
                   placeholder="e.g. Duplicate paybill submission"
                   style={{ borderColor: refundReasonError ? '#dc2626' : undefined }}
                 />
-                {refundReasonError && <p className="od-field-error">A reason is required to issue a refund.</p>}
+                {refundReasonError && <p id="refund-note-error" role="alert" className="od-field-error">A reason and external payment reference are required for the refund record.</p>}
               </div>
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>Cancel</button>
               <button className="btn btn--primary btn--sm" type="button" disabled={isSaving} onClick={() => void handleRefund()}>
-                Confirm refund
+                Record refund
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

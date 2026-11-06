@@ -1,9 +1,10 @@
+import BrandDirectory from '../../components/BrandDirectory'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { cartService } from '../../services/cartService'
-import { loadCatalogProducts } from '../../data/products'
-import { categoryData } from '../../data/categories'
+import { useProducts } from '../../hooks/useProducts'
+import { useCatalog } from '../../context/CatalogContext'
 import '../../styles/pages/BrandsPage.css'
 import '../../styles/pages/ProductListingPage.css'
 import { useAuth } from '../../context/AuthContext'
@@ -22,6 +23,7 @@ const renderStars = (rating: number) => {
   )
 }
 
+
 const CARD_COLORS = ['blue','green','purple','amber','rose','cyan','indigo','teal','orange','pink'] as const
 const getColor = (name: string) => CARD_COLORS[name.charCodeAt(0) % CARD_COLORS.length]
 
@@ -29,21 +31,19 @@ function BrandsPage() {
   const { brand } = useParams()
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
-  const products = loadCatalogProducts()
+  const { brands: catalogBrands, loading: brandsLoading, error: brandsError, refreshCatalog } = useCatalog()
+  const { products, loading: productsLoading, error: productsError, reload: reloadProducts } = useProducts(
+    brand ? { brand, page_size: 200 } : { page_size: 1 },
+    { loadAllPages: Boolean(brand) },
+  )
 
-  const slugify  = (v: string) => v.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
-  const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '')
   const formatLabel = (v: string) => v.split('-').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
 
   const brandDirectory = useMemo(() =>
-    Array.from(new Set(products.map((p) => p.brand)))
-      .sort((a, b) => a.localeCompare(b))
-      .map((name) => ({
-        name,
-        slug: slugify(name),
-        count: products.filter((p) => normalize(p.brand) === normalize(name)).length,
-      })),
-    [products]
+    catalogBrands
+      .map(({ name, slug, logo, id }) => ({ name, slug, logo, id }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [catalogBrands]
   )
 
   const [brandSearch, setBrandSearch]       = useState('')
@@ -59,18 +59,18 @@ function BrandsPage() {
 
   const selectedBrandEntry   = brandDirectory.find((e) => e.slug === brand)
   const selectedBrandLabel   = selectedBrandEntry?.name ?? (brand ? formatLabel(brand) : '')
-  const selectedBrandProducts = brand
-    ? products.filter((p) => normalize(p.brand) === normalize(selectedBrandLabel))
-    : []
+  const selectedBrandProducts = useMemo(() => brand ? products : [], [brand, products])
 
   const brandCategories = useMemo(() =>
-    categoryData
-      .filter((cat) => selectedBrandProducts.some((p) => p.categorySlug === cat.slug))
-      .map((cat) => ({
-        slug: cat.slug,
-        name: cat.name,
-        count: selectedBrandProducts.filter((p) => p.categorySlug === cat.slug).length,
-      })),
+    Array.from(new Map(
+      selectedBrandProducts
+        .filter((product) => product.categorySlug)
+        .map((product) => [product.categorySlug, product.category]),
+    )).map(([slug, name]) => ({
+      slug,
+      name,
+      count: selectedBrandProducts.filter((product) => product.categorySlug === slug).length,
+    })),
     [selectedBrandProducts]
   )
 
@@ -119,19 +119,6 @@ function BrandsPage() {
 
   /* ── Landing ─────────────────────────────────── */
   if (!brand) {
-    const filtered = brandSearch.trim()
-      ? brandDirectory.filter((e) => e.name.toLowerCase().includes(brandSearch.trim().toLowerCase()))
-      : brandDirectory
-
-    const grouped = filtered.reduce((acc, entry) => {
-      const letter = entry.name[0].toUpperCase()
-      if (!acc[letter]) acc[letter] = []
-      acc[letter].push(entry)
-      return acc
-    }, {} as Record<string, typeof filtered>)
-
-    const letters = Object.keys(grouped).sort()
-
     return (
       <div className="brand-page">
         <div className="brand-hero">
@@ -141,7 +128,7 @@ function BrandsPage() {
             <p className="brand-hero__sub">{brandDirectory.length} trusted pharmacy and beauty brands.</p>
             <div className="brand-search-wrap">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              <input
+              <input aria-label="Search brands"
                 type="text"
                 className="brand-search"
                 placeholder="Search brands…"
@@ -156,27 +143,14 @@ function BrandsPage() {
         </div>
 
         <div className="container brand-dir">
-          {letters.length === 0 ? (
-            <div className="brand-empty">No brands match &ldquo;{brandSearch}&rdquo;</div>
-          ) : (
-            letters.map((letter) => (
-              <div key={letter} className="brand-alpha-group">
-                <div className="brand-alpha-letter">{letter}</div>
-                <div className="brand-alpha-cards">
-                  {grouped[letter].map((entry) => {
-                    const color = getColor(entry.name)
-                    return (
-                      <Link key={entry.slug} to={`/brands/${entry.slug}`} className={`brand-dir-card brand-dir-card--${color}`}>
-                        <span className="brand-dir-card__initial">{entry.name[0].toUpperCase()}</span>
-                        <span className="brand-dir-card__name">{entry.name}</span>
-                        <span className="brand-dir-card__count">{entry.count} products</span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            ))
-          )}
+          {brandsLoading && brandDirectory.length === 0 ? (
+            <div className="brand-empty">Loading brands…</div>
+          ) : brandsError && brandDirectory.length === 0 ? (
+            <div className="brand-empty" role="alert">
+              {brandsError} <button type="button" onClick={() => { void refreshCatalog(true) }}>Try again</button>
+            </div>
+          ) : <BrandDirectory brands={brandDirectory} pageSize={48} query={brandSearch} />}
+
         </div>
       </div>
     )
@@ -236,9 +210,9 @@ function BrandsPage() {
               <div className="filter-panel__section">
                 <h4 className="filter-panel__heading">Price Range</h4>
                 <div className="price-inputs">
-                  <input type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
+                  <input aria-label="Minimum price in KSh" type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
                   <span className="price-sep">–</span>
-                  <input type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
+                  <input aria-label="Maximum price in KSh" type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
                 </div>
               </div>
               <div className="filter-panel__section">
@@ -275,6 +249,13 @@ function BrandsPage() {
 
           {/* Main */}
           <main className="plp__main">
+            {productsLoading && <div className="empty-state"><p className="empty-state__message">Loading products…</p></div>}
+            {productsError && (
+              <div className="empty-state" role="alert">
+                <p className="empty-state__message">{productsError}</p>
+                <button className="btn btn--outline btn--sm" type="button" onClick={() => { void reloadProducts() }}>Try again</button>
+              </div>
+            )}
             <div className="plp__toolbar">
               <p className="plp__results-count">
                 {filteredBrandProducts.length === 0 ? 'No products found' : `Showing ${filteredBrandProducts.length} product${filteredBrandProducts.length !== 1 ? 's' : ''}`}
@@ -282,10 +263,10 @@ function BrandsPage() {
               <div className="plp__toolbar-right">
                 <div className="plp__search-wrap">
                   <svg className="plp__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  <input type="text" className="plp__search-input" placeholder={`Search ${selectedBrandLabel}…`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                  <input aria-label={`Search ${selectedBrandLabel}…`} type="text" className="plp__search-input" placeholder={`Search ${selectedBrandLabel}…`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                   {searchTerm && <button className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>}
                 </div>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="plp__sort-select">
+                <select aria-label="Sort products" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="plp__sort-select">
                   <option value="recommended">Recommended</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
@@ -337,7 +318,7 @@ function BrandsPage() {
                   </div>
                 </article>
               ))}
-              {filteredBrandProducts.length === 0 && (
+              {!productsLoading && !productsError && filteredBrandProducts.length === 0 && (
                 <div className="empty-state">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="44" height="44"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                   <p className="empty-state__message">No products match your filters</p>

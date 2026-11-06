@@ -1,4 +1,7 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/avapharmacy/api/v1').replace(/\/$/, '')
+import { apiFetch } from '../lib/apiFetch'
+import { apiClient } from '../lib/apiClient'
+
+const API_BASE_URL = String(apiClient.defaults.baseURL).replace(/\/$/, '')
 
 const REGISTRATION_ENDPOINT = `${API_BASE_URL}/professionals/register/`
 
@@ -161,7 +164,7 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
       })()
     : null
   if (response.ok) {
-    return payload as T
+    return (payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload) as T
   }
 
   throw new ProfessionalRegistrationError(
@@ -172,13 +175,13 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
 
 export const professionalRegistrationService = {
   async listLabPartners() {
-    const response = await fetch(`${API_BASE_URL}/professionals/lab-partners/`)
+    const response = await apiFetch(`${API_BASE_URL}/professionals/lab-partners/`)
     return handleResponse<LabPartnerOption[]>(response)
   },
 
   async submit(type: ProfessionalRegistrationType, formData: FormData) {
     formData.set('type', type)
-    const response = await fetch(REGISTRATION_ENDPOINT, {
+    const response = await apiFetch(REGISTRATION_ENDPOINT, {
       method: 'POST',
       body: formData,
     })
@@ -186,12 +189,12 @@ export const professionalRegistrationService = {
   },
 
   async getResubmission(token: string) {
-    const response = await fetch(`${API_BASE_URL}/professionals/applications/resubmissions/${encodeURIComponent(token)}/`)
+    const response = await apiFetch(`${API_BASE_URL}/professionals/applications/resubmissions/${encodeURIComponent(token)}/`)
     return handleResponse<ProfessionalResubmissionDetail>(response)
   },
 
   async submitResubmission(token: string, formData: FormData) {
-    const response = await fetch(`${API_BASE_URL}/professionals/applications/resubmissions/${encodeURIComponent(token)}/`, {
+    const response = await apiFetch(`${API_BASE_URL}/professionals/applications/resubmissions/${encodeURIComponent(token)}/`, {
       method: 'POST',
       body: formData,
     })

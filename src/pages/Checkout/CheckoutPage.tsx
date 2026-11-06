@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
 import { CartItem } from '../../data/cart'
@@ -11,7 +11,6 @@ import {
   cancelPaymentIntent,
   createCheckoutDraft,
   createPaymentIntent,
-  fetchFlutterwaveStatus,
   fetchOrder,
   fetchShippingMethods,
   finalizeCheckout,
@@ -91,7 +90,7 @@ function CheckoutPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { settings } = useSiteSettings()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const focusedPrescriptionId = searchParams.get('prescription')?.trim() || ''
   const [currentStep, setCurrentStep] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'card'>('mpesa')
@@ -127,12 +126,20 @@ function CheckoutPage() {
   const [setDefaultAddress, setSetDefaultAddress] = useState(false)
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true)
   const [copiedField, setCopiedField] = useState<'paybill-number' | 'paybill-account' | null>(null)
-  const checkoutItems = useMemo(
-    () => focusedPrescriptionId
-      ? cartItems.filter((item) => item.prescriptionId === focusedPrescriptionId)
-      : cartItems,
-    [cartItems, focusedPrescriptionId],
-  )
+  const draftRequest = useRef<Promise<Order> | null>(null)
+  const checkoutItems = useMemo<CartItem[]>(() => {
+    if (draftOrder && isOrderPaymentPaid(draftOrder)) {
+      return draftOrder.items.map((item) => ({
+        id: item.variant?.id ?? item.product_id ?? item.id,
+        variantId: item.variant?.id, productId: item.product_id ?? undefined,
+        name: item.variant?.name ?? item.variant_name ?? item.product_name,
+        brand: '', price: Number(item.unit_price), quantity: item.quantity,
+        image: item.variant?.image ?? undefined,
+        prescriptionId: item.prescription_id ?? undefined,
+      }))
+    }
+    return focusedPrescriptionId ? cartItems.filter((item) => item.prescriptionId === focusedPrescriptionId) : cartItems
+  }, [cartItems, focusedPrescriptionId, draftOrder])
   const checkoutOrderStorageKey = focusedPrescriptionId
     ? `${CHECKOUT_ORDER_STORAGE_KEY}:${focusedPrescriptionId}`
     : CHECKOUT_ORDER_STORAGE_KEY
@@ -168,13 +175,13 @@ function CheckoutPage() {
     setValidationError('')
   }
 
-  const switchToManualAddress = () => {
+  const switchToManualAddress = useCallback(() => {
     if (selectedAddressId === 'new') return
     setSelectedAddressId('new')
     setAddressLabel('')
     setSaveAddress(true)
     setSetDefaultAddress(savedAddresses.length === 0)
-  }
+  }, [savedAddresses.length, selectedAddressId])
 
   const applyRestoredPaymentState = (order: Order, latestIntent: PaymentIntent | null) => {
     setPaymentIntent(latestIntent)
@@ -233,12 +240,17 @@ function CheckoutPage() {
   }, [])
 
   useEffect(() => {
-    const storedOrderId = window.localStorage.getItem(checkoutOrderStorageKey)
+    const storedOrderId = searchParams.get('order_id') || window.localStorage.getItem(checkoutOrderStorageKey)
     if (!storedOrderId) return
     let active = true
     void fetchOrder(Number(storedOrderId))
       .then((order) => {
         if (!active) return
+        if (!['mpesa_stk', 'mpesa_paybill'].includes(order.payment_method)) {
+          setValidationError('This order uses a payment method that is no longer supported. Start a new M-Pesa checkout.')
+          window.localStorage.removeItem(checkoutOrderStorageKey)
+          return
+        }
         if (focusedPrescriptionId && !order.items.every((item) => item.prescription_id === focusedPrescriptionId)) {
           window.localStorage.removeItem(checkoutOrderStorageKey)
           return
@@ -252,8 +264,8 @@ function CheckoutPage() {
         setStreet(order.shipping_street ?? '')
         setCity(order.shipping_city ?? '')
         setCounty(order.shipping_county ?? '')
-        if (order.payment_method === 'card') setPaymentMethod('card')
-        else setPaymentMethod('mpesa')
+        setDeliveryMethod(order.delivery_method === 'store_pickup' ? 'store_pickup' : 'doorstep_delivery')
+        setPaymentMethod('mpesa')
 
         const latestIntent = order.payment_intents?.[0] ?? null
         applyRestoredPaymentState(order, latestIntent)
@@ -265,7 +277,7 @@ function CheckoutPage() {
     return () => {
       active = false
     }
-  }, [checkoutOrderStorageKey, focusedPrescriptionId])
+  }, [checkoutOrderStorageKey, focusedPrescriptionId, searchParams])
 
   useEffect(() => {
     if (!user) return
@@ -315,117 +327,28 @@ function CheckoutPage() {
 
   useEffect(() => {
     const hasCardCallback = !!searchParams.get('tx_ref') && !!searchParams.get('transaction_id')
-    if (hasCardCallback) return
+    if (hasCardCallback || isOrderPaymentPaid(draftOrder)) return
+    // Restoring an order must retain the provider's waiting/failure outcome.
+    const restoredDelivery = draftOrder?.delivery_method === 'store_pickup' ? 'store_pickup' : 'doorstep_delivery'
+    const selectedMethod = mpesaFlow === 'stk' ? 'mpesa_stk' : 'mpesa_paybill'
+    if (draftOrder && paymentMethod === 'mpesa' && draftOrder.payment_method === selectedMethod && restoredDelivery === deliveryMethod) return
     setPaymentStatus('idle')
     setPaymentNotice('')
     setValidationError('')
-  }, [deliveryMethod, paymentMethod, searchParams])
+  }, [deliveryMethod, paymentMethod, searchParams, draftOrder?.payment_status])
 
   useEffect(() => {
     const hasCardCallback = !!searchParams.get('tx_ref') && !!searchParams.get('transaction_id')
-    if (hasCardCallback) return
+    if (hasCardCallback || isOrderPaymentPaid(draftOrder)) return
+    // Restoring an order must retain the provider's waiting/failure outcome.
+    const restoredDelivery = draftOrder?.delivery_method === 'store_pickup' ? 'store_pickup' : 'doorstep_delivery'
+    const selectedMethod = mpesaFlow === 'stk' ? 'mpesa_stk' : 'mpesa_paybill'
+    if (draftOrder && paymentMethod === 'mpesa' && draftOrder.payment_method === selectedMethod && restoredDelivery === deliveryMethod) return
     if (paymentMethod !== 'mpesa') return
     setPaymentStatus('idle')
     setPaymentNotice('')
     setValidationError('')
-  }, [paymentMethod, mpesaFlow, searchParams])
-
-  useEffect(() => {
-    let cancelled = false
-    const intentId = searchParams.get('intent_id')
-    const orderId = searchParams.get('order_id')
-    const transactionId = searchParams.get('transaction_id')
-    const txRef = searchParams.get('tx_ref')
-    const status = searchParams.get('status')
-    if (!txRef || !status) return
-
-    setCurrentStep(status === 'cancelled' ? 2 : 3)
-    setPaymentMethod('card')
-
-    if (status === 'cancelled') {
-      setPaymentStatus('cancelled')
-      setPaymentNotice('Payment cancelled. Choose another payment method or try again.')
-      setValidationError('')
-      setSearchParams({}, { replace: true })
-      return
-    }
-
-    if (status === 'failed') {
-      setPaymentStatus('failed')
-      setPaymentNotice('Payment failed. Try again.')
-      setValidationError('')
-      setSearchParams({}, { replace: true })
-      return
-    }
-
-    if (!transactionId) {
-      setPaymentStatus('failed')
-      setPaymentNotice('Payment failed. Try again.')
-      setValidationError('')
-      setSearchParams({}, { replace: true })
-      return
-    }
-
-    setPaymentStatus('waiting')
-    setPaymentNotice('Verifying card payment…')
-
-    void fetchFlutterwaveStatus(txRef, transactionId)
-      .then(async (intent) => {
-        if (cancelled) return
-        setPaymentIntent(intent)
-        if (intent.status === 'succeeded') {
-          setPaymentStatus('confirmed')
-          setPaymentNotice('Payment made successfully.')
-          setValidationError('')
-          if (orderId) {
-            const order = await fetchOrder(Number(orderId))
-            if (!cancelled) setDraftOrder(order)
-          }
-        } else if (intent.status === 'requires_action' || intent.status === 'pending') {
-          setPaymentStatus('waiting')
-          setPaymentNotice('Waiting for payment confirmation.')
-        } else {
-          setPaymentStatus('failed')
-          setPaymentNotice('Payment failed. Try again.')
-          setValidationError('')
-        }
-        setSearchParams({}, { replace: true })
-      })
-      .catch(async () => {
-        if (cancelled) return
-        if (intentId && transactionId) {
-          try {
-            const intent = await syncPaymentIntent(Number(intentId), { transaction_id: transactionId })
-            if (cancelled) return
-            setPaymentIntent(intent)
-            if (intent.status === 'succeeded') {
-              setPaymentStatus('confirmed')
-              setPaymentNotice('Payment made successfully.')
-              setValidationError('')
-            } else if (intent.status === 'requires_action' || intent.status === 'pending') {
-              setPaymentStatus('waiting')
-              setPaymentNotice('Waiting for payment confirmation.')
-            } else {
-              setPaymentStatus('failed')
-              setPaymentNotice('Payment failed. Try again.')
-              setValidationError('')
-            }
-          } catch {
-            if (cancelled) return
-            setPaymentStatus('failed')
-            setPaymentNotice('Payment failed. Try again.')
-            setValidationError('')
-          }
-        } else {
-          setPaymentStatus('failed')
-          setPaymentNotice('Payment failed. Try again.')
-          setValidationError('')
-        }
-        setSearchParams({}, { replace: true })
-      })
-
-    return () => { cancelled = true }
-  }, [searchParams, setSearchParams])
+  }, [paymentMethod, mpesaFlow, searchParams, draftOrder?.payment_status])
 
   useEffect(() => {
     if (!paymentIntent || paymentIntent.provider !== 'mpesa' || paymentStatus !== 'waiting') return
@@ -483,7 +406,7 @@ function CheckoutPage() {
       active = false
       window.clearInterval(intervalId)
     }
-  }, [draftOrder?.id, paymentIntent?.id, paymentStatus])
+  }, [draftOrder?.id, paymentIntent, paymentStatus])
 
   useEffect(() => {
     if (!draftOrder || paymentMethod !== 'mpesa' || mpesaFlow !== 'paybill' || paymentStatus !== 'waiting') return
@@ -541,19 +464,26 @@ function CheckoutPage() {
     [shippingMethods],
   )
   const selectedShippingMethod = useMemo(
-    () => (deliveryMethod === 'store_pickup' ? pickupShippingMethod : doorstepShippingMethod),
-    [deliveryMethod, doorstepShippingMethod, pickupShippingMethod],
+    () => {
+      const restoredDelivery = draftOrder?.delivery_method === 'store_pickup' ? 'store_pickup' : 'doorstep_delivery'
+      if (draftOrder?.shipping_method && restoredDelivery === deliveryMethod) {
+        const restoredMethod = shippingMethods.find(method => method.id === draftOrder.shipping_method?.id)
+        if (restoredMethod) return restoredMethod
+      }
+      return deliveryMethod === 'store_pickup' ? pickupShippingMethod : doorstepShippingMethod
+    },
+    [deliveryMethod, doorstepShippingMethod, pickupShippingMethod, draftOrder?.shipping_method, draftOrder?.delivery_method, shippingMethods],
   )
   const deliveryMethodLabel = deliveryMethodLabels[deliveryMethod]
   const subtotal = checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const qualifiesForFreeDelivery =
-    subtotal >= settings.freeDeliveryThreshold || checkoutItems.length === 0
-  const delivery = deliveryMethod === 'store_pickup'
-    ? 0
-    : qualifiesForFreeDelivery
-      ? 0
-      : settings.baseDeliveryFee || (selectedShippingMethod ? Number(selectedShippingMethod.fee) : 300)
-  const total = subtotal + delivery
+  const threshold = selectedShippingMethod
+    ? selectedShippingMethod.free_shipping_threshold === null ? null : Number(selectedShippingMethod.free_shipping_threshold)
+    : settings.freeDeliveryThreshold
+  const qualifiesForFreeDelivery = checkoutItems.length === 0 || (threshold !== null && subtotal >= threshold)
+  const quotedDelivery = deliveryMethod === 'store_pickup' || qualifiesForFreeDelivery
+    ? 0 : selectedShippingMethod ? Number(selectedShippingMethod.fee) : settings.baseDeliveryFee
+  const delivery = draftOrder && isOrderPaymentPaid(draftOrder) ? Number(draftOrder.shipping_fee) : quotedDelivery
+  const total = draftOrder && isOrderPaymentPaid(draftOrder) ? Number(draftOrder.total) : subtotal + delivery
   const itemCount = checkoutItems.reduce((s, i) => s + i.quantity, 0)
   const paymentNoticeTone = paymentStatus === 'confirmed' || paymentNotice.toLowerCase().includes('initiated') || paymentNotice.toLowerCase().includes('success')
     ? 'success'
@@ -607,17 +537,19 @@ function CheckoutPage() {
   }, [paymentRetryAvailableAt, paymentRetryRemainingSeconds])
 
   useEffect(() => {
+    if (isOrderPaymentPaid(draftOrder)) return
     if (!county) return
     if (countyOptions.includes(county)) return
     setCounty('')
     setCity('')
-  }, [county, countyOptions])
+  }, [county, countyOptions, draftOrder?.payment_status])
 
   useEffect(() => {
+    if (isOrderPaymentPaid(draftOrder)) return
     if (!city) return
     if (areaOptions.includes(city)) return
     setCity('')
-  }, [city, areaOptions])
+  }, [city, areaOptions, draftOrder?.payment_status])
 
   useEffect(() => {
     if (selectedAddressId === 'new') return
@@ -631,7 +563,7 @@ function CheckoutPage() {
     }
 
     switchToManualAddress()
-  }, [deliverableSavedAddresses, savedAddresses.length, selectedAddressId])
+  }, [deliverableSavedAddresses, savedAddresses.length, selectedAddressId, switchToManualAddress])
 
   const validateCardDetails = () => {
     setValidationError('')
@@ -834,6 +766,7 @@ function CheckoutPage() {
   }
 
   const handlePaymentMethodChange = (method: 'mpesa' | 'card') => {
+    if (method !== 'mpesa') return
     setPaymentMethod(method)
     setPaymentNotice('')
     setValidationError('')
@@ -849,9 +782,9 @@ function CheckoutPage() {
     city: city.trim(),
     county: county.trim(),
     address_id: selectedAddressId !== 'new' ? Number(selectedAddressId) : null,
-    save_address: selectedAddressId === 'new' ? (savedAddresses.length === 0 || saveAddress) : false,
+    save_address: selectedAddressId === 'new' && saveAddress,
     address_label: selectedAddressId === 'new' ? addressLabel.trim() : '',
-    set_default_address: selectedAddressId === 'new' ? (savedAddresses.length === 0 || setDefaultAddress) : false,
+    set_default_address: selectedAddressId === 'new' && saveAddress && setDefaultAddress,
     payment_method:
       paymentMethod === 'mpesa'
         ? (mpesaFlow === 'paybill' ? 'mpesa_paybill' : 'mpesa_stk')
@@ -892,10 +825,17 @@ function CheckoutPage() {
     ) {
       return draftOrder
     }
-    const order = await createCheckoutDraft(buildCheckoutPayload(), challengeToken)
-    setDraftOrder(order)
-    window.localStorage.setItem(checkoutOrderStorageKey, String(order.id))
-    return order
+    if (draftRequest.current) return draftRequest.current
+    const pending = createCheckoutDraft(buildCheckoutPayload(), challengeToken)
+    draftRequest.current = pending
+    try {
+      const order = await pending
+      setDraftOrder(order)
+      window.localStorage.setItem(checkoutOrderStorageKey, String(order.id))
+      return order
+    } finally {
+      if (draftRequest.current === pending) draftRequest.current = null
+    }
   }
 
   useEffect(() => {
@@ -1025,7 +965,7 @@ function CheckoutPage() {
       setPaymentNotice(paymentStatus === 'failed' ? 'Payment failed. Try again.' : 'Waiting for payment confirmation.')
       return
     }
-    if (!validateStepOne()) return
+    if (!isOrderPaymentPaid(draftOrder) && !validateStepOne()) return
     setIsSubmitting(true)
     try {
       let order = draftOrder
@@ -1129,8 +1069,8 @@ function CheckoutPage() {
                 <form className="co-form">
                   {savedAddresses.length > 0 && (
                     <div className="co-field">
-                      <label className="co-field__label">Saved Address</label>
-                      <select
+                      <label htmlFor="field-checkoutpage-1072-42787" className="co-field__label">Saved Address</label>
+                      <select id="field-checkoutpage-1072-42787"
                         className="co-field__input"
                         value={selectedAddressId}
                         onChange={(e) => {
@@ -1175,25 +1115,25 @@ function CheckoutPage() {
 
                   <div className="co-form__row">
                     <div className="co-field">
-                      <label className="co-field__label">First Name *</label>
-                      <input className="co-field__input" type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                      <label htmlFor="field-checkoutpage-1118-45318" className="co-field__label">First Name *</label>
+                      <input id="field-checkoutpage-1118-45318" className="co-field__input" type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                     </div>
                     <div className="co-field">
-                      <label className="co-field__label">Last Name *</label>
-                      <input className="co-field__input" type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                      <label htmlFor="field-checkoutpage-1122-45679" className="co-field__label">Last Name *</label>
+                      <input id="field-checkoutpage-1122-45679" className="co-field__input" type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
                     </div>
                   </div>
                   <div className="co-field">
-                    <label className="co-field__label">Email Address *</label>
-                    <input className="co-field__input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                    <label htmlFor="field-checkoutpage-1127-46058" className="co-field__label">Email Address *</label>
+                    <input id="field-checkoutpage-1127-46058" className="co-field__input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                   </div>
                   <div className="co-field">
-                    <label className="co-field__label">Phone Number *</label>
-                    <input className="co-field__input" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    <label htmlFor="field-checkoutpage-1131-46407" className="co-field__label">Phone Number *</label>
+                    <input id="field-checkoutpage-1131-46407" className="co-field__input" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} />
                   </div>
                   <div className="co-field">
-                    <label className="co-field__label">Street Address *</label>
-                    <input
+                    <label htmlFor="field-checkoutpage-1135-46753" className="co-field__label">Street Address *</label>
+                    <input id="field-checkoutpage-1135-46753"
                       className="co-field__input"
                       type="text"
                       required
@@ -1206,8 +1146,8 @@ function CheckoutPage() {
                   </div>
                   <div className="co-form__row">
                     <div className="co-field">
-                      <label className="co-field__label">Country *</label>
-                      <select
+                      <label htmlFor="field-checkoutpage-1149-47385" className="co-field__label">Country *</label>
+                      <select id="field-checkoutpage-1149-47385"
                         className="co-field__input"
                         required
                         value={country}
@@ -1226,8 +1166,8 @@ function CheckoutPage() {
                       </select>
                     </div>
                     <div className="co-field">
-                      <label className="co-field__label">County *</label>
-                      <select
+                      <label htmlFor="field-checkoutpage-1169-48305" className="co-field__label">County *</label>
+                      <select id="field-checkoutpage-1169-48305"
                         className="co-field__input"
                         required
                         value={county}
@@ -1253,8 +1193,8 @@ function CheckoutPage() {
                     </div>
                   </div>
                   <div className="co-field">
-                    <label className="co-field__label">{areaLabel}</label>
-                    <select
+                    <label htmlFor="field-checkoutpage-1196-49758" className="co-field__label">{areaLabel}</label>
+                    <select id="field-checkoutpage-1196-49758"
                       className="co-field__input"
                       required
                       value={city}
@@ -1275,8 +1215,8 @@ function CheckoutPage() {
                   {selectedAddressId === 'new' && (
                     <>
                       <div className="co-field">
-                        <label className="co-field__label">Address Label</label>
-                        <input
+                        <label htmlFor="field-checkoutpage-1218-50827" className="co-field__label">Address Label</label>
+                        <input id="field-checkoutpage-1218-50827"
                           className="co-field__input"
                           type="text"
                           value={addressLabel}
@@ -1311,8 +1251,8 @@ function CheckoutPage() {
                     </>
                   )}
                   <div className="co-field">
-                    <label className="co-field__label">Delivery Method</label>
-                    <select
+                    <label htmlFor="field-checkoutpage-1254-52651" className="co-field__label">Delivery Method</label>
+                    <select id="field-checkoutpage-1254-52651"
                       className="co-field__input"
                       value={deliveryMethod}
                       onChange={(e) => setDeliveryMethod(e.target.value as DeliveryMethodOption)}
@@ -1328,7 +1268,7 @@ function CheckoutPage() {
                   </div>
                   {availabilityErrors.length > 0 && <p className="co-error">{availabilityErrors[0]}</p>}
                   <TurnstileChallenge action="checkout" onToken={setChallengeToken} resetKey={challengeResetKey} />
-                  {validationError && <p className="co-error">{validationError}</p>}
+                  {validationError && validationError !== visiblePaymentNotice && <p className="co-error">{validationError}</p>}
                   <div className="co-form__actions">
                     <button type="button" onClick={handleContinueToPayment} className="btn btn--primary btn--lg" disabled={checkoutItems.length === 0 || isSubmitting || (challengeRequired && !challengeToken)}>
                       Continue to Payment
@@ -1346,7 +1286,7 @@ function CheckoutPage() {
                   <div className="co-section__icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
                   </div>
-                  <h2 className="co-section__title">Payment Method</h2>
+                  <h2 className="co-section__title">Pay with M-Pesa</h2>
                 </div>
 
                 <div className="co-payment-methods">
@@ -1360,7 +1300,7 @@ function CheckoutPage() {
                     <div className="co-pm__radio" />
                   </label>
 
-                  {/* Card payment is temporarily hidden from the checkout form. */}
+                  {/* Checkout supports M-Pesa STK and Paybill only. */}
                 </div>
 
                 {paymentMethod === 'mpesa' && (
@@ -1371,7 +1311,7 @@ function CheckoutPage() {
                       <input type="radio" name="mpesa-flow" checked={mpesaFlow === 'stk'} onChange={() => setMpesaFlow('stk')} />
                       <div>
                         <strong>STK Push</strong>
-                        <p>Prompt sent to your phone</p>
+                        <p>Send a payment prompt to your phone</p>
                       </div>
                     </label>
                     <label className={`co-mpesa-opt ${mpesaFlow === 'paybill' ? 'co-mpesa-opt--active' : ''}`}>
@@ -1387,8 +1327,8 @@ function CheckoutPage() {
 
                 {paymentMethod === 'mpesa' && mpesaFlow === 'stk' && (
                   <div className="co-field co-payment-extra">
-                    <label className="co-field__label">M-Pesa Number *</label>
-                    <input className="co-field__input" type="tel" placeholder="e.g. 0712345678 or +254712345678" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} />
+                    <label htmlFor="field-checkoutpage-1330-57168" className="co-field__label">M-Pesa Number *</label>
+                    <input id="field-checkoutpage-1330-57168" className="co-field__input" type="tel" placeholder="e.g. 0712345678 or +254712345678" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} />
                   </div>
                 )}
 
@@ -1396,7 +1336,7 @@ function CheckoutPage() {
                   <div className={`co-paybill-box co-paybill-box--${selectedMethodTone}`} aria-live="polite">
                     <p className="co-paybill-box__label">M-Pesa STK Push</p>
                     <div className="co-paybill-box__rows">
-                      <div className="co-paybill-box__row"><span>Flow</span><strong>Prompt sent to your phone</strong></div>
+                      <div className="co-paybill-box__row"><span>Flow</span><strong>{paymentStatus === 'waiting' ? 'Waiting for confirmation on your phone' : paymentStatus === 'confirmed' ? 'Payment confirmed' : 'Initiate STK Push to send a prompt'}</strong></div>
                       <div className="co-paybill-box__row"><span>Number</span><strong>{mpesaPhone || 'Enter M-Pesa number above'}</strong></div>
                       <div className="co-paybill-box__row"><span>Amount</span><strong>{fmt(total)}</strong></div>
                     </div>
@@ -1461,7 +1401,7 @@ function CheckoutPage() {
                 )}
 
                 {visiblePaymentNotice && <p className={`co-payment-notice co-payment-notice--${paymentNoticeTone}`}>{visiblePaymentNotice}</p>}
-                {validationError && <p className="co-error">{validationError}</p>}
+                {validationError && validationError !== visiblePaymentNotice && <p className="co-error">{validationError}</p>}
 
                 <div className="co-actions">
                   <button onClick={() => setCurrentStep(1)} className="btn btn--outline" type="button" disabled={isPaymentLocked}>Back</button>
@@ -1612,7 +1552,7 @@ function CheckoutPage() {
                   ))}
                 </div>
 
-                {validationError && <p className="co-error">{validationError}</p>}
+                {validationError && validationError !== visiblePaymentNotice && <p className="co-error">{validationError}</p>}
 
                 <div className="co-actions">
                   {!isPaymentLocked && <button onClick={() => setCurrentStep(2)} className="btn btn--outline" type="button">Back</button>}

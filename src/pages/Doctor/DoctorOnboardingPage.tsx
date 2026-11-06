@@ -22,7 +22,7 @@ function DoctorOnboardingPage() {
   const [submitted, setSubmitted] = useState(false)
   const [step1, setStep1] = useState<Step1Data>({ name: '', gender: '', dob: '', phone: '', bio: '' })
   const [step2, setStep2] = useState<Step2Data>({ license_number: '', specialty: '', years_experience: '', documents: [] })
-  const [step3, setStep3] = useState<Step3Data>({ consult_fee: '', currency: 'KES', availability: [{ day: 'Monday', start: '08:00', end: '17:00' }] })
+  const [step3, setStep3] = useState<Step3Data>({ consult_fee: '1500', currency: 'KES', availability: [{ day: 'Monday', start: '08:00', end: '17:00' }] })
   const [step4, setStep4] = useState<Step4Data>({ payout_method: 'mpesa', payout_account: '' })
 
   const validate = (): boolean => {
@@ -31,7 +31,6 @@ function DoctorOnboardingPage() {
     if (step === 1 && !step1.phone.trim()) { setError('Phone number is required.'); return false }
     if (step === 2 && !step2.license_number.trim()) { setError('Medical license number is required.'); return false }
     if (step === 2 && !step2.specialty) { setError('Please select a specialty.'); return false }
-    if (step === 3 && Number(step3.consult_fee) <= 0) { setError('Consult fee must be greater than 0.'); return false }
     if (step === 4 && !step4.payout_account.trim()) { setError('Payout account number is required.'); return false }
     return true
   }
@@ -115,32 +114,32 @@ function DoctorOnboardingPage() {
             <div className="onboard-fields">
               <h2 className="onboard-section-title">Personal information</h2>
               <div className="onboard-field">
-                <label>Full name *</label>
-                <input type="text" value={step1.name} placeholder="Dr. Jane Doe"
+                <label htmlFor="field-doctoronboardingpage-118-5930">Full name *</label>
+                <input id="field-doctoronboardingpage-118-5930" type="text" value={step1.name} placeholder="Dr. Jane Doe"
                   onChange={(e) => setStep1((s) => ({ ...s, name: e.target.value }))} />
               </div>
               <div className="onboard-field-row">
                 <div className="onboard-field">
-                  <label>Gender</label>
-                  <select value={step1.gender} onChange={(e) => setStep1((s) => ({ ...s, gender: e.target.value }))}>
+                  <label htmlFor="field-doctoronboardingpage-124-6341">Gender</label>
+                  <select id="field-doctoronboardingpage-124-6341" value={step1.gender} onChange={(e) => setStep1((s) => ({ ...s, gender: e.target.value }))}>
                     <option value="">Select</option>
                     <option>Male</option><option>Female</option><option>Other</option><option>Prefer not to say</option>
                   </select>
                 </div>
                 <div className="onboard-field">
-                  <label>Date of birth</label>
-                  <input type="date" value={step1.dob}
+                  <label htmlFor="field-doctoronboardingpage-131-6849">Date of birth</label>
+                  <input id="field-doctoronboardingpage-131-6849" type="date" value={step1.dob}
                     onChange={(e) => setStep1((s) => ({ ...s, dob: e.target.value }))} />
                 </div>
               </div>
               <div className="onboard-field">
-                <label>Phone number *</label>
-                <input type="tel" value={step1.phone} placeholder="+254 700 000 000"
+                <label htmlFor="field-doctoronboardingpage-137-7206">Phone number *</label>
+                <input id="field-doctoronboardingpage-137-7206" type="tel" value={step1.phone} placeholder="+254 700 000 000"
                   onChange={(e) => setStep1((s) => ({ ...s, phone: e.target.value }))} />
               </div>
               <div className="onboard-field">
-                <label>Bio</label>
-                <textarea rows={4} value={step1.bio} placeholder="Brief professional summary…"
+                <label htmlFor="field-doctoronboardingpage-142-7571">Bio</label>
+                <textarea id="field-doctoronboardingpage-142-7571" rows={4} value={step1.bio} placeholder="Brief professional summary…"
                   onChange={(e) => setStep1((s) => ({ ...s, bio: e.target.value }))} />
               </div>
             </div>
@@ -150,27 +149,27 @@ function DoctorOnboardingPage() {
             <div className="onboard-fields">
               <h2 className="onboard-section-title">Credentials</h2>
               <div className="onboard-field">
-                <label>Medical license number *</label>
-                <input type="text" value={step2.license_number} placeholder="KE-MED-12345"
+                <label htmlFor="field-doctoronboardingpage-153-8107">Medical license number *</label>
+                <input id="field-doctoronboardingpage-153-8107" type="text" value={step2.license_number} placeholder="KE-MED-12345"
                   onChange={(e) => setStep2((s) => ({ ...s, license_number: e.target.value }))} />
               </div>
               <div className="onboard-field-row">
                 <div className="onboard-field">
-                  <label>Specialty *</label>
-                  <select value={step2.specialty} onChange={(e) => setStep2((s) => ({ ...s, specialty: e.target.value }))}>
+                  <label htmlFor="field-doctoronboardingpage-159-8551">Specialty *</label>
+                  <select id="field-doctoronboardingpage-159-8551" value={step2.specialty} onChange={(e) => setStep2((s) => ({ ...s, specialty: e.target.value }))}>
                     <option value="">Select specialty</option>
                     {SPECIALTIES.map((sp) => <option key={sp}>{sp}</option>)}
                   </select>
                 </div>
                 <div className="onboard-field">
-                  <label>Years of experience</label>
-                  <input type="number" min="0" value={step2.years_experience} placeholder="5"
+                  <label htmlFor="field-doctoronboardingpage-166-9037">Years of experience</label>
+                  <input id="field-doctoronboardingpage-166-9037" type="number" min="0" value={step2.years_experience} placeholder="5"
                     onChange={(e) => setStep2((s) => ({ ...s, years_experience: e.target.value }))} />
                 </div>
               </div>
               <div className="onboard-field">
-                <label>Documents (license scan, degree)</label>
-                <input ref={docInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple
+                <label htmlFor="field-doctoronboardingpage-172-9452">Documents (license scan, degree)</label>
+                <input id="field-doctoronboardingpage-172-9452" ref={docInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple
                   className="onboard-file-input"
                   onChange={(e) => setStep2((s) => ({ ...s, documents: Array.from(e.target.files ?? []) }))} />
                 <button className="btn btn--outline btn--sm" type="button"
@@ -187,14 +186,13 @@ function DoctorOnboardingPage() {
               <h2 className="onboard-section-title">Availability &amp; fees</h2>
               <div className="onboard-field-row">
                 <div className="onboard-field">
-                  <label>Consult fee *</label>
-                  <input type="number" min="0" value={step3.consult_fee} placeholder="500"
-                    onChange={(e) => setStep3((s) => ({ ...s, consult_fee: e.target.value }))} />
+                  <label htmlFor="field-doctoronboardingpage-190-10525">Patient consultation fee (KSh)</label>
+                  <input id="field-doctoronboardingpage-190-10525" type="number" min="0" value="1500" readOnly aria-readonly="true" />
                 </div>
                 <div className="onboard-field">
-                  <label>Currency</label>
-                  <select value={step3.currency} onChange={(e) => setStep3((s) => ({ ...s, currency: e.target.value }))}>
-                    <option>KES</option><option>USD</option><option>UGX</option><option>TZS</option>
+                  <label htmlFor="field-doctoronboardingpage-195-10909">Currency</label>
+                  <select id="field-doctoronboardingpage-195-10909" value={step3.currency} onChange={(e) => setStep3((s) => ({ ...s, currency: e.target.value }))}>
+                    <option>KES</option>
                   </select>
                 </div>
               </div>
@@ -202,12 +200,12 @@ function DoctorOnboardingPage() {
                 <label>Weekly availability</label>
                 {step3.availability.map((slot, i) => (
                   <div key={i} className="onboard-slot">
-                    <select value={slot.day} onChange={(e) => updateSlot(i, 'day', e.target.value)}>
+                    <select aria-label="Availability day" value={slot.day} onChange={(e) => updateSlot(i, 'day', e.target.value)}>
                       {DAYS.map((d) => <option key={d}>{d}</option>)}
                     </select>
-                    <input type="time" value={slot.start} onChange={(e) => updateSlot(i, 'start', e.target.value)} />
+                    <input aria-label="Availability start time" type="time" value={slot.start} onChange={(e) => updateSlot(i, 'start', e.target.value)} />
                     <span>–</span>
-                    <input type="time" value={slot.end} onChange={(e) => updateSlot(i, 'end', e.target.value)} />
+                    <input aria-label="Availability end time" type="time" value={slot.end} onChange={(e) => updateSlot(i, 'end', e.target.value)} />
                     <button className="onboard-slot__remove" type="button"
                       onClick={() => removeSlot(i)} aria-label="Remove">×</button>
                   </div>
@@ -234,8 +232,8 @@ function DoctorOnboardingPage() {
                 </div>
               </div>
               <div className="onboard-field">
-                <label>{step4.payout_method === 'mpesa' ? 'M-Pesa number *' : 'Bank account number *'}</label>
-                <input type="text" value={step4.payout_account}
+                <label htmlFor="field-doctoronboardingpage-237-13200">{step4.payout_method === 'mpesa' ? 'M-Pesa number *' : 'Bank account number *'}</label>
+                <input id="field-doctoronboardingpage-237-13200" type="text" value={step4.payout_account}
                   placeholder={step4.payout_method === 'mpesa' ? '+254 700 000 000' : 'Account number'}
                   onChange={(e) => setStep4((s) => ({ ...s, payout_account: e.target.value }))} />
               </div>

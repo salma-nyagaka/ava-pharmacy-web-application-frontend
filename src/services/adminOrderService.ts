@@ -17,6 +17,17 @@ export interface AdminOrderNote {
   created_at: string
 }
 
+export interface AdminReturnRequest {
+  id: number
+  order_item: number | null
+  request_type: string
+  reason: string
+  requested_refund_amount: string | null
+  status: string
+  resolution_notes: string
+  created_at: string
+}
+
 export interface AdminOrder {
   id: number
   order_number: string
@@ -53,6 +64,7 @@ export interface AdminOrder {
   notes: AdminOrderNote[]
   events: AdminOrderEvent[]
   payment_intents: PaymentIntent[]
+  return_requests?: AdminReturnRequest[]
 }
 
 function unwrap<T>(res: { data?: { data?: T } & T }): T {
@@ -91,6 +103,13 @@ export async function listAdminOrders(params?: Record<string, string>): Promise<
 }
 
 export async function fetchAdminOrder(id: number | string): Promise<AdminOrder> {
+  // Support and finance links may carry the public reference rather than the numeric ID.
+  if (typeof id === 'string' && !/^\d+$/.test(id)) {
+    const matches = await listAdminOrders({ search: id })
+    const match = matches.find((order) => order.order_number === id)
+    if (!match) throw new Error('Order not found.')
+    return fetchAdminOrder(match.id)
+  }
   const res = await apiClient.get(`/admin/orders/${id}/`)
   return unwrap<AdminOrder>(res)
 }
@@ -107,8 +126,8 @@ export async function updateAdminOrder(id: number | string, payload: Partial<{
   return unwrap<AdminOrder>(res)
 }
 
-export async function refundAdminOrder(id: number | string): Promise<AdminOrder> {
-  const res = await apiClient.post(`/admin/orders/${id}/refund/`)
+export async function refundAdminOrder(id: number | string, reason = ''): Promise<AdminOrder> {
+  const res = await apiClient.post(`/admin/orders/${id}/refund/`, { reason })
   return unwrap<AdminOrder>(res)
 }
 
@@ -123,4 +142,22 @@ export async function reconcilePaybillIntent(
 ): Promise<PaymentIntent> {
   const res = await apiClient.post(`/admin/payments/intents/${id}/reconcile/`, payload)
   return unwrap<PaymentIntent>(res)
+}
+
+export interface DeliveryConfirmation {
+  recipient_name: string
+  recipient_verified: boolean
+  package_condition: string
+  temperature_sensitive: boolean
+  cold_chain_intact: boolean
+  temperature_reading_c?: number
+}
+
+export async function recordDeliveryConfirmation(id: number, delivery: DeliveryConfirmation) {
+  await apiClient.post(`/admin/orders/${id}/delivery-audits/`, { event_type: 'delivered', ...delivery })
+}
+
+export function orderUpdateError(error: unknown): string {
+  const data = (error as { response?: { data?: { error?: { message?: string }; detail?: string; status?: string[] } } })?.response?.data
+  return data?.error?.message || data?.detail || data?.status?.[0] || 'Failed to update order status.'
 }

@@ -18,6 +18,7 @@ export interface ClinicianSummary {
 }
 
 export interface ConsultationMessage {
+  messageType?: 'text' | 'image' | 'file' | 'e_prescription'
   id: number
   sender: number | null
   senderName: string
@@ -76,6 +77,8 @@ export interface ConsultationRecord {
   bmi: string | null
   muacCm: string | null
   bloodGlucoseMmolL: string | null
+  childSnapshot?: Record<string, unknown>
+  guardianSnapshot?: Record<string, unknown>
   consentStatus: ConsultationConsentStatus
   dosageAlert: boolean
   lastMessageAt: string | null
@@ -97,6 +100,7 @@ export interface CreateConsultationPayload {
   priority?: ConsultationPriority
   scheduled_at?: string | null
   is_pediatric?: boolean
+  guardian_consent?: boolean
   child_patient_id?: number | null
   guardian_name?: string
   child_name?: string
@@ -465,6 +469,7 @@ function mapMessage(raw: Record<string, unknown>): ConsultationMessage {
     sender: raw.sender == null ? null : Number(raw.sender),
     senderName: String(raw.sender_name ?? ''),
     message: String(raw.message ?? ''),
+    messageType: String(raw.message_type ?? 'text') as ConsultationMessage['messageType'],
     sentAt: String(raw.sent_at ?? ''),
   }
 }
@@ -532,6 +537,8 @@ function mapConsultation(raw: Record<string, unknown>): ConsultationRecord {
     bmi: raw.bmi == null ? null : String(raw.bmi),
     muacCm: raw.muac_cm == null ? null : String(raw.muac_cm),
     bloodGlucoseMmolL: raw.blood_glucose_mmol_l == null ? null : String(raw.blood_glucose_mmol_l),
+    childSnapshot: (raw.child_snapshot ?? {}) as Record<string, unknown>,
+    guardianSnapshot: (raw.guardian_snapshot ?? {}) as Record<string, unknown>,
     consentStatus: String(raw.consent_status ?? 'pending') as ConsultationConsentStatus,
     dosageAlert: Boolean(raw.dosage_alert),
     lastMessageAt: raw.last_message_at ? String(raw.last_message_at) : null,
@@ -940,6 +947,7 @@ export interface ClinicianPrescription {
 }
 
 export interface ClinicianEarningRecord {
+  payout?: { reference: string; status: string; reconciliation_status: string; amount: string; paid_at: string | null; execution_mode: string } | null
   id: number
   consultation: number | null
   amount: string

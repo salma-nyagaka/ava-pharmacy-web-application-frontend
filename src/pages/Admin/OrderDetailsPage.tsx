@@ -1,3 +1,4 @@
+import Dialog from '../../components/Dialog/Dialog'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getOrderTotals, loadAdminOrders, saveAdminOrders } from '../../data/adminOrders'
@@ -211,10 +212,10 @@ function OrderDetailsPage() {
       {/* Invoice modal */}
       {showInvoice && (
         <div className="modal-overlay" onClick={() => setShowInvoice(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setShowInvoice(false)} className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <h2>Invoice - {order.id}</h2>
-              <button className="modal__close" type="button" onClick={() => setShowInvoice(false)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setShowInvoice(false)}>×</button>
             </div>
             <div className="modal__content">
               <div className="od-invoice">
@@ -242,17 +243,17 @@ function OrderDetailsPage() {
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setShowInvoice(false)}>Close</button>
               <button className="btn btn--primary btn--sm" type="button" onClick={handleInvoicePrint}>Print Invoice</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {/* Cancel modal */}
       {showCancel && (
         <div className="modal-overlay" onClick={() => setShowCancel(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setShowCancel(false)} className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <h2>Cancel order</h2>
-              <button className="modal__close" type="button" onClick={() => setShowCancel(false)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setShowCancel(false)}>×</button>
             </div>
             <div className="modal__content">
               <p className="od-modal-warning">This will mark <strong>{order.id}</strong> as cancelled. The customer will need to be notified separately.</p>
@@ -273,17 +274,17 @@ function OrderDetailsPage() {
                 Cancel order
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {/* Refund modal */}
       {showRefund && (
         <div className="modal-overlay" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => { setShowRefund(false); setRefundReasonError(false) }} className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <h2>Issue refund</h2>
-              <button className="modal__close" type="button" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => { setShowRefund(false); setRefundReasonError(false) }}>×</button>
             </div>
             <div className="modal__content">
               <p className="od-modal-warning">Refund <strong>{formatCurrency(total)}</strong> to <strong>{order.customer}</strong>?</p>
@@ -315,7 +316,7 @@ function OrderDetailsPage() {
                 Confirm refund
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

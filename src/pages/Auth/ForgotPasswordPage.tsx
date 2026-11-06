@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
 import { apiClient } from '../../lib/apiClient'
 import { buildBotPayload, isBotChallengeEnabled } from '../../services/botProtectionService'
@@ -7,7 +7,8 @@ import favicon from '../../assets/images/logos/favicon.png'
 import '../../styles/pages/AuthPage.css'
 
 function ForgotPasswordPage() {
-  const [email, setEmail] = useState('')
+  const location = useLocation()
+  const [email, setEmail] = useState<string>(() => typeof location.state?.email === 'string' ? location.state.email : '')
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -42,7 +43,7 @@ function ForgotPasswordPage() {
   }
 
   return (
-    <div className="login-page">
+    <div className={`login-page${submitted ? ' password-reset-confirmation' : ''}`}>
       <div className="login-brand">
         <div className="login-brand__inner">
           <div className="login-brand__logo-wrap">
@@ -59,8 +60,8 @@ function ForgotPasswordPage() {
           </div>
           <div className="login-brand__stats">
             <div className="login-brand__stat">
-              <strong>Licensed</strong>
-              <span>Pharmacy</span>
+              <strong>Pharmacy</strong>
+              <span>Support</span>
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
@@ -69,7 +70,7 @@ function ForgotPasswordPage() {
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
-              <strong>24/7</strong>
+              <strong>Help</strong>
               <span>Support</span>
             </div>
           </div>
@@ -79,17 +80,15 @@ function ForgotPasswordPage() {
       <div className="login-form-panel">
         <div className="login-form-inner">
           {submitted ? (
-            <>
-              <div className="login-form-header">
-                <h2 className="login-form-header__title">Check your inbox</h2>
-                <p className="login-form-header__sub">
-                  If an account with <strong>{email}</strong> exists, we've sent a password reset link. Check your spam folder if you don't see it.
-                </p>
+            <section className="reset-confirmation" aria-labelledby="reset-confirmation-title" role="status">
+              <div className="reset-confirmation__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg>
               </div>
-              <p className="login-register" style={{ marginTop: '1.5rem' }}>
-                <Link to="/login">Back to sign in</Link>
-              </p>
-            </>
+              <h2 id="reset-confirmation-title">Check your inbox</h2>
+              <p>If an account exists for <strong>{email.trim()}</strong>, we’ve sent a password reset link.</p>
+              <div className="reset-confirmation__note">Can’t find the email? Check your spam or junk folder.</div>
+              <Link className="reset-confirmation__signin" to="/login">Back to sign in <span aria-hidden="true">→</span></Link>
+            </section>
           ) : (
             <>
               <div className="login-form-header">

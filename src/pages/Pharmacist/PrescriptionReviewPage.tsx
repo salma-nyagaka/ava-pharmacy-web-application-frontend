@@ -1,3 +1,4 @@
+import { formatStatus } from '../../utils/formatStatus'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -171,7 +172,7 @@ function PrescriptionReviewPage() {
       <div className={statusBarClass(prescription.status)}>
         <div className="prx-status-bar__inner">
           <div className="prx-status-icon"><StatusIcon status={prescription.status} /></div>
-          <span className="prx-status-label">Status: {prescription.status}</span>
+          <span className="prx-status-label">Status: {formatStatus(prescription.status)}</span>
           <span className="prx-status-desc">-{statusDescription(prescription.status)}</span>
         </div>
       </div>
@@ -190,10 +191,10 @@ function PrescriptionReviewPage() {
             <div className="prx-card__body">
               <div className="prx-meta-grid">
                 <div><p className="prx-meta-item__label">Patient name</p><p className="prx-meta-item__value">{prescription.patient}</p></div>
-                <div><p className="prx-meta-item__label">Prescribing doctor</p><p className="prx-meta-item__value">{prescription.doctor || '—'}</p></div>
+                <div><p className="prx-meta-item__label">Prescribing doctor</p><p className="prx-meta-item__value">{prescription.doctor || '-'}</p></div>
                 <div><p className="prx-meta-item__label">Date submitted</p><p className="prx-meta-item__value">{prescription.submitted}</p></div>
                 <div><p className="prx-meta-item__label">Handled by</p><p className="prx-meta-item__value">{prescription.pharmacist || 'Not yet assigned'}</p></div>
-                <div><p className="prx-meta-item__label">Current status</p><span className={statusBadgeClass(prescription.status)}>{prescription.status}</span></div>
+                <div><p className="prx-meta-item__label">Current status</p><span className={statusBadgeClass(prescription.status)}>{formatStatus(prescription.status)}</span></div>
                 <div><p className="prx-meta-item__label">Dispatch stage</p><span className="prx-badge prx-badge--dispatch">{prescription.dispatchStatus}</span></div>
               </div>
             </div>
@@ -212,12 +213,12 @@ function PrescriptionReviewPage() {
               <div className="prx-item-editor">
                 {editableItems.map((item, index) => (
                   <div key={`${item.backendId || index}-${item.name || 'item'}`} className="prx-item-editor__row">
-                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Medication name" value={item.name} onChange={(event) => handleItemChange(index, { name: event.target.value })} />
-                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Dose" value={item.dose} onChange={(event) => handleItemChange(index, { dose: event.target.value })} />
-                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Frequency" value={item.frequency} onChange={(event) => handleItemChange(index, { frequency: event.target.value })} />
-                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Duration (e.g. 3/7, 2/52)" value={item.duration ?? ''} onChange={(event) => handleItemChange(index, { duration: event.target.value })} />
-                    <input className="prx-textarea prx-item-editor__input prx-item-editor__qty" type="number" min="1" value={item.qty} onChange={(event) => handleItemChange(index, { qty: Number(event.target.value) || 1 })} />
-                    <input className="prx-textarea prx-item-editor__input" type="text" placeholder="Measurement (tablets, ml)" value={item.quantityMeasurement ?? ''} onChange={(event) => handleItemChange(index, { quantityMeasurement: event.target.value })} />
+                    <input aria-label="Medication name" className="prx-textarea prx-item-editor__input" type="text" placeholder="Medication name" value={item.name} onChange={(event) => handleItemChange(index, { name: event.target.value })} />
+                    <input aria-label="Dose" className="prx-textarea prx-item-editor__input" type="text" placeholder="Dose" value={item.dose} onChange={(event) => handleItemChange(index, { dose: event.target.value })} />
+                    <input aria-label="Frequency" className="prx-textarea prx-item-editor__input" type="text" placeholder="Frequency" value={item.frequency} onChange={(event) => handleItemChange(index, { frequency: event.target.value })} />
+                    <input aria-label="Duration" className="prx-textarea prx-item-editor__input" type="text" placeholder="Duration (e.g. 3/7, 2/52)" value={item.duration ?? ''} onChange={(event) => handleItemChange(index, { duration: event.target.value })} />
+                    <input aria-label="Quantity" className="prx-textarea prx-item-editor__input prx-item-editor__qty" type="number" min="1" value={item.qty} onChange={(event) => handleItemChange(index, { qty: Number(event.target.value) || 1 })} />
+                    <input aria-label="Quantity measurement unit" className="prx-textarea prx-item-editor__input" type="text" placeholder="Measurement (tablets, ml)" value={item.quantityMeasurement ?? ''} onChange={(event) => handleItemChange(index, { quantityMeasurement: event.target.value })} />
                     <select className="prx-textarea prx-item-editor__select" value={item.productId || ''} onChange={(event) => handleProductSelect(index, Number(event.target.value))}>
                       <option value="">Map to product…</option>
                       {catalogProducts.map((product) => (

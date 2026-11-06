@@ -1,0 +1,69 @@
+/* Store KPI cards share the pharmacist account-card presentation. */
+.category-management .cm-kpi-grid.store-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.category-management .store-kpis .cm-kpi-card {
+  --kpi-accent: #2563eb;
+  --kpi-tint: #eff6ff;
+  min-height: 76px;
+  padding: 14px 16px;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-left: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #fff 60%, var(--kpi-tint));
+  box-shadow: 0 2px 5px rgba(15, 23, 42, .025);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.category-management .store-kpis .cm-kpi-card:nth-child(2) { --kpi-accent: #15803d; --kpi-tint: #f0fdf4; }
+.category-management .store-kpis .cm-kpi-card:nth-child(3) { --kpi-accent: #7c3aed; --kpi-tint: #f5f3ff; }
+.category-management .store-kpis .cm-kpi-card:nth-child(4) { --kpi-accent: #be123c; --kpi-tint: #fff1f2; }
+.category-management .store-kpis .cm-kpi-card:hover {
+  border-color: #b8c9d5;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, .06);
+  transform: none;
+}
+.category-management .store-kpis .cm-kpi-card__body { gap: 6px; }
+.category-management .store-kpis .cm-kpi-card__label {
+  font-size: .6875rem;
+  line-height: 1.35;
+  letter-spacing: .01em;
+  color: #526277;
+  text-transform: none;
+  white-space: normal;
+}
+.category-management .store-kpis .cm-kpi-card__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #172b3a;
+  font-variant-numeric: tabular-nums;
+}
+.category-management .store-kpis .cm-kpi-card__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--kpi-accent);
+  background: var(--kpi-tint);
+  border: 1px solid color-mix(in srgb, var(--kpi-accent) 12%, transparent);
+}
+.category-management .store-kpis .cm-kpi-card__icon svg { width: 18px; height: 18px; }
+@media (prefers-reduced-motion: reduce) {
+  .category-management .store-kpis .cm-kpi-card { transition: none; }
+}
+@media (max-width: 900px) {
+  .category-management .cm-kpi-grid.store-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}
+@media (max-width: 380px) {
+  .category-management .store-kpis .cm-kpi-card { padding: 10px; gap: 8px; }
+}
+
+
+.category-management .store-kpis .cm-kpi-card__icon--blue { --kpi-accent:#2563eb; --kpi-tint:#eff6ff; }
+.category-management .store-kpis .cm-kpi-card__icon--green { --kpi-accent:#15803d; --kpi-tint:#f0fdf4; }
+.category-management .store-kpis .cm-kpi-card__icon--purple { --kpi-accent:#7c3aed; --kpi-tint:#f5f3ff; }
+.category-management .store-kpis .cm-kpi-card__icon--red { --kpi-accent:#be123c; --kpi-tint:#fff1f2; }
+.category-management .store-kpis .cm-kpi-card__icon--amber { --kpi-accent:#b45309; --kpi-tint:#fffbeb; }
+.category-management .store-kpis .cm-kpi-card__icon--teal { --kpi-accent:#0d9488; --kpi-tint:#f0fdfa; }
