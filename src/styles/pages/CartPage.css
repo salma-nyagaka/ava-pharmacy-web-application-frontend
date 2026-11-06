@@ -633,3 +633,5 @@
 
   .cart-item__right { flex-direction: row; align-items: center; justify-content: space-between; }
 }
+
+.cart-item__error { margin: 8px 0 0; padding: 8px 10px; border: 1px solid #fed7aa; border-radius: 7px; background: #fff7ed; color: #9a3412; font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }

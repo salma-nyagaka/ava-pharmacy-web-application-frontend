@@ -1,3 +1,5 @@
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import Dialog from '../../components/Dialog/Dialog'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -125,11 +127,10 @@ function LabTestManagement() {
     })
   }, [tests, search, catFilter])
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: tests.length }
-    for (const c of categories) counts[c.name] = tests.filter((t) => t.category === c.name).length
-    return counts
-  }, [tests, categories])
+  const { count: databaseCount, counts: databaseCounts } = useAdminRecordStats('lab_tests', 'all', tests)
+  const categoryCounts: Record<string, number> = { all: databaseCounts?.total ?? 0 }
+  for (const category of categories) categoryCounts[category.name] = databaseCounts?.['category:' + category.name] ?? 0
+
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -243,7 +244,7 @@ function LabTestManagement() {
           className={`lt-pill ${catFilter === 'all' ? 'lt-pill--active lt-pill--all' : ''}`}
           onClick={() => setCatFilter('all')}
         >
-          <span className="lt-pill__count">{categoryCounts.all}</span>
+          <span className="lt-pill__count">{databaseCount('total')}</span>
           <span className="lt-pill__label">All</span>
         </button>
         {categories.map((cat) => (
@@ -255,7 +256,7 @@ function LabTestManagement() {
             onClick={() => setCatFilter(cat.name)}
           >
             <span className="lt-pill__dot" />
-            <span className="lt-pill__count">{categoryCounts[cat.name] ?? 0}</span>
+            <span className="lt-pill__count">{databaseCounts ? categoryCounts[cat.name] ?? 0 : '—'}</span>
             <span className="lt-pill__label">{cat.name}</span>
           </button>
         ))}
@@ -265,7 +266,7 @@ function LabTestManagement() {
       <div className="lt-toolbar">
         <div className="lt-search">
           <svg className="lt-search__icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input
+          <input aria-label="Search by name, ID, or sample type"
             className="lt-search__input"
             type="text"
             placeholder="Search by name, ID, or sample type…"
@@ -367,13 +368,13 @@ function LabTestManagement() {
       {/* ── Catalogue management modal ── */}
       {catMgrOpen && (
         <div className="lt-overlay" onClick={() => setCatMgrOpen(false)}>
-          <div className="lt-modal lt-modal--wide" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setCatMgrOpen(false)} className="lt-modal lt-modal--wide" onClick={(e) => e.stopPropagation()}>
             <div className="lt-modal__header">
               <div>
                 <h2>Manage catalogue</h2>
                 <p className="lt-modal__sub">Add or remove categories and sample types used across lab tests.</p>
               </div>
-              <button className="modal__close" type="button" onClick={() => setCatMgrOpen(false)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setCatMgrOpen(false)}>×</button>
             </div>
 
             {/* Tabs */}
@@ -399,7 +400,7 @@ function LabTestManagement() {
                 <>
                   {/* Add category */}
                   <div className="lt-mgt-add-row">
-                    <input
+                    <input aria-label="New category name"
                       type="text"
                       className="lt-mgt-input"
                       placeholder="New category name…"
@@ -462,7 +463,7 @@ function LabTestManagement() {
                 <>
                   {/* Add sample type */}
                   <div className="lt-mgt-add-row">
-                    <input
+                    <input aria-label="New sample type"
                       type="text"
                       className="lt-mgt-input"
                       placeholder="New sample type…"
@@ -513,14 +514,14 @@ function LabTestManagement() {
             <div className="lt-modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setCatMgrOpen(false)}>Done</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {/* Delete confirmation */}
       {deleteTarget && (
         <div className="lt-overlay" onClick={() => setDeleteTarget(null)}>
-          <div className="lt-confirm-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setDeleteTarget(null)} className="lt-confirm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="lt-confirm-modal__icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             </div>
@@ -530,14 +531,14 @@ function LabTestManagement() {
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setDeleteTarget(null)}>Cancel</button>
               <button className="lt-confirm-del" type="button" onClick={confirmDelete}>Yes, delete</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {/* Add / Edit modal */}
       {modalOpen && (
         <div className="lt-overlay" onClick={() => setModalOpen(false)}>
-          <div className="lt-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setModalOpen(false)} className="lt-modal" onClick={(e) => e.stopPropagation()}>
             <div className="lt-modal__header">
               <div>
                 <h2>{editId ? 'Edit lab test' : 'Add new lab test'}</h2>
@@ -545,7 +546,7 @@ function LabTestManagement() {
                   {editId ? `Editing ${editId}` : 'New test will appear in the catalogue immediately.'}
                 </p>
               </div>
-              <button className="modal__close" type="button" onClick={() => setModalOpen(false)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setModalOpen(false)}>×</button>
             </div>
 
             <div className="lt-modal__body">
@@ -600,7 +601,7 @@ function LabTestManagement() {
                 {editId ? 'Save changes' : 'Add test'}
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

@@ -1,0 +1,115 @@
+{
+  "checked_at": "2026-11-02T09:48:59.903270+00:00",
+  "scope": "Read-only local historical QA record integrity; no new provider requests or transactions",
+  "orders": [
+    {
+      "id": 2012,
+      "reference": "ORD-7B791366",
+      "status": "delivered",
+      "payment_status": "paid",
+      "successful_payment_count": 1,
+      "inventory_committed": true,
+      "stock": 3,
+      "expected_stock": 3,
+      "matches": true,
+      "prescription_references": []
+    },
+    {
+      "id": 2013,
+      "reference": "ORD-599F53F7",
+      "status": "delivered",
+      "payment_status": "paid",
+      "successful_payment_count": 1,
+      "inventory_committed": true,
+      "stock": 3,
+      "expected_stock": 3,
+      "matches": true,
+      "prescription_references": [
+        "RX-7E5CC4"
+      ]
+    },
+    {
+      "id": 2014,
+      "reference": "ORD-1DD38A84",
+      "status": "delivered",
+      "payment_status": "paid",
+      "successful_payment_count": 1,
+      "inventory_committed": true,
+      "stock": 1,
+      "expected_stock": 1,
+      "matches": true,
+      "prescription_references": [
+        "RX-7D2A2E"
+      ]
+    },
+    {
+      "id": 2015,
+      "reference": "ORD-43CBF6BB",
+      "status": "delivered",
+      "payment_status": "paid",
+      "successful_payment_count": 1,
+      "inventory_committed": true,
+      "stock": 3,
+      "expected_stock": 3,
+      "matches": true,
+      "prescription_references": [
+        "RX-7A4587"
+      ]
+    }
+  ],
+  "consultations": [
+    {
+      "reference": "CONS-83F95C",
+      "status": "completed",
+      "child_id": null,
+      "consent_status": "pending",
+      "earning_count": 1,
+      "earnings": [
+        {
+          "id": 13,
+          "amount": "0.90"
+        }
+      ],
+      "prescriptions": [
+        31
+      ]
+    },
+    {
+      "reference": "CONS-8AF578",
+      "status": "completed",
+      "child_id": 6,
+      "consent_status": "granted",
+      "earning_count": 1,
+      "earnings": [
+        {
+          "id": 12,
+          "amount": "0.90"
+        }
+      ],
+      "prescriptions": [
+        30
+      ]
+    }
+  ],
+  "payouts": [
+    {
+      "reference": "PAY-25D0E1",
+      "status": "paid",
+      "reconciliation_status": "matched",
+      "source_reference": "CONS-83F95C"
+    },
+    {
+      "reference": "PAY-2442FD",
+      "status": "paid",
+      "reconciliation_status": "matched",
+      "source_reference": "CONS-EE8CBC"
+    }
+  ],
+  "older_pediatric_intent_50": [
+    {
+      "id": 50,
+      "status": "requires_action",
+      "consultation_id": null
+    }
+  ]
+}

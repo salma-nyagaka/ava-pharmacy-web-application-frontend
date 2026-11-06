@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import '../../components/AdminKpiStats.css'
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import { SearchableMultiSelect } from '../../components/SearchableMultiSelect/SearchableMultiSelect'
+import Dialog from '../../components/Dialog/Dialog'
+import { useEffect, useMemo, useState } from 'react'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import {
   adminProductService,
@@ -135,73 +139,23 @@ function TargetPicker({
   onToggle: (value: string) => void
   placeholder: string
 }) {
-  const [query, setQuery] = useState('')
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const filtered = options.filter((o) =>
-    !selected.includes(o.value) &&
-    o.label.toLowerCase().includes(query.toLowerCase())
-  )
-
   const selectedOptions = selected.map(
-    (v) => options.find((o) => o.value === v) ?? { value: v, label: v }
+    (value) => options.find((option) => option.value === value) ?? { value, label: value },
   )
-
+  const allOptions = [...options, ...selectedOptions.filter((item) => !options.some((option) => option.value === item.value))]
   return (
-    <div className="dm-picker" ref={wrapRef}>
-      {/* Input + dropdown */}
-      <div className={`dm-picker__input-wrap${open ? ' dm-picker__input-wrap--open' : ''}`}>
-        <svg className="dm-picker__search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" width="14" height="14">
-          <circle cx="9" cy="9" r="5.5" /><path d="M13 13L16.5 16.5" strokeLinecap="round" />
-        </svg>
-        <input
-          type="text"
-          className="dm-picker__input"
-          placeholder={open ? 'Search…' : placeholder}
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
-          onFocus={() => setOpen(true)}
-        />
-        <span className="dm-picker__count" onClick={() => setOpen((o) => !o)}>
-          {selected.length > 0 ? `${selected.length} selected` : ''}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="12" height="12" style={{ marginLeft: 4, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </span>
-      </div>
-
-      {open && (
-        <div className="dm-picker__dropdown">
-          {filtered.length === 0 ? (
-            <div className="dm-picker__empty">
-              {query ? `No results for "${query}"` : 'All items selected'}
-            </div>
-          ) : (
-            filtered.slice(0, 80).map((o) => (
-              <button
-                key={o.value}
-                type="button"
-                className="dm-picker__option"
-                onMouseDown={(e) => { e.preventDefault(); onToggle(o.value); setQuery('') }}
-              >
-                {o.label}
-              </button>
-            ))
-          )}
-          {filtered.length > 80 && (
-            <div className="dm-picker__more">+{filtered.length - 80} more · refine your search</div>
-          )}
-        </div>
-      )}
+    <div className="dm-picker">
+      <SearchableMultiSelect
+        ariaLabel={placeholder}
+        placeholder={placeholder}
+        options={allOptions}
+        value={selected}
+        onChange={(values) => {
+          const next = values.map(String)
+          const changed = next.find((value) => !selected.includes(value)) || selected.find((value) => !next.includes(value))
+          if (changed !== undefined) onToggle(changed)
+        }}
+      />
 
       {/* Selected chips */}
       {selectedOptions.length > 0 && (
@@ -228,6 +182,8 @@ function DealsManagement() {
   const [categories, setCategories] = useState<ApiProductCategory[]>([])
   const [brands, setBrands] = useState<ApiBrand[]>([])
   const [products, setProducts] = useState<ApiProduct[]>([])
+  const [productSearch, setProductSearch] = useState('')
+  const [productSearchError, setProductSearchError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -243,6 +199,11 @@ function DealsManagement() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [promotionImageFile, setPromotionImageFile] = useState<File | null>(null)
   const [promotionImagePreviewSrc, setPromotionImagePreviewSrc] = useState('')
+  const [dateValidationShown, setDateValidationShown] = useState(false)
+  const startDateError = dateValidationShown && !draft.startDate ? 'Select a start date.' : ''
+  const endDateError = dateValidationShown
+    ? (!draft.endDate ? 'Select an end date.' : draft.startDate && draft.endDate < draft.startDate ? 'End date must be on or after the start date.' : '')
+    : ''
   const [titleError, setTitleError] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
@@ -254,7 +215,7 @@ function DealsManagement() {
         adminProductService.listPromotions(),
         adminProductService.listProductCategories(),
         adminProductService.listBrands(),
-        adminProductService.listProducts({ page_size: '250', ordering: '-created_at' }),
+        adminProductService.listProducts({ page_size: '20', ordering: '-created_at' }),
       ])
       setPromotions(promotionRows)
       setCategories(categoryRows)
@@ -275,8 +236,23 @@ function DealsManagement() {
     setCurrentPage(1)
   }, [searchTerm, selectedScope, selectedStatus, sortField, sortDirection])
 
+  useEffect(() => {
+    if (!isModalOpen || draft.scope !== 'product') return
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setProductSearchError('')
+      void adminProductService.listProductOptions(productSearch).then(rows => { if (!cancelled) setProducts(rows) }).catch(() => { if (!cancelled) setProductSearchError('Unable to search products. Try again.') })
+    }, 250)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [isModalOpen, draft.scope, productSearch])
+
+  const { count: databaseCount } = useAdminRecordStats('deals', 'all', promotions)
+
   const categoryOptions = useMemo<TargetOption[]>(
-    () => categories.map((category) => ({ value: category.slug, label: category.name })),
+    () => categories.filter(category => category.is_active).flatMap((category) => [
+      { value: category.slug, label: category.name },
+      ...(category.subcategories || []).filter(subcategory => subcategory.is_active).map(subcategory => ({ value: subcategory.slug, label: `${category.name} / ${subcategory.name}` })),
+    ]),
     [categories],
   )
   const brandOptions = useMemo<TargetOption[]>(
@@ -338,7 +314,7 @@ function DealsManagement() {
       else if (sortField === 'discount') comparison = Number(left.value ?? 0) - Number(right.value ?? 0)
       else if (sortField === 'status') comparison = getPromotionStatus(left).localeCompare(getPromotionStatus(right))
       else comparison = compareCreatedAt(left.created_at, right.created_at)
-      return sortDirection === 'asc' ? comparison : -comparison
+      return sortDirection === 'asc' ? (comparison || left.id - right.id) : -(comparison || left.id - right.id)
     })
     return items
   }, [filteredPromotions, sortField, sortDirection])
@@ -379,6 +355,7 @@ function DealsManagement() {
     setDraft(createBlankDraft())
     setEditingId(null)
     setPromotionImageFile(null)
+    setDateValidationShown(false)
     setTitleError(false)
     setFormError('')
     setIsModalOpen(true)
@@ -388,6 +365,7 @@ function DealsManagement() {
     setDraft(toDraft(promotion))
     setEditingId(promotion.id)
     setPromotionImageFile(null)
+    setDateValidationShown(false)
     setTitleError(false)
     setFormError('')
     setIsModalOpen(true)
@@ -397,6 +375,7 @@ function DealsManagement() {
     if (saving) return
     setIsModalOpen(false)
     setFormError('')
+    setDateValidationShown(false)
     setTitleError(false)
   }
 
@@ -437,6 +416,7 @@ function DealsManagement() {
   }
 
   const handleSave = async () => {
+    setDateValidationShown(true)
     const trimmedTitle = draft.title.trim()
     if (!trimmedTitle) {
       setTitleError(true)
@@ -447,16 +427,16 @@ function DealsManagement() {
       return
     }
     if (!draft.startDate || !draft.endDate) {
-      setFormError('Start date and end date are required.')
+      setFormError('')
       return
     }
     if (draft.endDate < draft.startDate) {
-      setFormError('End date cannot be earlier than the start date.')
+      setFormError('')
       return
     }
     const value = Number(draft.value)
-    if (!value || value <= 0) {
-      setFormError('Discount value must be greater than 0.')
+    if (!Number.isFinite(value) || value <= 0 || (draft.type === 'percentage' && value > 100)) {
+      setFormError(draft.type === 'percentage' ? 'Percentage discount must be greater than 0 and at most 100.' : 'Discount value must be greater than 0.')
       return
     }
     if (!promotionImageFile && !editingPromotion?.image) {
@@ -545,14 +525,14 @@ function DealsManagement() {
         </div>
       )}
 
-      <div className="cm-kpi-grid">
+      <div className="cm-kpi-grid store-kpis">
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="m21 12-9 9-9-9V3h9l9 9Z"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none"/></svg>
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Total Deals</span>
-            <strong className="cm-kpi-card__value">{promotions.length}</strong>
+            <strong className="cm-kpi-card__value">{databaseCount('total')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -561,7 +541,7 @@ function DealsManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Active</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{promotions.filter(p => getPromotionStatus(p) === 'active').length}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{databaseCount('active')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -570,7 +550,7 @@ function DealsManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Scheduled</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{promotions.filter(p => getPromotionStatus(p) === 'scheduled').length}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{databaseCount('scheduled')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -579,7 +559,7 @@ function DealsManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Expired</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{promotions.filter(p => getPromotionStatus(p) === 'expired').length}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{databaseCount('expired')}</strong>
           </div>
         </div>
       </div>
@@ -589,7 +569,7 @@ function DealsManagement() {
           <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
             <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
           </svg>
-          <input
+          <input aria-label="Search deals"
             type="search"
             placeholder="Search deals…"
             value={searchTerm}
@@ -604,14 +584,14 @@ function DealsManagement() {
           )}
         </div>
         <div className="cm-toolbar__right">
-          <select className="cm-filter-select" value={selectedScope} onChange={(event) => setSelectedScope(event.target.value as PromotionScope | 'all' | 'all-products')}>
+          <select aria-label="Filter deals by scope" className="cm-filter-select" value={selectedScope} onChange={(event) => setSelectedScope(event.target.value as PromotionScope | 'all' | 'all-products')}>
             <option value="all">All scopes</option>
             <option value="all-products">All products</option>
             <option value="category">Category</option>
             <option value="brand">Brand</option>
             <option value="product">Product</option>
           </select>
-          <select className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as typeof selectedStatus)}>
+          <select aria-label="Filter by status" className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as typeof selectedStatus)}>
             <option value="all">All statuses</option>
             <option value="active">Active</option>
             <option value="scheduled">Scheduled</option>
@@ -752,16 +732,18 @@ function DealsManagement() {
       </div>
 
       {isModalOpen && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="dm-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-overlay dm-modal-overlay" onClick={closeModal}>
+          <Dialog busy={saving} onClose={closeModal} className="dm-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
-              <h2>{editingId ? 'Edit deal' : 'Create deal'}</h2>
-              <button className="modal__close" type="button" onClick={closeModal}>×</button>
+              <div><h2>{editingId ? 'Edit deal' : 'Create deal'}</h2><p className="dm-modal-subtitle">Set the offer, choose products and schedule when it runs.</p></div>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={closeModal}>×</button>
             </div>
             <div className="modal__content">
+              <section className="dm-form-section">
+              <h3 className="dm-section-label">Deal details</h3>
               <div className="form-group">
-                <label>Title <span className="dm-required">Required</span></label>
-                <input
+                <label htmlFor="field-dealsmanagement-764-31580">Title <span className="dm-required">Required</span></label>
+                <input id="field-dealsmanagement-764-31580"
                   type="text"
                   value={draft.title}
                   onChange={(event) => { setDraft((prev) => ({ ...prev, title: event.target.value })); setTitleError(false); setFormError('') }}
@@ -772,7 +754,7 @@ function DealsManagement() {
               </div>
 
               <div className="form-group">
-                <label>
+                <label htmlFor="promotion-image-input">
                   Offer image <span className="dm-required">Required</span>
                   {editingPromotion && <span className="dm-hint"> - leave empty to keep the current image</span>}
                 </label>
@@ -808,11 +790,13 @@ function DealsManagement() {
                 </div>
               )}
 
-              <div className="dm-section-label">Discount</div>
+              </section>
+              <section className="dm-form-section">
+              <h3 className="dm-section-label">Discount</h3>
               <div className="dm-discount-row">
                 <div className="form-group">
-                  <label>Type</label>
-                  <select value={draft.type} onChange={(event) => setDraft((prev) => ({ ...prev, type: event.target.value as PromotionType }))}>
+                  <label htmlFor="field-dealsmanagement-815-34417">Type</label>
+                  <select id="field-dealsmanagement-815-34417" value={draft.type} onChange={(event) => setDraft((prev) => ({ ...prev, type: event.target.value as PromotionType }))}>
                     <option value="percentage">Percentage (%)</option>
                     <option value="amount">Fixed amount (KSh)</option>
                   </select>
@@ -820,21 +804,23 @@ function DealsManagement() {
                 <div className="form-group">
                   <label>Value</label>
                   <div className="dm-value-wrap">
-                    <input type="number" min={1} value={draft.value} onChange={(event) => setDraft((prev) => ({ ...prev, value: event.target.value }))} />
+                    <input aria-label="Discount value" type="number" min={0.01} step="0.01" max={draft.type === 'percentage' ? 100 : undefined} value={draft.value} onChange={(event) => setDraft((prev) => ({ ...prev, value: event.target.value }))} />
                     <span className="dm-value-unit">{draft.type === 'percentage' ? '%' : 'KSh'}</span>
                   </div>
                 </div>
                 {discountPreview && <div className="dm-preview-pill">Badge: {discountPreview}</div>}
               </div>
 
-              <div className="dm-section-label">Applies to</div>
+              </section>
+              <section className="dm-form-section">
+              <h3 className="dm-section-label">Applies to</h3>
               <div className="dm-scope-pills">
                 {(['all', 'category', 'brand', 'product'] as PromotionScope[]).map((scope) => (
                   <button
                     key={scope}
                     type="button"
                     className={`dm-scope-pill ${draft.scope === scope ? 'dm-scope-pill--active' : ''}`}
-                    onClick={() => setDraft((prev) => ({ ...prev, scope, targets: scope === 'all' ? [] : prev.targets }))}
+                    onClick={() => setDraft((prev) => ({ ...prev, scope, targets: scope === prev.scope ? prev.targets : [] }))}
                   >
                     {SCOPE_LABELS[scope]}
                   </button>
@@ -847,6 +833,7 @@ function DealsManagement() {
                     {SCOPE_LABELS[draft.scope]}s
                     <span className="dm-hint"> -select one or more</span>
                   </label>
+                  {draft.scope === 'product' && <label className="dm-product-search">Find a product<input type="search" value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="Search the full catalog…" />{productSearchError && <span role="alert">{productSearchError}</span>}</label>}
                   <TargetPicker
                     options={targetOptions}
                     selected={draft.targets}
@@ -856,31 +843,38 @@ function DealsManagement() {
                 </div>
               )}
 
-              <div className="dm-section-label">Schedule</div>
+              </section>
+              <section className="dm-form-section">
+              <h3 className="dm-section-label">Schedule</h3>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Start date</label>
-                  <input type="date" value={draft.startDate} onChange={(event) => setDraft((prev) => ({ ...prev, startDate: event.target.value }))} />
+                  <label htmlFor="field-dealsmanagement-863-36809">Start date</label>
+                  <input id="field-dealsmanagement-863-36809" type="date" required aria-invalid={Boolean(startDateError)} aria-describedby={startDateError ? "deal-start-error" : undefined} value={draft.startDate} onChange={(event) => setDraft((prev) => ({ ...prev, startDate: event.target.value }))} onBlur={() => setDateValidationShown(true)} />
+                  {startDateError && <p id="deal-start-error" className="dm-field-error" role="alert">{startDateError}</p>}
                 </div>
                 <div className="form-group">
-                  <label>End date</label>
-                  <input type="date" value={draft.endDate} min={draft.startDate} onChange={(event) => setDraft((prev) => ({ ...prev, endDate: event.target.value }))} />
+                  <label htmlFor="field-dealsmanagement-867-37139">End date</label>
+                  <input id="field-dealsmanagement-867-37139" type="date" required aria-invalid={Boolean(endDateError)} aria-describedby={endDateError ? "deal-end-error" : undefined} value={draft.endDate} min={draft.startDate} onChange={(event) => setDraft((prev) => ({ ...prev, endDate: event.target.value }))} onBlur={() => setDateValidationShown(true)} />
+                  {endDateError && <p id="deal-end-error" className="dm-field-error" role="alert">{endDateError}</p>}
                 </div>
               </div>
 
+              </section>
+              <section className="dm-form-section">
+              <h3 className="dm-section-label">Additional details</h3>
               <div className="form-group">
-                <label>Description <span className="dm-hint">Optional</span></label>
-                <textarea value={draft.description} onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))} placeholder="Internal notes or customer-facing deal summary" rows={3} />
+                <label htmlFor="field-dealsmanagement-873-37503">Description <span className="dm-hint">Optional</span></label>
+                <textarea id="field-dealsmanagement-873-37503" value={draft.description} onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))} placeholder="Internal notes or customer-facing deal summary" rows={3} />
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Code <span className="dm-hint">Optional</span></label>
-                  <input type="text" value={draft.code} onChange={(event) => setDraft((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))} placeholder="e.g. WEEKEND15" />
+                  <label htmlFor="field-dealsmanagement-879-37979">Code <span className="dm-hint">Optional</span></label>
+                  <input id="field-dealsmanagement-879-37979" type="text" value={draft.code} onChange={(event) => setDraft((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))} placeholder="e.g. WEEKEND15" />
                 </div>
                 <div className="form-group">
-                  <label>Minimum order amount</label>
-                  <input type="number" min={0} value={draft.minimumOrderAmount} onChange={(event) => setDraft((prev) => ({ ...prev, minimumOrderAmount: event.target.value }))} />
+                  <label htmlFor="field-dealsmanagement-883-38378">Minimum order amount</label>
+                  <input id="field-dealsmanagement-883-38378" type="number" min={0} value={draft.minimumOrderAmount} onChange={(event) => setDraft((prev) => ({ ...prev, minimumOrderAmount: event.target.value }))} />
                 </div>
               </div>
 
@@ -898,7 +892,8 @@ function DealsManagement() {
                 </div>
               )}
 
-              {formError && <p className="dm-field-error">{formError}</p>}
+              </section>
+              {formError && <p className="dm-field-error" role="alert">{formError}</p>}
             </div>
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={closeModal}>Cancel</button>
@@ -906,16 +901,16 @@ function DealsManagement() {
                 {saving ? 'Saving…' : editingId ? 'Save changes' : draft.status === 'draft' ? 'Save draft' : 'Publish deal'}
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {confirmDeleteId !== null && (
         <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setConfirmDeleteId(null)} className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <h2>Delete deal</h2>
-              <button className="modal__close" type="button" onClick={() => setConfirmDeleteId(null)}>×</button>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setConfirmDeleteId(null)}>×</button>
             </div>
             <div className="modal__content">
               <p style={{ margin: 0, fontSize: '0.875rem', color: '#374151' }}>
@@ -926,7 +921,7 @@ function DealsManagement() {
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setConfirmDeleteId(null)}>Keep deal</button>
               <button className="btn btn--sm dm-btn--delete" type="button" onClick={() => void confirmDelete()}>Delete deal</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

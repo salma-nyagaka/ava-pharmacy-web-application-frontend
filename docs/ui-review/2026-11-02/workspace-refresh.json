@@ -1,0 +1,5 @@
+{
+  "refreshPreservesEarnings": true,
+  "backReturnsQueue": true,
+  "evidence": "Doctor dashboard accessibility snapshots showed Monthly breakdown after reload at ?view=earnings and Queue with Refresh queue after browser Back. Initial DOM assertion used uppercase CSS presentation against sentence-case source text; corrected using visible accessibility output."
+}

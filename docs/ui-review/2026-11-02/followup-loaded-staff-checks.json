@@ -1,0 +1,184 @@
+[
+  {
+    "documentOverflow": false,
+    "heading": "Dashboard Overview",
+    "path": "/admin/dashboard",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Products",
+    "path": "/admin/products",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Inventory Management",
+    "path": "/inventory/manage",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Orders",
+    "path": "/admin/orders",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Prescription Management",
+    "path": "/admin/prescriptions",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Doctors & Specialists",
+    "path": "/admin/doctors",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Laboratory operations",
+    "path": "/admin/lab-partners",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Lab Tests",
+    "path": "/admin/lab-tests",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Invoices & Payments",
+    "path": "/admin/invoices?view=payouts",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Support & Escalations",
+    "path": "/admin/support",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Settings Management",
+    "path": "/admin/settings",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Lab workflow",
+    "path": "/labtech/dashboard",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Lab partner dashboard preview",
+    "path": "/lab/dashboard",
+    "unnamedControls": [],
+    "width": 320
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Dashboard Overview",
+    "path": "/admin/dashboard",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Products",
+    "path": "/admin/products",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Inventory Management",
+    "path": "/inventory/manage",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Orders",
+    "path": "/admin/orders",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Prescription Management",
+    "path": "/admin/prescriptions",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Doctors & Specialists",
+    "path": "/admin/doctors",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Laboratory operations",
+    "path": "/admin/lab-partners",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Lab Tests",
+    "path": "/admin/lab-tests",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Invoices & Payments",
+    "path": "/admin/invoices?view=payouts",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Support & Escalations",
+    "path": "/admin/support",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Settings Management",
+    "path": "/admin/settings",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Lab workflow",
+    "path": "/labtech/dashboard",
+    "unnamedControls": [],
+    "width": 1440
+  },
+  {
+    "documentOverflow": false,
+    "heading": "Lab partner dashboard preview",
+    "path": "/lab/dashboard",
+    "unnamedControls": [],
+    "width": 1440
+  }
+]

@@ -578,3 +578,36 @@
   border-radius: var(--radius-lg);
   border: 1px dashed var(--color-border);
 }
+
+/* Keep keyboard focus visible even in legacy page-specific form styles. */
+:where(a, button, input, select, textarea, [tabindex]):not(.header__search-input):focus-visible {
+  outline: 3px solid var(--color-active-text, #1d4ed8) !important;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .form-group, .form-row > *, .page-hero__content { min-width: 0; }
+  .form-group input:not([type="checkbox"]):not([type="radio"]),
+  .form-group select, .form-group textarea { max-width: 100%; }
+  .modal__footer, .modal__actions { flex-wrap: wrap; }
+  .modal__footer .btn, .modal__actions .btn { white-space: normal; overflow-wrap: anywhere; }
+}
+
+/* On compact screens, navigation is a modal drawer and content keeps its full width. */
+.workspace-mobile-bar { display: none; }
+.workspace-nav-backdrop { position: fixed; inset: 0; z-index: 1199; background: rgba(15, 23, 42, 0.45); }
+@media (max-width: 1023px) {
+  .workspace-mobile-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    position: sticky; top: 0; z-index: 1100; min-height: 64px; padding: 0.5rem 1rem;
+    background: #fff; border-bottom: 1px solid var(--dashboard-border);
+    color: var(--dashboard-text-title);
+  }
+  .workspace-mobile-bar strong { min-width: 0; overflow-wrap: anywhere; font-size: 0.875rem; }
+  .admin-layout .admin-layout__main, .portal-shell .portal-shell__main { margin-left: 0; width: 100%; }
+  .admin-layout .admin-layout__sidebar, .portal-shell .portal-shell__sidebar { max-width: calc(100vw - 48px); }
+}
+
+[role="dialog"] :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+[role="dialog"] :is(h1, h2, h3) { overflow-wrap: anywhere; }
+[role="dialog"] .modal__close, [role="dialog"] .cm-modal__close { min-width: 44px; min-height: 44px; flex-shrink: 0; }

@@ -1,3 +1,5 @@
+import { useWorkspaceView } from '../../hooks/useWorkspaceView'
+import Dialog from '../../components/Dialog/Dialog'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import ProfessionalPortalShell from '../../components/ProfessionalPortalShell/ProfessionalPortalShell'
 import { useAuth } from '../../context/AuthContext'
@@ -39,7 +41,7 @@ function formatDate(value: string | null) {
 
 export default function LabTechPortal() {
   const { user, logout } = useAuth()
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useWorkspaceView<Tab>(['overview', 'queue', 'mine'], 'overview')
   const [requests, setRequests] = useState<LabRequest[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
@@ -252,7 +254,7 @@ export default function LabTechPortal() {
 
       {selected && (
         <div className="admin-entity-drawer-backdrop" role="presentation" onMouseDown={() => setSelectedId(null)}>
-          <aside className="admin-entity-drawer" role="dialog" aria-modal="true" aria-label={`Lab request ${selected.reference}`} onMouseDown={(event) => event.stopPropagation()}>
+          <Dialog busy={saving} onClose={() => setSelectedId(null)} className="admin-entity-drawer" role="dialog" aria-modal="true" aria-label={`Lab request ${selected.reference}`} onMouseDown={(event) => event.stopPropagation()}>
             <div className="admin-entity-drawer__header">
               <div><p>{selected.reference}</p><h2>{selected.testName}</h2></div>
               <button type="button" aria-label="Close" onClick={() => setSelectedId(null)}>×</button>
@@ -307,7 +309,7 @@ export default function LabTechPortal() {
                 {selected.auditLogs.map((log) => <li key={log.id}><strong>{log.action}</strong><small>{log.performedByName || 'System'} · {formatDate(log.timestamp)}</small></li>)}
               </ol>
             </div>
-          </aside>
+          </Dialog>
         </div>
       )}
     </ProfessionalPortalShell>

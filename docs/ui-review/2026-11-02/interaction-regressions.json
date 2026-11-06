@@ -1,0 +1,30 @@
+[
+  {
+    "check": "Reverse Tab stays within dialog",
+    "pass": true
+  },
+  {
+    "check": "Tab wraps to first control",
+    "pass": true
+  },
+  {
+    "check": "Keyboard single-select and focus return",
+    "pass": true
+  },
+  {
+    "check": "Keyboard multiple-select Escape only closes dropdown",
+    "pass": true
+  },
+  {
+    "check": "Nested Escape keeps parent open and returns focus",
+    "pass": true
+  },
+  {
+    "check": "Saving prevents Escape and close-button dismissal",
+    "pass": true
+  },
+  {
+    "check": "Closing restores opener and body scroll",
+    "pass": true
+  }
+]

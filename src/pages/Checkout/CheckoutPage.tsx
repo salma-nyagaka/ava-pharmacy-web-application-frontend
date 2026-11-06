@@ -1069,8 +1069,8 @@ function CheckoutPage() {
                 <form className="co-form">
                   {savedAddresses.length > 0 && (
                     <div className="co-field">
-                      <label className="co-field__label">Saved Address</label>
-                      <select
+                      <label htmlFor="field-checkoutpage-1072-42787" className="co-field__label">Saved Address</label>
+                      <select id="field-checkoutpage-1072-42787"
                         className="co-field__input"
                         value={selectedAddressId}
                         onChange={(e) => {
@@ -1115,25 +1115,25 @@ function CheckoutPage() {
 
                   <div className="co-form__row">
                     <div className="co-field">
-                      <label className="co-field__label">First Name *</label>
-                      <input className="co-field__input" type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                      <label htmlFor="field-checkoutpage-1118-45318" className="co-field__label">First Name *</label>
+                      <input id="field-checkoutpage-1118-45318" className="co-field__input" type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                     </div>
                     <div className="co-field">
-                      <label className="co-field__label">Last Name *</label>
-                      <input className="co-field__input" type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                      <label htmlFor="field-checkoutpage-1122-45679" className="co-field__label">Last Name *</label>
+                      <input id="field-checkoutpage-1122-45679" className="co-field__input" type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} />
                     </div>
                   </div>
                   <div className="co-field">
-                    <label className="co-field__label">Email Address *</label>
-                    <input className="co-field__input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                    <label htmlFor="field-checkoutpage-1127-46058" className="co-field__label">Email Address *</label>
+                    <input id="field-checkoutpage-1127-46058" className="co-field__input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                   </div>
                   <div className="co-field">
-                    <label className="co-field__label">Phone Number *</label>
-                    <input className="co-field__input" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    <label htmlFor="field-checkoutpage-1131-46407" className="co-field__label">Phone Number *</label>
+                    <input id="field-checkoutpage-1131-46407" className="co-field__input" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} />
                   </div>
                   <div className="co-field">
-                    <label className="co-field__label">Street Address *</label>
-                    <input
+                    <label htmlFor="field-checkoutpage-1135-46753" className="co-field__label">Street Address *</label>
+                    <input id="field-checkoutpage-1135-46753"
                       className="co-field__input"
                       type="text"
                       required
@@ -1146,8 +1146,8 @@ function CheckoutPage() {
                   </div>
                   <div className="co-form__row">
                     <div className="co-field">
-                      <label className="co-field__label">Country *</label>
-                      <select
+                      <label htmlFor="field-checkoutpage-1149-47385" className="co-field__label">Country *</label>
+                      <select id="field-checkoutpage-1149-47385"
                         className="co-field__input"
                         required
                         value={country}
@@ -1166,8 +1166,8 @@ function CheckoutPage() {
                       </select>
                     </div>
                     <div className="co-field">
-                      <label className="co-field__label">County *</label>
-                      <select
+                      <label htmlFor="field-checkoutpage-1169-48305" className="co-field__label">County *</label>
+                      <select id="field-checkoutpage-1169-48305"
                         className="co-field__input"
                         required
                         value={county}
@@ -1193,8 +1193,8 @@ function CheckoutPage() {
                     </div>
                   </div>
                   <div className="co-field">
-                    <label className="co-field__label">{areaLabel}</label>
-                    <select
+                    <label htmlFor="field-checkoutpage-1196-49758" className="co-field__label">{areaLabel}</label>
+                    <select id="field-checkoutpage-1196-49758"
                       className="co-field__input"
                       required
                       value={city}
@@ -1215,8 +1215,8 @@ function CheckoutPage() {
                   {selectedAddressId === 'new' && (
                     <>
                       <div className="co-field">
-                        <label className="co-field__label">Address Label</label>
-                        <input
+                        <label htmlFor="field-checkoutpage-1218-50827" className="co-field__label">Address Label</label>
+                        <input id="field-checkoutpage-1218-50827"
                           className="co-field__input"
                           type="text"
                           value={addressLabel}
@@ -1251,8 +1251,8 @@ function CheckoutPage() {
                     </>
                   )}
                   <div className="co-field">
-                    <label className="co-field__label">Delivery Method</label>
-                    <select
+                    <label htmlFor="field-checkoutpage-1254-52651" className="co-field__label">Delivery Method</label>
+                    <select id="field-checkoutpage-1254-52651"
                       className="co-field__input"
                       value={deliveryMethod}
                       onChange={(e) => setDeliveryMethod(e.target.value as DeliveryMethodOption)}
@@ -1327,8 +1327,8 @@ function CheckoutPage() {
 
                 {paymentMethod === 'mpesa' && mpesaFlow === 'stk' && (
                   <div className="co-field co-payment-extra">
-                    <label className="co-field__label">M-Pesa Number *</label>
-                    <input className="co-field__input" type="tel" placeholder="e.g. 0712345678 or +254712345678" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} />
+                    <label htmlFor="field-checkoutpage-1330-57168" className="co-field__label">M-Pesa Number *</label>
+                    <input id="field-checkoutpage-1330-57168" className="co-field__input" type="tel" placeholder="e.g. 0712345678 or +254712345678" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} />
                   </div>
                 )}
 

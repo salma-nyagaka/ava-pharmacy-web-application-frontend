@@ -1,3 +1,7 @@
+import PrescriptionVerificationPanel from '../../components/PrescriptionVerificationPanel'
+import { useWorkspaceView } from '../../hooks/useWorkspaceView'
+import { formatStatus, formatPaymentMethod } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -259,7 +263,7 @@ function PharmacistDashboardPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
-  const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView>('prescriptions')
+  const [activeWorkspace, setActiveWorkspace] = useWorkspaceView<WorkspaceView>(['prescriptions', 'orders'], 'prescriptions')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | PrescriptionStatus>('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -291,7 +295,9 @@ function PharmacistDashboardPage() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const latestPrescriptionRef = useRef<string | null>(null)
 
+  const [prescriptionsError, setPrescriptionsError] = useState('')
   const refreshPrescriptions = useCallback(async () => {
+    try {
     const response = await prescriptionService.list()
     const latestId = response.data[0]?.id ?? null
     if (latestPrescriptionRef.current && latestId && latestPrescriptionRef.current !== latestId) {
@@ -299,6 +305,8 @@ function PharmacistDashboardPage() {
     }
     latestPrescriptionRef.current = latestId
     setPrescriptions(response.data)
+    setPrescriptionsError('')
+    } catch (error: any) { setPrescriptionsError(error.response?.data?.error?.message || 'Unable to load prescriptions. Please refresh or contact your administrator.') }
   }, [])
 
   const refreshOrders = useCallback(async (background = false) => {
@@ -726,14 +734,15 @@ function PharmacistDashboardPage() {
       userMeta={activeWorkspace === 'prescriptions' ? 'Prescription Operations' : 'Order Follow-up'}
       userName={user?.name || 'Pharmacist'}
     >
+      {prescriptionsError && <p role="alert" className="pharm-order-state pharm-order-state--error">{prescriptionsError}</p>}
       <div className="admin-page pharm-portal">
       {/* Workspace */}
       {activeWorkspace === 'prescriptions' ? (
         <>
           <div className="admin-page__header">
-            <div>
+            <div className="cm-title-group">
               <h1>All Prescriptions</h1>
-              <p className="px-subtitle">Review every prescription from one table, then open the decision modal only when action is needed.</p>
+              <p className="px-subtitle cm-title-sub">Review every prescription from one table, then open the decision modal only when action is needed.</p>
             </div>
           </div>
 
@@ -788,11 +797,12 @@ function PharmacistDashboardPage() {
           <div className="admin-page__filters">
             <input
               type="text"
-              placeholder="Search by ID, patient, doctor…"
+              aria-label="Search by ID, patient, doctor"
+                      placeholder="Search by ID, patient, doctor…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as 'all' | PrescriptionStatus)}>
+            <select aria-label="Filter prescriptions by status" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as 'all' | PrescriptionStatus)}>
               <option value="all">All statuses</option>
               <option value="Pending">Pending</option>
               <option value="Approved">Approved</option>
@@ -848,7 +858,7 @@ function PharmacistDashboardPage() {
                             </p>
                           </div>
                         </td>
-                        <td><span className={`admin-status ${statusClass(rx.status)}`}>{rx.status}</span></td>
+                        <td><span className={`admin-status ${statusClass(rx.status)}`}>{formatStatus(rx.status)}</span></td>
                         <td><span className="admin-status admin-status--info">{rx.dispatchStatus}</span></td>
                         <td className="px-date">
                           <div className="pharm-cell-stack">
@@ -937,11 +947,12 @@ function PharmacistDashboardPage() {
           <div className="admin-page__filters">
             <input
               type="text"
-              placeholder="Search by order number, customer, phone, city, or payment reference…"
+              aria-label="Search by order number, customer, phone, city, or payment reference"
+                      placeholder="Search by order number, customer, phone, city, or payment reference…"
               value={orderSearchTerm}
               onChange={(e) => setOrderSearchTerm(e.target.value)}
             />
-            <select value={selectedOrderStatus} onChange={(e) => setSelectedOrderStatus(e.target.value)}>
+            <select aria-label="Filter orders by status" value={selectedOrderStatus} onChange={(e) => setSelectedOrderStatus(e.target.value)}>
               <option value="all">All order statuses</option>
               {ORDER_STATUS_FILTER_OPTIONS.map((status) => (
                 <option key={status} value={status}>
@@ -949,7 +960,7 @@ function PharmacistDashboardPage() {
                 </option>
               ))}
             </select>
-            <select value={selectedOrderPaymentStatus} onChange={(e) => setSelectedOrderPaymentStatus(e.target.value)}>
+            <select aria-label="Filter orders by payment status" value={selectedOrderPaymentStatus} onChange={(e) => setSelectedOrderPaymentStatus(e.target.value)}>
               <option value="all">All payment states</option>
               <option value="pending">Pending</option>
               <option value="requires_action">Requires action</option>
@@ -1115,8 +1126,8 @@ function PharmacistDashboardPage() {
                             <td><span className={`admin-status status--${order.status}`}>{ORDER_STATUS_LABELS[order.status] ?? order.status}</span></td>
                             <td>
                               <div className="pharm-cell-stack">
-                                <span className={`admin-status status--${order.payment_status}`}>{order.payment_status.replace(/_/g, ' ')}</span>
-                                <span className="pharm-cell-muted">{order.payment_method.replace(/_/g, ' ')}</span>
+                                <span className={`admin-status status--${order.payment_status}`}>{formatStatus(order.payment_status)}</span>
+                                <span className="pharm-cell-muted">{formatPaymentMethod(order.payment_method)}</span>
                               </div>
                             </td>
                             <td>
@@ -1169,20 +1180,20 @@ function PharmacistDashboardPage() {
       {/* Modal */}
       {activeRx && (
         <div className="modal-overlay" onClick={() => setActiveRx(null)}>
-          <div className="px-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog aria-label={`Prescription ${activeRx.id}`} onClose={() => setActiveRx(null)} className="px-modal" onClick={(e) => e.stopPropagation()}>
 
             {/* Modal header */}
             <div className="px-modal__header">
               <div className="px-modal__header-left">
                 <span className="px-modal__rx-id">{activeRx.id}</span>
-                <span className={`admin-status ${statusClass(activeRx.status)}`}>{activeRx.status}</span>
+                <span className={`admin-status ${statusClass(activeRx.status)}`}>{formatStatus(activeRx.status)}</span>
                 {activeRx.pharmacist !== 'Unassigned' && (
                   <span className="px-modal__assigned-pill">Handled by {activeRx.pharmacist}</span>
                 )}
               </div>
               <div className="px-modal__header-right">
                 <span className="px-modal__submitted">Submitted {formatSubmittedDateTime(activeRx.submittedAt || activeRx.submitted)}</span>
-                <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
+                <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
               </div>
             </div>
 
@@ -1202,6 +1213,8 @@ function PharmacistDashboardPage() {
                     <span className="px-info-value">{activeRx.doctor || '-'}</span>
                   </div>
                 </div>
+
+                {activeRx.backendId && <PrescriptionVerificationPanel id={activeRx.backendId} onSaved={refreshPrescriptions} />}
 
                 {/* Inline document viewer */}
                 {activeRx.files.length > 0 && (
@@ -1316,7 +1329,8 @@ function PharmacistDashboardPage() {
                           <input
                             type="text"
                             className="px-med-search__input"
-                            placeholder="Search medicine, variant, SKU, or brand…"
+                            aria-label="Search medicine, variant, SKU, or brand"
+                      placeholder="Search medicine, variant, SKU, or brand…"
                             value={productSearch}
                             onChange={(e) => { setProductSearch(e.target.value); setShowDropdown(true) }}
                             onFocus={() => setShowDropdown(true)}
@@ -1399,7 +1413,7 @@ function PharmacistDashboardPage() {
                           </div>
                           <div className="px-manual-item__controls">
                             <label className="px-manual-item__qty-label">Qty</label>
-                            <input
+                            <input aria-label="Dispensing quantity"
                               type="number"
                               className="px-manual-item__qty"
                               value={qty}
@@ -1471,12 +1485,12 @@ function PharmacistDashboardPage() {
                     {showRejectInput && (
                       <div className="px-clarification-box">
                         <p className="px-section-label">Rejection reason</p>
-                        <select className="px-reject-select" value={rejectionTemplate} onChange={(event) => setRejectionTemplate(event.target.value)} autoFocus>
+                        <select aria-label="Rejection reason" className="px-reject-select" value={rejectionTemplate} onChange={(event) => setRejectionTemplate(event.target.value)} autoFocus>
                           <option value="">Select a reason…</option>
                           {REJECTION_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
                         </select>
                         {rejectionTemplate === 'Other' && (
-                          <textarea className="px-clarification-textarea" placeholder="Describe the rejection reason…" value={rejectionCustom} onChange={(event) => setRejectionCustom(event.target.value)} rows={3} />
+                          <textarea aria-label="Describe the rejection reason" className="px-clarification-textarea" placeholder="Describe the rejection reason…" value={rejectionCustom} onChange={(event) => setRejectionCustom(event.target.value)} rows={3} />
                         )}
                         <div className="px-clarification-actions">
                           <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowRejectInput(false); setRejectionTemplate(''); setRejectionCustom('') }}>Cancel</button>
@@ -1487,7 +1501,7 @@ function PharmacistDashboardPage() {
 
                     {showClarificationInput && (
                       <div className="px-clarification-box">
-                        <textarea className="px-clarification-textarea" placeholder="Enter the clarification message for the patient…" value={clarificationNote} onChange={(event) => setClarificationNote(event.target.value)} rows={3} autoFocus />
+                        <textarea aria-label="Enter the clarification message for the patient" className="px-clarification-textarea" placeholder="Enter the clarification message for the patient…" value={clarificationNote} onChange={(event) => setClarificationNote(event.target.value)} rows={3} autoFocus />
                         <div className="px-clarification-actions">
                           <button className="btn btn--outline btn--sm" type="button" onClick={() => { setShowClarificationInput(false); setClarificationNote('') }}>Cancel</button>
                           <button className="btn btn--sm px-decision-btn--clarify-confirm" type="button" onClick={() => handleClarification(clarificationNote)} disabled={!clarificationNote.trim()}>Send clarification</button>
@@ -1504,13 +1518,13 @@ function PharmacistDashboardPage() {
             <div className="px-modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {activeOrder && (
         <div className="modal-overlay" onClick={() => setActiveOrder(null)}>
-          <div className="px-modal pharm-order-modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog busy={orderSaving} onClose={() => setActiveOrder(null)} className="px-modal pharm-order-modal" onClick={(event) => event.stopPropagation()}>
             <div className="px-modal__header">
               <div className="px-modal__header-left">
                 <span className="px-modal__rx-id">{activeOrder.order_number}</span>
@@ -1518,7 +1532,7 @@ function PharmacistDashboardPage() {
               </div>
               <div className="px-modal__header-right">
                 <span className="px-modal__submitted">Updated {formatOrderDate(activeOrder.updated_at)}</span>
-                <button className="modal__close" type="button" onClick={() => setActiveOrder(null)}>×</button>
+                <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setActiveOrder(null)}>×</button>
               </div>
 
             </div>
@@ -1538,7 +1552,7 @@ function PharmacistDashboardPage() {
                   </div>
                   <div>
                     <span>Payment</span>
-                    <strong>{activeOrder.payment_method.replace(/_/g, ' ')} · {activeOrder.payment_status.replace(/_/g, ' ')}</strong>
+                    <strong>{formatPaymentMethod(activeOrder.payment_method)} · {formatStatus(activeOrder.payment_status)}</strong>
                   </div>
                   {formatOrderPrescriptionReferences(activeOrder) && (
                     <div>
@@ -1596,13 +1610,13 @@ function PharmacistDashboardPage() {
             <div className="px-modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveOrder(null)}>Close</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {statusConfirm && (
         <div className="modal-overlay" onClick={() => !orderSaving && setStatusConfirm(null)}>
-          <div className="px-modal pharm-order-modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog busy={orderSaving} onClose={() => !orderSaving && setStatusConfirm(null)} className="px-modal pharm-order-modal" onClick={(event) => event.stopPropagation()}>
             <div className="px-modal__header">
               <div className="px-modal__header-left">
                 <span className="px-modal__rx-id">{statusConfirm.order.order_number}</span>
@@ -1612,7 +1626,7 @@ function PharmacistDashboardPage() {
               </div>
               <div className="px-modal__header-right">
                 <span className="px-modal__submitted">Confirm order status update</span>
-                <button className="modal__close" type="button" disabled={orderSaving} onClick={() => setStatusConfirm(null)}>×</button>
+                <button aria-label="Close dialog" className="modal__close" type="button" disabled={orderSaving} onClick={() => setStatusConfirm(null)}>×</button>
               </div>
             </div>
 
@@ -1661,7 +1675,7 @@ function PharmacistDashboardPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
       </div>

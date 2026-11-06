@@ -1,3 +1,4 @@
+import { useAuth } from '../../context/AuthContext'
 import { useEffect, useState } from 'react'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import {
@@ -44,6 +45,8 @@ function flattenInventoryRows(items: InventoryItem[]): InventoryItem[] {
 }
 
 function InventoryOverviewPage() {
+  const { user } = useAuth()
+  const canManageOrderPushes = user?.role === 'admin'
   const [tab, setTab] = useState<Tab>('stock')
   const [items, setItems] = useState<InventoryItem[]>([])
   const [failedPushes, setFailedPushes] = useState<FailedOrderPush[]>([])
@@ -147,7 +150,7 @@ function InventoryOverviewPage() {
             >
               Stock levels
             </button>
-            <button
+            {canManageOrderPushes && <button
               className={`inv-tab ${tab === 'failed_pushes' ? 'inv-tab--active' : ''}`}
               type="button"
               onClick={() => setTab('failed_pushes')}
@@ -156,7 +159,7 @@ function InventoryOverviewPage() {
               {failedPushes.length > 0 && (
                 <span className="inv-tab__badge">{failedPushes.length}</span>
               )}
-            </button>
+            </button>}
           </div>
 
           {tab === 'stock' && (
@@ -165,6 +168,7 @@ function InventoryOverviewPage() {
               <div className="inv-filters">
                 <input
                   type="search"
+                  aria-label="Search inventory products"
                   placeholder="Search product…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -172,6 +176,7 @@ function InventoryOverviewPage() {
                   className="inv-filters__search"
                 />
                 <select
+                  aria-label="Filter inventory by location"
                   value={locationFilter}
                   onChange={(e) => setLocationFilter(e.target.value)}
                   className="inv-filters__select"

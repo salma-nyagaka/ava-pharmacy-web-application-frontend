@@ -22,10 +22,10 @@ const services: Service[] = [
     key: 'doctor',
     category: 'Consultation',
     title: 'Doctor Consultation',
-    hook: 'Talk to a licensed GP or specialist from home, in minutes.',
-    turnaround: 'Same-day',
-    price: 'From KSh 500',
-    features: ['Same-day appointments', 'Digital prescriptions issued', 'Secure chat & video'],
+    hook: 'Talk to a licensed GP or specialist online.',
+    turnaround: 'Online consultation',
+    price: 'Fee shown at booking',
+    features: ['Choose an available clinician', 'Digital prescription tools', 'Secure chat'],
     path: '/doctor-consultation',
     cta: 'Book a consultation',
     badge: 'Popular',
@@ -40,7 +40,7 @@ const services: Service[] = [
     category: 'Pharmacy',
     title: 'Prescription Review',
     hook: 'Upload an Rx for fast review by a licensed pharmacist.',
-    turnaround: 'Reviewed in minutes',
+    turnaround: 'Pharmacist review',
     price: 'Free review',
     features: ['Licensed pharmacist check', 'Delivery or pickup'],
     path: '/prescriptions',
@@ -59,8 +59,8 @@ const services: Service[] = [
     category: 'Pediatrics',
     title: 'Pediatric Care',
     hook: 'Child health guidance for infants, toddlers and teens.',
-    turnaround: 'Same-day',
-    price: 'From KSh 600',
+    turnaround: 'Online consultation',
+    price: 'Fee shown at booking',
     features: ['Ages 0–18 covered', 'Guardian consent captured'],
     path: '/pediatric-consultation',
     cta: 'Book for your child',
@@ -77,12 +77,12 @@ const services: Service[] = [
     category: 'Diagnostics',
     title: 'Lab Tests',
     hook: 'Book diagnostics and get certified results delivered online.',
-    turnaround: 'Results in 24h',
-    price: 'From KSh 800',
+    turnaround: 'Timing varies by test',
+    price: 'Browse test prices',
     features: ['Partner labs nationwide', 'Secure result delivery'],
     path: '/lab-tests',
     cta: 'Book a lab test',
-    badge: 'Same-day',
+    badge: 'Lab services',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
         <path d="M14.5 2v14.5a4.5 4.5 0 0 1-9 0V2"/>
@@ -103,11 +103,11 @@ const steps = [
 const faqs = [
   {
     q: 'How much do consultations and lab tests cost?',
-    a: 'Doctor consultations start from KSh 500 and pediatric visits from KSh 600. Lab test prices vary by panel, so browse the live catalogue for exact pricing, with most results returned within 24 hours.',
+    a: 'The selected clinician’s fee is shown before payment. Browse the live lab catalogue for each test’s price and turnaround time.',
   },
   {
     q: 'Do you accept insurance or NHIF?',
-    a: 'We accept selected insurers and NHIF for qualifying services. Confirm cover for your specific plan at checkout or chat with us on WhatsApp before booking.',
+    a: 'Contact our support team before booking to confirm whether your specific insurance plan and service can be covered.',
   },
   {
     q: 'How long is a digital prescription valid?',
@@ -135,7 +135,7 @@ function HealthServicesPage() {
         <div className="container">
           <div className="hs-section-head">
             <span className="hs-section-eyebrow">What we offer</span>
-            <h2 id="hs-services-title" className="hs-section-title">Our services</h2>
+            <h1 id="hs-services-title" className="hs-section-title">Our services</h1>
             <p className="hs-section-sub">Four ways to manage your health, reviewed by licensed professionals.</p>
           </div>
 

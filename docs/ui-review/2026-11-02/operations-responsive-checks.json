@@ -1,0 +1,56 @@
+[
+  {
+    "heading": "Lab partner dashboard preview",
+    "overflow": false,
+    "path": "/lab/dashboard",
+    "width": 354
+  },
+  {
+    "heading": "Lab workflow",
+    "overflow": false,
+    "path": "/labtech/dashboard",
+    "width": 354
+  },
+  {
+    "heading": "Lab partner dashboard preview",
+    "overflow": false,
+    "path": "/lab/dashboard",
+    "width": 698
+  },
+  {
+    "heading": "Lab workflow",
+    "overflow": false,
+    "path": "/labtech/dashboard",
+    "width": 698
+  },
+  {
+    "heading": "Lab partner dashboard preview",
+    "overflow": false,
+    "path": "/lab/dashboard",
+    "width": 1309
+  },
+  {
+    "heading": "Lab workflow",
+    "overflow": false,
+    "path": "/labtech/dashboard",
+    "width": 1309
+  },
+  {
+    "heading": "Inventory overview",
+    "overflow": false,
+    "path": "/inventory",
+    "width": 354
+  },
+  {
+    "heading": "Inventory overview",
+    "overflow": false,
+    "path": "/inventory",
+    "width": 698
+  },
+  {
+    "heading": "Inventory overview",
+    "overflow": false,
+    "path": "/inventory",
+    "width": 1309
+  }
+]

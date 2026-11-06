@@ -50,7 +50,11 @@ export const cartService = {
   mergeLocalCart: async () => {
     if (!isAuthenticated()) return { data: loadCartItems() }
     const localItems = loadCartItems()
-    if (!localItems.length) return cartService.list()
+    if (!localItems.length) {
+      const cart = await cartService.list()
+      dispatchCartEvent()
+      return cart
+    }
     try {
       await apiClient.post('/cart/merge/', {
       items: localItems.map((item) => ({

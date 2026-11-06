@@ -645,3 +645,59 @@
     margin-top: 0.65rem;
   }
 }
+
+/* Align the long settings form and keep controls usable at narrower widths. */
+.settings-page .page-grid--2 { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: start; }
+.settings-page .settings-card { min-height: 0; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; }
+.settings-page .settings-card h2 { margin: 0 0 20px; font-size: 1.05rem; }
+.settings-page .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; min-width: 0; }
+.settings-page .form-group label { margin: 0; font-size: .8125rem; font-weight: 600; color: #334155; }
+.settings-page input, .settings-page select, .settings-page textarea { box-sizing: border-box; width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
+.settings-page .settings-actions { flex-wrap: wrap; }
+@media(max-width:900px) { .settings-page .page-grid--2 { grid-template-columns: minmax(0,1fr); } }
+@media(max-width:600px) { .settings-page .settings-card { padding: 18px; } .settings-page .settings-actions { position: static; } }
+
+.settings-page input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; padding: 0; flex: 0 0 18px; margin: 0; accent-color: #075b52; }
+.settings-page .settings-checkbox { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; }
+
+/* Settings section navigation and form hierarchy. */
+.settings-page { max-width: 1160px; margin-inline: auto; }
+.settings-page__hero { margin-bottom: 24px; }
+.settings-page__hero .cm-title-group h1 { font-size: 1.65rem; letter-spacing: -0.035em; }
+.settings-page__hero .cm-title-sub { margin-top: 8px; line-height: 1.6; }
+.settings-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+.settings-nav__item { display: flex; flex-direction: column; gap: 6px; padding: 18px; text-align: left; font: inherit; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; color: #475569; cursor: pointer; }
+.settings-nav__item strong { font-size: .9rem; }
+.settings-nav__item span { font-size: .75rem; line-height: 1.5; color: #64748b; }
+.settings-nav__item:hover { border-color: #86b9af; }
+.settings-nav__item--active { border-color: #075b52; background: #eef7f4; box-shadow: inset 0 3px #075b52; color: #075b52; }
+.settings-page :is(button, input, select, a):focus-visible { outline: 2px solid #075b52; outline-offset: 3px; }
+.settings-content { min-width: 0; }
+.settings-page .settings-card[hidden] { display: none; }
+.settings-page .settings-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; padding: 28px; }
+.settings-page .settings-card h2 { grid-column: 1 / -1; margin-bottom: 8px; font-size: 1.1rem; }
+.settings-page .settings-card .card__subtitle { grid-column: 1 / -1; margin: 0 0 28px; color: #64748b; font-size: .85rem; line-height: 1.6; }
+.settings-card .form-group:has(.settings-field-header),
+.settings-card .form-group:has(.settings-support-hours),
+.settings-card .form-group:has(.settings-checkbox),
+.settings-card .settings-inline-link { grid-column: 1 / -1; }
+.settings-page .settings-field-note { margin: 0; font-size: .76rem; line-height: 1.6; }
+.settings-page .settings-picker { margin-top: 0; }
+.settings-page .settings-field-header { align-items: center; flex-direction: row; }
+.settings-page .settings-support-hours { max-width: 720px; }
+.settings-page .settings-inline-link { margin-top: 8px; font-size: .8rem; flex-wrap: wrap; }
+.settings-impact { margin-top: 24px; padding: 20px 24px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafb; }
+.settings-impact .card__title { margin: 0 0 6px; font-size: .85rem; color: #334155; }
+.settings-impact .card__subtitle { margin: 0 0 14px; color: #64748b; font-size: .8rem; }
+.settings-impact-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; font-size: .78rem; line-height: 1.6; }
+.settings-page .settings-actions { box-shadow: 0 4px 20px #0f172a0a; border-radius: 10px; }
+.settings-page .settings-actions .btn { flex-shrink: 0; }
+@media (max-width: 760px) {
+  .settings-nav { gap: 8px; }
+  .settings-nav__item { padding: 14px 10px; }
+  .settings-nav__item strong { font-size: .78rem; }
+  .settings-nav__item span { display: none; }
+  .settings-page .settings-card { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  .settings-impact-list { grid-template-columns: minmax(0, 1fr); }
+  .settings-page .settings-support-hours { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -1,3 +1,5 @@
+import '../../styles/admin/AdminWorkspace.css'
+import Dialog from '../Dialog/Dialog'
 import { CSSProperties, ReactNode, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -26,7 +28,7 @@ const NAV_SECTIONS: AdminNavSection[] = [
     label: 'Overview',
     items: [
       {
-        label: 'Dashboard',
+        label: 'Dashboard & Reports',
         to: '/admin/dashboard',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
@@ -74,8 +76,8 @@ const NAV_SECTIONS: AdminNavSection[] = [
         ),
       },
       {
-        label: 'Products',
-        to: '/admin/products',
+        label: 'Products & Stock',
+        to: '/admin/products-stock',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
             <path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" />
@@ -88,9 +90,9 @@ const NAV_SECTIONS: AdminNavSection[] = [
         to: '/admin/banners',
         icon: (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
-            <path d="M4 6h16v10H4z" />
-            <path d="M8 16v3l4-3h8" />
-            <path d="M8 10h8" />
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <circle cx="8" cy="9" r="1.5" />
+            <path d="m3 17 5-5 4 4 4-6 5 7" />
           </svg>
         ),
       },
@@ -101,17 +103,6 @@ const NAV_SECTIONS: AdminNavSection[] = [
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
             <circle cx="12" cy="12" r="9" />
             <path d="M9.8 9a2.3 2.3 0 1 1 3.6 1.9c-.9.6-1.4 1-1.4 2.1M12 17h.01" />
-          </svg>
-        ),
-      },
-      {
-        label: 'Inventory',
-        to: '/admin/inventory',
-        matchChildren: true,
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
-            <path d="M4 7h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z" />
-            <path d="M4 7 7 4h10l3 3M9 12h6" />
           </svg>
         ),
       },
@@ -213,15 +204,6 @@ const NAV_SECTIONS: AdminNavSection[] = [
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
             <circle cx="9" cy="8" r="4" />
             <path d="M2 21a7 7 0 0 1 14 0M17 10a3.5 3.5 0 1 0 0-7M22 21a6 6 0 0 0-3.5-5.4" />
-          </svg>
-        ),
-      },
-      {
-        label: 'Reports',
-        to: '/admin/reports',
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="18" height="18">
-            <path d="M4 20V8M12 20V4M20 20v-9" />
           </svg>
         ),
       },
@@ -352,12 +334,22 @@ function AdminLayout() {
     navigate('/login', { replace: true })
   }
 
+  const Sidebar = isCompactViewport ? Dialog : 'aside'
+
   return (
     <div
       className={`admin-layout ${isCollapsed ? 'admin-layout--sidebar-collapsed' : ''}`}
       style={{ '--admin-sidebar-width': `${sidebarWidth}px`, '--admin-accent': GREEN_ACCENT } as CSSProperties}
     >
-      <aside className="admin-layout__sidebar">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <header className="workspace-mobile-bar">
+        <button className="btn btn--outline" type="button" aria-label="Open navigation"
+          aria-expanded={!isCollapsed} aria-controls="admin-navigation"
+          onClick={() => setIsSidebarExpanded(true)}>☰ Menu</button>
+        <strong>Admin</strong>
+      </header>
+      {isCompactViewport && !isCollapsed && <button className="workspace-nav-backdrop" type="button" tabIndex={-1} aria-label="Close navigation" onClick={() => setIsSidebarExpanded(false)} />}
+      {(!isCompactViewport || !isCollapsed) && <Sidebar onClose={() => setIsSidebarExpanded(false)} aria-label="Admin navigation" className="admin-layout__sidebar">
         <div className="admin-layout__sidebar-inner">
           <div className="admin-layout__brand-row">
             <NavLink className="admin-layout__brand" to="/" onClick={handleNavClick}>
@@ -372,6 +364,8 @@ function AdminLayout() {
 
             {isCompactViewport ? (
               <button
+                aria-expanded={!isCollapsed}
+                aria-controls="admin-navigation"
                 aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 className="admin-layout__toggle"
                 type="button"
@@ -390,7 +384,7 @@ function AdminLayout() {
             ) : null}
           </div>
 
-          <nav aria-label="Admin navigation" className="admin-layout__nav">
+          <nav id="admin-navigation" aria-label="Admin navigation" className="admin-layout__nav">
             {NAV_SECTIONS.map((section) => (
               <div key={section.label} className="admin-layout__section">
                 <p className="admin-layout__section-label">{section.label}</p>
@@ -427,6 +421,7 @@ function AdminLayout() {
             </div>
 
             <button
+              aria-label="Log out"
               className="admin-layout__logout"
               title={isCollapsed ? 'Log out' : undefined}
               type="button"
@@ -438,13 +433,13 @@ function AdminLayout() {
                   <path d="M16 17l5-5-5-5M21 12H9" />
                 </svg>
               </span>
-              <span className="admin-layout__logout-label">Logout</span>
+              <span className="admin-layout__logout-label">Log out</span>
             </button>
           </div>
         </div>
-      </aside>
+      </Sidebar>}
 
-      <main className="admin-layout__main">
+      <main id="main-content" tabIndex={-1} className="admin-layout__main">
         <div className="admin-layout__content">
           <Outlet />
         </div>

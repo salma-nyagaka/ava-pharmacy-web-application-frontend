@@ -1,3 +1,6 @@
+import AdminKpiStats from '../../components/AdminKpiStats'
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import Dialog from '../../components/Dialog/Dialog'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { adminProductService, ApiBrand } from '../../services/adminProductService'
@@ -165,8 +168,13 @@ function BrandManagement() {
         if (trimmedDescription) payload.append('description', trimmedDescription)
         payload.append('logo', formLogoFile!)
 
-        const created = await adminProductService.createBrand(payload)
-        setBrands((prev) => [created, ...prev])
+        await adminProductService.createBrand(payload)
+        setSearch('')
+        setSelectedStatus('all')
+        setSortField('created_at')
+        setSortDirection('desc')
+        setCurrentPage(1)
+        await load()
       }
 
       resetForm()
@@ -218,10 +226,14 @@ function BrandManagement() {
     const items = [...filtered]
     items.sort((left, right) => {
       let comparison = 0
-      if (sortField === 'name') comparison = left.name.localeCompare(right.name)
+      if (sortField === 'name') {
+        const leftLetter = /^[a-z]/i.test(left.name.trim())
+        const rightLetter = /^[a-z]/i.test(right.name.trim())
+        comparison = Number(rightLetter) - Number(leftLetter) || left.name.localeCompare(right.name, undefined, { sensitivity: 'base', numeric: true })
+      }
       else if (sortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
       else comparison = compareCreatedAt(left.created_at, right.created_at)
-      return sortDirection === 'asc' ? comparison : -comparison
+      return sortDirection === 'asc' ? (comparison || left.id - right.id) : -(comparison || left.id - right.id)
     })
     return items
   }, [filtered, sortField, sortDirection])
@@ -231,6 +243,15 @@ function BrandManagement() {
   }, [search, selectedStatus, sortField, sortDirection])
 
   const totalPages = Math.max(1, Math.ceil(sortedBrands.length / PAGE_SIZE))
+  const visiblePages: (number | string)[] = []
+  const rangeStart = Math.max(2, Math.min(currentPage - 1, totalPages - 4))
+  const rangeEnd = Math.min(totalPages - 1, Math.max(currentPage + 1, 5))
+  visiblePages.push(1)
+  if (rangeStart > 2) visiblePages.push('start-gap')
+  for (let page = rangeStart; page <= rangeEnd; page += 1) visiblePages.push(page)
+  if (rangeEnd < totalPages - 1) visiblePages.push('end-gap')
+  if (totalPages > 1) visiblePages.push(totalPages)
+
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedBrands = sortedBrands.slice(startIndex, startIndex + PAGE_SIZE)
 
@@ -240,8 +261,8 @@ function BrandManagement() {
     }
   }, [currentPage, totalPages])
 
-  const activeCount = brands.filter((brand) => brand.is_active).length
-  const withLogosCount = brands.filter((brand) => Boolean(brand.logo)).length
+  const { count: databaseCount } = useAdminRecordStats('brands', 'all', brands)
+
   const hasFilters = search.trim().length > 0 || selectedStatus !== 'all'
 
   const clearFilters = () => {
@@ -284,36 +305,20 @@ function BrandManagement() {
         </div>
       </div>
 
-      <div className="cm-kpi-grid">
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Brands</span>
-            <strong className="cm-kpi-card__value">{loading ? '-' : brands.length}</strong>
-            <span className="cm-kpi-card__delta">{loading ? '' : `${activeCount} active · ${brands.length - activeCount} inactive`}</span>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--teal">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">With Logo</span>
-            <strong className="cm-kpi-card__value">{loading ? '-' : withLogosCount}</strong>
-            <span className="cm-kpi-card__delta">{loading ? '' : `${brands.length - withLogosCount} missing`}</span>
-          </div>
-        </div>
-      </div>
+      <AdminKpiStats items={[
+        { label: 'Brands', value: databaseCount('total') },
+        { label: 'Active', value: databaseCount('active') },
+        { label: 'Inactive', value: databaseCount('inactive') },
+      ]} />
 
       <div className="cm-toolbar">
+
         <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
           <div className="cm-search-box">
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
               <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
             </svg>
-            <input
+            <input aria-label="Search brands"
               type="search"
               placeholder="Search brands..."
               value={search}
@@ -327,7 +332,7 @@ function BrandManagement() {
               </button>
             )}
           </div>
-          <select
+          <select aria-label="Filter by status"
             className="cm-filter-select"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value as 'all' | 'active' | 'inactive')}
@@ -484,7 +489,7 @@ function BrandManagement() {
             <span className="cm-pagination__info">
               Showing {startIndex + 1}-{Math.min(startIndex + PAGE_SIZE, filtered.length)} of {filtered.length}
             </span>
-            <div className="cm-pagination__controls">
+            <nav className="cm-pagination__controls" aria-label="Brands pagination">
               <button
                 className="pagination__button"
                 type="button"
@@ -494,13 +499,15 @@ function BrandManagement() {
                 Prev
               </button>
               <div className="pagination__pages">
-                {Array.from({ length: totalPages }, (_, index) => {
-                  const page = index + 1
+                {visiblePages.map((page) => {
+                  if (typeof page === 'string') return <span key={page} className="pagination__ellipsis" aria-hidden="true">…</span>
                   return (
                     <button
                       key={page}
                       className={`pagination__page ${page === currentPage ? 'pagination__page--active' : ''}`}
                       type="button"
+                      aria-label={`Page ${page}`}
+                      aria-current={page === currentPage ? 'page' : undefined}
                       onClick={() => setCurrentPage(page)}
                     >
                       {page}
@@ -516,14 +523,14 @@ function BrandManagement() {
               >
                 Next
               </button>
-            </div>
+            </nav>
           </div>
         )}
       </div>
 
       {showModal && (
         <div className="cm-overlay" onClick={closeModal}>
-          <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog busy={saving} onClose={closeModal} className="cm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="cm-modal__header">
               <div>
                 <h2>{editing ? 'Edit Brand' : 'New Brand'}</h2>
@@ -619,7 +626,7 @@ function BrandManagement() {
                 </button>
               </div>
             </form>
-          </div>
+          </Dialog>
         </div>
       )}
 

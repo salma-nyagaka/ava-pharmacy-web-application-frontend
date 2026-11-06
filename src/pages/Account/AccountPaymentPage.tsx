@@ -35,7 +35,7 @@ function AccountPaymentPage() {
     try { await updateSavedPaymentMethod(id, { is_default: true }); await refresh() } catch { setError('Unable to change your default M-Pesa number.') }
   }
   return <div className="ac-card pay-page">
-    <div className="pay-header"><h2 className="pay-header__title">Payment methods</h2><p className="pay-header__sub">Manage your M-Pesa numbers. Checkout supports M-Pesa STK Push and Paybill.</p></div>
+    <div className="pay-header"><h1 className="pay-header__title">Payment methods</h1><p className="pay-header__sub">Manage your M-Pesa numbers. Checkout supports M-Pesa STK Push and Paybill.</p></div>
     {error && <p role="alert" className="pay-form-error">{error}</p>}
     {loading ? <p role="status">Loading M-Pesa numbers…</p> : <div className="pay-cards-col">
       {methods.length === 0 && <p>No saved M-Pesa numbers.</p>}

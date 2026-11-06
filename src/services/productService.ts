@@ -44,6 +44,18 @@ export interface ProductDetail extends Product {
 }
 
 export interface ProductVariant {
+  regulatory_scope?: string
+  prescription_classification?: string
+  contraindications?: string
+  side_effects?: string
+  directions?: string
+  warnings?: string
+  pil_source_url?: string
+  pil_version?: string
+  pil_reviewed_at?: string
+  storage_instructions?: string
+  supply_hold_reason?: string
+
   average_rating?: number
   review_count?: number
   id: number
@@ -86,6 +98,7 @@ export interface FetchProductsOptions {
 }
 
 export interface ProductFilters {
+  on_offer?: boolean
   category?: string
   subcategory?: string
   brand?: string
@@ -349,13 +362,22 @@ export async function fetchNavBrands(): Promise<NavBrand[]> {
 }
 
 export async function fetchNavHealthConcerns(): Promise<NavHealthConcern[]> {
-  const res = await apiClient.get('/health-concerns/')
-  const raw: Array<{ id: number; name: string; slug: string; icon: string; is_active: boolean }> =
-    Array.isArray(res.data?.data) ? res.data.data
-    : Array.isArray(res.data?.results) ? res.data.results
-    : Array.isArray(res.data) ? res.data
-    : []
-  return raw.filter((c) => c.is_active).map((c) => ({ id: c.id, name: c.name, slug: c.slug, icon: c.icon ?? '' }))
+  const concerns: NavHealthConcern[] = []
+  let next: string | null = '/health-concerns/'
+  const visited = new Set<string>()
+  while (next && !visited.has(next)) {
+    visited.add(next)
+    const res: { data: unknown } = await apiClient.get(next)
+    const payload = res.data as { data?: Array<NavHealthConcern & { is_active: boolean }>; results?: Array<NavHealthConcern & { is_active: boolean }>; meta?: { next?: unknown }; next?: unknown }
+    const raw: Array<NavHealthConcern & { is_active: boolean }> =
+      Array.isArray(payload?.data) ? payload.data
+      : Array.isArray(payload?.results) ? payload.results
+      : Array.isArray(payload) ? payload : []
+    concerns.push(...raw.filter((c) => c.is_active).map((c) => ({ id: c.id, name: c.name, slug: c.slug, icon: c.icon ?? '' })))
+    const following: unknown = payload?.meta?.next ?? payload?.next
+    next = typeof following === 'string' ? following : null
+  }
+  return concerns
 }
 
 export interface PublicBrand {

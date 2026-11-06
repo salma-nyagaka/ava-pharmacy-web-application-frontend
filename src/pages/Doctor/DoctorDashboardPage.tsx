@@ -1,3 +1,7 @@
+import { useWorkspaceView } from '../../hooks/useWorkspaceView'
+import { preferredScrollBehavior } from '../../utils/motion'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import ConsultationAttachments from '../../components/ConsultationAttachments'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -320,7 +324,7 @@ function WaitTimer({ since }: { since: string | Date | undefined }) {
 function DoctorDashboardPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<DoctorTab>('queue')
+  const [activeTab, setActiveTab] = useWorkspaceView<DoctorTab>(['queue', 'prescriptions', 'patients', 'earnings'], 'queue')
   const isAdminPreview = user?.role === 'admin'
   const doctors = useMemo(() => loadDoctorProfiles(), [])
   const doctor = useMemo(() => {
@@ -398,7 +402,7 @@ function DoctorDashboardPage() {
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null)
 
   useEffect(() => {
-    consultEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    consultEndRef.current?.scrollIntoView({ behavior: preferredScrollBehavior() })
   }, [consultThread?.messages])
 
   useEffect(() => {
@@ -1328,11 +1332,12 @@ function DoctorDashboardPage() {
                     <input
                       className="dd-search-input"
                       type="text"
+                      aria-label="Search by patient, issue, ID"
                       placeholder="Search by patient, issue, ID…"
                       value={queueSearch}
                       onChange={(e) => setQueueSearch(e.target.value)}
                     />
-                    {queueSearch && <button className="dd-search-clear" onClick={() => setQueueSearch('')}>×</button>}
+                    {queueSearch && <button aria-label="Clear search" type="button" className="dd-search-clear" onClick={() => setQueueSearch('')}>×</button>}
                   </div>
                   <span className="dd-count">{queueItems.length} consultation{queueItems.length !== 1 ? 's' : ''}</span>
                 </div>
@@ -1390,7 +1395,7 @@ function DoctorDashboardPage() {
                               {linkedRx ? (
                                 <div className="dd-rx-linked">
                                   <strong>{linkedRx.id}</strong>
-                                  <span>{linkedRx.status} · {linkedRx.items.length} item{linkedRx.items.length !== 1 ? 's' : ''}</span>
+                                  <span>{formatStatus(linkedRx.status)} · {linkedRx.items.length} item{linkedRx.items.length !== 1 ? 's' : ''}</span>
                                 </div>
                               ) : (
                                 <span className="dd-rx-empty">Not issued</span>
@@ -1401,7 +1406,7 @@ function DoctorDashboardPage() {
                                 className="dd-status-pill"
                                 style={STATUS_PILL_STYLES[item.status] ?? { background: 'rgba(100,116,139,0.12)', color: '#1e293b' }}
                               >
-                                {item.status}
+                                {formatStatus(item.status)}
                               </span>
                             </td>
                             <td>
@@ -1487,7 +1492,7 @@ function DoctorDashboardPage() {
                         className="dd-status-pill"
                         style={STATUS_PILL_STYLES[selectedConsult.status] ?? { background: 'rgba(100,116,139,0.12)', color: '#1e293b' }}
                       >
-                        {selectedConsult.status}
+                        {formatStatus(selectedConsult.status)}
                       </span>
                     </div>
                     <div className="dd-workspace-card__body">
@@ -1584,7 +1589,8 @@ function DoctorDashboardPage() {
                 <input
                   className="dd-search-input"
                   type="text"
-                  placeholder="Search prescriptions…"
+                  aria-label="Search prescriptions"
+                      placeholder="Search prescriptions…"
                   value={prescriptionSearch}
                   onChange={(e) => setPrescriptionSearch(e.target.value)}
                 />
@@ -1640,7 +1646,7 @@ function DoctorDashboardPage() {
                             ? { background: 'rgba(37,99,235,0.12)', color: '#1e3a8a' }
                             : { background: 'rgba(245,158,11,0.12)', color: '#92400e' }
                         }>
-                          {rx.status}
+                          {formatStatus(rx.status)}
                         </span>
                       </td>
                       <td>
@@ -1688,7 +1694,8 @@ function DoctorDashboardPage() {
                   <input
                     className="dd-search-input"
                     type="text"
-                    placeholder="Search patients..."
+                    aria-label="Search patients"
+                      placeholder="Search patients..."
                     value={patientSearch}
                     onChange={(e) => setPatientSearch(e.target.value)}
                   />
@@ -1782,7 +1789,7 @@ function DoctorDashboardPage() {
               return (
                 <>
                   <div className="dd-overlay" onClick={() => setSelectedPatient(null)} />
-                  <section className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
+                  <Dialog onClose={() => setSelectedPatient(null)} className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
                   <div className="dd-patient-profile__header">
                     <div className="dd-td-patient">
                       <div className="dd-td-patient__avatar">{initials(selectedPatient)}</div>
@@ -1837,7 +1844,7 @@ function DoctorDashboardPage() {
                                 <td>{medicationSummary(rx.items)}</td>
                                 <td>{rx.notes || 'Not recorded'}</td>
                                 <td>{rx.items[0]?.dosage || '-'}</td>
-                                <td>{rx.status}</td>
+                                <td>{formatStatus(rx.status)}</td>
                                 <td>
                                   <div className="dd-actions-cell">
                                     <button className="dd-action-btn" type="button">View</button>
@@ -1866,7 +1873,7 @@ function DoctorDashboardPage() {
                       </div>
                     </div>
                   </div>
-                  </section>
+                  </Dialog>
                 </>
               )
             })()}
@@ -1885,7 +1892,7 @@ function DoctorDashboardPage() {
           return (
             <>
               <div className="dd-overlay" onClick={() => setSelectedPatient(null)} />
-              <section className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
+              <Dialog onClose={() => setSelectedPatient(null)} className="dd-patient-profile dd-patient-profile--modal" role="dialog" aria-modal="true" aria-label={`${selectedPatient} patient profile`}>
                 <div className="dd-patient-profile__header">
                   <div className="dd-td-patient">
                     <div className="dd-td-patient__avatar">{initials(selectedPatient)}</div>
@@ -1940,7 +1947,7 @@ function DoctorDashboardPage() {
                               <td>{medicationSummary(rx.items)}</td>
                               <td>{rx.notes || 'Not recorded'}</td>
                               <td>{rx.items[0]?.dosage || '-'}</td>
-                              <td>{rx.status}</td>
+                              <td>{formatStatus(rx.status)}</td>
                               <td>
                                 <div className="dd-actions-cell">
                                   <button className="dd-action-btn" type="button">View</button>
@@ -1969,7 +1976,7 @@ function DoctorDashboardPage() {
                     </div>
                   </div>
                 </div>
-              </section>
+              </Dialog>
             </>
           )
         })()}
@@ -2048,7 +2055,7 @@ function DoctorDashboardPage() {
                               ? { background: 'rgba(245,158,11,0.12)', color: '#92400e' }
                               : { background: 'rgba(239,68,68,0.12)', color: '#991b1b' }
                           }>
-                            {entry.status}
+                            {formatStatus(entry.status)}
                           </span>
                         </td>
                         <td className="dd-td-meta">{entry.payoutDate}</td>
@@ -2124,7 +2131,7 @@ function DoctorDashboardPage() {
                 </div>
                 {consultThread?.backendConsultationId && <ConsultationAttachments key={consultThread.backendConsultationId} consultationId={consultThread.backendConsultationId} refreshKey={consultThread.messages.length} />}
                 <div className="dd-sp-chat-input">
-                  <input
+                  <input aria-label="Type your message"
                     type="text"
                     placeholder="Type your message…"
                     value={consultMessage}
@@ -2228,7 +2235,7 @@ function DoctorDashboardPage() {
                     <div className="dd-sp-field">
                       <p className="dd-sp-field-label">Status</p>
                       <span className="dd-status-pill" style={STATUS_PILL_STYLES[selectedConsult.status] ?? { background: 'rgba(100,116,139,0.12)', color: '#1e293b' }}>
-                        {selectedConsult.status}
+                        {formatStatus(selectedConsult.status)}
                       </span>
                     </div>
                   </div>
@@ -2381,7 +2388,7 @@ function DoctorDashboardPage() {
                       </div>
                       <div className="dd-rx-catalog-cell">
                         <label>Medicine</label>
-                        <select
+                        <select aria-label="Medicine variant"
                           value={item.variantId ? String(item.variantId) : ''}
                           disabled={rxLockedByPayment}
                           onFocus={loadPrescriptionCatalog}
@@ -2396,7 +2403,7 @@ function DoctorDashboardPage() {
                             </option>
                           ))}
                         </select>
-                        <input
+                        <input aria-label="Medicine variant"
                           type="text"
                           placeholder="Filter medicine list"
                           disabled={rxLockedByPayment}
@@ -2432,7 +2439,7 @@ function DoctorDashboardPage() {
                       </div>
                       <div className="dd-rx-dose-cell">
                         <label>Dose <span className="dd-rx-required">*</span></label>
-                        <input
+                        <input aria-label="Dose"
                           type="text"
                           required
                           placeholder="e.g. 500 mg"
@@ -2441,13 +2448,13 @@ function DoctorDashboardPage() {
                           onChange={(e) => updateRxItem(idx, { dosage: e.target.value })}
                         />
                         <label>Frequency <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. TID" disabled={rxLockedByPayment} value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
+                        <input aria-label="Frequency" type="text" required placeholder="e.g. TID" disabled={rxLockedByPayment} value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
                         <label>Duration <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. 3/7, 2/52, 1/12" disabled={rxLockedByPayment} value={item.duration ?? ''} onChange={(e) => updateRxItem(idx, { duration: e.target.value })} />
+                        <input aria-label="Duration" type="text" required placeholder="e.g. 3/7, 2/52, 1/12" disabled={rxLockedByPayment} value={item.duration ?? ''} onChange={(e) => updateRxItem(idx, { duration: e.target.value })} />
                       </div>
                       <div className="dd-rx-qty-cell">
                         <label>Qty <span className="dd-rx-required">*</span></label>
-                        <input
+                        <input aria-label="Quantity"
                           type="number"
                           min={1}
                           required
@@ -2457,7 +2464,7 @@ function DoctorDashboardPage() {
                           onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })}
                         />
                         <label>Measurement <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. tablets, ml" disabled={rxLockedByPayment} value={item.quantityMeasurement ?? ''} onChange={(e) => updateRxItem(idx, { quantityMeasurement: e.target.value })} />
+                        <input aria-label="Quantity measurement unit" type="text" required placeholder="e.g. tablets, ml" disabled={rxLockedByPayment} value={item.quantityMeasurement ?? ''} onChange={(e) => updateRxItem(idx, { quantityMeasurement: e.target.value })} />
                       </div>
                     </div>
                   ))}

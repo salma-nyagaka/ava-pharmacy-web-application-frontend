@@ -5,7 +5,6 @@ import avatarJohn from '../../assets/images/avatars/avatar-john.svg'
 import '../../styles/pages/AccountLayout.css'
 
 const NAV_ITEMS = [
-  { icon: <span aria-hidden="true">▤</span>, title: 'Compliance evidence', link: '/account/compliance', color: '#167a80' },
   { icon: <span aria-hidden="true">◉</span>, title: 'Notifications', link: '/account/notifications', color: '#167a80' },
   { icon: <span aria-hidden="true">?</span>, title: 'Support requests', link: '/account/support', color: '#167a80' },
   {
@@ -77,17 +76,6 @@ const NAV_ITEMS = [
   {
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="2" y="5" width="20" height="14" rx="2"/>
-        <path d="M2 10h20"/>
-      </svg>
-    ),
-    title: 'Payment Methods',
-    link: '/account/payment',
-    color: '#f59e0b',
-  },
-  {
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="8" r="4"/>
         <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
       </svg>
@@ -128,12 +116,13 @@ function AccountLayout() {
 
             <nav aria-label="Account navigation">
               <p className="acl-nav__label">My Account</p>
-              {NAV_ITEMS.filter(item=>item.link!=='/account/compliance'||['admin','ppb_inspector'].includes(user?.role||'')).map((item) => {
+              {NAV_ITEMS.map((item) => {
                 const active = isActive(item)
                 return (
                   <Link
                     key={item.link}
                     to={item.link}
+                    aria-current={active ? 'page' : undefined}
                     className={`acl-nav__item${active ? ' acl-nav__item--active' : ''}`}
                     style={active ? { '--nav-color': item.color } as React.CSSProperties : undefined}
                   >
@@ -154,9 +143,9 @@ function AccountLayout() {
             </nav>
           </aside>
 
-          <main className="acl-content">
+          <div className="acl-content">
             <Outlet />
-          </main>
+          </div>
         </div>
       </div>
     </div>

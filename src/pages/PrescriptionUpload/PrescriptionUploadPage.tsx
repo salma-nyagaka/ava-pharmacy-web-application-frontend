@@ -1,3 +1,5 @@
+import { preferredScrollBehavior } from '../../utils/motion'
+import Dialog from '../../components/Dialog/Dialog'
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { TurnstileChallenge } from '../../components/Security/TurnstileChallenge'
@@ -358,13 +360,13 @@ function PrescriptionUploadPage() {
   const openUploadForm = () => {
     setSubmitted(false)
     setShowUploadForm(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
   }
 
   const closeUploadForm = () => {
     setSubmitted(false)
     setShowUploadForm(false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
   }
 
   const handleClarificationReply = (rx: PrescriptionRecord, event: FormEvent<HTMLFormElement>) => {
@@ -660,7 +662,7 @@ function PrescriptionUploadPage() {
 
           {activeRx && (
             <div className="modal-overlay" onClick={() => setActiveRx(null)}>
-              <div className="modal rx-modal" onClick={(event) => event.stopPropagation()}>
+              <Dialog busy={sendingReplyId === activeRx.backendId} onClose={() => setActiveRx(null)} className="modal rx-modal" onClick={(event) => event.stopPropagation()}>
                 <div className="modal__header rx-modal__header">
                   <div className="rx-modal__header-main">
                     <p className="rx-modal__eyebrow">Prescription</p>
@@ -674,7 +676,7 @@ function PrescriptionUploadPage() {
                     <span className="ac-card__status rup-dispatch-status" style={{ color: dispatchStatusForPrescription(activeRx).color, background: dispatchStatusForPrescription(activeRx).bg }}>
                       {dispatchStatusForPrescription(activeRx).label}
                     </span>
-                    <button className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
+                    <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setActiveRx(null)}>×</button>
                   </div>
                 </div>
 
@@ -760,7 +762,7 @@ function PrescriptionUploadPage() {
                               <p className="rup-clarification-form__hint">Your message will be added to this thread.</p>
                             </div>
                           </div>
-                          <textarea
+                          <textarea aria-label="Type a short response"
                             value={replyDrafts[activeRx.id] || ''}
                             onChange={(event) => {
                               setReplyDrafts((current) => ({ ...current, [activeRx.id]: event.target.value }))
@@ -811,7 +813,7 @@ function PrescriptionUploadPage() {
                   )}
                   <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveRx(null)}>Close</button>
                 </div>
-              </div>
+              </Dialog>
             </div>
           )}
         </div>
@@ -926,10 +928,11 @@ function PrescriptionUploadPage() {
                     onDrop={handleDrop}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(event) => event.key === 'Enter' && fileInputRef.current?.click()}
+                    onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInputRef.current?.click() } }}
                   >
                     <input
                       ref={fileInputRef}
+                      aria-label="Prescription files"
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
                       multiple
@@ -980,6 +983,17 @@ function PrescriptionUploadPage() {
                     </div>
                   )}
 
+                  {uploadError && (
+                    <p className="rup-error" role="alert">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      {uploadError}
+                    </p>
+                  )}
+
                   <div className="rup-meta">
                     <div className="rup-field">
                       <label htmlFor="rx-doctor">Prescribing doctor <span className="rup-field__optional">optional</span></label>
@@ -997,16 +1011,7 @@ function PrescriptionUploadPage() {
                     </div>
                   </div>
 
-                  {uploadError && (
-                    <p className="rup-error">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                      {uploadError}
-                    </p>
-                  )}
+
 
                   <TurnstileChallenge action="prescription_upload" onToken={setChallengeToken} resetKey={challengeResetKey} />
 

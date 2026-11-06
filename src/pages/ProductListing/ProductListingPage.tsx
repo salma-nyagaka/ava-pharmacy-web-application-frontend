@@ -22,6 +22,7 @@ const getStockLabel = (stockSource: StockSource) => {
 }
 
 function ProductListingPage() {
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
   const [searchParams] = useSearchParams()
@@ -264,31 +265,31 @@ function ProductListingPage() {
             {searchTerm && (
               <span className="plp__chip">
                 Search: &ldquo;{searchTerm}&rdquo;
-                <button className="plp__chip__remove" type="button" onClick={() => setSearchTerm('')}>×</button>
+                <button aria-label="Remove search filter" className="plp__chip__remove" type="button" onClick={() => setSearchTerm('')}>×</button>
               </span>
             )}
             {selectedBrands.map((b) => (
               <span key={b} className="plp__chip">
                 {b}
-                <button className="plp__chip__remove" type="button" onClick={() => toggleBrand(b)}>×</button>
+                <button aria-label="Remove brand filter" className="plp__chip__remove" type="button" onClick={() => toggleBrand(b)}>×</button>
               </span>
             ))}
             {minRating > 0 && (
               <span className="plp__chip">
                 {minRating}★ &amp; Up
-                <button className="plp__chip__remove" type="button" onClick={() => setMinRating(0)}>×</button>
+                <button aria-label="Remove rating filter" className="plp__chip__remove" type="button" onClick={() => setMinRating(0)}>×</button>
               </span>
             )}
             {availability !== 'all' && (
               <span className="plp__chip">
                 {availability === 'in_stock' ? 'In Stock' : 'Out of Stock'}
-                <button className="plp__chip__remove" type="button" onClick={() => setAvailability('all')}>×</button>
+                <button aria-label="Remove availability filter" className="plp__chip__remove" type="button" onClick={() => setAvailability('all')}>×</button>
               </span>
             )}
             {(minPrice > 0 || maxPrice < 10000) && (
               <span className="plp__chip">
                 KSh {minPrice.toLocaleString()}–{maxPrice.toLocaleString()}
-                <button className="plp__chip__remove" type="button" onClick={() => { setMinPrice(0); setMaxPrice(10000) }}>×</button>
+                <button aria-label="Remove price filter" className="plp__chip__remove" type="button" onClick={() => { setMinPrice(0); setMaxPrice(10000) }}>×</button>
               </span>
             )}
             <button className="plp__chip plp__chip--clear" type="button" onClick={clearAllFilters}>
@@ -299,12 +300,17 @@ function ProductListingPage() {
 
         <div className="plp__layout">
           <aside className="plp__sidebar">
-            <div className="filter-panel">
+            <div className={`filter-panel${filtersOpen ? ' filter-panel--open' : ''}`}>
               <div className="filter-panel__header">
                 <span className="filter-panel__title">
                   Filters
                   {activeFilterCount > 0 && <span className="filter-panel__count">{activeFilterCount}</span>}
                 </span>
+                <button className="filter-panel__toggle btn btn--outline btn--sm" type="button"
+                  aria-expanded={filtersOpen} aria-controls="catalog-filters"
+                  onClick={() => setFiltersOpen((open) => !open)}>
+                  {filtersOpen ? 'Hide filters' : 'Show filters'}
+                </button>
                 {activeFilterCount > 0 && (
                   <button className="filter-panel__clear" type="button" onClick={clearAllFilters}>
                     Clear all
@@ -312,11 +318,14 @@ function ProductListingPage() {
                 )}
               </div>
 
+              <div id="catalog-filters" className="filter-panel__body">
               <div className="filter-panel__section">
                 <h4 className="filter-panel__heading">Price Range</h4>
                 <div className="price-inputs">
                   <input
                     type="number"
+                    aria-label="Minimum price in KSh"
+                    min={0}
                     placeholder="Min"
                     className="price-input"
                     value={minPrice}
@@ -325,6 +334,8 @@ function ProductListingPage() {
                   <span className="price-sep">–</span>
                   <input
                     type="number"
+                    aria-label="Maximum price in KSh"
+                    min={0}
                     placeholder="Max"
                     className="price-input"
                     value={maxPrice}
@@ -335,7 +346,7 @@ function ProductListingPage() {
 
               <div className="filter-panel__section">
                 <h4 className="filter-panel__heading">Brands</h4>
-                <div className="filter-options">
+                <div className="filter-options filter-options--brands" tabIndex={0} role="group" aria-label="Filter by brand">
                   {brands.map((brand) => (
                     <label key={brand.slug} className="checkbox-label">
                       <input
@@ -357,6 +368,7 @@ function ProductListingPage() {
                       <input
                         type="radio"
                         name="rating-filter"
+                        aria-label={`${rating} ${rating === 1 ? 'star' : 'stars'} and up`}
                         checked={minRating === rating}
                         onChange={() => setMinRating(rating)}
                       />
@@ -402,10 +414,11 @@ function ProductListingPage() {
                   ))}
                 </div>
               </div>
+              </div>
             </div>
           </aside>
 
-          <main className="plp__main">
+          <div className="plp__main">
             <div className="plp__toolbar">
               <p className="plp__results-count">
                 {productsLoading
@@ -422,17 +435,19 @@ function ProductListingPage() {
                   </svg>
                   <input
                     type="text"
+                    aria-label="Search products"
                     className="plp__search-input"
                     placeholder={`Search${activeCategory ? ` in ${categoryTitle}` : ''}…`}
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                   />
                   {searchTerm && (
-                    <button className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>
+                    <button aria-label="Clear product search" className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>
                   )}
                 </div>
                 <select
                   id="sort-select"
+                  aria-label="Sort products"
                   value={sortBy}
                   onChange={(event) => setSortBy(event.target.value)}
                   className="plp__sort-select"
@@ -448,6 +463,8 @@ function ProductListingPage() {
                     className={`plp__view-btn ${viewMode === 'grid' ? 'is-active' : ''}`}
                     type="button"
                     title="Grid view"
+                    aria-label="Grid view"
+                    aria-pressed={viewMode === 'grid'}
                     onClick={() => setViewMode('grid')}
                   >
                     <svg viewBox="0 0 16 16" fill="currentColor">
@@ -461,6 +478,8 @@ function ProductListingPage() {
                     className={`plp__view-btn ${viewMode === 'list' ? 'is-active' : ''}`}
                     type="button"
                     title="List view"
+                    aria-label="List view"
+                    aria-pressed={viewMode === 'list'}
                     onClick={() => setViewMode('list')}
                   >
                     <svg viewBox="0 0 16 16" fill="currentColor">
@@ -531,7 +550,7 @@ function ProductListingPage() {
 
                     {product.stockSource !== 'out' ? (
                       <button className={`product-card__add-to-cart ${addedProductId === product.id ? 'product-card__add-to-cart--added' : ''}`} type="button" onClick={() => handleAddToCart(product)}>
-                        {product.requiresPrescription ? 'Request with presciption' : addedProductId === product.id ? 'Added!' : 'Add to cart'}
+                        {product.requiresPrescription ? 'Request with prescription' : addedProductId === product.id ? 'Added!' : 'Add to cart'}
                       </button>
                     ) : (
                       <button
@@ -611,7 +630,7 @@ function ProductListingPage() {
                 </div>
               </div>
             )}
-          </main>
+          </div>
         </div>
       </div>
     </div>

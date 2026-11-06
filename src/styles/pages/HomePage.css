@@ -614,11 +614,6 @@
   gap: 0.875rem;
   padding: 1.1rem 1.5rem;
   position: relative;
-  text-decoration: none;
-}
-
-.promo-banner__item:hover {
-  background: var(--color-surface-tint);
 }
 
 .promo-banner__icon {
@@ -2572,3 +2567,20 @@
 .home-content-block { padding: 1.5rem; border: 1px solid var(--color-border, #e2e8f0); border-radius: 1rem; }
 .home-content-block img { display: block; max-width: 100%; max-height: 24rem; object-fit: contain; margin-bottom: 1rem; }
 .home-content-block__body { white-space: pre-line; overflow-wrap: anywhere; }
+
+.hero-carousel__pause {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 5;
+  padding: 0.5rem 0.75rem;
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  color: #fff;
+  background: #0f172a;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+@media (max-width: 480px) {
+  .hero-carousel__pause { bottom: 2.75rem; left: 0.5rem; }
+}

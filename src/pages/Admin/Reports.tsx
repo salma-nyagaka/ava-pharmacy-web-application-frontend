@@ -885,7 +885,7 @@ function Reports() {
             </div>
           </div>
           <div className="rpt-products-toolbar">
-            <input
+            <input aria-label="Search products"
               type="search" placeholder="Search products…"
               value={productSearch} onChange={(e) => setProductSearch(e.target.value)}
               className="rpt-products-search"

@@ -194,9 +194,9 @@ function ConditionsPage() {
               <div className="filter-panel__section">
                 <h4 className="filter-panel__heading">Price Range</h4>
                 <div className="price-inputs">
-                  <input type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
+                  <input aria-label="Minimum price in KSh" type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
                   <span className="price-sep">–</span>
-                  <input type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
+                  <input aria-label="Maximum price in KSh" type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
                 </div>
               </div>
 
@@ -260,10 +260,10 @@ function ConditionsPage() {
               <div className="plp__toolbar-right">
                 <div className="plp__search-wrap">
                   <svg className="plp__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  <input type="text" className="plp__search-input" placeholder="Search products…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                  <input aria-label="Search products" type="text" className="plp__search-input" placeholder="Search products…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                   {searchTerm && <button className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>}
                 </div>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="plp__sort-select">
+                <select aria-label="Sort products" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="plp__sort-select">
                   <option value="recommended">Recommended</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>

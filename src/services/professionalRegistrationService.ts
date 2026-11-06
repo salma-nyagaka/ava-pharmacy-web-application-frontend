@@ -164,7 +164,7 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
       })()
     : null
   if (response.ok) {
-    return payload as T
+    return (payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload) as T
   }
 
   throw new ProfessionalRegistrationError(

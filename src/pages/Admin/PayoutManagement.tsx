@@ -1,3 +1,7 @@
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import { preferredScrollBehavior } from '../../utils/motion'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
@@ -93,22 +97,9 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
   const startIndex = (currentPage - 1) * pageSize
   const pagedPayouts = filteredPayouts.slice(startIndex, startIndex + pageSize)
 
-  const stats = useMemo(() => {
-    const payableStatuses: PayoutStatus[] = ['Draft', 'Pending', 'Approved', 'Processing', 'On hold']
-    const pending = payouts.filter((payout) => payableStatuses.includes(payout.status)).length
-    const paid = payouts.filter((payout) => payout.status === 'Paid').length
-    const failed = payouts.filter((payout) => payout.status === 'Failed').length
-    const totalAmount = payouts
-      .filter((payout) => payout.status === 'Paid')
-      .reduce((sum, payout) => sum + payout.amount, 0)
-    const pendingAmount = payouts
-      .filter((payout) => payableStatuses.includes(payout.status))
-      .reduce((sum, payout) => sum + payout.amount, 0)
-    const failedAmount = payouts
-      .filter((payout) => payout.status === 'Failed')
-      .reduce((sum, payout) => sum + payout.amount, 0)
-    return { pending, paid, failed, totalAmount, pendingAmount, failedAmount }
-  }, [payouts])
+  const { count: databaseCount, counts: databaseCounts } = useAdminRecordStats('payouts', 'all', payouts)
+  const stats = { pending: databaseCounts?.pending ?? 0, paid: databaseCounts?.paid ?? 0, failed: databaseCounts?.failed ?? 0, totalAmount: databaseCounts?.totalAmount ?? 0, pendingAmount: databaseCounts?.pendingAmount ?? 0, failedAmount: databaseCounts?.failedAmount ?? 0 }
+
 
   const resetRegisterForm = () => {
     setRecipientRole('Doctor')
@@ -127,7 +118,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
   const openRegisterTab = () => {
     setActiveTab('register')
     resetRegisterForm()
-    registerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    registerRef.current?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start' })
   }
 
   const openPaidModal = (payout: AdminPayout) => {
@@ -153,7 +144,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
     setSelectedRole('all')
     setSelectedStatus('Pending')
     setCurrentPage(1)
-    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    tableRef.current?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start' })
   }
 
   const handleAddRule = async () => {
@@ -438,9 +429,9 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
           onClick={handleReviewPending}
           aria-pressed={selectedStatus === 'Pending'}
         >
-          <span className="pm-stat__value">{stats.pending}</span>
+          <span className="pm-stat__value">{databaseCount('pending')}</span>
           <span className="pm-stat__label">Pending</span>
-          <span className="pm-stat__meta">KSh {stats.pendingAmount.toLocaleString()} awaiting</span>
+          <span className="pm-stat__meta">KSh {databaseCount('pendingAmount').toLocaleString()} awaiting</span>
         </button>
         <button
           className={`pm-stat pm-stat--paid ${selectedStatus === 'Paid' ? 'pm-stat--active' : ''}`}
@@ -448,9 +439,9 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
           onClick={() => setSelectedStatus('Paid')}
           aria-pressed={selectedStatus === 'Paid'}
         >
-          <span className="pm-stat__value">{stats.paid}</span>
+          <span className="pm-stat__value">{databaseCount('paid')}</span>
           <span className="pm-stat__label">Paid</span>
-          <span className="pm-stat__meta">KSh {stats.totalAmount.toLocaleString()} recorded</span>
+          <span className="pm-stat__meta">KSh {databaseCount('totalAmount').toLocaleString()} recorded</span>
         </button>
         <button
           className={`pm-stat pm-stat--failed ${selectedStatus === 'Failed' ? 'pm-stat--active' : ''}`}
@@ -458,12 +449,12 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
           onClick={() => setSelectedStatus('Failed')}
           aria-pressed={selectedStatus === 'Failed'}
         >
-          <span className="pm-stat__value">{stats.failed}</span>
+          <span className="pm-stat__value">{databaseCount('failed')}</span>
           <span className="pm-stat__label">Failed</span>
-          <span className="pm-stat__meta">KSh {stats.failedAmount.toLocaleString()} to retry</span>
+          <span className="pm-stat__meta">KSh {databaseCount('failedAmount').toLocaleString()} to retry</span>
         </button>
         <div className="pm-stat pm-stat--total" aria-hidden="true">
-          <span className="pm-stat__value">KSh {stats.totalAmount.toLocaleString()}</span>
+          <span className="pm-stat__value">KSh {databaseCount('totalAmount').toLocaleString()}</span>
           <span className="pm-stat__label">Total Paid</span>
           <span className="pm-stat__meta">Across all disbursements</span>
         </div>
@@ -482,15 +473,15 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
         <div className="cm-toolbar__right" style={{ marginLeft: 'auto' }}>
           <div className="cm-search-box">
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden><circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" /></svg>
-            <input type="search" placeholder="Search by payout ID, recipient, task ID, period, reference" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+            <input aria-label="Search by payout ID, recipient, task ID, period, reference" type="search" placeholder="Search by payout ID, recipient, task ID, period, reference" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
           </div>
-          <select className="cm-filter-select" value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as 'all' | PayoutRole)}>
+          <select aria-label="Filter by recipient role" className="cm-filter-select" value={selectedRole} onChange={(event) => setSelectedRole(event.target.value as 'all' | PayoutRole)}>
             <option value="all">All roles</option>
             {payoutRoles.map((roleOption) => (
               <option key={roleOption} value={roleOption}>{roleOption}</option>
             ))}
           </select>
-          <select className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as 'all' | PayoutStatus)}>
+          <select aria-label="Filter by status" className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as 'all' | PayoutStatus)}>
             <option value="all">All statuses</option>
             {payoutStatuses.map((statusOption) => <option key={statusOption} value={statusOption}>{statusOption}</option>)}
           </select>
@@ -551,7 +542,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                 </td>
                 <td>
                   <span className={`admin-status ${payout.status === 'Paid' ? 'admin-status--success' : ['Draft', 'Pending', 'Approved', 'Processing', 'On hold'].includes(payout.status) ? 'admin-status--warning' : 'admin-status--danger'}`}>
-                    {payout.status}
+                    {formatStatus(payout.status)}
                   </span>
                   {payout.reconciliationStatus && <span className="pm-meta">{payout.reconciliationStatus}</span>}
                 </td>
@@ -687,7 +678,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
               {rules.map((rule) => (
                 <div key={rule.role} className="pm-rules__row">
                   <span>{rule.role}</span>
-                  <input
+                  <input aria-label="Rule amount"
                     className="pm-rules__input"
                     type="number"
                     min={0}
@@ -727,8 +718,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
             </div>
             <div className="pm-rules-add">
               <div className="form-group">
-                <label>Role name</label>
-                <input
+                <label htmlFor="field-payoutmanagement-731-33889">Role name</label>
+                <input id="field-payoutmanagement-731-33889"
                   type="text"
                   value={newRuleRole}
                   onChange={(event) => { setNewRuleRole(event.target.value); setNewRuleError('') }}
@@ -736,8 +727,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                 />
               </div>
               <div className="form-group">
-                <label>Rate per task (KSh)</label>
-                <input
+                <label htmlFor="field-payoutmanagement-740-34326">Rate per task (KSh)</label>
+                <input id="field-payoutmanagement-740-34326"
                   type="number"
                   min={0}
                   value={newRuleAmount}
@@ -781,8 +772,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                   <p className="pm-section-label">Recipient</p>
                   <div className="pm-modal__grid">
                     <div className="form-group">
-                      <label>Recipient role</label>
-                      <select
+                      <label htmlFor="field-payoutmanagement-785-36334">Recipient role</label>
+                      <select id="field-payoutmanagement-785-36334"
                         value={recipientRole}
                         onChange={(event) => {
                           setRecipientRole(event.target.value as PayoutRole)
@@ -798,8 +789,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
 
                     
                       <div className="form-group">
-                        <label>Recipient</label>
-                        <select
+                        <label htmlFor="field-payoutmanagement-802-37111">Recipient</label>
+                        <select id="field-payoutmanagement-802-37111"
                           value={recipientId}
                           onChange={(event) => { setRecipientId(event.target.value); const rule = rules.find(item => item.role === recipientRole && item.active); if (!amount && rule) setAmount(String(rule.amount)) }}
                         >
@@ -817,8 +808,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                   <p className="pm-section-label">Payout details</p>
                   <div className="pm-modal__grid">
                     <div className="form-group">
-                      <label>Period</label>
-                      <input
+                      <label htmlFor="field-payoutmanagement-821-38140">Period</label>
+                      <input id="field-payoutmanagement-821-38140"
                         type="text"
                         value={period}
                         onChange={(event) => setPeriod(event.target.value)}
@@ -826,8 +817,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Gross amount (KSh)</label>
-                      <input
+                      <label htmlFor="field-payoutmanagement-830-38581">Gross amount (KSh)</label>
+                      <input id="field-payoutmanagement-830-38581"
                         type="number"
                         min={1}
                         value={amount}
@@ -836,16 +827,16 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Method</label>
-                      <select value={method} onChange={(event) => setMethod(event.target.value as PayoutMethod)}>
+                      <label htmlFor="field-payoutmanagement-840-39061">Method</label>
+                      <select id="field-payoutmanagement-840-39061" value={method} onChange={(event) => setMethod(event.target.value as PayoutMethod)}>
                         {payoutMethods.map((methodOption) => (
                           <option key={methodOption} value={methodOption}>{methodOption}</option>
                         ))}
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Reference</label>
-                      <input
+                      <label htmlFor="field-payoutmanagement-848-39585">Reference</label>
+                      <input id="field-payoutmanagement-848-39585"
                         type="text"
                         value={reference}
                         onChange={(event) => setReference(event.target.value)}
@@ -865,12 +856,12 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                   <p className="pm-section-label">Status & notes</p>
                   <div className="pm-modal__grid pm-modal__grid--single">
                     <div className="form-group">
-                      <label>Status</label>
-                      <input value={status} readOnly />
+                      <label htmlFor="field-payoutmanagement-869-41567">Status</label>
+                      <input id="field-payoutmanagement-869-41567" value={status} readOnly />
                     </div>
                     <div className="form-group">
-                      <label>Notes (optional)</label>
-                      <input
+                      <label htmlFor="field-payoutmanagement-873-41812">Notes (optional)</label>
+                      <input id="field-payoutmanagement-873-41812"
                         type="text"
                         value={notes}
                         onChange={(event) => setNotes(event.target.value)}
@@ -946,28 +937,28 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
-      {reasonTarget && <div className="pm-modal" role="dialog" aria-label="Payout action reason"><div className="pm-modal__content"><h2>{reasonTarget.action} payout {reasonTarget.payout.id}</h2><label>Reason<input aria-label="Payout action reason" value={reasonValue} onChange={event => setReasonValue(event.target.value)} /></label><button type="button" onClick={() => setReasonTarget(null)}>Keep payout</button><button type="button" disabled={!reasonValue.trim()} onClick={() => { void runPayoutAction(reasonTarget.payout, reasonTarget.action, { reason: reasonValue.trim() }); setReasonTarget(null) }}>Confirm action</button></div></div>}
+      {reasonTarget && <Dialog onClose={() => setReasonTarget(null)} className="pm-modal" role="dialog" aria-label="Payout action reason"><div className="pm-modal__content"><h2>{reasonTarget.action} payout {reasonTarget.payout.id}</h2><label>Reason<input aria-label="Payout action reason" value={reasonValue} onChange={event => setReasonValue(event.target.value)} /></label><button type="button" onClick={() => setReasonTarget(null)}>Keep payout</button><button type="button" disabled={!reasonValue.trim()} onClick={() => { void runPayoutAction(reasonTarget.payout, reasonTarget.action, { reason: reasonValue.trim() }); setReasonTarget(null) }}>Confirm action</button></div></Dialog>}
       {showPaidModal && paidTarget && (
         <div className="modal-overlay" onClick={() => setShowPaidModal(false)}>
-          <div className="modal pm-paid-modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog onClose={() => setShowPaidModal(false)} className="modal pm-paid-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
               <h2>Mark payout as paid</h2>
-              <button className="modal__close" onClick={() => setShowPaidModal(false)}>×</button>
+              <button aria-label="Close dialog" type="button" className="modal__close" onClick={() => setShowPaidModal(false)}>×</button>
             </div>
             <div className="modal__content">
               <p className="pm-paid-modal__summary">
                 Record an externally verified payment for <strong>{paidTarget.recipientName}</strong> - <strong>{formatCurrency(paidTarget.amount)}</strong>.
               </p>
               <div className="form-group">
-                <label>Payment method</label>
-                <select value={paidMethod} onChange={(event) => setPaidMethod(event.target.value as 'M-Pesa' | 'Bank Transfer')}>
+                <label htmlFor="field-payoutmanagement-963-46701">Payment method</label>
+                <select id="field-payoutmanagement-963-46701" value={paidMethod} onChange={(event) => setPaidMethod(event.target.value as 'M-Pesa' | 'Bank Transfer')}>
                   <option value="M-Pesa">M-Pesa</option>
                   <option value="Bank Transfer">Bank Transfer</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Reference number</label>
-                <input
+                <label htmlFor="field-payoutmanagement-970-47164">Reference number</label>
+                <input id="field-payoutmanagement-970-47164"
                   type="text"
                   value={paidRef}
                   onChange={(event) => { setPaidRef(event.target.value); setPaidError('') }}
@@ -975,8 +966,8 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                 />
               </div>
               <div className="form-group">
-                <label>Time of payment</label>
-                <input
+                <label htmlFor="field-payoutmanagement-979-47598">Time of payment</label>
+                <input id="field-payoutmanagement-979-47598"
                   type="datetime-local"
                   value={paidTime}
                   onChange={(event) => { setPaidTime(event.target.value); setPaidError('') }}
@@ -992,7 +983,7 @@ function PayoutManagement({ embedded = false }: { embedded?: boolean }) {
                 Confirm payment
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

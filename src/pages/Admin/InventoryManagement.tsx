@@ -1,3 +1,6 @@
+import LowStockThresholdInput from '../../components/LowStockThresholdInput'
+import AdminKpiStats from '../../components/AdminKpiStats'
+import Dialog from '../../components/Dialog/Dialog'
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adminProductService, ApiInventoryProduct, ApiPosProductOption, ApiProduct, ApiProductVariant } from '../../services/adminProductService'
@@ -8,7 +11,7 @@ import '../../styles/admin/shared/AdminEntityManagement.css'
 const PAGE_SIZE = 10
 
 type InventoryStatusFilter = 'all' | 'in_stock' | 'low_stock' | 'backorder' | 'out_of_stock' | 'inactive'
-type SortField = 'managed_stock' | 'pos_stock' | 'sellable_quantity'
+type SortField = 'created_at' | 'managed_stock' | 'pos_stock' | 'sellable_quantity'
 type SortDirection = 'asc' | 'desc'
 
 type VariantDraft = {
@@ -36,6 +39,7 @@ type VariantDraft = {
 
 type NewStockFieldErrorKey =
   | 'product'
+  | 'store_id'
   | 'name'
   | 'sku'
   | 'barcode'
@@ -293,10 +297,11 @@ function formatVariantAttributes(attributes: Record<string, unknown>): string {
   return entries.map(([key, value]) => `${key}: ${String(value)}`).join(' · ')
 }
 
-function InventoryManagement() {
+function InventoryManagement({ embedded = false }: { embedded?: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const inventoryRequest = useRef(0)
+  const [inventoryStats, setInventoryStats] = useState({ total: 0, in_stock: 0, low_stock: 0, backorder: 0, out_of_stock: 0, inactive: 0 })
   const [inventoryTotal, setInventoryTotal] = useState(0)
   const [inventory, setInventory] = useState<ApiInventoryProduct[]>([])
   const [parentProductSearch, setParentProductSearch] = useState('')
@@ -304,8 +309,9 @@ function InventoryManagement() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [prescriptionFilter, setPrescriptionFilter] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState<InventoryStatusFilter>('all')
-  const [sortField, setSortField] = useState<SortField>('sellable_quantity')
+  const [sortField, setSortField] = useState<SortField>('created_at')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [adjustItem, setAdjustItem] = useState<ApiInventoryProduct | null>(null)
@@ -318,6 +324,8 @@ function InventoryManagement() {
   const [adjustFieldErrors, setAdjustFieldErrors] = useState<Partial<Record<AdjustFieldErrorKey, string>>>({})
   const [adjustSaving, setAdjustSaving] = useState(false)
   const [showNewStockModal, setShowNewStockModal] = useState(false)
+  const [newItemStore, setNewItemStore] = useState('')
+  const [itemStores, setItemStores] = useState<{ id: number; name: string }[]>([])
   const [newStockProductId, setNewStockProductId] = useState<number | ''>('')
   const [newVariantName, setNewVariantName] = useState('')
   const [newVariantSku, setNewVariantSku] = useState('')
@@ -341,6 +349,8 @@ function InventoryManagement() {
   const [autoOpenedProductId, setAutoOpenedProductId] = useState<number | null>(null)
 
   const filterProductId = searchParams.get('product')
+
+  useEffect(() => { void adminProductService.listStores().then(setItemStores).catch(() => {}) }, [])
 
   const closeAdjustModal = () => {
     if (adjustSaving) return
@@ -372,42 +382,60 @@ function InventoryManagement() {
   }, [filterProductId])
 
   useEffect(() => {
-    void loadInventory()
-  }, [filterProductId, searchTerm, selectedStatus, currentPage, sortField, sortDirection])
+    const timer = window.setTimeout(() => { void loadInventory() }, 250)
+    return () => { window.clearTimeout(timer); inventoryRequest.current += 1 }
+  }, [filterProductId, searchTerm, selectedStatus, prescriptionFilter, currentPage, sortField, sortDirection])
 
   useEffect(() => {
-    void Promise.all([
-      adminProductService.listPosProductOptions(),
-      adminProductService.listProductOptions(parentProductSearch),
-    ])
-      .then(([options, products]) => {
-        setPosOptions(options)
-        setParentProducts(products.filter((product) => product.is_active))
-      })
-      .catch(() => {
-        setPosOptions([])
-        setParentProducts([])
-      })
-  }, [parentProductSearch])
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void Promise.all([adminProductService.listProductOptions(parentProductSearch), filterProductId ? adminProductService.getProduct(Number(filterProductId)) : Promise.resolve(null)]).then(([products, focused]) => {
+        if (cancelled) return
+        const options = focused ? [focused, ...products.filter(product => product.id !== focused.id)] : products
+        setParentProducts(options.filter(product => product.is_active))
+      }).catch(() => { if (!cancelled) setParentProducts([]) })
+    }, 250)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [parentProductSearch, filterProductId])
+
+  useEffect(() => {
+    if (!showNewStockModal || !newStockProductId) { setPosOptions([]); return }
+    let cancelled = false
+    void adminProductService.listPosProductOptions(Number(newStockProductId)).then(options => {
+      if (!cancelled) setPosOptions(options)
+    }).catch(() => { if (!cancelled) setPosOptions([]) })
+    return () => { cancelled = true }
+  }, [showNewStockModal, newStockProductId])
+
+  useEffect(() => {
+    if (searchParams.get('new_stock') !== '1' || !filterProductId) return
+    const target = parentProducts.find(product => product.id === Number(filterProductId))
+    if (!target) return
+    setNewStockProductId(target.id)
+    setShowNewStockModal(true)
+    const next = new URLSearchParams(searchParams); next.delete('new_stock'); setSearchParams(next, { replace: true })
+  }, [parentProducts, filterProductId, searchParams, setSearchParams])
 
   async function loadInventory() {
     const request = ++inventoryRequest.current
     setLoading(true)
     setError('')
     try {
-      const orderField = { managed_stock: 'branch_stock_quantity', pos_stock: 'warehouse_stock_quantity', sellable_quantity: 'stock_quantity' }[sortField]
+      const orderField = { created_at: 'created_at', managed_stock: 'branch_stock_quantity', pos_stock: 'warehouse_stock_quantity', sellable_quantity: 'stock_quantity' }[sortField]
       const params: Record<string, string> = {
         page: String(currentPage), page_size: String(PAGE_SIZE), search: searchTerm,
         ordering: `${sortDirection === 'desc' ? '-' : ''}${orderField}`,
       }
       if (filterProductId) params.product_id = filterProductId
       if (selectedStatus !== 'all') params.inventory_status = selectedStatus
-      const { items, total } = await adminProductService.listInventoryPage(params)
+      if (prescriptionFilter !== 'all') params.requires_prescription = prescriptionFilter
+      const [{ items, total }, stats] = await Promise.all([adminProductService.listInventoryPage(params), adminProductService.getCatalogStats()])
       if (request !== inventoryRequest.current) return
       setInventory(items)
       setInventoryTotal(total)
+      setInventoryStats(stats.inventory)
 
-      if (filterProductId) {
+      if (filterProductId && searchParams.get('edit_stock') === '1') {
         const targetId = Number(filterProductId)
         const match = items.find((product) => product.product_id === targetId || product.id === targetId)
         if (match && autoOpenedProductId !== targetId) {
@@ -454,7 +482,7 @@ function InventoryManagement() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedStatus, sortField, sortDirection, filterProductId])
+  }, [searchTerm, selectedStatus, prescriptionFilter, sortField, sortDirection, filterProductId])
 
   const totalPages = Math.max(1, Math.ceil(inventoryTotal / PAGE_SIZE))
   const startIndex = (currentPage - 1) * PAGE_SIZE
@@ -507,6 +535,7 @@ function InventoryManagement() {
   }
 
   const handleAdjustOpen = (item: ApiInventoryProduct) => {
+    if (embedded) { setSearchParams({ view: 'stock', product: String(item.product_id) }); return }
     populateAdjustForm(item)
   }
 
@@ -529,7 +558,7 @@ function InventoryManagement() {
     const fieldErrors: Partial<Record<NewStockFieldErrorKey, string>> = {}
 
     if (!selectedProduct) {
-      fieldErrors.product = 'Select a parent product.'
+      fieldErrors.product = 'Select an item to copy its catalog details.'
     }
     if (!newVariantName.trim()) {
       fieldErrors.name = 'Variant name is required.'
@@ -564,7 +593,7 @@ function InventoryManagement() {
       fieldErrors.stock_quantity = 'Enter a valid opening stock quantity.'
     }
     if (!isNonNegativeIntegerInput(newVariantLowStockThreshold)) {
-      fieldErrors.low_stock_threshold = 'Enter a valid low stock threshold.'
+      fieldErrors.low_stock_threshold = 'Enter a whole number of 0 or more for the low-stock threshold.'
     }
 
     if (Object.keys(fieldErrors).length > 0 || !selectedProduct) {
@@ -605,8 +634,14 @@ function InventoryManagement() {
         payload.append('image', newVariantImageFile)
       }
 
-      await adminProductService.createProductVariant(selectedProduct.id, payload)
-      const refreshed = await refreshInventoryItem(selectedProduct.id)
+      if (Number(newVariantStockQuantity) > 0 && !newItemStore) { setNewStockError('Select the store that owns the opening stock.'); return }
+      const exactItem = { name: newVariantName.trim(), sku: newVariantSku.trim(), barcode: newVariantBarcode.trim(), strength: newVariantStrength.trim(), pos_product_id: newVariantPosProductId.trim(), dosage_instructions: dosageInstructionValue, directions: newVariantDirections.trim(), warnings: newVariantWarnings.trim(), price: priceValue, stock_quantity: parseNonNegativeInteger(newVariantStockQuantity), low_stock_threshold: parseNonNegativeInteger(newVariantLowStockThreshold), store_id: newItemStore ? Number(newItemStore) : undefined }
+      for (const field of ['sku','barcode','strength','pos_product_id','dosage_instructions','directions','warnings','price','stock_quantity','low_stock_threshold']) payload.delete(field)
+      payload.append('item', JSON.stringify(exactItem))
+      if (selectedProduct.brand?.id) payload.append('brand_id', String(selectedProduct.brand.id))
+      if (typeof selectedProduct.category === 'number') payload.append('category_id', String(selectedProduct.category))
+      const createdItem = await adminProductService.createProduct(payload)
+      const refreshed = await refreshInventoryItem(createdItem.id)
       const refreshedVariant = refreshed.find((item) => item.product_id === selectedProduct.id)
       if (refreshedVariant && adjustItem?.product_id === selectedProduct.id) {
         populateAdjustForm(refreshedVariant)
@@ -682,7 +717,7 @@ function InventoryManagement() {
           nextFieldErrors[stockKey] = 'Enter a valid available stock quantity.'
         }
         if (!isNonNegativeIntegerInput(draft.low_stock_threshold)) {
-          nextFieldErrors[thresholdKey] = 'Enter a valid low stock threshold.'
+          nextFieldErrors[thresholdKey] = 'Enter a whole number of 0 or more for the low-stock threshold.'
         }
         if (draft.allow_backorder && !isPositiveIntegerInput(draft.max_backorder_quantity)) {
           nextFieldErrors[backorderKey] = 'Enter a max backorder quantity greater than 0.'
@@ -733,7 +768,7 @@ function InventoryManagement() {
       branchFieldErrors.branchStock = 'Enter a valid available stock quantity.'
     }
     if (!isNonNegativeIntegerInput(branchThreshold)) {
-      branchFieldErrors.branchThreshold = 'Enter a valid low stock threshold.'
+      branchFieldErrors.branchThreshold = 'Enter a whole number of 0 or more for the low-stock threshold.'
     }
     if (branchAllowBackorder && !isPositiveIntegerInput(branchMaxBackorder)) {
       branchFieldErrors.branchMaxBackorder = 'Enter a max backorder quantity greater than 0.'
@@ -804,18 +839,18 @@ function InventoryManagement() {
     <div className="category-management admin-page inventory-management">
       <div className="category-management__header">
         <div className="cm-title-group">
-          <h1>Inventory Management</h1>
-          <p className="cm-title-sub">Create sellable variants, capture stock, and manage thresholds, backorder, and POS sync here. Products only holds the parent catalog item.</p>
+          <h1>{embedded ? 'Stock by store' : 'Inventory Management'}</h1>
+          <p className="cm-title-sub">Manage sellable items, store and batch stock, thresholds, backorders and POS sync.</p>
         </div>
         <div className="category-management__actions">
-          <button
+          {!embedded && <button
             className="btn btn--primary btn--sm"
             type="button"
             onClick={() => handleNewStockOpen()}
             disabled={loading || parentProducts.length === 0}
           >
-            New Stock
-          </button>
+            New item
+          </button>}
           {filterProductId && (
             <button className="btn btn--ghost btn--sm" type="button" onClick={clearFocusedProduct}>Show All Stock</button>
           )}
@@ -844,51 +879,19 @@ function InventoryManagement() {
         </div>
       )}
 
-      <div className="cm-kpi-grid">
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Matching Variants</span>
-            <strong className="cm-kpi-card__value">{loading ? '-' : inventoryTotal}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">In Stock on this page</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{loading ? '-' : inventory.filter((item) => getInventoryStatus(item) === 'in_stock').length}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--amber">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Low / Backorder on this page</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{loading ? '-' : inventory.filter((item) => ['low_stock', 'backorder'].includes(getInventoryStatus(item))).length}</strong>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Out / Inactive on this page</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{loading ? '-' : inventory.filter((item) => ['out_of_stock', 'inactive'].includes(getInventoryStatus(item))).length}</strong>
-          </div>
-        </div>
-      </div>
+      <AdminKpiStats items={[
+        { label: 'Stock items', value: loading ? '—' : inventoryStats.total },
+        { label: 'In stock', value: loading ? '—' : inventoryStats.in_stock },
+        { label: 'Low stock / backorder', value: loading ? '—' : inventoryStats.low_stock + inventoryStats.backorder },
+        { label: 'Out of stock / inactive', value: loading ? '—' : inventoryStats.out_of_stock + inventoryStats.inactive },
+      ]} />
 
       <div className="cm-toolbar">
         <div className="cm-search-box inventory-search-box">
           <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
             <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
           </svg>
-          <input
+          <input aria-label="Search products, SKU, or variants"
             type="search"
             placeholder="Search products, SKU, or variants…"
             value={searchTerm}
@@ -904,7 +907,12 @@ function InventoryManagement() {
           )}
         </div>
         <div className="cm-toolbar__right">
-          <select className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as InventoryStatusFilter)}>
+          <select className="cm-filter-select" aria-label="Filter by prescription requirement" value={prescriptionFilter} onChange={event => setPrescriptionFilter(event.target.value)}>
+            <option value="all">All prescription types</option>
+            <option value="true">Prescription required</option>
+            <option value="false">No prescription required</option>
+          </select>
+          <select aria-label="Filter by status" className="cm-filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as InventoryStatusFilter)}>
             <option value="all">All statuses</option>
             <option value="in_stock">In Stock</option>
             <option value="low_stock">Low Stock</option>
@@ -1064,10 +1072,10 @@ function InventoryManagement() {
 
       {showNewStockModal && (
         <div className="modal-overlay" onClick={closeNewStockModal}>
-          <div className="modal modal--stock" onClick={(e) => e.stopPropagation()}>
+          <Dialog busy={newStockSaving} onClose={closeNewStockModal} className="modal modal--stock" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
               <h2>New Stock</h2>
-              <button className="modal__close" onClick={closeNewStockModal}>×</button>
+              <button aria-label="Close dialog" type="button" className="modal__close" onClick={closeNewStockModal}>×</button>
             </div>
             <div className="modal__content">
               {newStockError && <p className="adjust-error adjust-error--top">{newStockError}</p>}
@@ -1081,8 +1089,8 @@ function InventoryManagement() {
                     <label htmlFor="stock-parent-search">Find parent product</label>
                     <input id="stock-parent-search" type="search" placeholder="Search active parent products"
                       value={parentProductSearch} onChange={(event) => setParentProductSearch(event.target.value)} />
-                    <label>Parent product <span className="adjust-required">*</span></label>
-                    <select value={newStockProductId} onChange={(e) => {
+                    <label htmlFor="field-inventorymanagement-1085-46259">Parent product <span className="adjust-required">*</span></label>
+                    <select id="field-inventorymanagement-1085-46259" value={newStockProductId} onChange={(e) => {
                       setNewStockProductId(Number(e.target.value) || '')
                       clearNewStockFieldError('product')
                     }}>
@@ -1096,8 +1104,8 @@ function InventoryManagement() {
                     {newStockFieldErrors.product && <span className="adjust-field__error">{newStockFieldErrors.product}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Variant name <span className="adjust-required">*</span></label>
-                    <input
+                    <label htmlFor="field-inventorymanagement-1100-47192">Variant name <span className="adjust-required">*</span></label>
+                    <input id="field-inventorymanagement-1100-47192"
                       type="text"
                       value={newVariantName}
                       onChange={(e) => {
@@ -1109,8 +1117,8 @@ function InventoryManagement() {
                     {newStockFieldErrors.name && <span className="adjust-field__error">{newStockFieldErrors.name}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>SKU <span className="adjust-optional">optional</span></label>
-                    <input
+                    <label htmlFor="field-inventorymanagement-1113-47937">SKU <span className="adjust-optional">optional</span></label>
+                    <input id="field-inventorymanagement-1113-47937"
                       type="text"
                       value={newVariantSku}
                       onChange={(e) => {
@@ -1122,8 +1130,8 @@ function InventoryManagement() {
                     {newStockFieldErrors.sku && <span className="adjust-field__error">{newStockFieldErrors.sku}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Barcode <span className="adjust-required">*</span></label>
-                    <input
+                    <label htmlFor="field-inventorymanagement-1126-48668">Barcode <span className="adjust-required">*</span></label>
+                    <input id="field-inventorymanagement-1126-48668"
                       type="text"
                       value={newVariantBarcode}
                       onChange={(e) => {
@@ -1135,8 +1143,8 @@ function InventoryManagement() {
                     {newStockFieldErrors.barcode && <span className="adjust-field__error">{newStockFieldErrors.barcode}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Strength <span className="adjust-required">*</span></label>
-                    <input
+                    <label htmlFor="field-inventorymanagement-1139-49417">Strength <span className="adjust-required">*</span></label>
+                    <input id="field-inventorymanagement-1139-49417"
                       type="text"
                       value={newVariantStrength}
                       onChange={(e) => {
@@ -1148,8 +1156,8 @@ function InventoryManagement() {
                     {newStockFieldErrors.strength && <span className="adjust-field__error">{newStockFieldErrors.strength}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>POS item <span className="adjust-optional">optional</span></label>
-                    <select value={newVariantPosProductId} onChange={(e) => {
+                    <label htmlFor="field-inventorymanagement-1152-50153">POS item <span className="adjust-optional">optional</span></label>
+                    <select id="field-inventorymanagement-1152-50153" value={newVariantPosProductId} onChange={(e) => {
                       setNewVariantPosProductId(e.target.value)
                       clearNewStockFieldError('pos_product_id')
                     }}>
@@ -1164,8 +1172,8 @@ function InventoryManagement() {
                     <span className="adjust-hint">Shows POS IDs already linked inside the system.</span>
                   </div>
                   <div className="adjust-field">
-                    <label>Variant image <span className="adjust-required">*</span></label>
-                    <input
+                    <label htmlFor="field-inventorymanagement-1168-51242">Variant image <span className="adjust-required">*</span></label>
+                    <input id="field-inventorymanagement-1168-51242"
                       type="file"
                       accept="image/*"
                       onChange={(e) => {
@@ -1187,8 +1195,8 @@ function InventoryManagement() {
                 <div className="stock-form__editor-block">
                   <div className="adjust-grid stock-form__dosage-grid">
                     <div className="adjust-field">
-                      <label>Dose <span className="adjust-required">*</span></label>
-                      <input
+                      <label htmlFor="field-inventorymanagement-1191-52560">Dose <span className="adjust-required">*</span></label>
+                      <input id="field-inventorymanagement-1191-52560"
                         type="number"
                         min={0}
                         step="0.01"
@@ -1202,8 +1210,8 @@ function InventoryManagement() {
                       {newStockFieldErrors.dose && <span className="adjust-field__error">{newStockFieldErrors.dose}</span>}
                     </div>
                     <div className="adjust-field">
-                      <label>Frequency per day <span className="adjust-required">*</span></label>
-                      <input
+                      <label htmlFor="field-inventorymanagement-1206-53380">Frequency per day <span className="adjust-required">*</span></label>
+                      <input id="field-inventorymanagement-1206-53380"
                         type="number"
                         min={0}
                         step="0.01"
@@ -1218,8 +1226,8 @@ function InventoryManagement() {
                     </div>
                   </div>
                   <div className="adjust-field">
-                    <label>Directions <span className="adjust-required">*</span></label>
-                    <textarea
+                    <label htmlFor="field-inventorymanagement-1222-54253">Directions <span className="adjust-required">*</span></label>
+                    <textarea id="field-inventorymanagement-1222-54253"
                       rows={3}
                       value={newVariantDirections}
                       onChange={(e) => {
@@ -1231,8 +1239,8 @@ function InventoryManagement() {
                     {newStockFieldErrors.directions && <span className="adjust-field__error">{newStockFieldErrors.directions}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Warnings <span className="adjust-required">*</span></label>
-                    <textarea
+                    <label htmlFor="field-inventorymanagement-1235-55034">Warnings <span className="adjust-required">*</span></label>
+                    <textarea id="field-inventorymanagement-1235-55034"
                       rows={3}
                       value={newVariantWarnings}
                       onChange={(e) => {
@@ -1253,8 +1261,8 @@ function InventoryManagement() {
                 </div>
                 <div className="adjust-grid stock-form__pricing-grid">
                   <div className="adjust-field">
-                    <label>Selling price <span className="adjust-required">*</span></label>
-                    <input
+                    <label htmlFor="field-inventorymanagement-1257-56237">Selling price <span className="adjust-required">*</span></label>
+                    <input id="field-inventorymanagement-1257-56237"
                       type="number"
                       min={0}
                       step="0.01"
@@ -1268,8 +1276,9 @@ function InventoryManagement() {
                     {newStockFieldErrors.price && <span className="adjust-field__error">{newStockFieldErrors.price}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Opening stock quantity <span className="adjust-required">*</span></label>
-                    <input
+                    <label htmlFor="new-flat-item-store">Opening stock store</label><select id="new-flat-item-store" value={newItemStore} onChange={e => setNewItemStore(e.target.value)}><option value="">Select store…</option>{itemStores.map(store => <option key={store.id} value={store.id}>{store.name}</option>)}</select>
+                    <label htmlFor="field-inventorymanagement-1272-57023">Opening stock quantity <span className="adjust-required">*</span></label>
+                    <input id="field-inventorymanagement-1272-57023"
                       type="number"
                       min={0}
                       value={newVariantStockQuantity}
@@ -1281,8 +1290,8 @@ function InventoryManagement() {
                     {newStockFieldErrors.stock_quantity && <span className="adjust-field__error">{newStockFieldErrors.stock_quantity}</span>}
                   </div>
                   <div className="adjust-field">
-                    <label>Low stock threshold <span className="adjust-required">*</span></label>
-                    <input
+                    <label htmlFor="field-inventorymanagement-1285-57786">Low stock threshold <span className="adjust-required">*</span></label>
+                    <LowStockThresholdInput id="field-inventorymanagement-1285-57786"
                       type="number"
                       min={0}
                       value={newVariantLowStockThreshold}
@@ -1302,37 +1311,32 @@ function InventoryManagement() {
                 {newStockSaving ? 'Saving…' : 'Create Stock'}
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {adjustItem && (
         <div className="modal-overlay" onClick={closeAdjustModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog busy={adjustSaving} onClose={closeAdjustModal} className="modal inventory-stock-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal__header">
-              <h2>{isVariantManaged(adjustItem) ? 'Manage Variant Stock' : 'Adjust Stock'}</h2>
-              <button className="modal__close" onClick={closeAdjustModal}>×</button>
+              <h2>Manage stock</h2>
+              <button aria-label="Close dialog" type="button" className="modal__close" onClick={closeAdjustModal}>×</button>
             </div>
             <div className="modal__content">
               <div className="adjust-info">
                 <p className="adjust-title">{adjustItem.name}</p>
-                <p className="adjust-subtitle">{adjustItem.sku} · {isVariantManaged(adjustItem) ? 'Variant-managed parent product' : 'Single SKU product'}</p>
+                <p className="adjust-subtitle">{adjustItem.sku} · Store and batch quantities</p>
               </div>
               {adjustError && <p className="adjust-error adjust-error--top">{adjustError}</p>}
 
               {isVariantManaged(adjustItem) ? (
                 <>
-                  <div className="adjust-section">
-                    <div className="adjust-section__title">Variant Stock Model</div>
-                    <div className="adjust-callout">
-                      Base-product stock is read-only for variant-managed products. Each variant below is a separate sellable item with its own SKU, POS link, and stock rules.
-                    </div>
-                  </div>
+                  <p className="stock-modal-help">Select the store and batch, then enter the total stock currently on hand. Saving updates that batch and records the change in stock history.</p>
 
                   <div className="adjust-section">
-                    <div className="adjust-section__title">Variant Stock</div>
+                    <div className="adjust-section__title">Store &amp; batch stock</div>
                     {variantDrafts.length === 0 ? (
-                      <div className="inventory-empty">No stock row exists for this variant yet.</div>
+                      <div className="inventory-empty">No stock has been added for this item yet.</div>
                     ) : (
                       <div className="adjust-variant-list">
                         {variantDrafts.map((draft) => {
@@ -1344,7 +1348,7 @@ function InventoryManagement() {
                                   <div className="adjust-variant-card__title">{draft.name}</div>
                                   <div className="adjust-variant-card__meta">
                                     {draft.sku || 'No SKU'}
-                                    {draft.pos_product_id ? ` · POS ${draft.pos_product_id}` : ' · No POS Product ID'}
+                                    {draft.pos_product_id ? ` · POS ${draft.pos_product_id}` : ''}
                                     {draft.barcode ? ` · Barcode ${draft.barcode}` : ''}
                                   </div>
                                   <div className="adjust-variant-card__meta">
@@ -1359,8 +1363,8 @@ function InventoryManagement() {
                                   {draft.warnings && (
                                     <div className="adjust-variant-card__meta">Warnings: {draft.warnings}</div>
                                   )}
-                                  <div className="adjust-variant-card__meta">{formatVariantAttributes(draft.attributes)}</div>
-                                  <div className="adjust-variant-card__meta">Batches: {draft.batch_summary}</div>
+                                  {Object.keys(draft.attributes ?? {}).length > 0 && <div className="adjust-variant-card__meta">{formatVariantAttributes(draft.attributes)}</div>}
+                                  
                                 </div>
                                 <span className={getStatusClass(status)}>{formatStatusLabel(status)}</span>
                               </div>
@@ -1385,7 +1389,7 @@ function InventoryManagement() {
                               <div className="adjust-grid">
                                 <div className="adjust-field">
                                   <label>Available stock <span className="adjust-required">*</span></label>
-                                  <input
+                                  <input aria-label="Stock quantity"
                                     type="number"
                                     min={0}
                                     value={draft.stock_quantity}
@@ -1397,7 +1401,7 @@ function InventoryManagement() {
                                 </div>
                                 <div className="adjust-field">
                                   <label>Low stock threshold <span className="adjust-required">*</span></label>
-                                  <input
+                                  <LowStockThresholdInput aria-label="Low stock threshold"
                                     type="number"
                                     min={0}
                                     value={draft.low_stock_threshold}
@@ -1423,7 +1427,7 @@ function InventoryManagement() {
                                 {draft.allow_backorder && (
                                   <div className="adjust-field">
                                     <label>Max backorder quantity <span className="adjust-required">*</span></label>
-                                    <input
+                                    <input aria-label="Maximum backorder quantity"
                                       type="number"
                                       min={0}
                                       value={draft.max_backorder_quantity}
@@ -1450,8 +1454,8 @@ function InventoryManagement() {
                     )}
                   </div>
 
-                  <div className="adjust-section">
-                    <div className="adjust-section__title">POS Refresh</div>
+                  {variantDrafts.some(draft => draft.pos_product_id) && <div className="adjust-section">
+                    <div className="adjust-section__title">POS stock</div>
                     <div className="adjust-pos-card">
                       <div>
                         <div className="adjust-pos-row">
@@ -1459,10 +1463,10 @@ function InventoryManagement() {
                           <strong>{(adjustItem.inventories ?? []).length ? getPosManagedQuantity(adjustItem) : 'No stock info'}</strong>
                         </div>
                         <div className="adjust-pos-row">
-                          <span>Variants currently POS-backed</span>
+                          <span>Items linked to POS</span>
                         <span>{(adjustItem.inventories ?? []).length ? (adjustItem.stock_source === 'warehouse' ? 1 : 0) : 'No stock info'}</span>
                       </div>
-                        <p className="adjust-hint">Syncing here refreshes this variant from the POS and replaces the current values shown above.</p>
+                        <p className="adjust-hint">Syncing refreshes this item from the POS and replaces the current values shown above.</p>
                       </div>
                       <button
                         className="cm-row-btn cm-row-btn--warn"
@@ -1470,10 +1474,10 @@ function InventoryManagement() {
                         onClick={() => handlePosSync(adjustItem)}
                         disabled={Boolean(posSyncingIds[adjustItem.id])}
                       >
-                        {posSyncingIds[adjustItem.id] ? 'Syncing…' : 'Sync Variant'}
+                        {posSyncingIds[adjustItem.id] ? 'Syncing…' : 'Sync item'}
                       </button>
                     </div>
-                  </div>
+                  </div>}
                 </>
               ) : (
                 <>
@@ -1488,16 +1492,16 @@ function InventoryManagement() {
                     </div>
                     <div className="adjust-grid">
                       <div className="adjust-field">
-                        <label>Available stock <span className="adjust-required">*</span></label>
-                        <input type="number" min={0} value={branchStock} onChange={(e) => {
+                        <label htmlFor="field-inventorymanagement-1492-70872">Available stock <span className="adjust-required">*</span></label>
+                        <input id="field-inventorymanagement-1492-70872" type="number" min={0} value={branchStock} onChange={(e) => {
                           setBranchStock(e.target.value)
                           clearAdjustFieldError('branchStock')
                         }} />
                         {adjustFieldErrors.branchStock && <span className="adjust-field__error">{adjustFieldErrors.branchStock}</span>}
                       </div>
                       <div className="adjust-field">
-                        <label>Low stock threshold <span className="adjust-required">*</span></label>
-                        <input type="number" min={0} value={branchThreshold} onChange={(e) => {
+                        <label htmlFor="field-inventorymanagement-1500-71507">Low stock threshold <span className="adjust-required">*</span></label>
+                        <LowStockThresholdInput id="field-inventorymanagement-1500-71507" type="number" min={0} value={branchThreshold} onChange={(e) => {
                           setBranchThreshold(e.target.value)
                           clearAdjustFieldError('branchThreshold')
                         }} />
@@ -1516,8 +1520,8 @@ function InventoryManagement() {
                       </div>
                       {branchAllowBackorder && (
                         <div className="adjust-field">
-                          <label>Max backorder quantity <span className="adjust-required">*</span></label>
-                          <input type="number" min={0} value={branchMaxBackorder} onChange={(e) => {
+                          <label htmlFor="field-inventorymanagement-1520-72807">Max backorder quantity <span className="adjust-required">*</span></label>
+                          <input id="field-inventorymanagement-1520-72807" type="number" min={0} value={branchMaxBackorder} onChange={(e) => {
                             setBranchMaxBackorder(e.target.value)
                             clearAdjustFieldError('branchMaxBackorder')
                           }} />
@@ -1562,10 +1566,10 @@ function InventoryManagement() {
             <div className="modal__footer">
               <button className="btn btn--outline btn--sm" onClick={closeAdjustModal}>Cancel</button>
               <button className="btn btn--primary btn--sm" onClick={handleAdjustSave} disabled={adjustSaving}>
-                {adjustSaving ? 'Saving…' : isVariantManaged(adjustItem) ? 'Save Variant Stock' : 'Save Stock'}
+                {adjustSaving ? 'Saving…' : 'Save stock'}
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

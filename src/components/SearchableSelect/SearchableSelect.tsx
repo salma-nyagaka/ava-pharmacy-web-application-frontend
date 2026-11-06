@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import './SearchableSelect.css'
 
 export interface SearchableSelectOption {
@@ -13,6 +13,7 @@ interface Props {
   placeholder?: string
   disabled?: boolean
   className?: string
+  ariaLabel?: string
   emptyMessage?: string
 }
 
@@ -21,19 +22,23 @@ export function SearchableSelect({
   value,
   onChange,
   placeholder = 'Select…',
+  ariaLabel,
   disabled = false,
   className = '',
   emptyMessage = 'No options available',
 }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const listId = useId()
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const selected = options.find((o) => String(o.value) === String(value))
 
   const filtered = query.trim()
-    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
     : options
 
   useEffect(() => {
@@ -47,25 +52,52 @@ export function SearchableSelect({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  const close = (restoreFocus = false) => {
+    setOpen(false)
+    setQuery('')
+    setActiveIndex(-1)
+    if (restoreFocus) triggerRef.current?.focus()
+  }
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus()
+  }, [open])
+
+  useEffect(() => {
+    if (activeIndex >= 0) {
+      document.getElementById(`${listId}-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [activeIndex, listId])
+
   const handleOpen = () => {
     if (disabled) return
     setOpen(true)
     setQuery('')
-    setTimeout(() => inputRef.current?.focus(), 0)
+    setActiveIndex(-1)
   }
 
   const handleSelect = (opt: SearchableSelectOption) => {
     onChange(opt.value)
-    setOpen(false)
-    setQuery('')
+    close(true)
   }
 
   return (
-    <div ref={containerRef} className={`ss-root${className ? ` ${className}` : ''}${disabled ? ' ss-root--disabled' : ''}`}>
+    <div onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close() }} ref={containerRef} className={`ss-root${className ? ` ${className}` : ''}${disabled ? ' ss-root--disabled' : ''}`}>
       <button
         type="button"
+        ref={triggerRef}
+        aria-label={`${ariaLabel || placeholder}${selected ? `: ${selected.label}` : ''}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
         className="ss-trigger"
-        onClick={handleOpen}
+        onClick={() => open ? close() : handleOpen()}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault()
+            handleOpen()
+          }
+        }}
         disabled={disabled}
         tabIndex={0}
       >
@@ -87,23 +119,42 @@ export function SearchableSelect({
               ref={inputRef}
               type="text"
               className="ss-search__input"
+              role="combobox"
+              aria-label={`Search ${ariaLabel || placeholder}`}
+              aria-expanded={open}
+              aria-controls={listId}
+              aria-autocomplete="list"
+              aria-activedescendant={activeIndex >= 0 && filtered[activeIndex] ? `${listId}-${activeIndex}` : undefined}
               placeholder="Search…"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); setActiveIndex(-1) }}
               onKeyDown={(e) => {
-                if (e.key === 'Escape') { setOpen(false); setQuery('') }
-                if (e.key === 'Enter' && filtered.length === 1) handleSelect(filtered[0])
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true) }
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setActiveIndex((current) => filtered.length === 0 ? -1 : e.key === 'ArrowDown'
+                    ? (current + 1) % filtered.length
+                    : (current <= 0 ? filtered.length - 1 : current - 1))
+                }
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  const option = filtered[activeIndex] || (filtered.length === 1 ? filtered[0] : undefined)
+                  if (option) handleSelect(option)
+                }
               }}
             />
           </div>
-          <ul className="ss-list">
+          <ul id={listId} role="listbox" aria-label={ariaLabel || placeholder} className="ss-list">
             {filtered.length === 0 ? (
-              <li className="ss-list__empty">{query ? `No results for "${query}"` : emptyMessage}</li>
+              <li role="presentation" className="ss-list__empty"><span role="status">{query ? `No results for "${query}"` : emptyMessage}</span></li>
             ) : (
-              filtered.map((opt) => (
+              filtered.map((opt, index) => (
                 <li
                   key={opt.value}
-                  className={`ss-list__item${String(opt.value) === String(value) ? ' ss-list__item--selected' : ''}`}
+                  id={`${listId}-${index}`}
+                  role="option"
+                  aria-selected={String(opt.value) === String(value)}
+                  className={`ss-list__item${activeIndex === index ? ' ss-list__item--active' : ''}${String(opt.value) === String(value) ? ' ss-list__item--selected' : ''}`}
                   onMouseDown={(e) => { e.preventDefault(); handleSelect(opt) }}
                 >
                   {opt.label}

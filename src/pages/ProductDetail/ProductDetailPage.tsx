@@ -1,3 +1,4 @@
+import { preferredScrollBehavior } from '../../utils/motion'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
@@ -75,7 +76,7 @@ function ProductDetailPage() {
   const parsedId = Number.parseInt(routeId ?? '0', 10) || 0
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
   }, [routeId])
 
   useEffect(() => {
@@ -197,7 +198,7 @@ function ProductDetailPage() {
 
   useEffect(() => {
     if (!product || searchParams.get('review') !== '1') return
-    document.getElementById('write-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.getElementById('write-review')?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start' })
   }, [product, searchParams])
 
   const imageGallery = useMemo(() => {
@@ -593,7 +594,7 @@ function ProductDetailPage() {
                 )}
                 <div className="quantity-selector">
                   <button onClick={() => setQuantity(Math.max(1, quantity - 1))} type="button">-</button>
-                  <input
+                  <input aria-label="Quantity"
                     type="number"
                     value={quantity}
                     onChange={(event) => setQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
@@ -686,6 +687,11 @@ function ProductDetailPage() {
                   <p>{product.directions}</p>
                 </>
               )}
+              {selectedVariant?.supply_hold_reason && <p role="status">{selectedVariant.supply_hold_reason}</p>}
+              {selectedVariant?.contraindications && <><h4>When this medicine may be unsuitable</h4><p>{selectedVariant.contraindications}</p></>}
+              {selectedVariant?.side_effects && <><h4>Possible side effects</h4><p>{selectedVariant.side_effects}</p></>}
+              {selectedVariant?.storage_instructions && <><h4>Storage</h4><p>{selectedVariant.storage_instructions}</p></>}
+              {selectedVariant?.pil_source_url && <p><a href={selectedVariant.pil_source_url} target="_blank" rel="noopener noreferrer">Patient information leaflet</a> — {selectedVariant.pil_version}. Reviewed {selectedVariant.pil_reviewed_at?.slice(0,10)}. Ask the pharmacist for advice specific to you.</p>}
               {product.warnings && (
                 <>
                   <h4>Warnings</h4>
@@ -724,7 +730,7 @@ function ProductDetailPage() {
                 </button>
               ))}
             </div>
-            <textarea
+            <textarea aria-label="Your product review"
               value={reviewComment}
               onChange={(event) => setReviewComment(event.target.value)}
               placeholder="Share your experience with this product."

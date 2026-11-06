@@ -1,3 +1,4 @@
+import Dialog from '../../components/Dialog/Dialog'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -306,7 +307,7 @@ function LabServicesPage() {
                 <svg className="lab-search-icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
                   <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                 </svg>
-                <input type="text" placeholder="Search by name, type, or sample..." value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
+                <input aria-label="Search by name, type, or sample" type="text" placeholder="Search by name, type, or sample..." value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} />
               </div>
               <div className="lab-category-pills">
                 <button className={`lab-cat-pill${category === 'all' ? ' lab-cat-pill--active' : ''}`} onClick={() => setCategory('all')}>All</button>
@@ -376,7 +377,7 @@ function LabServicesPage() {
 
       {selectedTest && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className={`modal ${bookingMode === 'book' ? 'modal--wide' : ''}`} onClick={(event) => event.stopPropagation()}>
+          <Dialog onClose={closeModal} className={`modal ${bookingMode === 'book' ? 'modal--wide' : ''}`} onClick={(event) => event.stopPropagation()}>
             {bookingMode === 'view' ? (
               <>
                 <div className="modal__header">
@@ -386,7 +387,7 @@ function LabServicesPage() {
                     </span>
                     <h2>{selectedTest.name}</h2>
                   </div>
-                  <button className="modal__close" onClick={closeModal}>×</button>
+                  <button aria-label="Close dialog" type="button" className="modal__close" onClick={closeModal}>×</button>
                 </div>
                 <div className="modal__content">
                   <div className="lab-test-summary">
@@ -416,23 +417,23 @@ function LabServicesPage() {
                     <h2>Book - {selectedTest.name}</h2>
                     <p className="card__meta">KSh {selectedTest.price.toLocaleString()} · {selectedTest.turnaround} · {selectedTest.sampleType}</p>
                   </div>
-                  <button className="modal__close" onClick={closeModal}>×</button>
+                  <button aria-label="Close dialog" type="button" className="modal__close" onClick={closeModal}>×</button>
                 </div>
                 <div className="modal__content">
                   <div className="lab-form-section">
                     <p className="lab-form-section__label">Patient information</p>
                     <div className="lab-booking-grid">
                       <div className="form-group">
-                        <label>Full name <span className="lab-required">*</span></label>
-                        <input type="text" placeholder="e.g. Jane Doe" value={patientName} onChange={(event) => setPatientName(event.target.value)} />
+                        <label htmlFor="field-labservicespage-427-19808">Full name <span className="lab-required">*</span></label>
+                        <input id="field-labservicespage-427-19808" type="text" placeholder="e.g. Jane Doe" value={patientName} onChange={(event) => setPatientName(event.target.value)} />
                       </div>
                       <div className="form-group">
-                        <label>Phone number <span className="lab-required">*</span></label>
-                        <input type="tel" placeholder="e.g. 0712 345 678" value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} />
+                        <label htmlFor="field-labservicespage-431-20195">Phone number <span className="lab-required">*</span></label>
+                        <input id="field-labservicespage-431-20195" type="tel" placeholder="e.g. 0712 345 678" value={patientPhone} onChange={(event) => setPatientPhone(event.target.value)} />
                       </div>
                       <div className="form-group">
-                        <label>Email <span className="lab-optional">(optional)</span></label>
-                        <input type="email" placeholder="e.g. jane@example.com" value={patientEmail} onChange={(event) => setPatientEmail(event.target.value)} />
+                        <label htmlFor="field-labservicespage-435-20590">Email <span className="lab-optional">(optional)</span></label>
+                        <input id="field-labservicespage-435-20590" type="email" placeholder="e.g. jane@example.com" value={patientEmail} onChange={(event) => setPatientEmail(event.target.value)} />
                       </div>
                     </div>
                   </div>
@@ -441,19 +442,19 @@ function LabServicesPage() {
                     <p className="lab-form-section__label">Appointment details</p>
                     <div className="lab-booking-grid">
                       <div className="form-group">
-                        <label>Collection method</label>
-                        <select value={collection} onChange={(event) => setCollection(event.target.value as 'walk_in' | 'collection')}>
+                        <label htmlFor="field-labservicespage-445-21237">Collection method</label>
+                        <select id="field-labservicespage-445-21237" value={collection} onChange={(event) => setCollection(event.target.value as 'walk_in' | 'collection')}>
                           <option value="collection">Home sample collection (recommended)</option>
                           <option value="walk_in">Visit the laboratory</option>
                         </select>
                       </div>
                       <div className="form-group">
-                        <label>Preferred date & time <span className="lab-required">*</span></label>
-                        <input type="datetime-local" value={schedule} onChange={(event) => setSchedule(event.target.value)} />
+                        <label htmlFor="field-labservicespage-452-21790">Preferred date & time <span className="lab-required">*</span></label>
+                        <input id="field-labservicespage-452-21790" type="datetime-local" value={schedule} onChange={(event) => setSchedule(event.target.value)} />
                       </div>
                       <div className="form-group">
-                        <label>Priority</label>
-                        <select value={priority} onChange={(event) => setPriority(event.target.value as LabPriority)}>
+                        <label htmlFor="field-labservicespage-456-22165">Priority</label>
+                        <select id="field-labservicespage-456-22165" value={priority} onChange={(event) => setPriority(event.target.value as LabPriority)}>
                           <option value="routine">Routine</option>
                           <option value="priority">Priority</option>
                         </select>
@@ -462,27 +463,27 @@ function LabServicesPage() {
                     {collection === 'collection' && (
                       <div className="lab-booking-grid">
                         <div className="form-group">
-                          <label>Collection address <span className="lab-required">*</span></label>
-                          <textarea rows={2} value={collectionAddress} onChange={(event) => setCollectionAddress(event.target.value)} placeholder="Building, street, area and county" />
+                          <label htmlFor="field-labservicespage-466-22791">Collection address <span className="lab-required">*</span></label>
+                          <textarea id="field-labservicespage-466-22791" rows={2} value={collectionAddress} onChange={(event) => setCollectionAddress(event.target.value)} placeholder="Building, street, area and county" />
                         </div>
                         <div className="form-group">
-                          <label>Collector instructions <span className="lab-optional">(optional)</span></label>
-                          <textarea rows={2} value={collectionInstructions} onChange={(event) => setCollectionInstructions(event.target.value)} placeholder="Gate, landmark or access instructions" />
+                          <label htmlFor="field-labservicespage-470-23227">Collector instructions <span className="lab-optional">(optional)</span></label>
+                          <textarea id="field-labservicespage-470-23227" rows={2} value={collectionInstructions} onChange={(event) => setCollectionInstructions(event.target.value)} placeholder="Gate, landmark or access instructions" />
                         </div>
                       </div>
                     )}
                     <div className="lab-booking-grid">
                       <div className="form-group">
-                        <label>Result delivery</label>
-                        <select value={resultDelivery} onChange={(event) => setResultDelivery(event.target.value as LabResultDeliveryMethod)}>
+                        <label htmlFor="field-labservicespage-477-23793">Result delivery</label>
+                        <select id="field-labservicespage-477-23793" value={resultDelivery} onChange={(event) => setResultDelivery(event.target.value as LabResultDeliveryMethod)}>
                           <option value="digital">Secure digital delivery (recommended)</option>
                           <option value="physical_pickup">Collect a physical result</option>
                         </select>
                       </div>
                       {resultDelivery === 'physical_pickup' && (
                         <div className="form-group">
-                          <label>Physical result pickup location <span className="lab-required">*</span></label>
-                          <input value={resultPickupLocation} onChange={(event) => setResultPickupLocation(event.target.value)} placeholder="Assigned laboratory or Ava Pharmacy location" />
+                          <label htmlFor="field-labservicespage-485-24431">Physical result pickup location <span className="lab-required">*</span></label>
+                          <input id="field-labservicespage-485-24431" value={resultPickupLocation} onChange={(event) => setResultPickupLocation(event.target.value)} placeholder="Assigned laboratory or Ava Pharmacy location" />
                         </div>
                       )}
                     </div>
@@ -492,13 +493,13 @@ function LabServicesPage() {
                     <p className="lab-form-section__label">Clinical notes (optional)</p>
                     <div className="lab-booking-grid">
                       <div className="form-group">
-                        <label>Ordering doctor</label>
-                        <input type="text" placeholder="e.g. Dr. Kamau" value={orderingDoctor} onChange={(event) => setOrderingDoctor(event.target.value)} />
+                        <label htmlFor="field-labservicespage-496-25156">Ordering doctor</label>
+                        <input id="field-labservicespage-496-25156" type="text" placeholder="e.g. Dr. Kamau" value={orderingDoctor} onChange={(event) => setOrderingDoctor(event.target.value)} />
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Additional notes</label>
-                      <textarea rows={3} placeholder="Any special instructions or clinical context..." value={notes} onChange={(event) => setNotes(event.target.value)} />
+                      <label htmlFor="field-labservicespage-501-25539">Additional notes</label>
+                      <textarea id="field-labservicespage-501-25539" rows={3} placeholder="Any special instructions or clinical context..." value={notes} onChange={(event) => setNotes(event.target.value)} />
                     </div>
                   </div>
 
@@ -522,7 +523,7 @@ function LabServicesPage() {
                 </div>
               </>
             )}
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

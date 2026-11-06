@@ -1,6 +1,50 @@
-import { useState } from 'react'
+import { FormEvent, useId, useRef, useState } from 'react'
 import { subscribeToNewsletter } from '../../services/newsletterService'
-export default function NewsletterForm(){
- const [email,setEmail]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('')
- return <form onSubmit={e=>{e.preventDefault();setBusy(true);setError('');void subscribeToNewsletter(email,'footer').then(setMessage).catch(e=>setError(e instanceof Error?e.message:'Unable to subscribe.')).finally(()=>setBusy(false))}} style={{padding:'24px 0',borderBottom:'1px solid #71828a'}}><label style={{display:'block',color:'white',marginBottom:10}}>Newsletter email<input aria-label="Newsletter email" type="email" required maxLength={254} value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" style={{marginLeft:12,padding:10,borderRadius:6,color:'#19323d',background:'white'}}/></label><span>Optional news and offers. </span><button type="submit" disabled={busy} className="btn btn--outline">{busy?'Subscribing…':'Subscribe to newsletter'}</button>{message&&<p role="status">{message}</p>}{error&&<p role="alert">{error}</p>}</form>
+import './NewsletterForm.css'
+
+export default function NewsletterForm() {
+  const [email, setEmail] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const pending = useRef(false)
+  const id = useId()
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (pending.current) return
+    pending.current = true
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      setMessage(await subscribeToNewsletter(email.trim(), 'footer'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to subscribe. Please try again.')
+    } finally {
+      pending.current = false
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="footer-newsletter" onSubmit={handleSubmit} aria-busy={busy}>
+      <div className="footer-newsletter__copy">
+        <label htmlFor={id}>Newsletter email</label>
+        <p id={`${id}-hint`}>Optional news and offers.</p>
+      </div>
+      <div className="footer-newsletter__controls">
+        <input id={id} type="email" required maxLength={254} autoComplete="email"
+          value={email} onChange={(event) => setEmail(event.target.value)}
+          readOnly={busy} placeholder="you@example.com"
+          aria-invalid={Boolean(error)}
+          aria-describedby={`${id}-hint${error ? ` ${id}-error` : ''}`} />
+        <button type="submit" disabled={busy} className="btn btn--primary">
+          {busy ? 'Subscribing…' : 'Subscribe to newsletter'}
+        </button>
+      </div>
+      {message && <p className="footer-newsletter__feedback" role="status">{message}</p>}
+      {error && <p id={`${id}-error`} className="footer-newsletter__feedback" role="alert">{error}</p>}
+    </form>
+  )
 }

@@ -1,3 +1,4 @@
+import PharmacistCredentialPanel from './pages/Admin/PharmacistCredentialPanel'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { CatalogProvider } from './context/CatalogContext'
@@ -15,7 +16,6 @@ import CheckoutPage from './pages/Checkout/CheckoutPage'
 import AccountLayout from './pages/Account/AccountLayout'
 import AccountPage from './pages/Account/AccountPage'
 import AccountAddressesPage from './pages/Account/AccountAddressesPage'
-import AccountPaymentPage from './pages/Account/AccountPaymentPage'
 import AccountSettingsPage from './pages/Account/AccountSettingsPage'
 import AccountEditPage from './pages/Account/AccountEditPage'
 import OrderDetailPage from './pages/Account/OrderDetailPage'
@@ -23,8 +23,8 @@ import OrderHistoryPage from './pages/OrderHistory/OrderHistoryPage'
 import PrescriptionUploadPage from './pages/PrescriptionUpload/PrescriptionUploadPage'
 import DoctorConsultation from './pages/Consultation/DoctorConsultation'
 import PediatricianConsultation from './pages/Consultation/PediatricianConsultation'
-import AdminDashboard from './pages/Admin/AdminDashboard'
-import ProductManagement from './pages/Admin/ProductManagement'
+import InventoryManagement from './pages/Admin/InventoryManagement'
+import ProductsStockWorkspace, { LegacyProductsStockRedirect } from './pages/Admin/ProductsStockWorkspace'
 import CategoryManagement from './pages/Admin/CategoryManagement'
 import HealthConcernManagement from './pages/Admin/HealthConcernManagement'
 import BrandManagement from './pages/Admin/BrandManagement'
@@ -33,7 +33,7 @@ import UserManagement from './pages/Admin/UserManagement'
 import UserDetailsPage from './pages/Admin/UserDetailsPage'
 import OrderManagement from './pages/Admin/OrderManagementLive'
 import OrderDetailsPage from './pages/Admin/OrderDetailsLivePage'
-import Reports from './pages/Admin/Reports'
+import AdminOverview from './pages/Admin/AdminOverview'
 import Invoices from './pages/Admin/Invoices'
 import DealsManagement from './pages/Admin/DealsManagement'
 import LabTestManagement from './pages/Admin/LabTestManagement'
@@ -46,6 +46,7 @@ import RegisterPage from './pages/Auth/RegisterPage'
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage'
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage'
 import VerifyEmailPage from './pages/Auth/VerifyEmailPage'
+import ConfirmEmailChangePage from './pages/Auth/ConfirmEmailChangePage'
 import StaffActivatePage from './pages/Auth/StaffActivatePage'
 import OrderTrackingPage from './pages/OrderTracking/OrderTrackingPage'
 import OrderConfirmationPage from './pages/OrderConfirmation/OrderConfirmationPage'
@@ -64,7 +65,6 @@ import TermsPage from './pages/Legal/TermsPage'
 import CookiesPage from './pages/Legal/CookiesPage'
 import PrescriptionHistoryPage from './pages/PrescriptionHistory/PrescriptionHistoryPage'
 import AccountConsultationsPage from './pages/Account/AccountConsultationsPage'
-import AccountCompliancePage from './pages/Account/AccountCompliancePage'
 import AccountNotificationsPage from './pages/Account/AccountNotificationsPage'
 import AccountSupportPage from './pages/Account/AccountSupportPage'
 import AccountLabTestsPage from './pages/Account/AccountLabTestsPage'
@@ -75,8 +75,8 @@ import PediatricianDashboardPage from './pages/Pediatrician/PediatricianDashboar
 import PharmacistDashboardPage from './pages/Pharmacist/PharmacistDashboardPage'
 import LabServicesPage from './pages/Lab/LabServicesPage'
 import LabDashboardPage from './pages/Lab/LabDashboardPage'
+import InventoryWorkspace from './pages/Inventory/InventoryWorkspace'
 import InventoryOverviewPage from './pages/Inventory/InventoryOverviewPage'
-import InventoryManagement from './pages/Admin/InventoryManagement'
 import PrescriptionManagement from './pages/Admin/PrescriptionManagement'
 import DoctorManagement from './pages/Admin/DoctorManagement'
 import Settings from './pages/Admin/Settings'
@@ -106,6 +106,7 @@ function DoctorConsultationEntry() {
 function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      {import.meta.env.VITE_QA_ENVIRONMENT_LABEL && <div role="status" style={{background:'#7c2d12',color:'white',padding:12,fontWeight:700,textAlign:'center'}}>SYNTHETIC QA — {import.meta.env.VITE_QA_ENVIRONMENT_LABEL}. No real patients, licences or payments.</div>}
       <AuthProvider>
         <SiteSettingsProvider>
           <CatalogProvider>
@@ -122,14 +123,14 @@ function App() {
                 <Route path="orders" element={<OrderHistoryPage />} />
                 <Route path="orders/:id" element={<OrderDetailPage />} />
                 <Route path="addresses" element={<AccountAddressesPage />} />
-                <Route path="payment" element={<AccountPaymentPage />} />
-                <Route path="settings" element={<AccountSettingsPage />} />
+                <Route path="payment" element={<Navigate to="/account/settings" replace />} />
+              <Route path="settings" element={<AccountSettingsPage />} />
                 <Route path="edit" element={<AccountEditPage />} />
                 <Route path="prescriptions" element={<PrescriptionHistoryPage />} />
                 <Route path="consultations" element={<AccountConsultationsPage />} />
                 <Route path="lab-tests" element={<AccountLabTestsPage />} />
                 <Route path="notifications" element={<AccountNotificationsPage />} />
-                <Route path="compliance" element={<RoleRoute allowedRoles={['admin', 'ppb_inspector']}><AccountCompliancePage /></RoleRoute>} />
+            <Route path="compliance" element={<Navigate to="/account" replace />} />
                 <Route path="support" element={<AccountSupportPage />} />
                 <Route path="favourites" element={<AccountFavouritesPage />} />
               </Route>
@@ -146,6 +147,7 @@ function App() {
               <Route path="register" element={<RegisterPage />} />
               <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="verify-email" element={<VerifyEmailPage />} />
+              <Route path="confirm-email-change" element={<ConfirmEmailChangePage />} />
               <Route path="reset-password" element={<ResetPasswordPage />} />
               <Route path="auth/professional/activate" element={<StaffActivatePage />} />
               <Route path="order-confirmation" element={<OrderConfirmationPage />} />
@@ -175,17 +177,24 @@ function App() {
               <Route path="lab-tests" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
               <Route path="laboratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
               <Route path="labaratory" element={<ProtectedRoute><LabServicesPage /></ProtectedRoute>} />
-              <Route path="inventory" element={<InventoryOverviewPage />} />
               <Route path="*" element={<div style={{ padding: '4rem 0', textAlign: 'center' }}>
                 <h1>Page Coming Soon</h1>
                 <p>This page is under construction</p>
               </div>} />
             </Route>
 
+            <Route path="inventory" element={<RoleRoute allowedRoles={['inventory_staff', 'admin']}><InventoryWorkspace /></RoleRoute>}>
+              <Route index element={<InventoryOverviewPage />} />
+              <Route path="manage" element={<InventoryManagement />} />
+            </Route>
+
             <Route path="doctor/dashboard" element={<RoleRoute allowedRoles={['doctor', 'admin']}><DoctorDashboardPage /></RoleRoute>} />
             <Route path="doctor/onboarding" element={<RoleRoute allowedRoles={['doctor', 'admin']}><DoctorOnboardingPage /></RoleRoute>} />
             <Route path="pediatrician/dashboard" element={<RoleRoute allowedRoles={['pediatrician', 'admin']}><PediatricianDashboardPage /></RoleRoute>} />
             <Route path="paedetrician/dashboard" element={<Navigate to="/pediatrician/dashboard" replace />} />
+            <Route path="compliance" element={<Navigate to="/" replace />} />
+            <Route path="product-recalls" element={<Navigate to="/account" replace />} />
+            <Route path="pharmacist/credentials" element={<RoleRoute allowedRoles={['pharmacist']}><main className="category-management review-forms"><PharmacistCredentialPanel /></main></RoleRoute>} />
             <Route path="pharmacist/dashboard" element={<RoleRoute allowedRoles={['pharmacist', 'admin']}><PharmacistDashboardPage /></RoleRoute>} />
             <Route path="lab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'admin']}><LabDashboardPage /></RoleRoute>} />
             <Route path="ab/dashboard" element={<RoleRoute allowedRoles={['lab_partner', 'lab_technician', 'admin']}><LegacyLabDashboardRedirect /></RoleRoute>} />
@@ -196,8 +205,9 @@ function App() {
 
             <Route path="admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route index element={<Navigate to="/admin/dashboard" replace />} />
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="products" element={<ProductManagement />} />
+              <Route path="dashboard" element={<AdminOverview />} />
+              <Route path="products-stock" element={<ProductsStockWorkspace />} />
+              <Route path="products" element={<LegacyProductsStockRedirect />} />
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="health-concerns" element={<HealthConcernManagement />} />
               <Route path="brands" element={<BrandManagement />} />
@@ -207,10 +217,10 @@ function App() {
               <Route path="users/:id" element={<UserDetailsPage />} />
               <Route path="orders" element={<OrderManagement />} />
               <Route path="orders/:id" element={<OrderDetailsPage />} />
-              <Route path="inventory" element={<InventoryManagement />} />
+              <Route path="inventory" element={<LegacyProductsStockRedirect stock />} />
               <Route path="prescriptions" element={<PrescriptionManagement />} />
               <Route path="doctors" element={<DoctorManagement />} />
-              <Route path="reports" element={<Reports />} />
+              <Route path="reports" element={<Navigate to="/admin/dashboard?view=reports" replace />} />
               <Route path="invoices" element={<Invoices />} />
               <Route path="deals" element={<DealsManagement />} />
               <Route path="payouts" element={<Navigate to="/admin/invoices?view=payouts" replace />} />

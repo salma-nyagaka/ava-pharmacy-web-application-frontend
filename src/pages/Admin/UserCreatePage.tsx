@@ -207,7 +207,7 @@ function UserCreatePage() {
               Notes <span className="uc-opt" style={{ fontWeight: 400 }}>· Optional</span>
             </div>
             <div className="uc-card__body">
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Any setup notes or account context" />
+              <textarea aria-label="Any setup notes or account context" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Any setup notes or account context" />
             </div>
           </div>
 

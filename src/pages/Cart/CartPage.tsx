@@ -18,6 +18,14 @@ function CartPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [cartLoading, setCartLoading] = useState(true)
   const [cartError, setCartError] = useState('')
+  const [itemErrors, setItemErrors] = useState<Record<string, string>>({})
+  const itemKey = (item: CartItem) => `${item.serverItemId ?? item.id}-${item.prescriptionId ?? 'direct'}`
+  const clearItemError = (item: CartItem) => setItemErrors(current => {
+    const next = { ...current }; delete next[itemKey(item)]; return next
+  })
+  const showItemError = (item: CartItem, error: unknown) => setItemErrors(current => ({
+    ...current, [itemKey(item)]: error instanceof Error ? error.message : 'Unable to update this product. Please try again.',
+  }))
   const showCartError = (error: unknown) => setCartError(error instanceof Error ? error.message : 'Unable to update cart. Please try again.')
   const [movedId, setMovedId] = useState<number | null>(null)
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([])
@@ -76,13 +84,13 @@ function CartPage() {
   const fmt = (n: number) => `KSh ${n.toLocaleString()}`
 
   const changeQty = (item: CartItem, next: number) =>
-    void cartService.updateQuantity(item.serverItemId ?? item.id, next, item.prescriptionId).then((r) => { setCartItems(r.data); setCartError('') }).catch(showCartError)
+    void cartService.updateQuantity(item.serverItemId ?? item.id, next, item.prescriptionId).then((r) => { setCartItems(r.data); clearItemError(item) }).catch(error => showItemError(item, error))
 
   const removeItem = (item: CartItem) =>
-    void cartService.remove(item.serverItemId ?? item.id, item.prescriptionId).then((r) => { setCartItems(r.data); setCartError('') }).catch(showCartError)
+    void cartService.remove(item.serverItemId ?? item.id, item.prescriptionId).then((r) => { setCartItems(r.data); clearItemError(item) }).catch(error => showItemError(item, error))
 
   const moveToWishlist = (item: CartItem) => {
-    void cartService.moveToWishlist(item).then((r) => { setCartItems(r.data); setCartError(''); setMovedId(item.id) }).catch(showCartError)
+    void cartService.moveToWishlist(item).then((r) => { setCartItems(r.data); clearItemError(item); setMovedId(item.id) }).catch(error => showItemError(item, error))
     window.setTimeout(() => setMovedId(null), 1500)
   }
 
@@ -240,9 +248,10 @@ function CartPage() {
                     {item.prescriptionId && (
                       <span className="cart-item__rx">Rx #{item.prescriptionId}</span>
                     )}
+                    {itemErrors[itemKey(item)] && <p id={`cart-item-error-${itemKey(item)}`} className="cart-item__error" role="alert">{itemErrors[itemKey(item)]}</p>}
                   </div>
 
-                  <div className="cart-item__qty">
+                  <div className="cart-item__qty" aria-describedby={itemErrors[itemKey(item)] ? `cart-item-error-${itemKey(item)}` : undefined}>
                     <button type="button" className="cart-item__qty-btn" onClick={() => changeQty(item, item.quantity - 1)} aria-label="Decrease">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>

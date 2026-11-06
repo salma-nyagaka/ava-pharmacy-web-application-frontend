@@ -139,26 +139,21 @@ const unwrapItem = <T,>(payload: T | { data?: T } | null | undefined): T => {
   return payload as T
 }
 
-export const adminDoctorService = {
-  async listDoctors() {
-    const response = await apiFetch(`${API_BASE_URL}/admin/doctors/`, {
-      headers: {
-        ...getAuthHeaders(),
-      },
-    })
-    const payload = await handleResponse<AdminDoctorApi[] | { data?: AdminDoctorApi[]; results?: AdminDoctorApi[] }>(response)
-    return unwrapList(payload).map((item) => ({ ...item, type: item.type ?? 'doctor' }))
-  },
+async function allProfessionals(resource: 'doctors' | 'pediatricians') {
+  const rows: AdminDoctorApi[] = []
+  let next: string | null = `${API_BASE_URL}/admin/${resource}/`
+  while (next) {
+    const response = await apiFetch(next, { headers: { ...getAuthHeaders() } })
+    const payload = await handleResponse<AdminDoctorApi[] | { data?: AdminDoctorApi[]; results?: AdminDoctorApi[]; meta?: { next?: string }; next?: string }>(response)
+    rows.push(...unwrapList(payload))
+    next = Array.isArray(payload) ? null : payload.meta?.next ?? payload.next ?? null
+  }
+  return rows.map(item => ({ ...item, type: item.type ?? (resource === 'doctors' ? 'doctor' : 'pediatrician') }))
+}
 
-  async listPediatricians() {
-    const response = await apiFetch(`${API_BASE_URL}/admin/pediatricians/`, {
-      headers: {
-        ...getAuthHeaders(),
-      },
-    })
-    const payload = await handleResponse<AdminDoctorApi[] | { data?: AdminDoctorApi[]; results?: AdminDoctorApi[] }>(response)
-    return unwrapList(payload).map((item) => ({ ...item, type: item.type ?? 'pediatrician' }))
-  },
+export const adminDoctorService = {
+  async listDoctors() { return allProfessionals('doctors') },
+  async listPediatricians() { return allProfessionals('pediatricians') },
 
   async listNotifications() {
     const response = await apiFetch(`${API_BASE_URL}/notifications/`, {

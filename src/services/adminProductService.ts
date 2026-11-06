@@ -84,6 +84,7 @@ export interface ApiBanner {
 }
 
 export interface ApiBrand {
+  product_count?: number
   id: number
   name: string
   slug: string
@@ -157,11 +158,13 @@ export interface ApiProductPromotion {
 }
 
 export interface ApiProduct {
+  sku?: string
   id: number
   name: string
   pos_product_id?: string | null
   slug: string
   strength: string
+  pack_size?: string
   dosage_quantity: string
   dosage_unit: string
   dosage_frequency: string
@@ -211,6 +214,7 @@ export interface ApiProductVariant {
   pos_product_id?: string | null
   name: string
   strength?: string | null
+  pack_size?: string | null
   dosage_instructions?: string | null
   directions?: string | null
   warnings?: string | null
@@ -235,6 +239,8 @@ export interface ApiProductVariant {
 }
 
 export interface ProductVariantPayload {
+  branch_inventory?: InventoryLocationPayload
+  warehouse_inventory?: InventoryLocationPayload
   sku?: string
   barcode?: string
   pos_product_id?: string
@@ -298,6 +304,7 @@ export interface ApiOrder {
 }
 
 export interface ProductCreatePayload {
+  item?: { name?: string; sku?: string; barcode?: string; price: number; stock_quantity?: number; low_stock_threshold?: number; store_id?: number; batch_number?: string; expiry_date?: string; strength?: string; pack_size?: string; pos_product_id?: string; directions?: string; warnings?: string; dosage_instructions?: string }
   name: string
   slug: string
   pos_product_id?: string
@@ -361,6 +368,13 @@ export interface ApiPosProductOption {
 }
 
 export interface ApiStockMovement {
+  variant_id?: number
+  variant_sku?: string
+  product_id?: number
+  product_name?: string
+  store_name?: string
+  batch_number?: string
+  location?: string
   id: number
   movement_type: string
   quantity_change: number
@@ -408,34 +422,41 @@ export const adminProductService = {
     return unwrapList<ApiProduct>(res)
   },
   async listProducts(params?: Record<string, string>) {
-    const res = await apiClient.get('/admin/products/', { params: { page_size: '500', ...params } })
-    const firstPage = res.data
-    const products = unwrapList<ApiProduct>(res)
-    const getNextUrl = (page: unknown): string | null => {
-      const payload = page as { next?: unknown; meta?: { next?: unknown } }
-      if (typeof payload?.next === 'string') return payload.next
-      if (typeof payload?.meta?.next === 'string') return payload.meta.next
-      return null
-    }
+    const page = await this.listProductsPage(params)
+    return page.items
+  },
 
-    if (!firstPage || Array.isArray(firstPage)) {
-      return products
-    }
+  async listProductsPage(params?: Record<string, string>) {
+    const res = await apiClient.get('/admin/products/', { params: { page_size: '25', ...params } })
+    return { items: unwrapList<ApiProduct>(res), total: res.data?.meta?.total ?? res.data?.count ?? unwrapList<ApiProduct>(res).length }
+  },
 
-    let nextUrl = getNextUrl(firstPage)
-    while (nextUrl) {
-      const response = await apiClient.get(nextUrl)
-      const page = response.data
-      products.push(...unwrapList<ApiProduct>(response))
-      nextUrl = getNextUrl(page)
-    }
+  async getProduct(id: number) {
+    return unwrap<ApiProduct>(await apiClient.get(`/admin/products/${id}/`))
+  },
 
-    return products
+  async getCatalogStats() {
+    return unwrap<{ products: { total: number; active: number; inactive: number; low_stock: number }; inventory: { total: number; active: number; inactive: number; in_stock: number; low_stock: number; backorder: number; out_of_stock: number } }>(await apiClient.get('/admin/catalog/stats/'))
   },
 
   async createProduct(payload: ProductCreatePayload | FormData) {
-    const res = await apiClient.post('/admin/products/', payload)
+    const res = await apiClient.post('/admin/product-stock-items/', payload)
     return unwrap<ApiProduct>(res)
+  },
+
+  async listStores(includeInactive = false) {
+    const stores: Array<{ id: number; name: string; code: string; city?: string; created_at?: string; is_active: boolean }> = []
+    let next: string | null = '/admin/stores/'
+    const visited = new Set<string>()
+    while (next && !visited.has(next)) {
+      visited.add(next)
+      const response: { data: unknown } = await apiClient.get(next, visited.size === 1 && !includeInactive ? { params: { is_active: 'true' } } : undefined)
+      stores.push(...unwrapList<{ id: number; name: string; code: string; city?: string; created_at?: string; is_active: boolean }>(response))
+      const payload = response.data as { meta?: { next?: unknown }; next?: unknown }
+      const following = payload?.meta?.next ?? payload?.next
+      next = typeof following === 'string' ? following : null
+    }
+    return stores
   },
 
   async getProductFormMeta() {
@@ -443,13 +464,14 @@ export const adminProductService = {
     return unwrap<ProductFormMeta>(res)
   },
 
-  async listPosProductOptions() {
-    const res = await apiClient.get('/admin/products/pos-options/')
+  async listPosProductOptions(productId?: number) {
+    const res = await apiClient.get('/admin/products/pos-options/', { params: productId ? { product_id: String(productId) } : undefined })
     return unwrapList<ApiPosProductOption>(res)
   },
 
   async updateProduct(id: number, payload: Partial<ProductCreatePayload> | FormData) {
-    const res = await apiClient.patch(`/admin/products/${id}/`, payload)
+    const flatItem = payload instanceof FormData ? payload.has('item') : 'item' in payload
+    const res = await apiClient.patch(flatItem ? `/admin/product-stock-items/${id}/` : `/admin/products/${id}/`, payload)
     return unwrap<ApiProduct>(res)
   },
 
@@ -521,8 +543,18 @@ export const adminProductService = {
   },
 
   async listBrands(params?: Record<string, string>) {
-    const res = await apiClient.get('/admin/brands/', { params })
-    return unwrapList<ApiBrand>(res)
+    const brands: ApiBrand[] = []
+    let next: string | null = '/admin/brands/'
+    const visited = new Set<string>()
+    while (next && !visited.has(next)) {
+      visited.add(next)
+      const res: { data: unknown } = await apiClient.get(next, visited.size === 1 ? { params } : undefined)
+      brands.push(...unwrapList<ApiBrand>(res))
+      const payload = res.data as { meta?: { next?: unknown }; next?: unknown; data?: { next?: unknown } }
+      const following = payload?.meta?.next ?? payload?.next ?? payload?.data?.next
+      next = typeof following === 'string' ? following : null
+    }
+    return Array.from(new Map(brands.map(brand => [brand.id, brand])).values())
   },
 
   async createBrand(payload: FormData | { name: string; description?: string; is_active?: boolean }) {

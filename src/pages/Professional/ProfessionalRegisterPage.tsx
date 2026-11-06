@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { preferredScrollBehavior } from '../../utils/motion'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   professionalRegistrationService,
   ProfessionalRegistrationError,
@@ -148,7 +149,7 @@ const ROLE_CARDS: Array<{ type: ProfType; icon: React.ReactNode; tagline: string
   {
     type: 'Doctor',
     tagline: 'General practitioners & specialists',
-    perks: ['Video & chat consultations', 'Electronic prescription tools', 'Same-day M-Pesa payouts'],
+    perks: ['Online chat consultations', 'Electronic prescription tools', 'Earnings and payout tracking'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="12" cy="7.5" r="3.5"/>
@@ -194,16 +195,33 @@ function CheckIcon() {
 function Field({ label, required, optional, error, hint, children }: {
   label: string; required?: boolean; optional?: boolean; error?: string; hint?: string; children: React.ReactNode
 }) {
+  const id = useId()
+  let associated = false
+  let controlId: string | undefined
+  const fields = React.Children.map(children, (child) => {
+    if (!associated && React.isValidElement<React.InputHTMLAttributes<HTMLInputElement>>(child)
+      && typeof child.type === 'string' && ['input', 'select', 'textarea'].includes(child.type)) {
+      associated = true
+      controlId = child.props.id || `${id}-control`
+      return React.cloneElement(child, {
+        id: controlId,
+        'aria-labelledby': `${id}-label`,
+        'aria-invalid': Boolean(error),
+        'aria-describedby': error || hint ? `${id}-feedback` : undefined,
+      })
+    }
+    return child
+  })
   return (
-    <div className={`pr-field ${error ? 'pr-field--error' : ''}`}>
-      <label className="pr-field__label">
+    <div className={`pr-field ${error ? 'pr-field--error' : ''}`} role="group" aria-labelledby={`${id}-label`}>
+      <label id={`${id}-label`} htmlFor={controlId} className="pr-field__label">
         {label}
         {!UI_TEST_MODE && required && <span className="pr-field__req">Required</span>}
         {optional && <span className="pr-field__opt">Optional</span>}
       </label>
-      {children}
-      {hint && !error && <p className="pr-field__hint">{hint}</p>}
-      {error && <p className="pr-field__err">{error}</p>}
+      {fields}
+      {hint && !error && <p id={`${id}-feedback`} className="pr-field__hint">{hint}</p>}
+      {error && <p id={`${id}-feedback`} role="alert" className="pr-field__err">{error}</p>}
     </div>
   )
 }
@@ -399,6 +417,9 @@ function ProfessionalRegisterPage() {
       if (!form.agreedToTerms) e.terms = 'You must agree to the terms to proceed.'
     }
     setErrors(e)
+    if (Object.keys(e).length > 0) {
+      window.requestAnimationFrame(() => document.querySelector<HTMLElement>('.pr-field [aria-invalid="true"]')?.focus())
+    }
     return Object.keys(e).length === 0
   }
 
@@ -428,7 +449,7 @@ function ProfessionalRegisterPage() {
     setSubmitError('')
     if (validateStep(currentStep)) {
       setCurrentStep((s) => Math.min(TOTAL_STEPS, s + 1))
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
     }
   }
 
@@ -436,7 +457,7 @@ function ProfessionalRegisterPage() {
     setErrors({})
     setSubmitError('')
     setCurrentStep((s) => Math.max(1, s - 1))
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -452,7 +473,7 @@ function ProfessionalRegisterPage() {
     formData.append('license_number', form.license.trim())
     formData.append('license_board', form.licenseBoard.trim())
     formData.append('license_country', form.licenseCountry.trim())
-    formData.append('license_expiry', form.licenseExpiry.trim())
+    if (form.licenseExpiry.trim()) formData.append('license_expiry', form.licenseExpiry.trim())
     formData.append('id_number', form.idNumber.trim())
     formData.append('specialty', form.specialty)
     if (form.facility.trim()) formData.append('facility', form.facility.trim())
@@ -461,7 +482,7 @@ function ProfessionalRegisterPage() {
     if (form.labAccreditation.trim()) formData.append('lab_accreditation', form.labAccreditation.trim())
     if (form.experience) formData.append('years_experience', String(form.experience))
     if (form.availability.trim()) formData.append('availability', form.availability.trim())
-    if (form.fee) formData.append('fee', String(form.fee))
+
     if (form.county.trim()) formData.append('county', form.county.trim())
     if (form.address.trim()) formData.append('address', form.address.trim())
     if (form.bio.trim()) formData.append('bio', form.bio.trim())
@@ -492,7 +513,7 @@ function ProfessionalRegisterPage() {
       setSuccessDetail(response.detail ?? '')
       setSuccessSteps(Array.isArray(response.next_steps) ? response.next_steps : [])
       setSubmitted(true)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
     } catch (error) {
       setChallengeToken('')
       setChallengeResetKey((key) => key + 1)
@@ -504,7 +525,7 @@ function ProfessionalRegisterPage() {
         setErrors((prev) => ({ ...prev, ...mapped }))
         setSubmitError(Object.keys(mapped).length > 0 ? '' : error.message)
         setCurrentStep(stepForErrors(mapped))
-        window.scrollTo({ top: 0, behavior: 'smooth' })
+        window.scrollTo({ top: 0, behavior: preferredScrollBehavior() })
       } else {
         setSubmitError('Unable to submit your application right now. Please try again.')
       }
@@ -559,7 +580,7 @@ function ProfessionalRegisterPage() {
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18" strokeLinecap="round" strokeLinejoin="round">
               <path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2z"/><path d="M10 6v4l3 3"/>
             </svg>
-            <span>Join AVA Health</span>
+            <h1 className="pr-header__title">Join AVA Health</h1>
           </div>
           <div className="pr-header__progress">
             <span>{currentStep} of {TOTAL_STEPS}</span>
@@ -972,25 +993,13 @@ function ProfessionalRegisterPage() {
               </div>
               {(type === 'Doctor' || type === 'Pediatrician') && (
                 <div className="pr-row">
-                  <Field label="Consultation fee" optional hint="Typical range: KSh 1,000 – 5,000">
-                    <div className="pr-prefix-wrap">
-                      <span className="pr-prefix">KSh</span>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder={type === 'Doctor' ? '1500' : '1200'}
-                        value={form.fee}
-                        onChange={(e) => set('fee', e.target.value)}
-                        className="pr-prefix-input"
-                      />
-                    </div>
-                  </Field>
-                  <Field label="Platform commission" optional>
+                  <div><strong>Standard consultation fee</strong><p>Patient pays KSh 1,500 per consultation. You receive KSh 1,000.</p></div>
+                  <Field label="AVA Pharmacy share">
                     <div className="pr-commission-badge">
                       <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
                         <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 3a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4zm0 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
                       </svg>
-                      15% per consultation retained by AVA Health to cover platform & support costs.
+                      KSh 500 per consultation goes to AVA Pharmacy. No percentage commission is deducted.
                     </div>
                   </Field>
                 </div>

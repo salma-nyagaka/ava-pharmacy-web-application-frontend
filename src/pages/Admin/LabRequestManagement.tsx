@@ -1,3 +1,4 @@
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../components/PageHeader/PageHeader'
 import { useAuth } from '../../context/AuthContext'
@@ -110,13 +111,8 @@ function LabRequestManagement({ embedded = false }: { embedded?: boolean }) {
     })
   }, [requests, search, statusFilter, queueFilter])
 
-  const stats = useMemo(() => ({
-    total: requests.length,
-    unassigned: requests.filter((request) => !request.laboratory || !request.assignedTechnician).length,
-    home: requests.filter((request) => request.channel === 'collection').length,
-    processing: requests.filter((request) => request.status === 'processing').length,
-    ready: requests.filter((request) => request.status === 'result_ready').length,
-  }), [requests])
+  const { count: databaseCount } = useAdminRecordStats('lab_requests', 'all', requests)
+
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -195,10 +191,10 @@ function LabRequestManagement({ embedded = false }: { embedded?: boolean }) {
             <div className="lp-explorer__heading"><h2>Lab requests workspace</h2><p>Review incoming patient requests, then assign a verified laboratory and active technician for home sample collection.</p></div>
             <div className="lp-registry-tabs lrm-queue-tabs" role="tablist" aria-label="Lab request queues">
               {[
-                ['all', 'All requests', stats.total],
-                ['needs_assignment', 'Needs assignment', stats.unassigned],
-                ['home_collection', 'Home collection', stats.home],
-                ['results_ready', 'Results ready', stats.ready],
+                ['all', 'All requests', databaseCount('total')],
+                ['needs_assignment', 'Needs assignment', databaseCount('unassigned')],
+                ['home_collection', 'Home collection', databaseCount('home')],
+                ['results_ready', 'Results ready', databaseCount('ready')],
               ].map(([value, label, count]) => <button key={value} type="button" role="tab" aria-selected={queueFilter === value} className={queueFilter === value ? 'lp-registry-tabs__tab lp-registry-tabs__tab--active' : 'lp-registry-tabs__tab'} onClick={() => setQueueFilter(value as QueueFilter)}>{label} <span>{count}</span></button>)}
             </div>
           </section>
@@ -208,10 +204,10 @@ function LabRequestManagement({ embedded = false }: { embedded?: boolean }) {
           <div className="lp-workspace__body">
           <div className="lrm-toolbar">
             <div className="lrm-search">
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search reference, patient, test or laboratory…" />
+              <input aria-label="Search reference, patient, test or laboratory" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search reference, patient, test or laboratory…" />
             </div>
             <div className="lrm-filters">
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | LabRequestStatus)}>
+              <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | LabRequestStatus)}>
                 <option value="all">All statuses</option>
                 {Object.entries(STATUS_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
               </select>
@@ -289,16 +285,16 @@ function LabRequestManagement({ embedded = false }: { embedded?: boolean }) {
               <div className="lrm-section">
                 <p className="lrm-section__title">Coordination</p>
                 <div className="lrm-form-group">
-                  <label>Verified laboratory facility</label>
-                  <select disabled={saving} value={selected.laboratory ?? ''} onChange={(event) => { void assignFacility(selected, event.target.value ? Number(event.target.value) : null) }}>
+                  <label htmlFor="field-labrequestmanagement-292-14867">Verified laboratory facility</label>
+                  <select id="field-labrequestmanagement-292-14867" disabled={saving} value={selected.laboratory ?? ''} onChange={(event) => { void assignFacility(selected, event.target.value ? Number(event.target.value) : null) }}>
                     <option value="">Unassigned</option>
                     {eligibleFacilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name} - {facility.partner_name} ({facility.county})</option>)}
                   </select>
                   {eligibleFacilities.length === 0 && <small>No verified facility currently offers this fulfillment/test combination.</small>}
                 </div>
                 <div className="lrm-form-group">
-                  <label>Active technician</label>
-                  <select disabled={saving || !selected.laboratory} value={selected.assignedTechnician ?? ''} onChange={(event) => { void assignTechnician(selected, event.target.value ? Number(event.target.value) : null) }}>
+                  <label htmlFor="field-labrequestmanagement-300-15674">Active technician</label>
+                  <select id="field-labrequestmanagement-300-15674" disabled={saving || !selected.laboratory} value={selected.assignedTechnician ?? ''} onChange={(event) => { void assignTechnician(selected, event.target.value ? Number(event.target.value) : null) }}>
                     <option value="">Unassigned</option>
                     {selectedTechnicians.map((technician) => <option key={technician.id} value={technician.user ?? ''}>{technician.name || technician.user_name}</option>)}
                   </select>

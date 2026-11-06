@@ -23,7 +23,7 @@
   text-align: left;
   gap: 0.5rem;
   transition: border-color 0.15s;
-  min-height: 38px;
+  min-height: 44px;
 }
 
 .ss-trigger:focus {
@@ -33,7 +33,7 @@
 }
 
 .ss-trigger__placeholder {
-  color: #9ca3af;
+  color: #64748b;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -79,7 +79,7 @@
 }
 
 .ss-search__icon {
-  color: #9ca3af;
+  color: #64748b;
   flex-shrink: 0;
 }
 
@@ -93,7 +93,7 @@
 }
 
 .ss-search__input::placeholder {
-  color: #9ca3af;
+  color: #64748b;
 }
 
 .ss-list {
@@ -107,7 +107,7 @@
 .ss-list__empty {
   padding: 0.625rem 0.875rem;
   font-size: 0.8125rem;
-  color: #9ca3af;
+  color: #64748b;
 }
 
 .ss-list__item {
@@ -118,7 +118,8 @@
   transition: background 0.1s;
 }
 
-.ss-list__item:hover {
+.ss-list__item:hover,
+.ss-list__item--active {
   background: #f5f3ff;
 }
 
@@ -127,3 +128,7 @@
   color: #4f46e5;
   font-weight: 500;
 }
+
+.ss-root, .ss-search__input, .ss-trigger__label, .ss-trigger__placeholder { min-width: 0; }
+.ss-list__item { min-height: 44px; overflow-wrap: anywhere; }
+.ss-search__input:focus-visible { outline-offset: 1px; }

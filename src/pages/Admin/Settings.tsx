@@ -151,7 +151,7 @@ function CountyPicker({
               <circle cx="9" cy="9" r="5.5" />
               <path d="M13 13L16.5 16.5" strokeLinecap="round" />
             </svg>
-            <input
+            <input aria-label="Search counties"
               ref={inputRef}
               type="text"
               className="settings-picker__search-input"
@@ -229,6 +229,7 @@ function CountyPicker({
 
 function Settings() {
   const { settings, isLoading, save } = useSiteSettings()
+  const [activeSection, setActiveSection] = useState('delivery')
   const [supportEmail, setSupportEmail] = useState(settings.supportEmail)
   const [supportPhone, setSupportPhone] = useState(settings.supportPhone)
   const [whatsappPhone, setWhatsappPhone] = useState(settings.whatsappPhone)
@@ -469,26 +470,43 @@ function Settings() {
     ],
   )
 
-  const isSaveDisabled = isLoading || saveState === 'saving'
+  const isSaveDisabled = isLoading || saveState === 'saving' || !hasChanges
 
   return (
-    <div className="admin-page">
+    <div className="admin-page settings-page">
       <div className="settings-page__hero">
         <div className="cm-title-group">
-          <h1>Settings Management</h1>
-          <p className="cm-title-sub">Manage storefront contacts, delivery counties, and checkout rules</p>
+          <h1>Settings</h1>
+          <p className="cm-title-sub">Manage your pharmacy’s delivery, contact details, and public registration information.</p>
         </div>
       </div>
 
       {(formError || saveState === 'saved') && (
-        <div className={`settings-status settings-status--${saveState === 'saved' ? 'success' : 'error'}`}>
+        <div role="status" className={`settings-status settings-status--${saveState === 'saved' ? 'success' : 'error'}`}>
           {saveState === 'saved' ? 'Settings saved successfully.' : formError}
         </div>
       )}
 
-      <div className="page-grid page-grid--2">
-        <div className="form-card settings-card">
-          <h2 className="card__title">Delivery & fees</h2>
+      <nav className="settings-nav" aria-label="Settings sections">
+        {[
+          { id: 'delivery', title: 'Delivery & fees', description: 'Charges and delivery coverage' },
+          { id: 'support', title: 'Contact & hours', description: 'Customer support and store details' },
+          { id: 'compliance', title: 'Pharmacy compliance', description: 'Registration and pharmacist details' },
+        ].map((section) => (
+          <button key={section.id} type="button"
+            className={`settings-nav__item${activeSection === section.id ? ' settings-nav__item--active' : ''}`}
+            aria-current={activeSection === section.id ? 'page' : undefined}
+            aria-controls={`settings-${section.id}`}
+            onClick={() => setActiveSection(section.id)}>
+            <strong>{section.title}</strong>
+            <span>{section.description}</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="settings-content">
+        <section id="settings-delivery" aria-labelledby="delivery-title" hidden={activeSection !== 'delivery'} className="form-card settings-card">
+          <h2 id="delivery-title" className="card__title">Delivery & fees</h2>
           <p className="card__subtitle">These values are used in checkout and cart messaging.</p>
           <div className="form-group">
             <label htmlFor="base-fee">Base delivery fee (KSh)</label>
@@ -526,10 +544,10 @@ function Settings() {
             </p>
             <CountyPicker options={kenyaCounties} selected={selectedZones} onToggle={toggleCounty} onClear={clearCounties} />
           </div>
-        </div>
+        </section>
 
-        <div className="form-card settings-card">
-          <h2 className="card__title">Notifications & Support</h2>
+        <section id="settings-support" aria-labelledby="support-title" hidden={activeSection !== 'support'} className="form-card settings-card">
+          <h2 id="support-title" className="card__title">Contact & hours</h2>
           <p className="card__subtitle">These details appear on the public website support surfaces.</p>
           <div className="form-group">
             <label htmlFor="support-email">Support email address</label>
@@ -667,10 +685,10 @@ function Settings() {
             <span>Escalated issues are handled in</span>
             <Link to="/admin/support">Support & Escalations</Link>
           </div>
-        </div>
+        </section>
 
-        <div className="form-card settings-card">
-          <h2 className="card__title">PPB Internet Pharmacy</h2><Link to="/account/compliance">Manage restricted compliance evidence</Link>
+        <section id="settings-compliance" aria-labelledby="compliance-title" hidden={activeSection !== 'compliance'} className="form-card settings-card settings-card--compliance">
+          <h2 id="compliance-title" className="card__title">Pharmacy compliance</h2>
           <p className="card__subtitle">These details are displayed publicly for PPB internet-pharmacy compliance.</p>
           <div className="form-group">
             <label htmlFor="health-safety-code">Health Safety Code</label>
@@ -704,31 +722,29 @@ function Settings() {
             <label htmlFor="ppb-website">PPB website</label>
             <input id="ppb-website" value={ppbWebsite} onChange={(e) => { setPpbWebsite(e.target.value); markDirty() }} />
           </div>
-        </div>
+        </section>
       </div>
 
-      <div className="form-card settings-card settings-card--full">
+      <aside className="settings-impact">
         <h2 className="card__title">Storefront impact</h2>
-        <p className="card__subtitle">The following areas now read from these settings.</p>
+        <p className="card__subtitle">Saved changes apply across your public website.</p>
         <ul className="settings-impact-list">
           <li>Footer contact details</li>
           <li>Contact, Help, Returns, and Order Tracking support sections</li>
           <li>Cart and Checkout delivery fee calculations</li>
           <li>Header and homepage delivery-threshold messaging</li>
         </ul>
-      </div>
+      </aside>
 
-      {(hasChanges || saveState === 'saving') && (
-        <div className="settings-actions">
+      <div className="settings-actions">
           <div className="settings-actions__copy">
-            <strong>Unsaved changes</strong>
-            <span>Review the updates above, then save them to apply across the storefront and checkout.</span>
+            <strong>{isLoading ? 'Loading settings…' : saveState === 'saving' ? 'Saving changes…' : hasChanges ? 'Unsaved changes' : 'All changes saved'}</strong>
+            <span>{hasChanges ? 'Save to apply changes across all settings sections.' : 'Your settings are up to date.'}</span>
           </div>
           <button className="btn btn--primary" onClick={() => { void handleSaveSettings() }} disabled={isSaveDisabled}>
             {saveLabel}
           </button>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

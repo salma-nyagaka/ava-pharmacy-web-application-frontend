@@ -1112,3 +1112,49 @@
 }
 @media (max-width: 1023px) { .order-management, .om-page { padding: 1.5rem; } }
 @media (max-width: 640px) { .order-management, .om-page { padding: 1rem; } }
+
+.orders-payment-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.25rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.orders-payment-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.65rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  background: #fff;
+  color: #475569;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.orders-payment-tabs__tab[aria-pressed="true"] {
+  color: #be123c;
+  background: #fff1f2;
+  border-color: #fda4af;
+}
+.orders-payment-tabs__tab:focus-visible {
+  outline: 2px solid #e11d48;
+  outline-offset: 2px;
+}
+.orders-payment-tabs__count {
+  border-radius: 1rem;
+  padding: 0.1rem 0.45rem;
+  background: #f1f5f9;
+  font-size: 0.8em;
+}
+.orders-payment-tabs__tab[aria-pressed="true"] .orders-payment-tabs__count {
+  background: #ffe4e6;
+}
+
+.orders-return-details { min-width: 150px; max-width: 300px; white-space: normal; }
+.orders-return-details summary { cursor: pointer; color: #be123c; font-weight: 600; }
+.orders-return-details__item { display: grid; gap: 6px; padding: 12px 0; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+.orders-return-details__item p { margin: 0; }
+.orders-return-details__item .status { justify-self: start; }

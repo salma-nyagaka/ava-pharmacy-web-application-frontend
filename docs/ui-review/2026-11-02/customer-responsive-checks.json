@@ -1,0 +1,287 @@
+[
+  {
+    "heading": "Welcome back, QA",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account",
+    "width": 354
+  },
+  {
+    "heading": "My Orders",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/orders",
+    "width": 354
+  },
+  {
+    "heading": "Prescription history",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/prescriptions",
+    "width": 354
+  },
+  {
+    "heading": "My Consultations",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/consultations",
+    "width": 354
+  },
+  {
+    "heading": "Lab Tests",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/lab-tests",
+    "width": 354
+  },
+  {
+    "heading": "Notifications",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/notifications",
+    "width": 354
+  },
+  {
+    "heading": "Support requests",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/support",
+    "width": 354
+  },
+  {
+    "heading": "Saved Addresses",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/addresses",
+    "width": 354
+  },
+  {
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/payment",
+    "width": 354
+  },
+  {
+    "heading": "Your account",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/settings",
+    "width": 354
+  },
+  {
+    "heading": "My Prescriptions",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/prescriptions",
+    "width": 354
+  },
+  {
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/doctor-consultation",
+    "width": 354
+  },
+  {
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/pediatric-consultation",
+    "width": 354
+  },
+  {
+    "heading": "Professional Lab Diagnostics",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/lab-tests",
+    "width": 354
+  },
+  {
+    "heading": "Welcome back, QA",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account",
+    "width": 698
+  },
+  {
+    "heading": "My Orders",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/orders",
+    "width": 698
+  },
+  {
+    "heading": "Prescription history",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/prescriptions",
+    "width": 698
+  },
+  {
+    "heading": "My Consultations",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/consultations",
+    "width": 698
+  },
+  {
+    "heading": "Lab Tests",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/lab-tests",
+    "width": 698
+  },
+  {
+    "heading": "Notifications",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/notifications",
+    "width": 698
+  },
+  {
+    "heading": "Support requests",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/support",
+    "width": 698
+  },
+  {
+    "heading": "Saved Addresses",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/addresses",
+    "width": 698
+  },
+  {
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/payment",
+    "width": 698
+  },
+  {
+    "heading": "Your account",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/settings",
+    "width": 698
+  },
+  {
+    "heading": "My Prescriptions",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/prescriptions",
+    "width": 698
+  },
+  {
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/doctor-consultation",
+    "width": 698
+  },
+  {
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/pediatric-consultation",
+    "width": 698
+  },
+  {
+    "heading": "Professional Lab Diagnostics",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/lab-tests",
+    "width": 698
+  },
+  {
+    "heading": "Welcome back, QA",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account",
+    "width": 1309
+  },
+  {
+    "heading": "My Orders",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/orders",
+    "width": 1309
+  },
+  {
+    "heading": "Prescription history",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/prescriptions",
+    "width": 1309
+  },
+  {
+    "heading": "My Consultations",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/consultations",
+    "width": 1309
+  },
+  {
+    "heading": "Lab Tests",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/lab-tests",
+    "width": 1309
+  },
+  {
+    "heading": "Notifications",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/notifications",
+    "width": 1309
+  },
+  {
+    "heading": "Support requests",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/support",
+    "width": 1309
+  },
+  {
+    "heading": "Saved Addresses",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/addresses",
+    "width": 1309
+  },
+  {
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/payment",
+    "width": 1309
+  },
+  {
+    "heading": "Your account",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/account/settings",
+    "width": 1309
+  },
+  {
+    "heading": "My Prescriptions",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/prescriptions",
+    "width": 1309
+  },
+  {
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/doctor-consultation",
+    "width": 1309
+  },
+  {
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/pediatric-consultation",
+    "width": 1309
+  },
+  {
+    "heading": "Professional Lab Diagnostics",
+    "mainCount": 1,
+    "overflow": false,
+    "path": "/lab-tests",
+    "width": 1309
+  }
+]

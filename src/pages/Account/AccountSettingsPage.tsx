@@ -1,8 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import {
-  changeAccountPassword,
   deactivateAccount,
   fetchAccountProfile,
   updateAccountProfile,
@@ -34,64 +33,6 @@ const TABS = [
 ] as const
 
 type TabKey = typeof TABS[number]['key']
-
-function PasswordInput({
-  id,
-  placeholder,
-  label,
-  value,
-  hint,
-  onChange,
-}: {
-  id: string
-  placeholder: string
-  label: string
-  value: string
-  hint?: string
-  onChange: (value: string) => void
-}) {
-  const [show, setShow] = useState(false)
-  return (
-    <div className="ase-form__group">
-      <label htmlFor={id}>{label}</label>
-      <div className="ase-input-wrap">
-        <input id={id} type={show ? 'text' : 'password'} placeholder={placeholder} value={value} onChange={(event) => onChange(event.target.value)} />
-        <button type="button" className="ase-eye" onClick={() => setShow((prev) => !prev)} aria-label={show ? 'Hide' : 'Show'}>
-          {show ? (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
-            </svg>
-          ) : (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          )}
-        </button>
-      </div>
-      {hint && <p className="ase-hint">{hint}</p>}
-    </div>
-  )
-}
-
-function PasswordStrength({ value }: { value: string }) {
-  const score = !value ? 0 : value.length < 6 ? 1 : value.length < 10 ? 2 : /[A-Z]/.test(value) && /[0-9]/.test(value) ? 4 : 3
-  const labels = ['', 'Too short', 'Weak', 'Good', 'Strong']
-  const colors = ['#e2e8f0', '#ef4444', '#f59e0b', '#3b82f6', '#22c55e']
-  if (!value) return null
-  return (
-    <div className="ase-strength">
-      <div className="ase-strength__bars">
-        {[1, 2, 3, 4].map((i) => (
-          <span key={i} className="ase-strength__bar" style={{ background: i <= score ? colors[score] : '#e2e8f0' }} />
-        ))}
-      </div>
-      <span className="ase-strength__label" style={{ color: colors[score] }}>{labels[score]}</span>
-    </div>
-  )
-}
 
 function extractErrorMessage(error: unknown, fallback: string) {
   const response = (error as { response?: { data?: Record<string, unknown> } })?.response?.data
@@ -154,19 +95,9 @@ function AccountSettingsPage() {
     date_of_birth: '',
     gender: '',
   })
-  const [passwordForm, setPasswordForm] = useState({
-    old_password: '',
-    new_password: '',
-    new_password_confirm: '',
-  })
-
   const [profileError, setProfileError] = useState('')
   const [profileMessage, setProfileMessage] = useState('')
   const [profileSaving, setProfileSaving] = useState(false)
-
-  const [passwordError, setPasswordError] = useState('')
-  const [passwordMessage, setPasswordMessage] = useState('')
-  const [passwordSaving, setPasswordSaving] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -195,8 +126,18 @@ function AccountSettingsPage() {
     }
   }, [])
 
+  const [emailChangePassword, setEmailChangePassword] = useState('')
+  const [emailPasswordError, setEmailPasswordError] = useState('')
+  const [showEmailPassword, setShowEmailPassword] = useState(false)
+
   const handleProfileSave = async (event: FormEvent) => {
     event.preventDefault()
+    setEmailPasswordError('')
+    if (profileForm.email.trim().toLowerCase() !== profile?.email?.toLowerCase() && !emailChangePassword) {
+      setEmailPasswordError('Enter your current sign-in password to change your email.')
+      document.getElementById('email-change-password')?.focus()
+      return
+    }
     setProfileSaving(true)
     setProfileError('')
     setProfileMessage('')
@@ -205,6 +146,7 @@ function AccountSettingsPage() {
         first_name: profileForm.first_name.trim(),
         last_name: profileForm.last_name.trim(),
         email: profileForm.email.trim(),
+        current_password: emailChangePassword || undefined,
         phone: profileForm.phone.trim(),
         date_of_birth: profileForm.date_of_birth || null,
         gender: profileForm.gender,
@@ -223,31 +165,24 @@ function AccountSettingsPage() {
         email: updated.email,
         phone: updated.phone,
       })
-      setProfileMessage('Profile updated successfully.')
+      setEmailChangePassword('')
+      setProfileMessage(updated.email_change
+        ? updated.email_change.failed_to.length
+          ? `Your email has not changed. Confirmation could not be sent to ${updated.email_change.failed_to.join(' and ')}. Please try again.`
+          : `Confirmation email sent to ${updated.email_change.sent_to.join(' and ')}. Approve the link within 30 minutes. Your current email stays active until then.`
+        : 'Profile updated successfully.')
     } catch (error) {
-      setProfileError(extractErrorMessage(error, 'Unable to update your profile right now.'))
+      const data = (error as { response?: { data?: { error?: { details?: Record<string, unknown> } } } })?.response?.data
+      const details = data?.error?.details
+      const passwordError = details?.current_password
+      if (passwordError) {
+        setEmailPasswordError(Array.isArray(passwordError) ? passwordError.join(' ') : String(passwordError))
+        document.getElementById('email-change-password')?.focus()
+      } else {
+        setProfileError(extractErrorMessage(error, 'Unable to update your profile right now.'))
+      }
     } finally {
       setProfileSaving(false)
-    }
-  }
-
-  const handlePasswordSave = async (event: FormEvent) => {
-    event.preventDefault()
-    setPasswordSaving(true)
-    setPasswordError('')
-    setPasswordMessage('')
-    try {
-      await changeAccountPassword(passwordForm)
-      setPasswordForm({
-        old_password: '',
-        new_password: '',
-        new_password_confirm: '',
-      })
-      setPasswordMessage('Password updated successfully.')
-    } catch (error) {
-      setPasswordError(extractErrorMessage(error, 'Unable to update your password right now.'))
-    } finally {
-      setPasswordSaving(false)
     }
   }
 
@@ -339,11 +274,23 @@ function AccountSettingsPage() {
                 <p className="ase-hint">Optional profile information.</p>
               </div>
             </div>
-            {profileError && <p className="ase-hint" style={{ color: '#b91c1c' }}>{profileError}</p>}
-            {profileMessage && <p className="ase-hint" style={{ color: '#15803d' }}>{profileMessage}</p>}
+            {profileForm.email.trim().toLowerCase() !== profile?.email?.toLowerCase() && (
+              <div className="ase-form__group">
+                <label htmlFor="email-change-password">Current password to change email</label>
+                <div className="ase-input-wrap">
+                <input id="email-change-password" type={showEmailPassword ? 'text' : 'password'} autoComplete="current-password" aria-invalid={Boolean(emailPasswordError)} aria-describedby={emailPasswordError ? 'email-change-password-error email-change-password-hint' : 'email-change-password-hint'} value={emailChangePassword} onChange={event => { setEmailChangePassword(event.target.value); setEmailPasswordError('') }} required disabled={profileSaving} style={{ paddingRight: 70 }} />
+                <button type="button" className="ase-eye" style={{ width: 52, fontSize: '.8rem' }} onClick={() => setShowEmailPassword(value => !value)} aria-label={showEmailPassword ? 'Hide current password' : 'Show current password'} aria-pressed={showEmailPassword}>{showEmailPassword ? 'Hide' : 'Show'}</button>
+                </div>
+                <p className="ase-hint">Use the AVA Pharmacy sign-in password for {profile?.email}. <a href="/auth/forgot-password">Forgot password?</a></p>
+                {emailPasswordError && <p id="email-change-password-error" role="alert" className="ase-hint" style={{ color: '#b91c1c' }}>{emailPasswordError}</p>}
+                <p id="email-change-password-hint" className="ase-hint">Only your current email address receives the approval link. It expires in 30 minutes.</p>
+              </div>
+            )}
+            {profileError && <p role="alert" className="ase-hint" style={{ color: '#b91c1c' }}>{profileError}</p>}
+            {profileMessage && <p className="ase-hint" role="status" style={{ color: '#15803d' }}>{profileMessage}</p>}
             <div className="ase-form__actions">
-              <button className={`ase-btn ase-btn--primary ${profileMessage ? 'ase-btn--saved' : ''}`} type="submit" disabled={loading || profileSaving}>
-                {profileSaving ? 'Saving…' : profileMessage ? 'Saved!' : 'Save changes'}
+              <button className="ase-btn ase-btn--primary" type="submit" disabled={loading || profileSaving}>
+                {profileSaving ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </form>
@@ -364,65 +311,27 @@ function AccountSettingsPage() {
               <p className="ase-section-head__sub">Keep your account safe with a strong password</p>
             </div>
           </div>
-          <form className="ase-form" onSubmit={handlePasswordSave}>
-            <PasswordInput
-              id="ase-current"
-              label="Current password"
-              placeholder="Enter your current password"
-              value={passwordForm.old_password}
-              onChange={(value) => setPasswordForm((prev) => ({ ...prev, old_password: value }))}
-            />
-            <div className="ase-form__group">
-              <label htmlFor="ase-new">New password</label>
-              <div className="ase-input-wrap">
-                <input
-                  id="ase-new"
-                  type="password"
-                  placeholder="At least 8 characters"
-                  value={passwordForm.new_password}
-                  onChange={(event) => setPasswordForm((prev) => ({ ...prev, new_password: event.target.value }))}
-                />
-              </div>
-              <PasswordStrength value={passwordForm.new_password} />
-              <p className="ase-hint">Use a mix of letters, numbers and symbols for a stronger password</p>
-            </div>
-            <PasswordInput
-              id="ase-confirm"
-              label="Confirm new password"
-              placeholder="Type your new password again"
-              value={passwordForm.new_password_confirm}
-              onChange={(value) => setPasswordForm((prev) => ({ ...prev, new_password_confirm: value }))}
-            />
-            <div className="ase-info-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <p>After changing your password, future sign-ins will use the new password immediately.</p>
-            </div>
-            {passwordError && <p className="ase-hint" style={{ color: '#b91c1c' }}>{passwordError}</p>}
-            {passwordMessage && <p className="ase-hint" style={{ color: '#15803d' }}>{passwordMessage}</p>}
-            <div className="ase-form__actions">
-              <button className={`ase-btn ase-btn--primary ${passwordMessage ? 'ase-btn--saved' : ''}`} type="submit" disabled={passwordSaving}>
-                {passwordSaving ? 'Updating…' : passwordMessage ? 'Password updated!' : 'Update password'}
-              </button>
-            </div>
-          </form>
+          <div className="ase-password-reset">
+            <p>We’ll email a reset link to <strong>{profile?.email}</strong>. Open the link to choose a new password.</p>
+            <p className="ase-hint">Your current password stays active until you complete the reset.</p>
+            <Link className="ase-btn ase-btn--primary" to="/auth/forgot-password" state={{ email: profile?.email }}>Reset password by email</Link>
+          </div>
         </div>
       )}
 
-      <section className="ase-card" aria-label="Deactivate account">
+      <section className="ase-card ase-deactivate" aria-label="Deactivate account">
+        <div className="ase-deactivate__copy">
         <h3>Deactivate account</h3>
         <p>This disables sign-in. Existing service and transaction records are retained. Contact support to request removal of retained records.</p>
+        </div>
         {deactivateConfirm ? (
-          <div>
+          <div className="ase-deactivate__confirmation">
             <p>Deactivate this account and sign out?</p>
-            <button type="button" className="ase-btn ase-btn--primary" disabled={deactivating} onClick={() => void handleDeactivate()}>{deactivating ? 'Deactivating…' : 'Confirm deactivation'}</button>
-            <button type="button" className="ase-btn" disabled={deactivating} onClick={() => setDeactivateConfirm(false)}>Keep account</button>
+            <button type="button" className="ase-btn ase-btn--danger" disabled={deactivating} onClick={() => void handleDeactivate()}>{deactivating ? 'Deactivating…' : 'Confirm deactivation'}</button>
+            <button type="button" className="ase-btn ase-btn--secondary" disabled={deactivating} onClick={() => setDeactivateConfirm(false)}>Keep account</button>
           </div>
-        ) : <button type="button" className="ase-btn" onClick={() => setDeactivateConfirm(true)}>Deactivate account</button>}
-        {deactivateError && <p role="alert">{deactivateError}</p>}
+        ) : <button type="button" className="ase-btn ase-btn--danger-outline" onClick={() => setDeactivateConfirm(true)}>Deactivate account</button>}
+        {deactivateError && <p className="ase-deactivate__error" role="alert">{deactivateError}</p>}
       </section>
     </div>
   )

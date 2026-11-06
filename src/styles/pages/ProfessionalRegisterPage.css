@@ -1552,3 +1552,5 @@
     padding: 2rem 1.375rem;
   }
 }
+
+.pr-header__title { font: inherit; margin: 0; }

@@ -1,3 +1,4 @@
+import { formatStatus } from '../../utils/formatStatus'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../../styles/admin/AdminShared.css'
@@ -188,7 +189,7 @@ function JourneyChecklistPage() {
                 <p className="journey-card__owner">Owner: {module.owner}</p>
               </div>
               <span className={`journey-status journey-status--${module.status.toLowerCase().replace(' ', '-')}`}>
-                {module.status}
+                {formatStatus(module.status)}
               </span>
             </div>
 

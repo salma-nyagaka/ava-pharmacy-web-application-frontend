@@ -1,3 +1,6 @@
+import { useWorkspaceView } from '../../hooks/useWorkspaceView'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -87,7 +90,7 @@ function LabDashboardPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [rowLoadingId, setRowLoadingId] = useState<number | null>(null)
-  const [activeTab, setActiveTab] = useState<LabDashboardTab>('overview')
+  const [activeTab, setActiveTab] = useWorkspaceView<LabDashboardTab>(['overview', 'facilities', 'team', 'requests'], 'overview')
 
   const isAdminPreview = user?.role === 'admin'
   const isPartner = user?.role === 'lab_partner'
@@ -514,7 +517,7 @@ function LabDashboardPage() {
                       </td>
                       <td>{tech.email}<br />{tech.phone || '-'}</td>
                       <td>{tech.specialty || '-'}</td>
-                      <td><span className={statusToneClass(tech.status)}>{tech.status}</span></td>
+                      <td><span className={statusToneClass(tech.status)}>{formatStatus(tech.status)}</span></td>
                       <td>{tech.accountProvisioned ? 'Provisioned' : 'Pending setup'}</td>
                       <td className="portal-table__actions">
                         {!isAdminPreview && !tech.accountProvisioned && tech.status === 'Active' && (
@@ -565,7 +568,7 @@ function LabDashboardPage() {
                       </td>
                       <td>{facility.offerings.length}<br /><small>{facility.offerings.slice(0, 2).map((item) => item.testName).join(', ')}</small></td>
                       <td>{facility.technicianIds.length}</td>
-                      <td><span className={statusToneClass(facility.status)}>{facility.status}</span>{facility.statusNote && <><br /><small>{facility.statusNote}</small></>}</td>
+                      <td><span className={statusToneClass(facility.status)}>{formatStatus(facility.status)}</span>{facility.statusNote && <><br /><small>{facility.statusNote}</small></>}</td>
                       <td>{!isAdminPreview && <button className="btn btn--outline btn--sm" type="button" onClick={() => openFacility(facility.id)}>Edit</button>}</td>
                     </tr>
                   ))}
@@ -596,7 +599,7 @@ function LabDashboardPage() {
                       <td>{request.patientName}</td>
                       <td>{request.testName}</td>
                       <td>{request.technicianName}</td>
-                      <td><span className={statusToneClass(request.status)}>{request.status}</span></td>
+                      <td><span className={statusToneClass(request.status)}>{formatStatus(request.status)}</span></td>
                       <td>{request.requestedAt}</td>
                     </tr>
                   ))}
@@ -610,30 +613,30 @@ function LabDashboardPage() {
 
       {!isAdminPreview && showAddTech && (
         <div className="modal-overlay" onClick={() => setShowAddTech(false)}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog busy={submitting} onClose={() => setShowAddTech(false)} className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
               <h2>Add lab technician</h2>
-              <button className="modal__close" onClick={() => setShowAddTech(false)}>×</button>
+              <button aria-label="Close dialog" type="button" className="modal__close" onClick={() => setShowAddTech(false)}>×</button>
             </div>
             <div className="modal__content">
               <div className="form-group">
-                <label>Name</label>
-                <input value={techDraft.name} onChange={(event) => setTechDraft((prev) => ({ ...prev, name: event.target.value }))} />
+                <label htmlFor="field-labdashboardpage-621-31628">Name</label>
+                <input id="field-labdashboardpage-621-31628" value={techDraft.name} onChange={(event) => setTechDraft((prev) => ({ ...prev, name: event.target.value }))} />
                 {fieldErrors.name && <p className="pr-field__err">{fieldErrors.name}</p>}
               </div>
               <div className="form-group">
-                <label>Email</label>
-                <input type="email" value={techDraft.email} onChange={(event) => setTechDraft((prev) => ({ ...prev, email: event.target.value }))} />
+                <label htmlFor="field-labdashboardpage-626-32022">Email</label>
+                <input id="field-labdashboardpage-626-32022" type="email" value={techDraft.email} onChange={(event) => setTechDraft((prev) => ({ ...prev, email: event.target.value }))} />
                 {fieldErrors.email && <p className="pr-field__err">{fieldErrors.email}</p>}
               </div>
               <div className="form-group">
-                <label>Phone</label>
-                <input value={techDraft.phone} onChange={(event) => setTechDraft((prev) => ({ ...prev, phone: event.target.value }))} />
+                <label htmlFor="field-labdashboardpage-631-32434">Phone</label>
+                <input id="field-labdashboardpage-631-32434" value={techDraft.phone} onChange={(event) => setTechDraft((prev) => ({ ...prev, phone: event.target.value }))} />
                 {fieldErrors.phone && <p className="pr-field__err">{fieldErrors.phone}</p>}
               </div>
               <div className="form-group">
-                <label>Specialty</label>
-                <input value={techDraft.specialty} onChange={(event) => setTechDraft((prev) => ({ ...prev, specialty: event.target.value }))} />
+                <label htmlFor="field-labdashboardpage-636-32833">Specialty</label>
+                <input id="field-labdashboardpage-636-32833" value={techDraft.specialty} onChange={(event) => setTechDraft((prev) => ({ ...prev, specialty: event.target.value }))} />
                 {fieldErrors.specialty && <p className="pr-field__err">{fieldErrors.specialty}</p>}
               </div>
               <div className="modal__actions">
@@ -643,16 +646,16 @@ function LabDashboardPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {!isAdminPreview && showAddFacility && (
         <div className="modal-overlay" onClick={() => { setShowAddFacility(false); setEditingFacilityId(null) }}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog busy={submitting} onClose={() => { setShowAddFacility(false); setEditingFacilityId(null) }} className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
               <h2>{editingFacilityId ? 'Edit laboratory facility' : 'Register laboratory facility'}</h2>
-              <button className="modal__close" onClick={() => { setShowAddFacility(false); setEditingFacilityId(null) }}>×</button>
+              <button aria-label="Close dialog" type="button" className="modal__close" onClick={() => { setShowAddFacility(false); setEditingFacilityId(null) }}>×</button>
             </div>
             <div className="modal__content">
               <div className="lpd-facility-form-intro">
@@ -661,19 +664,19 @@ function LabDashboardPage() {
               </div>
               <p className="lpd-form-section-title">1. Identity and compliance</p>
               <div className="form-grid form-grid--2">
-                <div className="form-group"><label>Laboratory name <span aria-hidden="true">*</span></label><input value={facilityDraft.name} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, name: event.target.value }))} />{fieldErrors.name && <p className="pr-field__err">{fieldErrors.name}</p>}</div>
-                <div className="form-group"><label>Facility licence number <span aria-hidden="true">*</span></label><input value={facilityDraft.licenseNumber} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, licenseNumber: event.target.value }))} />{fieldErrors.license_number && <p className="pr-field__err">{fieldErrors.license_number}</p>}</div>
-                <div className="form-group"><label>Licence expiry <span aria-hidden="true">*</span></label><input type="date" value={facilityDraft.licenseExpiry} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, licenseExpiry: event.target.value }))} />{fieldErrors.license_expiry && <p className="pr-field__err">{fieldErrors.license_expiry}</p>}</div>
-                <div className="form-group"><label>Accreditation</label><input value={facilityDraft.accreditation} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, accreditation: event.target.value }))} /></div>
-                <div className="form-group"><label>Phone</label><input value={facilityDraft.phone} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, phone: event.target.value }))} />{fieldErrors.phone && <p className="pr-field__err">{fieldErrors.phone}</p>}</div>
-                <div className="form-group"><label>Email</label><input type="email" value={facilityDraft.email} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, email: event.target.value }))} /></div>
-                <div className="form-group"><label>County</label><input value={facilityDraft.county} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, county: event.target.value }))} />{fieldErrors.county && <p className="pr-field__err">{fieldErrors.county}</p>}</div>
-                <div className="form-group"><label>Other supported counties</label><input value={facilityDraft.supportedCounties} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, supportedCounties: event.target.value }))} placeholder="Kajiado, Kiambu" /></div>
-                <div className="form-group"><label>Monday–Friday hours</label><input value={facilityDraft.weekdayHours} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, weekdayHours: event.target.value }))} placeholder="08:00-17:00" /></div>
-                <div className="form-group"><label>Saturday hours</label><input value={facilityDraft.saturdayHours} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, saturdayHours: event.target.value }))} placeholder="08:00-13:00" /></div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-665-34936">Laboratory name <span aria-hidden="true">*</span></label><input id="field-labdashboardpage-665-34936" value={facilityDraft.name} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, name: event.target.value }))} />{fieldErrors.name && <p className="pr-field__err">{fieldErrors.name}</p>}</div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-666-35319">Facility licence number <span aria-hidden="true">*</span></label><input id="field-labdashboardpage-666-35319" value={facilityDraft.licenseNumber} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, licenseNumber: event.target.value }))} />{fieldErrors.license_number && <p className="pr-field__err">{fieldErrors.license_number}</p>}</div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-667-35748">Licence expiry <span aria-hidden="true">*</span></label><input id="field-labdashboardpage-667-35748" type="date" value={facilityDraft.licenseExpiry} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, licenseExpiry: event.target.value }))} />{fieldErrors.license_expiry && <p className="pr-field__err">{fieldErrors.license_expiry}</p>}</div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-668-36180">Accreditation</label><input id="field-labdashboardpage-668-36180" value={facilityDraft.accreditation} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, accreditation: event.target.value }))} /></div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-669-36472">Phone</label><input id="field-labdashboardpage-669-36472" value={facilityDraft.phone} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, phone: event.target.value }))} />{fieldErrors.phone && <p className="pr-field__err">{fieldErrors.phone}</p>}</div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-670-36815">Email</label><input id="field-labdashboardpage-670-36815" type="email" value={facilityDraft.email} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, email: event.target.value }))} /></div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-671-37096">County</label><input id="field-labdashboardpage-671-37096" value={facilityDraft.county} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, county: event.target.value }))} />{fieldErrors.county && <p className="pr-field__err">{fieldErrors.county}</p>}</div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-672-37444">Other supported counties</label><input id="field-labdashboardpage-672-37444" value={facilityDraft.supportedCounties} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, supportedCounties: event.target.value }))} placeholder="Kajiado, Kiambu" /></div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-673-37785">Monday–Friday hours</label><input id="field-labdashboardpage-673-37785" value={facilityDraft.weekdayHours} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, weekdayHours: event.target.value }))} placeholder="08:00-17:00" /></div>
+                <div className="form-group"><label htmlFor="field-labdashboardpage-674-38107">Saturday hours</label><input id="field-labdashboardpage-674-38107" value={facilityDraft.saturdayHours} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, saturdayHours: event.target.value }))} placeholder="08:00-13:00" /></div>
               </div>
-              <div className="form-group"><label>Physical address <span aria-hidden="true">*</span></label><textarea rows={2} value={facilityDraft.address} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, address: event.target.value }))} />{fieldErrors.address && <p className="pr-field__err">{fieldErrors.address}</p>}</div>
-              <div className="form-group"><label>Facility licence/accreditation document (PDF, JPG or PNG){!editingFacilityId && <span aria-hidden="true"> *</span>}</label><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setFacilityDocument(event.target.files?.[0] ?? null)} />{fieldErrors.documents && <p className="pr-field__err">{fieldErrors.documents}</p>}</div>
+              <div className="form-group"><label htmlFor="field-labdashboardpage-676-38445">Physical address <span aria-hidden="true">*</span></label><textarea id="field-labdashboardpage-676-38445" rows={2} value={facilityDraft.address} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, address: event.target.value }))} />{fieldErrors.address && <p className="pr-field__err">{fieldErrors.address}</p>}</div>
+              <div className="form-group"><label htmlFor="field-labdashboardpage-677-38851">Facility licence/accreditation document (PDF, JPG or PNG){!editingFacilityId && <span aria-hidden="true"> *</span>}</label><input id="field-labdashboardpage-677-38851" type="file" accept="application/pdf,image/jpeg,image/png" onChange={(event) => setFacilityDocument(event.target.files?.[0] ?? null)} />{fieldErrors.documents && <p className="pr-field__err">{fieldErrors.documents}</p>}</div>
               <p className="lpd-form-section-title">2. Collection coverage</p>
               <div className="form-group">
                 <label>Test catalogue</label>
@@ -694,8 +697,8 @@ function LabDashboardPage() {
                 const override = facilityDraft.offeringOverrides[testId]
                 return (
                   <div className="form-grid form-grid--2" key={testId}>
-                    <div className="form-group"><label>{test.name} price (KSh)</label><input disabled={!canEditFacilityTests} type="number" min="1" value={override?.price ?? String(test.price)} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: event.target.value, turnaround: prev.offeringOverrides[testId]?.turnaround ?? test.turnaround } } }))} /></div>
-                    <div className="form-group"><label>{test.name} turnaround</label><input disabled={!canEditFacilityTests} value={override?.turnaround ?? test.turnaround} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: prev.offeringOverrides[testId]?.price ?? String(test.price), turnaround: event.target.value } } }))} /></div>
+                    <div className="form-group"><label>{test.name} price (KSh)</label><input aria-label="Facility test price in KSh" disabled={!canEditFacilityTests} type="number" min="1" value={override?.price ?? String(test.price)} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: event.target.value, turnaround: prev.offeringOverrides[testId]?.turnaround ?? test.turnaround } } }))} /></div>
+                    <div className="form-group"><label>{test.name} turnaround</label><input aria-label="Facility test turnaround time" disabled={!canEditFacilityTests} value={override?.turnaround ?? test.turnaround} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, offeringOverrides: { ...prev.offeringOverrides, [testId]: { price: prev.offeringOverrides[testId]?.price ?? String(test.price), turnaround: event.target.value } } }))} /></div>
                   </div>
                 )
               })}
@@ -712,13 +715,13 @@ function LabDashboardPage() {
               </div> : <p className="lpd-team-gate">Technicians can be assigned after Ava approves this laboratory.</p>}
               <label><input type="checkbox" checked={facilityDraft.homeCollection} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, homeCollection: event.target.checked }))} /> Supports home sample collection</label>
               <label><input type="checkbox" checked={facilityDraft.physicalPickup} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, physicalPickup: event.target.checked }))} /> Supports physical result pickup</label>
-              {facilityDraft.physicalPickup && <div className="form-group"><label>Pickup instructions</label><textarea rows={2} value={facilityDraft.pickupInstructions} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, pickupInstructions: event.target.value }))} /></div>}
+              {facilityDraft.physicalPickup && <div className="form-group"><label htmlFor="field-labdashboardpage-716-43228">Pickup instructions</label><textarea id="field-labdashboardpage-716-43228" rows={2} value={facilityDraft.pickupInstructions} onChange={(event) => setFacilityDraft((prev) => ({ ...prev, pickupInstructions: event.target.value }))} /></div>}
               <div className="modal__actions">
                 <button className="btn btn--ghost" type="button" onClick={() => { setShowAddFacility(false); setEditingFacilityId(null) }}>Cancel</button>
                 <button className="btn btn--primary" type="button" onClick={() => { void handleAddFacility() }} disabled={submitting}>{submitting ? 'Submitting…' : editingFacilityId ? 'Save and resubmit' : 'Submit for verification'}</button>
               </div>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </ProfessionalPortalShell>

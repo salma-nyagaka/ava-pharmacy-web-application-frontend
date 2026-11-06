@@ -1,3 +1,10 @@
+import { recordDeliveryConfirmation, orderUpdateError, type DeliveryConfirmation } from '../../services/adminOrderService'
+import OrderStatusConfirmation from '../../components/OrderStatusConfirmation'
+import '../../styles/admin/RefundModal.css'
+import '../../components/AdminKpiStats.css'
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import { formatStatus, formatPaymentMethod } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { addAdminOrderNote, listAdminOrders, refundAdminOrder, type AdminOrder, updateAdminOrder } from '../../services/adminOrderService'
@@ -20,6 +27,15 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
   failed: 'Failed',
 }
+
+const PAYMENT_STATUS_TABS = [
+  { value: 'all', label: 'All payments' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'requires_action', label: 'Requires action' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'refunded', label: 'Refunded' },
+] as const
 
 const ORDER_ACTION_LABELS: Record<string, string> = {
   processing: 'Process',
@@ -63,6 +79,8 @@ function nextOrderStatus(order: AdminOrder) {
 function OrderManagementLive() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [paymentStatus, setPaymentStatus] = useState('all')
+  const [returnFilter, setReturnFilter] = useState('all')
   const [sortField, setSortField] = useState<SortField>('created_at')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
@@ -96,6 +114,10 @@ function OrderManagementLive() {
   const filteredOrders = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
     return orders.filter((order) => {
+      const returns = order.return_requests ?? []
+      if (returnFilter === 'with_returns' && returns.length === 0) return false
+      if (returnFilter === 'open_returns' && !returns.some(request => ['requested', 'approved', 'received'].includes(request.status))) return false
+      if (paymentStatus !== 'all' && order.payment_status !== paymentStatus) return false
       const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus
       if (!query) return matchesStatus
       const matchesQuery = [
@@ -106,7 +128,7 @@ function OrderManagementLive() {
       ].join(' ').toLowerCase().includes(query)
       return matchesStatus && matchesQuery
     })
-  }, [orders, searchTerm, selectedStatus])
+  }, [orders, searchTerm, selectedStatus, paymentStatus, returnFilter])
 
   const sortedOrders = useMemo(() => {
     const items = [...filteredOrders]
@@ -120,14 +142,14 @@ function OrderManagementLive() {
       else if (sortField === 'payment_status') comparison = left.payment_status.localeCompare(right.payment_status)
       else if (sortField === 'status') comparison = left.status.localeCompare(right.status)
       else comparison = compareCreatedAt(left.created_at, right.created_at)
-      return sortDirection === 'asc' ? comparison : -comparison
+      return sortDirection === 'asc' ? (comparison || left.id - right.id) : -(comparison || left.id - right.id)
     })
     return items
   }, [filteredOrders, sortField, sortDirection])
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, selectedStatus, sortField, sortDirection])
+  }, [searchTerm, selectedStatus, paymentStatus, returnFilter, sortField, sortDirection])
 
   const syncOrderInState = (updatedOrder: AdminOrder) => {
     setOrders((prev) => prev.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)))
@@ -140,18 +162,22 @@ function OrderManagementLive() {
     setError('')
   }
 
-  const updateStatus = async (order: AdminOrder, status: string, note = '') => {
+  const updateStatus = async (order: AdminOrder, status: string, note = '', delivery?: DeliveryConfirmation) => {
+    if (actionLoading !== null) return false
     setActionLoading(order.id)
     setError('')
     try {
+      if (status === 'delivered' && delivery) await recordDeliveryConfirmation(order.id, delivery)
       const updated = await updateAdminOrder(order.id, { status })
       syncOrderInState(updated)
       if (note.trim()) {
         const noted = await addAdminOrderNote(order.id, note.trim())
         syncOrderInState(noted)
       }
-    } catch {
-      setError('Failed to update order status.')
+      return true
+    } catch (err) {
+      setError(orderUpdateError(err))
+      return false
     } finally {
       setActionLoading(null)
     }
@@ -214,6 +240,8 @@ function OrderManagementLive() {
     </button>
   )
 
+  const { count: databaseCount } = useAdminRecordStats('orders', 'all', orders)
+
   return (
     <div className="category-management order-management">
       <div className="category-management__header">
@@ -223,14 +251,14 @@ function OrderManagementLive() {
         </div>
       </div>
 
-      <div className="cm-kpi-grid">
+      <div className="cm-kpi-grid store-kpis">
         <div className="cm-kpi-card">
           <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Total Orders</span>
-            <strong className="cm-kpi-card__value">{orders.length}</strong>
+            <strong className="cm-kpi-card__value">{databaseCount('total')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -239,7 +267,7 @@ function OrderManagementLive() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Pending</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{orders.filter(o => o.status === 'pending').length}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{databaseCount('pending')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -248,7 +276,7 @@ function OrderManagementLive() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Shipped</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{orders.filter(o => o.status === 'shipped').length}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{databaseCount('shipped')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -257,9 +285,24 @@ function OrderManagementLive() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Delivered</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{orders.filter(o => o.status === 'delivered').length}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--green">{databaseCount('delivered')}</strong>
           </div>
         </div>
+      </div>
+
+      <div className="orders-payment-tabs" role="group" aria-label="Filter orders by payment status">
+        {PAYMENT_STATUS_TABS.map(tab => (
+          <button
+            key={tab.value}
+            type="button"
+            className="orders-payment-tabs__tab"
+            aria-pressed={paymentStatus === tab.value}
+            onClick={() => { setPaymentStatus(tab.value); setCurrentPage(1) }}
+          >
+            {tab.label}
+            {!loading && <span className="orders-payment-tabs__count">{tab.value === 'all' ? orders.length : orders.filter(order => order.payment_status === tab.value).length}</span>}
+          </button>
+        ))}
       </div>
 
       <div className="cm-toolbar">
@@ -267,7 +310,7 @@ function OrderManagementLive() {
           <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
             <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
           </svg>
-          <input
+          <input aria-label="Search by order number, customer, email, or payment reference"
             type="search"
             placeholder="Search by order number, customer, email, or payment reference…"
             value={searchTerm}
@@ -282,7 +325,13 @@ function OrderManagementLive() {
           )}
         </div>
         <div className="cm-toolbar__right">
-          <select className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
+          <select aria-label="Filter by return requests" className="cm-filter-select" value={returnFilter} onChange={event => setReturnFilter(event.target.value)}>
+            <option value="all">All orders</option>
+            <option value="with_returns">With return requests</option>
+            <option value="open_returns">Open return requests</option>
+          </select>
+          <button className="btn btn--outline btn--sm" type="button" disabled={loading} onClick={() => void loadOrders()}>Refresh</button>
+          <select aria-label="Filter by status" className="cm-filter-select" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
             <option value="all">All Status</option>
             <option value="draft">Draft</option>
             <option value="pending">Pending</option>
@@ -333,6 +382,7 @@ function OrderManagementLive() {
                   <th>{renderSortButton('payment', 'Payment')}</th>
                   <th>{renderSortButton('payment_status', 'Payment Status')}</th>
                   <th>{renderSortButton('status', 'Status')}</th>
+                  <th>Returns</th>
                   <th className="cm-th-actions">Actions</th>
                 </tr>
               </thead>
@@ -351,9 +401,27 @@ function OrderManagementLive() {
                     <td>{formatDate(order.created_at)}</td>
                     <td>{order.items.reduce((sum, item) => sum + item.quantity, 0)}</td>
                     <td><span className="order-total">{formatCurrency(order.total)}</span></td>
-                    <td>{order.payment_method.replace(/_/g, ' ')}</td>
-                    <td><span className={`status status--${order.payment_status}`}>{order.payment_status.replace(/_/g, ' ')}</span></td>
-                    <td><span className={`status status--${order.status}`}>{order.status}</span></td>
+                    <td>{formatPaymentMethod(order.payment_method)}</td>
+                    <td><span className={`status status--${order.payment_status}`}>{formatStatus(order.payment_status)}</span></td>
+                    <td><span className={`status status--${order.status}`}>{formatStatus(order.status)}</span></td>
+                    <td>
+                      {(order.return_requests ?? []).length === 0 ? <span>—</span> : (
+                        <details className="orders-return-details">
+                          <summary>{order.return_requests!.length} return {order.return_requests!.length === 1 ? 'request' : 'requests'}</summary>
+                          {order.return_requests!.map(request => (
+                            <div key={request.id} className="orders-return-details__item">
+                              <strong>#{request.id} · {formatStatus(request.request_type)}</strong>
+                              <span className={`status status--${request.status}`}>{formatStatus(request.status)}</span>
+                              <p>{request.reason}</p>
+                              {request.order_item && <p>Item: {order.items.find(item => item.id === request.order_item)?.product_name || `#${request.order_item}`}</p>}
+                              {request.requested_refund_amount && <p>Requested refund: {formatCurrency(request.requested_refund_amount)}</p>}
+                              <small>{formatDate(request.created_at)}</small>
+                              {request.resolution_notes && <p>Resolution: {request.resolution_notes}</p>}
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                    </td>
                     <td>
                       <div className="action-buttons">
                         <button className="btn-sm btn--outline" type="button" onClick={() => openOrderModal(order)}>Manage</button>
@@ -363,7 +431,7 @@ function OrderManagementLive() {
                             className="btn-sm btn--primary"
                             type="button"
                             disabled={actionLoading === order.id}
-                            onClick={() => void updateStatus(order, nextOrderStatus(order) as string)}
+                            onClick={() => { setError(''); setConfirmPending({ order, status: nextOrderStatus(order) as string, label: 'Confirm order status' }) }}
                           >
                             {ORDER_ACTION_LABELS[nextOrderStatus(order) as string]}
                           </button>
@@ -384,7 +452,7 @@ function OrderManagementLive() {
                 ))}
                 {filteredOrders.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="order-empty">No orders match your search.</td>
+                    <td colSpan={10} className="order-empty">No orders match your search.</td>
                   </tr>
                 )}
               </tbody>
@@ -424,54 +492,35 @@ function OrderManagementLive() {
         )}
       </div>
 
-      {confirmPending && (
-        <div className="modal-overlay" onClick={() => setConfirmPending(null)}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <div className="modal__header">
-              <h2>{confirmPending.label}</h2>
-              <button className="modal__close" type="button" onClick={() => setConfirmPending(null)}>×</button>
-            </div>
-            <div className="modal__content">
-              <p className="od-modal-warning">
-                Update <strong>{confirmPending.order.order_number}</strong> to <strong>{confirmPending.status}</strong>?
-              </p>
-            </div>
-            <div className="modal__footer">
-              <button className="btn btn--outline btn--sm" type="button" onClick={() => setConfirmPending(null)}>Close</button>
-              <button
-                className="btn btn--primary btn--sm"
-                type="button"
-                disabled={actionLoading === confirmPending.order.id}
-                onClick={() => void updateStatus(confirmPending.order, confirmPending.status).then(() => setConfirmPending(null))}
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {confirmPending && <OrderStatusConfirmation orderNumber={confirmPending.order.order_number} status={formatStatus(confirmPending.status)} busy={actionLoading === confirmPending.order.id} error={error} onClose={() => setConfirmPending(null)} onConfirm={(delivery) => { void updateStatus(confirmPending.order, confirmPending.status, '', delivery).then(saved => { if (saved) setConfirmPending(null) }) }} />}
 
       {refundTarget && (
         <div className="modal-overlay" onClick={() => { setRefundTarget(null); setRefundReasonError(false) }}>
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog onClose={() => { setRefundTarget(null); setRefundReasonError(false) }} className="modal refund-modal" role="dialog" aria-modal="true" aria-labelledby="refund-modal-title" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header">
-              <h2>Record external refund</h2>
-              <p>This records a refund completed outside this application. No money is transferred here. Include the payment reference in the reason.</p>
-              <button className="modal__close" type="button" onClick={() => { setRefundTarget(null); setRefundReasonError(false) }}>×</button>
+              <div className="refund-modal__heading">
+                <h2 id="refund-modal-title">Record external refund</h2>
+                <p>Log a refund already completed outside this application.</p>
+              </div>
+              <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => { setRefundTarget(null); setRefundReasonError(false) }}>×</button>
             </div>
             <div className="modal__content">
+              <p className="refund-modal__notice">No money is transferred by this action. Include the external payment reference in your reason.</p>
               <p className="od-modal-warning">Refund <strong>{formatCurrency(refundTarget.total)}</strong> for <strong>{refundTarget.order_number}</strong>?</p>
               <div className="form-group" style={{ marginTop: '1rem' }}>
-                <label htmlFor="refund-note">Reason <span className="od-required">Required</span></label>
+                <label htmlFor="refund-note">Reason & payment reference <span className="od-required">*</span></label>
                 <input
                   id="refund-note"
                   type="text"
+                  required
+                  aria-invalid={refundReasonError}
+                  aria-describedby={refundReasonError ? 'refund-note-error' : undefined}
                   value={refundNote}
                   onChange={(event) => { setRefundNote(event.target.value); setRefundReasonError(false) }}
                   placeholder="e.g. Payment reversed after stock issue"
                   style={{ borderColor: refundReasonError ? '#dc2626' : undefined }}
                 />
-                {refundReasonError && <p className="od-field-error">A reason and external payment reference are required for the refund record.</p>}
+                {refundReasonError && <p id="refund-note-error" role="alert" className="od-field-error">A reason and external payment reference are required for the refund record.</p>}
               </div>
             </div>
             <div className="modal__footer">
@@ -480,13 +529,13 @@ function OrderManagementLive() {
                 Record refund
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {activeOrder && (
         <div className="modal-overlay" onClick={() => setActiveOrder(null)}>
-          <div className="modal order-manage-modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog onClose={() => setActiveOrder(null)} className="modal order-manage-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal__header order-manage-modal__header">
               <div className="order-manage-modal__title-block">
                 <span className="order-manage-modal__eyebrow">Order management</span>
@@ -501,7 +550,7 @@ function OrderManagementLive() {
               <div className="order-manage-modal__header-actions">
                 <span className="order-manage-modal__header-chip">{activeOrder.items.length} item{activeOrder.items.length === 1 ? '' : 's'}</span>
                 <span className="order-manage-modal__header-chip">{formatCurrency(activeOrder.total)}</span>
-                <button className="modal__close" type="button" onClick={() => setActiveOrder(null)}>×</button>
+                <button aria-label="Close dialog" className="modal__close" type="button" onClick={() => setActiveOrder(null)}>×</button>
               </div>
             </div>
             <div className="modal__content order-manage-modal__content">
@@ -513,8 +562,8 @@ function OrderManagementLive() {
                 </div>
                 <div className="order-manage-modal__summary-card order-manage-modal__summary-card--payment">
                   <span>Payment</span>
-                  <strong>{activeOrder.payment_method.replace(/_/g, ' ')}</strong>
-                  <p>{activeOrder.payment_status.replace(/_/g, ' ')}{activeOrder.payment_reference ? ` · ${activeOrder.payment_reference}` : ''}</p>
+                  <strong>{formatPaymentMethod(activeOrder.payment_method)}</strong>
+                  <p>{formatStatus(activeOrder.payment_status)}{activeOrder.payment_reference ? ` · ${activeOrder.payment_reference}` : ''}</p>
                 </div>
                 <div className="order-manage-modal__summary-card order-manage-modal__summary-card--delivery">
                   <span>Delivery</span>
@@ -582,7 +631,7 @@ function OrderManagementLive() {
                           className="btn btn--primary btn--sm order-modal-actions__button"
                           type="button"
                           disabled={actionLoading === activeOrder.id}
-                          onClick={() => void updateStatus(activeOrder, nextOrderStatus(activeOrder) as string)}
+                          onClick={() => { setError(''); setConfirmPending({ order: activeOrder, status: nextOrderStatus(activeOrder) as string, label: 'Confirm order status' }) }}
                         >
                           Mark {ORDER_ACTION_LABELS[nextOrderStatus(activeOrder) as string].toLowerCase()}
                         </button>
@@ -634,7 +683,7 @@ function OrderManagementLive() {
             <div className="modal__footer order-manage-modal__footer">
               <button className="btn btn--outline btn--sm" type="button" onClick={() => setActiveOrder(null)}>Close</button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

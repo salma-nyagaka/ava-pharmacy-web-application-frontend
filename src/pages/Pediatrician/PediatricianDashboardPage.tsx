@@ -1,3 +1,6 @@
+import { useWorkspaceView } from '../../hooks/useWorkspaceView'
+import { preferredScrollBehavior } from '../../utils/motion'
+import { formatStatus } from '../../utils/formatStatus'
 import ConsultationAttachments from '../../components/ConsultationAttachments'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
@@ -343,13 +346,13 @@ function DosingCalculator({ weightKg }: { weightKg?: number }) {
     <div className="ped-dosing-calc">
       <p className="ped-dosing-calc__title">Dosing Calculator</p>
       <div className="ped-dosing-calc__row">
-        <input
+        <input aria-label="Drug name"
           placeholder="Drug name"
           value={drug}
           onChange={e => setDrug(e.target.value)}
           className="ped-dosing-calc__input"
         />
-        <input
+        <input aria-label="Dose in milligrams per kilogram"
           type="number"
           placeholder="mg/kg"
           value={mgPerKg}
@@ -442,7 +445,7 @@ const createInitialPediatricEarnings = (): DoctorEarning[] => []
 
 function PediatricianDashboardPage() {
   const { user, logout } = useAuth()
-  const [activeTab, setActiveTab] = useState<PediatricTab>('queue')
+  const [activeTab, setActiveTab] = useWorkspaceView<PediatricTab>(['queue', 'consents', 'prescriptions', 'profiles', 'earnings'], 'queue')
   const isAdminPreview = user?.role === 'admin'
   const [doctors] = useState(loadDoctorProfiles())
   const currentPediatricianProfile = useMemo<DoctorProfile>(() => {
@@ -613,7 +616,7 @@ function PediatricianDashboardPage() {
   }, [activeDoctorId, isAdminPreview, liveConsultationId])
 
   useEffect(() => {
-    consultEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    consultEndRef.current?.scrollIntoView({ behavior: preferredScrollBehavior() })
   }, [consultThread?.messages])
 
   useEffect(() => {
@@ -1334,7 +1337,7 @@ function PediatricianDashboardPage() {
       onLogout={() => { void logout() }}
       roleLabel={isAdminPreview ? 'Admin · Pediatrician Preview' : 'Pediatrician'}
       sidebarHeaderContent={isAdminPreview ? (
-        <select
+        <select aria-label="Select pediatrician"
           value={activeDoctorId}
           onChange={(e) => setActiveDoctorId(e.target.value)}
           className="portal-shell__select"
@@ -1452,11 +1455,12 @@ function PediatricianDashboardPage() {
                   <input
                     className="dd-search-input"
                     type="text"
-                    placeholder="Search child, guardian, issue…"
+                    aria-label="Search child, guardian, issue"
+                      placeholder="Search child, guardian, issue…"
                     value={queueSearch}
                     onChange={(e) => setQueueSearch(e.target.value)}
                   />
-                  {queueSearch && <button className="dd-search-clear" onClick={() => setQueueSearch('')}>×</button>}
+                  {queueSearch && <button aria-label="Clear search" type="button" className="dd-search-clear" onClick={() => setQueueSearch('')}>×</button>}
                 </div>
                 <span className="dd-count">{queueItems.length} consultation{queueItems.length !== 1 ? 's' : ''}</span>
               </div>
@@ -1516,7 +1520,7 @@ function PediatricianDashboardPage() {
                         <td>
                           <div className="dd-status-cell">
                             <span className="dd-status-dot" style={{ background: STATUS_COLORS[item.status] ?? '#9ca3af' }} />
-                            <span className="dd-status-text">{item.status}</span>
+                            <span className="dd-status-text">{formatStatus(item.status)}</span>
                           </div>
                         </td>
                         <td className="dd-td-meta">{item.weightKg ? `${item.weightKg} kg` : '-'}</td>
@@ -1704,7 +1708,7 @@ function PediatricianDashboardPage() {
                     </div>
                     {consultThread?.backendConsultationId && <ConsultationAttachments key={consultThread.backendConsultationId} consultationId={consultThread.backendConsultationId} refreshKey={consultThread.messages.length} />}
                 <div className="dd-sp-chat-input">
-                      <input
+                      <input aria-label="Message guardian, request photos, or share instructions"
                         type="text"
                         placeholder="Message guardian, request photos, or share instructions..."
                         value={consultMessage}
@@ -1776,7 +1780,8 @@ function PediatricianDashboardPage() {
                 <input
                   className="dd-search-input"
                   type="text"
-                  placeholder="Search prescriptions…"
+                  aria-label="Search prescriptions"
+                      placeholder="Search prescriptions…"
                   value={prescriptionSearch}
                   onChange={(e) => setPrescriptionSearch(e.target.value)}
                 />
@@ -1814,7 +1819,7 @@ function PediatricianDashboardPage() {
                       <td>
                         <div className="dd-status-cell">
                           <span className="dd-status-dot" style={{ background: RX_STATUS_COLORS[rx.status] ?? '#9ca3af' }} />
-                          <span className="dd-status-text">{rx.status}</span>
+                          <span className="dd-status-text">{formatStatus(rx.status)}</span>
                         </div>
                       </td>
                       <td>
@@ -2044,7 +2049,7 @@ function PediatricianDashboardPage() {
                             <span className="dd-status-dot" style={{
                               background: entry.status === 'Paid' ? '#16A34A' : entry.status === 'Scheduled' ? '#F59E0B' : '#EF4444'
                             }} />
-                            <span className="dd-status-text">{entry.status}</span>
+                            <span className="dd-status-text">{formatStatus(entry.status)}</span>
                           </div>
                         </td>
                         <td className="dd-td-meta">{entry.payoutDate}</td>
@@ -2119,7 +2124,7 @@ function PediatricianDashboardPage() {
                 </div>
                 {consultThread?.backendConsultationId && <ConsultationAttachments key={consultThread.backendConsultationId} consultationId={consultThread.backendConsultationId} refreshKey={consultThread.messages.length} />}
                 <div className="dd-sp-chat-input">
-                  <input
+                  <input aria-label="Type your message"
                     type="text"
                     placeholder="Type your message…"
                     value={consultMessage}
@@ -2205,7 +2210,7 @@ function PediatricianDashboardPage() {
                               </span>
                               <span className="dd-status-cell">
                                 <span className="dd-status-dot" style={{ background: STATUS_COLORS[selectedConsult.status] ?? '#9ca3af' }} />
-                                <span className="dd-status-text">{selectedConsult.status}</span>
+                                <span className="dd-status-text">{formatStatus(selectedConsult.status)}</span>
                               </span>
                             </div>
                           </div>
@@ -2385,8 +2390,8 @@ function PediatricianDashboardPage() {
             <div className="dd-sp-body">
               <div className="dd-sp-section">
                 <div className="dd-rx-field">
-                  <label>Child consultation</label>
-                  <select
+                  <label htmlFor="field-pediatriciandashboardpage-2390-111582">Child consultation</label>
+                  <select id="field-pediatriciandashboardpage-2390-111582"
                     value={rxConsultationId ? String(rxConsultationId) : ''}
                     disabled={Boolean(editingPrescriptionId)}
                     onChange={(e) => handlePrescriptionConsultationSelect(e.target.value)}
@@ -2406,8 +2411,8 @@ function PediatricianDashboardPage() {
                   )}
                 </div>
                 <div className="dd-rx-field">
-                  <label>Clinical notes</label>
-                  <textarea rows={3} placeholder="Diagnosis, weight-based dosing notes…" value={rxNotes} onChange={(e) => setRxNotes(e.target.value)} />
+                  <label htmlFor="field-pediatriciandashboardpage-2411-112786">Clinical notes</label>
+                  <textarea id="field-pediatriciandashboardpage-2411-112786" rows={3} placeholder="Diagnosis, weight-based dosing notes…" value={rxNotes} onChange={(e) => setRxNotes(e.target.value)} />
                 </div>
               </div>
               <div className="dd-sp-section">
@@ -2433,7 +2438,7 @@ function PediatricianDashboardPage() {
                       </div>
                       <div className="dd-rx-catalog-cell">
                         <label>Medicine</label>
-                        <select
+                        <select aria-label="Medicine variant"
                           value={item.variantId ? String(item.variantId) : ''}
                           onFocus={loadPrescriptionCatalog}
                           onChange={(e) => handleCatalogSelect(idx, e.target.value)}
@@ -2454,7 +2459,7 @@ function PediatricianDashboardPage() {
                             </option>
                           ))}
                         </select>
-                        <input
+                        <input aria-label="Medicine variant"
                           type="text"
                           placeholder="Filter medicine list"
                           value={item.variantId ? '' : item.name}
@@ -2492,17 +2497,17 @@ function PediatricianDashboardPage() {
                       </div>
                       <div className="dd-rx-dose-cell">
                         <label>Dose <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. 5 ml" value={item.dosage} onChange={(e) => updateRxItem(idx, { dosage: e.target.value })} />
+                        <input aria-label="Dose" type="text" required placeholder="e.g. 5 ml" value={item.dosage} onChange={(e) => updateRxItem(idx, { dosage: e.target.value })} />
                         <label>Frequency <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. TID" value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
+                        <input aria-label="Frequency" type="text" required placeholder="e.g. TID" value={item.frequency ?? ''} onChange={(e) => updateRxItem(idx, { frequency: e.target.value })} />
                         <label>Duration <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. 3/7 or 2/52" value={item.duration ?? ''} onChange={(e) => updateRxItem(idx, { duration: e.target.value })} />
+                        <input aria-label="Duration" type="text" required placeholder="e.g. 3/7 or 2/52" value={item.duration ?? ''} onChange={(e) => updateRxItem(idx, { duration: e.target.value })} />
                       </div>
                       <div className="dd-rx-qty-cell">
                         <label>Qty <span className="dd-rx-required">*</span></label>
-                        <input type="number" min={1} required placeholder="Qty" value={item.quantity} onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })} />
+                        <input aria-label="Quantity" type="number" min={1} required placeholder="Qty" value={item.quantity} onChange={(e) => updateRxItem(idx, { quantity: Number(e.target.value) })} />
                         <label>Measurement <span className="dd-rx-required">*</span></label>
-                        <input type="text" required placeholder="e.g. tablets, ml" value={item.quantityMeasurement ?? ''} onChange={(e) => updateRxItem(idx, { quantityMeasurement: e.target.value })} />
+                        <input aria-label="Quantity measurement unit" type="text" required placeholder="e.g. tablets, ml" value={item.quantityMeasurement ?? ''} onChange={(e) => updateRxItem(idx, { quantityMeasurement: e.target.value })} />
                       </div>
                     </div>
                   ))}

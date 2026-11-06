@@ -1,3 +1,6 @@
+import AdminKpiStats from '../../components/AdminKpiStats'
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import Dialog from '../../components/Dialog/Dialog'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import {
   adminProductService,
@@ -288,6 +291,8 @@ function CategoryManagement() {
     }
   }
 
+  const { count: databaseCount } = useAdminRecordStats('categories', 'all', categories)
+
   const filteredCategories = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
     return categories.filter((c) => {
@@ -321,7 +326,7 @@ function CategoryManagement() {
       else if (categorySortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
       else if (categorySortField === 'subcategories') comparison = left.subcategories.length - right.subcategories.length
       else comparison = compareCreatedAt(left.created_at, right.created_at)
-      return sortDirection === 'asc' ? comparison : -comparison
+      return sortDirection === 'asc' ? (comparison || left.id - right.id) : -(comparison || left.id - right.id)
     })
     return items
   }, [filteredCategories, categorySortField, sortDirection])
@@ -334,7 +339,7 @@ function CategoryManagement() {
       else if (subcategorySortField === 'parent') comparison = left.category_name.localeCompare(right.category_name)
       else if (subcategorySortField === 'status') comparison = Number(left.is_active) - Number(right.is_active)
       else comparison = compareCreatedAt(left.created_at, right.created_at)
-      return sortDirection === 'asc' ? comparison : -comparison
+      return sortDirection === 'asc' ? (comparison || left.id - right.id) : -(comparison || left.id - right.id)
     })
     return items
   }, [filteredSubcategories, subcategorySortField, sortDirection])
@@ -355,8 +360,6 @@ function CategoryManagement() {
     }
   }, [currentPage, totalPages])
 
-  const activeCategories = categories.filter((c) => c.is_active).length
-  const activeSubcategories = subcategories.filter((s) => s.is_active).length
   const visibleCount = visibleRows.length
   const hasFilters =
     searchTerm.trim().length > 0 ||
@@ -419,7 +422,7 @@ function CategoryManagement() {
         <div className="category-management__title">
           <div className="cm-title-group">
             <h1>Category Management</h1>
-            <p className="cm-title-sub">Organize your product catalog with categories and subcategories</p>
+            <p className="cm-title-sub">Organize your product catalog with categories and their linked subcategories.</p>
           </div>
         </div>
         <div className="category-management__actions">
@@ -444,35 +447,15 @@ function CategoryManagement() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="cm-kpi-grid">
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
-              <path d="M3 7l9-4 9 4v10l-9 4-9-4V7z" />
-            </svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Categories</span>
-            <strong className="cm-kpi-card__value">{loading ? '-' : categories.length}</strong>
-            <span className="cm-kpi-card__delta">{loading ? '' : `${activeCategories} active · ${categories.length - activeCategories} inactive`}</span>
-          </div>
-        </div>
-        <div className="cm-kpi-card">
-          <div className="cm-kpi-card__icon cm-kpi-card__icon--purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width="18" height="18">
-              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
-            </svg>
-          </div>
-          <div className="cm-kpi-card__body">
-            <span className="cm-kpi-card__label">Subcategories</span>
-            <strong className="cm-kpi-card__value">{loading ? '-' : subcategories.length}</strong>
-            <span className="cm-kpi-card__delta">{loading ? '' : `${activeSubcategories} active · ${subcategories.length - activeSubcategories} inactive`}</span>
-          </div>
-        </div>
-      </div>
+      <AdminKpiStats items={[
+        { label: 'Active categories', value: databaseCount('active') },
+        { label: 'Inactive categories', value: databaseCount('inactive') },
+        { label: 'Active subcategories', value: databaseCount('subcategories_active') },
+        { label: 'Inactive subcategories', value: databaseCount('subcategories_inactive') },
+      ]} />
 
-      {/* ── Toolbar ── */}
       <div className="cm-toolbar">
+
         <div className="cm-tabs" role="tablist">
           <button
             type="button"
@@ -497,7 +480,7 @@ function CategoryManagement() {
             <svg className="cm-search-box__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
               <circle cx="9" cy="9" r="5.75" /><path d="M13.5 13.5L17 17" strokeLinecap="round" />
             </svg>
-            <input
+            <input aria-label={viewMode === 'categories' ? 'Search categories…' : 'Search subcategories…'}
               type="search"
               placeholder={viewMode === 'categories' ? 'Search categories…' : 'Search subcategories…'}
               value={searchTerm}
@@ -511,7 +494,7 @@ function CategoryManagement() {
               </button>
             )}
           </div>
-          <select
+          <select aria-label="Filter by status"
             className="cm-filter-select"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value as 'all' | 'active' | 'inactive')}
@@ -521,7 +504,7 @@ function CategoryManagement() {
             <option value="inactive">Inactive</option>
           </select>
           {viewMode === 'subcategories' && (
-            <select
+            <select aria-label="Filter by parent category"
               className="cm-filter-select"
               value={selectedParentCategory}
               onChange={(e) => setSelectedParentCategory(e.target.value)}
@@ -863,7 +846,7 @@ function CategoryManagement() {
       {/* ── Create / Edit Modal ── */}
       {showModal && (
         <div className="cm-overlay" onClick={closeModal}>
-          <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog busy={formSaving} onClose={closeModal} className="cm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="cm-modal__header">
               <div>
                 <h2>
@@ -889,6 +872,7 @@ function CategoryManagement() {
                 <label className="cm-field">
                   <span>Parent Category</span>
                   <SearchableSelect
+                    ariaLabel="Parent category"
                     value={formParentId}
                     onChange={(v) => {
                       setFormParentId(v !== '' ? Number(v) : '')
@@ -909,7 +893,7 @@ function CategoryManagement() {
                       <div className="cm-sub-entry__row">
                         <div className="cm-sub-entry__index">{idx + 1}</div>
                         <div className="cm-sub-entry__fields">
-                          <input
+                          <input aria-label="Subcategory name"
                             type="text"
                             value={entry.name}
                             onChange={(e) => {
@@ -921,7 +905,7 @@ function CategoryManagement() {
                             autoFocus={idx === 0}
                             required
                           />
-                          <input
+                          <input aria-label="Description (optional)"
                             type="text"
                             value={entry.description}
                             onChange={(e) => {
@@ -1034,14 +1018,14 @@ function CategoryManagement() {
                 </button>
               </div>
             </form>
-          </div>
+          </Dialog>
         </div>
       )}
 
       {/* ── Subcategory Preview Modal ── */}
       {subcatPreview && (
         <div className="cm-overlay" onClick={() => setSubcatPreview(null)}>
-          <div className="cm-modal cm-modal--sm" onClick={(e) => e.stopPropagation()}>
+          <Dialog onClose={() => setSubcatPreview(null)} className="cm-modal cm-modal--sm" onClick={(e) => e.stopPropagation()}>
             <div className="cm-modal__header">
               <div>
                 <h2>Subcategories</h2>
@@ -1063,7 +1047,7 @@ function CategoryManagement() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Dialog>
         </div>
       )}
 

@@ -8,6 +8,11 @@ export interface PharmacistCreatePayload {
   lastName: string
   email: string
   phone: string
+  licenseCountry?: string
+  licenseBoard?: string
+  licenseExpiry?: string
+  credentialEvidence?: number | null
+  licenseDocument?: File
   licenseNumber: string
   branchLocation: string
   position: string
@@ -222,13 +227,16 @@ const handleResponse = async <T,>(response: Response): Promise<T> => {
 
 export const adminUserService = {
   async listUsers() {
-    const response = await apiFetch(`${API_BASE_URL}/admin/users/`, {
-      headers: {
-        ...getAuthHeaders(),
-      },
-    })
-    const payload = await handleResponse<unknown>(response)
-    return normalizeAdminUsersPayload(payload)
+    const users: AdminUserApi[] = []
+    let next: string | null = `${API_BASE_URL}/admin/users/`
+    while (next) {
+      const response = await apiFetch(next, { headers: { ...getAuthHeaders() } })
+      const payload = await handleResponse<unknown>(response)
+      users.push(...normalizeAdminUsersPayload(payload))
+      const page = payload as { meta?: { next?: string }; next?: string }
+      next = page.meta?.next ?? page.next ?? null
+    }
+    return users
   },
 
   async getUser(id: number) {
@@ -254,10 +262,12 @@ export const adminUserService = {
     return normalizeAdminUserPayload(body)
   },
 
-  async suspendUser(id: number) {
+  async suspendUser(id: number, reason = '') {
     const response = await apiFetch(`${API_BASE_URL}/admin/users/${id}/suspend/`, {
       method: 'POST',
+      body: JSON.stringify({ reason }),
       headers: {
+        'Content-Type': 'application/json',
         ...getAuthHeaders(),
       },
     })
@@ -277,24 +287,21 @@ export const adminUserService = {
   },
 
   async createPharmacist(payload: PharmacistCreatePayload) {
+    const form = new FormData()
+    const fields: Record<string, string> = {
+      first_name: payload.firstName, last_name: payload.lastName, email: payload.email,
+      phone: payload.phone, role: 'pharmacist', address: payload.address || payload.branchLocation,
+      pharmacist_license_number: payload.licenseNumber,
+      pharmacist_license_country: payload.licenseCountry || '',
+      pharmacist_license_board: payload.licenseBoard || '',
+      pharmacist_branch_location: payload.branchLocation, pharmacist_position: payload.position,
+    }
+    Object.entries(fields).forEach(([key, value]) => form.append(key, value))
+    if (payload.licenseExpiry) form.append('pharmacist_license_expiry', payload.licenseExpiry)
+    if (payload.licenseDocument) form.append('pharmacist_license_document', payload.licenseDocument)
+    payload.pharmacistPermissions.forEach(permission => form.append('pharmacist_permissions', permission))
     const response = await apiFetch(`${API_BASE_URL}/admin/users/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({
-        first_name: payload.firstName,
-        last_name: payload.lastName,
-        email: payload.email,
-        phone: payload.phone,
-        role: 'pharmacist',
-        address: payload.address || payload.branchLocation,
-        pharmacist_license_number: payload.licenseNumber,
-        pharmacist_branch_location: payload.branchLocation,
-        pharmacist_position: payload.position,
-        pharmacist_permissions: payload.pharmacistPermissions,
-      }),
+      method: 'POST', headers: { ...getAuthHeaders() }, body: form,
     })
     const responsePayload = await handleResponse<unknown>(response)
     return normalizeAdminUserPayload(responsePayload)

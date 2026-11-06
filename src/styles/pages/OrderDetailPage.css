@@ -462,3 +462,35 @@
   .od-banner__call { width: 100%; justify-content: center; }
   .od-track { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Compact customer order details, separate from the admin order workspace. */
+.od-page.customer-order-page { padding: 16px 0 32px; }
+.customer-order-page .od-breadcrumb { margin-bottom: 14px; font-size: .72rem; }
+.customer-order-page .od-header { margin-bottom: 18px; gap: 12px; }
+.customer-order-page .od-header__title { font-size: 1.35rem; margin: 0 0 5px; }
+.customer-order-page .od-header__meta { font-size: .75rem; }
+.customer-order-page .od-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; }
+.customer-order-page .od-left, .customer-order-page .od-right { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.customer-order-page .od-card, .customer-order-page .od-track-card { padding: 18px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 2px 8px #0f172a04; }
+.customer-order-page .od-track-card { margin-bottom: 18px; }
+.customer-order-page .od-section-title { font-size: .9rem; margin: 0 0 14px; }
+.customer-order-page .od-track__label { font-size: .7rem; }
+.customer-order-page .od-track__node { width: 28px; height: 28px; }
+.customer-order-page .od-item { padding: 12px 0; gap: 12px; }
+.customer-order-page .od-item__name { font-size: .8rem; line-height: 1.5; margin: 0 0 4px; }
+.customer-order-page .od-item__qty { margin: 0; font-size: .72rem; }
+.customer-order-page .od-item__price { font-size: .85rem; white-space: nowrap; }
+.customer-order-page .od-total { padding-top: 14px; margin-top: 8px; }
+.customer-order-page .od-total__row { font-size: .78rem; }
+.customer-order-page .od-total__row--grand { font-size: .95rem; }
+.customer-order-page .od-detail-row { gap: 12px; padding-block: 10px; font-size: .78rem; }
+.customer-order-page .od-detail-label { font-size: .75rem; }
+.customer-order-page .od-detail-value { font-size: .78rem; line-height: 1.6; overflow-wrap: anywhere; }
+.od-reference-value { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.od-reference-copy { padding: 3px 8px; border: 1px solid #dce3e9; border-radius: 5px; background: #f8fafc; color: #475569; font: inherit; font-size: .7rem; cursor: pointer; }
+.customer-order-page .od-actions { gap: 8px; }
+.customer-order-page .od-actions .btn { min-height: 36px; padding: 8px 12px; border-radius: 8px; font-size: .78rem; }
+.customer-order-page .od-actions [role=alertdialog] { padding: 12px; border: 1px solid #fecdd3; border-radius: 8px; background: #fff7f8; font-size: .8rem; }
+.customer-order-page .od-actions [role=alertdialog] .btn { margin: 6px 6px 0 0; }
+@media (max-width: 900px) { .customer-order-page .od-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .customer-order-page .od-card, .customer-order-page .od-track-card { padding: 14px; } }

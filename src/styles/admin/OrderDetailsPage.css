@@ -881,3 +881,37 @@
     flex-direction: column;
   }
 }
+
+/* Simplified order workspace. */
+.od-page .od-back-link { display: inline-block; margin-bottom: 14px; color: #64748b; font-size: .78rem; text-decoration: none; }
+.od-page .od-back-link:hover { color: #075b52; }
+.od-page .od-header { margin-bottom: 18px; gap: 16px; }
+.od-page .od-header__title h1 { font-size: 1.35rem; }
+.od-page .od-header__meta { font-size: .75rem; }
+.od-page .od-header__actions { gap: 8px; flex-wrap: wrap; }
+.od-page .od-grid { grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
+.od-page .od-card { border-radius: 10px; box-shadow: none; }
+.od-page .od-card__header { padding: 14px 16px; gap: 10px; }
+.od-page .od-card__title { font-size: .85rem; }
+.od-page .od-card__meta { font-size: .7rem; }
+.od-page .od-item { padding: 14px 16px; }
+.od-page .od-item__name { font-size: .8rem; line-height: 1.5; }
+.od-page .od-item__qty { font-size: .72rem; }
+.od-page .od-summary { padding: 14px 16px; }
+.od-page .od-card--sticky { position: static; }
+.od-page .od-note-form { margin-top: 14px; }
+.od-page .od-note-form textarea { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; font-size: .8rem; resize: vertical; }
+.od-manage-state { margin: 0; font-size: .75rem; color: #64748b; }
+.od-disclosure summary { cursor: pointer; list-style: none; display: flex; align-items: center; }
+.od-disclosure summary::-webkit-details-marker { display: none; }
+.od-disclosure summary::after { content: '+'; margin-left: auto; color: #64748b; font-size: 1.1rem; }
+.od-disclosure[open] > summary::after { content: '−'; }
+.od-disclosure:not([open]) > summary { border-bottom: 0; }
+.od-disclosure summary:focus-visible, .od-back-link:focus-visible { outline: 2px solid #075b52; outline-offset: 3px; }
+@media (max-width: 900px) { .od-page .od-grid { grid-template-columns: minmax(0, 1fr); } }
+.od-page .od-card { padding: 16px; }
+.od-page .od-card__header { padding: 0; margin-bottom: 14px; }
+.od-page .od-disclosure:not([open]) > summary { margin-bottom: 0; }
+.od-page .od-disclosure { min-height: 0; }
+.od-page .od-item { padding: 12px; }
+.od-page .od-summary { padding: 14px 0 0; }

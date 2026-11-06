@@ -1,3 +1,4 @@
+import { formatStatus } from '../../utils/formatStatus'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -344,7 +345,7 @@ function UserDetailsPage() {
                     <span className="ud-history__id">{order.order_number}</span>
                     <span className="ud-history__date">{formatDate(order.created_at)}</span>
                     <span className="ud-history__amount">{formatPrice(order.total)}</span>
-                    <span className="ud-badge ud-badge--delivered">{order.status}</span>
+                    <span className="ud-badge ud-badge--delivered">{formatStatus(order.status)}</span>
                   </li>
                 ))}
               </ul>

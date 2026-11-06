@@ -1,3 +1,5 @@
+import { preferredScrollBehavior } from '../../utils/motion'
+import Dialog from '../../components/Dialog/Dialog'
 import ConsultationAttachments from '../../components/ConsultationAttachments'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -297,7 +299,7 @@ function PediatricianConsultation() {
   }, [currentConsultation, isChatOpen])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    messagesEndRef.current?.scrollIntoView({ behavior: preferredScrollBehavior() })
   }, [currentConsultation?.messages.length])
 
   const selectedPediatrician = useMemo(
@@ -357,7 +359,7 @@ function PediatricianConsultation() {
     setPaymentStage('idle')
     setSubmitError('')
     window.requestAnimationFrame(() => {
-      document.getElementById('ped-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById('ped-form')?.scrollIntoView({ behavior: preferredScrollBehavior(), block: 'start' })
     })
   }
 
@@ -1286,7 +1288,7 @@ function PediatricianConsultation() {
 
               <ConsultationAttachments key={currentConsultation.id} consultationId={currentConsultation.id} refreshKey={currentConsultation.messages.length} />
               <div className="dc-chat__input">
-                <input
+                <input aria-label="Type your message"
                   type="text"
                   placeholder="Type your message..."
                   value={messageInput}
@@ -1419,7 +1421,7 @@ function PediatricianConsultation() {
 
         {showEndConfirm && (
           <div className="modal-overlay" onClick={() => setShowEndConfirm(false)}>
-            <div className="dc-confirm" onClick={(event) => event.stopPropagation()}>
+            <Dialog busy={isEndingConsultation} onClose={() => setShowEndConfirm(false)} className="dc-confirm" onClick={(event) => event.stopPropagation()}>
               <h3>End consultation?</h3>
               <p>This will mark the pediatric consultation as completed.</p>
               <div className="dc-confirm__actions">
@@ -1428,7 +1430,7 @@ function PediatricianConsultation() {
                   {isEndingConsultation ? 'Ending…' : 'End & finish'}
                 </button>
               </div>
-            </div>
+            </Dialog>
           </div>
         )}
       </div>

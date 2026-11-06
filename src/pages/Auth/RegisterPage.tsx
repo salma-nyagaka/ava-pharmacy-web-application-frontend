@@ -51,7 +51,7 @@ function RegisterPage() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<string[]>([])
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [verificationSentTo, setVerificationSentTo] = useState('')
@@ -69,13 +69,13 @@ function RegisterPage() {
   ]
   const passwordMeetsRules = pwRules.every((rule) => rule.pass)
   const passwordsMatch = password.length > 0 && password === passwordConfirm
-  const showRules = password.length > 0
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
+    if (loading) return
+    setError([])
     setFieldErrors({})
 
     const errors: Record<string, string> = {}
@@ -107,9 +107,11 @@ function RegisterPage() {
       errors.password_confirm = 'Passwords do not match.'
     }
     setFieldErrors(errors)
-    if (Object.keys(errors).length) return
+    if (Object.keys(errors).length) {
+      return
+    }
     if (challengeRequired && !challengeToken) {
-      setError('Please complete the security check.')
+      setError(['Please complete the security check.'])
       return
     }
 
@@ -152,9 +154,9 @@ function RegisterPage() {
           }
         }
         setFieldErrors(mapped)
-        if (leftover.length) setError(leftover.join(' '))
+        setError(leftover)
       } else {
-        setError(axiosErr?.response?.data?.error?.message ?? 'Registration failed. Please try again.')
+        setError([axiosErr?.response?.data?.error?.message ?? 'Registration failed. Please try again.'])
       }
     } finally {
       setLoading(false)
@@ -189,7 +191,7 @@ function RegisterPage() {
   }
 
   return (
-    <div className="login-page">
+    <div className="login-page register-page">
       {/* Left brand panel */}
       <div className="login-brand">
         <div className="login-brand__inner">
@@ -228,8 +230,8 @@ function RegisterPage() {
 
           <div className="login-brand__stats">
             <div className="login-brand__stat">
-              <strong>Licensed</strong>
-              <span>Pharmacy</span>
+              <strong>Pharmacy</strong>
+              <span>Support</span>
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
@@ -238,7 +240,7 @@ function RegisterPage() {
             </div>
             <div className="login-brand__stat-divider" />
             <div className="login-brand__stat">
-              <strong>24/7</strong>
+              <strong>Help</strong>
               <span>Support</span>
             </div>
           </div>
@@ -264,6 +266,7 @@ function RegisterPage() {
               aria-hidden="true"
               style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, opacity: 0 }}
             />
+            <div className="register-fields">
             <div className="login-form-row">
               <div className="login-field">
                 <label htmlFor="first-name">First name</label>
@@ -353,7 +356,8 @@ function RegisterPage() {
                   type="tel"
                   placeholder="+254 700 000 000"
                   value={phone}
-                  onChange={(e) => { setPhone(e.target.value); clearField('phone') }}
+                  onChange={(e) => { const value = e.target.value; if (/^\+?[0-9]*$/.test(value)) { setPhone(value); clearField('phone') } else { setFieldErrors(previous => ({ ...previous, phone: 'Use digits and an optional leading + only.' })) } }}
+                  inputMode="tel" pattern="[+]?[0-9]+"
                   className={fieldErrors.phone ? 'login-field__input--error' : ''}
                   required
                 />
@@ -375,7 +379,7 @@ function RegisterPage() {
                   aria-invalid={Boolean(fieldErrors.delivery_address)}
                   aria-describedby={fieldErrors.delivery_address ? 'register-address-error' : undefined}
                   type="text"
-                  placeholder="Building, street, estate, or pickup notes"
+                  placeholder="Street, building or estate"
                   value={deliveryAddress}
                   onChange={(e) => { setDeliveryAddress(e.target.value); clearField('delivery_address') }}
                   className={fieldErrors.delivery_address ? 'login-field__input--error' : ''}
@@ -479,7 +483,7 @@ function RegisterPage() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Create a secure password"
                   value={password}
-                  onChange={(e) => { setPassword(e.target.value); clearField('password'); setError('') }}
+                  onChange={(e) => { setPassword(e.target.value); clearField('password'); setError([]) }}
                   className={fieldErrors.password ? 'login-field__input--error' : ''}
                   required
                 />
@@ -494,16 +498,7 @@ function RegisterPage() {
               </div>
               {fieldErrors.password && <span id="register-password-error" className="login-field__error" role="alert">{fieldErrors.password}</span>}
 
-              {showRules && (
-                <ul className="pw-rules">
-                  {pwRules.map((r) => (
-                    <li key={r.key} className={r.pass ? 'pw-rules__item pw-rules__item--pass' : 'pw-rules__item'}>
-                      {r.pass ? <CheckIcon /> : <DotIcon />}
-                      {r.label}
-                    </li>
-                  ))}
-                </ul>
-              )}
+
             </div>
 
             <div className="login-field">
@@ -522,7 +517,7 @@ function RegisterPage() {
                   type={showPasswordConfirm ? 'text' : 'password'}
                   placeholder="Re-enter your password"
                   value={passwordConfirm}
-                  onChange={(e) => { setPasswordConfirm(e.target.value); clearField('password_confirm'); setError('') }}
+                  onChange={(e) => { setPasswordConfirm(e.target.value); clearField('password_confirm'); setError([]) }}
                   className={fieldErrors.password_confirm ? 'login-field__input--error' : ''}
                   required
                 />
@@ -536,24 +531,27 @@ function RegisterPage() {
                 </button>
               </div>
               {fieldErrors.password_confirm && <span id="register-password-confirm-error" className="login-field__error" role="alert">{fieldErrors.password_confirm}</span>}
-              {passwordConfirm && (
-                <ul className="pw-rules pw-rules--compact">
-                  <li className={passwordsMatch ? 'pw-rules__item pw-rules__item--pass' : 'pw-rules__item'}>
-                    {passwordsMatch ? <CheckIcon /> : <DotIcon />}
-                    Passwords match
-                  </li>
-                </ul>
-              )}
             </div>
+
+            </div>
+
+                <ul className="pw-rules" aria-label="Password requirements">
+                  {pwRules.map((r) => (
+                    <li key={r.key} className={r.pass ? 'pw-rules__item pw-rules__item--pass' : 'pw-rules__item'}>
+                      {r.pass ? <CheckIcon /> : <DotIcon />}
+                      {r.label}
+                    </li>
+                  ))}
+                </ul>
 
             <TurnstileChallenge action="register" onToken={setChallengeToken} resetKey={challengeResetKey} />
 
-            {error && (
-              <div className="login-error">
+            {error.length > 0 && (
+              <div className="login-error" role="alert">
                 <svg viewBox="0 0 16 16" fill="currentColor">
                   <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 5zm0 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
                 </svg>
-                {error}
+                <span>{error.join(' ')}</span>
               </div>
             )}
 

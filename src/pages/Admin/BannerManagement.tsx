@@ -1,3 +1,5 @@
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
 import { saveBanners as saveLocalBanners, type Banner } from '../../data/banners'
@@ -6,6 +8,7 @@ import { getImageUploadHint, validateImageFile } from '../../utils/imageUploadSp
 import '../../styles/admin/AdminShared.css'
 import '../../styles/admin/shared/AdminButtonUtilities.css'
 import '../../styles/admin/shared/AdminEntityManagement.css'
+import '../../styles/admin/BannerManagement.css'
 
 type SortField = 'title' | 'status' | 'sort_order' | 'created_at'
 type SortDirection = 'asc' | 'desc'
@@ -53,10 +56,11 @@ function BannerManagement() {
   const [categories, setCategories] = useState<ApiProductCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'inactive'>('all')
-  const [sortField, setSortField] = useState<SortField>('sort_order')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ApiBanner | null>(null)
@@ -71,6 +75,7 @@ function BannerManagement() {
   const [formImagePreview, setFormImagePreview] = useState('')
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [titleError, setTitleError] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -95,6 +100,7 @@ function BannerManagement() {
   const resetForm = () => {
     setEditing(null)
     setFormTitle('')
+    setTitleError('')
     setFormMessage('')
     setFormLink('')
     setFormCategoryId('')
@@ -132,6 +138,8 @@ function BannerManagement() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!formTitle.trim()) { setTitleError('Title is required.'); return }
+    setTitleError('')
     if (!formMessage.trim()) { setFormError('Message is required.'); return }
     if (!editing && !formImageFile) { setFormError('Banner image is required.'); return }
 
@@ -139,9 +147,9 @@ function BannerManagement() {
     setFormError('')
     try {
       const payload = new FormData()
-      if (formTitle.trim()) payload.append('title', formTitle.trim())
+      payload.append('title', formTitle.trim())
       payload.append('message', formMessage.trim())
-      if (formLink.trim()) payload.append('link', formLink.trim())
+      payload.append('link', formCategoryId === '' ? formLink.trim() : '')
       payload.append('category', formCategoryId === '' ? '' : String(formCategoryId))
       payload.append('placement', formPlacement.trim() || 'home_hero')
       payload.append('sort_order', String(Number(formSortOrder || 0)))
@@ -155,7 +163,8 @@ function BannerManagement() {
       const nextBanners = editing ? banners.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...banners]
       setBanners(nextBanners)
       syncStorefrontBanners(nextBanners)
-      closeModal()
+      resetForm()
+      setShowModal(false)
     } catch (err: unknown) {
       type ApiErr = { response?: { data?: { error?: { message?: string } } } }
       setFormError((err as ApiErr)?.response?.data?.error?.message ?? 'Failed to save. Please try again.')
@@ -164,12 +173,17 @@ function BannerManagement() {
     }
   }
 
-  const handleDelete = async (banner: ApiBanner) => {
-    if (!window.confirm(`Delete banner "${banner.title || banner.message.slice(0, 40)}"?`)) return
-    await adminProductService.deleteBanner(banner.id)
-    const nextBanners = banners.filter((item) => item.id !== banner.id)
-    setBanners(nextBanners)
-    syncStorefrontBanners(nextBanners)
+  const handleToggleStatus = async (banner: ApiBanner) => {
+    setStatusUpdatingId(banner.id)
+    setError('')
+    try {
+      const updated = await adminProductService.updateBanner(banner.id, { status: banner.status === 'active' ? 'inactive' : 'active' })
+      const nextBanners = banners.map(item => item.id === banner.id ? updated : item)
+      setBanners(nextBanners)
+      syncStorefrontBanners(nextBanners)
+    } catch {
+      setError('Unable to update banner status. Please try again.')
+    } finally { setStatusUpdatingId(null) }
   }
 
   const filtered = useMemo(() => {
@@ -190,7 +204,7 @@ function BannerManagement() {
       else if (sortField === 'status') comparison = a.status.localeCompare(b.status)
       else if (sortField === 'sort_order') comparison = a.sort_order - b.sort_order
       else comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      return sortDirection === 'asc' ? comparison : -comparison
+      return sortDirection === 'asc' ? (comparison || a.id - b.id) : -(comparison || a.id - b.id)
     })
     return items
   }, [filtered, sortField, sortDirection])
@@ -214,19 +228,19 @@ function BannerManagement() {
       {error && <div className="cm-error-banner">{error}</div>}
 
       <div className="admin-page__filters">
-        <input className="admin-input" placeholder="Search banners..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className="admin-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as typeof selectedStatus)}>
+        <input aria-label="Search banners" className="admin-input" placeholder="Search banners..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <select aria-label="Filter by status" className="admin-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value as typeof selectedStatus)}>
           <option value="all">All status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-        <select className="admin-select" value={sortField} onChange={(e) => setSortField(e.target.value as SortField)}>
+        <select aria-label="Sort by field" className="admin-select" value={sortField} onChange={(e) => setSortField(e.target.value as SortField)}>
           <option value="sort_order">Sort order</option>
           <option value="title">Title</option>
           <option value="status">Status</option>
           <option value="created_at">Created date</option>
         </select>
-        <select className="admin-select" value={sortDirection} onChange={(e) => setSortDirection(e.target.value as SortDirection)}>
+        <select aria-label="Sort direction" className="admin-select" value={sortDirection} onChange={(e) => setSortDirection(e.target.value as SortDirection)}>
           <option value="asc">Ascending</option>
           <option value="desc">Descending</option>
         </select>
@@ -274,12 +288,14 @@ function BannerManagement() {
                       <span className="cm-slug">{banner.placement}</span>
                     </td>
                     <td>{banner.sort_order}</td>
-                    <td><span className={getStatusClass(banner.status)}>{banner.status}</span></td>
+                    <td><span className={getStatusClass(banner.status)}>{formatStatus(banner.status)}</span></td>
                     <td>{formatDate(banner.updated_at)}</td>
                     <td>
                       <div className="cm-row-actions banners-row-actions">
                         <button className="cm-row-btn btn--sm" type="button" onClick={() => openEdit(banner)}>Edit</button>
-                        <button className="cm-row-btn cm-row-btn--delete btn--sm" type="button" onClick={() => void handleDelete(banner)}>Delete</button>
+                        <button className="cm-row-btn btn--sm" type="button" disabled={statusUpdatingId !== null} onClick={() => void handleToggleStatus(banner)}>
+                          {statusUpdatingId === banner.id ? 'Updating…' : banner.status === 'active' ? 'Deactivate' : 'Activate'}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -298,11 +314,11 @@ function BannerManagement() {
 
       {showModal && (
         <div className="cm-overlay" onClick={closeModal}>
-          <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
+          <Dialog busy={saving} onClose={closeModal} className="cm-modal banner-modal" role="dialog" aria-modal="true" aria-labelledby="banner-modal-title" onClick={(e) => e.stopPropagation()}>
             <div className="cm-modal__header">
               <div>
-                <h2>{editing ? 'Edit Banner' : 'Add Banner'}</h2>
-                <p>Keep storefront banners sharp, readable, and consistent with the rest of the admin catalog.</p>
+                <h2 id="banner-modal-title">{editing ? 'Edit Banner' : 'Add Banner'}</h2>
+                <p>Manage your banner content, destination, and image.</p>
               </div>
               <button className="cm-modal__close" type="button" onClick={closeModal} disabled={saving} aria-label="Close">
                 ×
@@ -310,10 +326,12 @@ function BannerManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="cm-form">
+              <div className="banner-modal__body">
               <div className="cm-form-grid">
                 <label className="cm-field">
-                  <span>Title <em className="cm-field__optional">optional</em></span>
-                  <input className="admin-input" value={formTitle} onChange={(e) => setFormTitle(e.target.value)} placeholder="Seasonal offer" disabled={saving} autoFocus />
+                  <span>Title <span aria-hidden="true">*</span></span>
+                  <input className="admin-input" value={formTitle} aria-required="true" aria-invalid={Boolean(titleError)} aria-describedby={titleError ? "banner-title-error" : undefined} onChange={(e) => { setFormTitle(e.target.value); setTitleError('') }} placeholder="Seasonal offer" disabled={saving} autoFocus />
+                  {titleError && <span id="banner-title-error" role="alert" style={{ color: '#dc2626', fontSize: '0.85rem' }}>{titleError}</span>}
                 </label>
                 <label className="cm-field">
                   <span>Status</span>
@@ -325,15 +343,11 @@ function BannerManagement() {
               </div>
 
               <label className="cm-field">
-                <span>Message</span>
-                <textarea className="admin-textarea" rows={4} value={formMessage} onChange={(e) => setFormMessage(e.target.value)} placeholder="Short, clear message shown on the banner" disabled={saving} />
+                <span>Message <span aria-hidden="true">*</span></span>
+                <textarea className="admin-textarea" rows={3} required aria-required="true" value={formMessage} onChange={(e) => setFormMessage(e.target.value)} placeholder="Short, clear message shown on the banner" disabled={saving} />
               </label>
 
               <div className="cm-form-grid">
-                <label className="cm-field">
-                  <span>Link <em className="cm-field__optional">optional</em></span>
-                  <input className="admin-input" value={formLink} onChange={(e) => setFormLink(e.target.value)} placeholder="https://example.com/..." disabled={saving} />
-                </label>
                 <label className="cm-field">
                   <span>Product category <em className="cm-field__optional">optional</em></span>
                   <select
@@ -348,8 +362,21 @@ function BannerManagement() {
                     ))}
                   </select>
                   <p className="cm-upload-note">
-                    Selecting a category makes the banner image open that product category page.
+                    Selecting a category fills and locks its product page link. Choose “Use custom link” to enter a different destination.
                   </p>
+                </label>
+                <label className="cm-field">
+                  <span>Link</span>
+                  <input
+                    className="admin-input"
+                    value={formCategoryId === '' ? formLink : getCategoryTarget(categories.find(category => category.id === formCategoryId)?.slug) || getCategoryTarget(editing?.category_slug) || ''}
+                    onChange={(e) => setFormLink(e.target.value)}
+                    placeholder="https://example.com/..."
+                    readOnly={formCategoryId !== ''}
+                    aria-readonly={formCategoryId !== ''}
+                    disabled={saving}
+                    style={formCategoryId !== '' ? { backgroundColor: '#f8fafc', color: '#64748b', cursor: 'default' } : undefined}
+                  />
                 </label>
               </div>
 
@@ -364,9 +391,9 @@ function BannerManagement() {
                 </label>
               </div>
 
-              <div className="cm-form-grid">
+              <div className="banner-modal__upload">
                 <div className="cm-field">
-                  <span>Image</span>
+                  <span>Banner image</span>
                   <input
                     id="banner-image-input"
                     className="cm-file-input__native"
@@ -402,17 +429,18 @@ function BannerManagement() {
               )}
 
               {formError && (
-                <p className="cm-form__error">
+                <p className="cm-form__error" role="alert">
                   {formError}
                 </p>
               )}
 
+              </div>
               <div className="cm-modal__actions">
                 <button className="btn btn--ghost btn--sm" type="button" onClick={closeModal} disabled={saving}>Cancel</button>
                 <button className="btn btn--primary btn--sm" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Banner'}</button>
               </div>
             </form>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

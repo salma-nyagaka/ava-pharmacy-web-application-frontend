@@ -1,0 +1,16 @@
+.order-status-confirmation { width: min(440px, 100%); background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 20px 60px #0f172a26; overflow: hidden; }
+.order-status-confirmation header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #edf1f5; }
+.order-status-confirmation h2 { margin: 0; font-size: 1rem; color: #172b3a; }
+.order-status-confirmation header button { width: 30px; height: 30px; border: 1px solid #e2e8f0; border-radius: 7px; background: white; color: #64748b; font-size: 1.2rem; cursor: pointer; }
+.order-status-confirmation__body { padding: 20px; }
+.order-status-confirmation__body p { margin: 0; font-size: .85rem; line-height: 1.7; color: #475569; }
+.order-status-confirmation__body strong { color: #172b3a; }
+.order-status-confirmation__body .order-status-confirmation__error { margin-top: 12px; color: #b91c1c; font-size: .75rem; }
+.order-status-confirmation footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+.order-status-confirmation footer .btn { font-size: .8rem; min-height: 38px; border-radius: 8px; }
+
+.order-status-confirmation { max-height: 90vh; overflow-y: auto; }
+.order-delivery-fields { display: grid; gap: 12px; margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+.order-delivery-fields label { display: grid; gap: 5px; font-size: .85rem; color: #334155; }
+.order-delivery-fields input:not([type="checkbox"]) { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
+.order-delivery-fields label:has(input[type="checkbox"]) { display: flex; align-items: center; gap: 8px; }

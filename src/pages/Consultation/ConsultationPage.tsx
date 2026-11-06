@@ -92,7 +92,7 @@ function ConsultationPage() {
             </div>
 
             <div className="chat-input">
-              <input
+              <input aria-label="Type your message"
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}

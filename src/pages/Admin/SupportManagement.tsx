@@ -1,3 +1,6 @@
+import { useAdminRecordStats } from '../../hooks/useAdminRecordStats'
+import { formatStatus } from '../../utils/formatStatus'
+import Dialog from '../../components/Dialog/Dialog'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { logAdminAction } from '../../data/adminAudit'
@@ -77,22 +80,10 @@ function SupportManagement() {
   const startIndex = (currentPage - 1) * PAGE_SIZE
   const pagedTickets = filteredTickets.slice(startIndex, startIndex + PAGE_SIZE)
 
-  const stats = useMemo(() => {
-    return {
-      open: tickets.filter((ticket) => ticket.status === 'Open').length,
-      inProgress: tickets.filter((ticket) => ticket.status === 'In Progress').length,
-      unassigned: tickets.filter((ticket) => ticket.assignedTo === 'Unassigned').length,
-      highPriority: tickets.filter((ticket) => ticket.priority === 'High').length,
-    }
-  }, [tickets])
+  const { count: databaseCount } = useAdminRecordStats('support', 'all', tickets)
 
-  const quickCounts = useMemo(() => {
-    return {
-      all: tickets.length,
-      unassigned: tickets.filter((ticket) => ticket.assignedTo === 'Unassigned').length,
-      high: tickets.filter((ticket) => ticket.priority === 'High').length,
-    }
-  }, [tickets])
+
+  const quickCounts = { all: databaseCount('total'), unassigned: databaseCount('unassigned'), high: databaseCount('highPriority') }
 
   const hasFilters =
     searchTerm.trim().length > 0 || selectedStatus !== 'all' || selectedPriority !== 'all' || quickFilter !== 'all'
@@ -155,7 +146,7 @@ function SupportManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Open tickets</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{stats.open}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--amber">{databaseCount('open')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -164,7 +155,7 @@ function SupportManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">In progress</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--blue">{stats.inProgress}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--blue">{databaseCount('inProgress')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -173,7 +164,7 @@ function SupportManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">Unassigned</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{stats.unassigned}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--purple">{databaseCount('unassigned')}</strong>
           </div>
         </div>
         <div className="cm-kpi-card">
@@ -182,7 +173,7 @@ function SupportManagement() {
           </div>
           <div className="cm-kpi-card__body">
             <span className="cm-kpi-card__label">High priority</span>
-            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{stats.highPriority}</strong>
+            <strong className="cm-kpi-card__value cm-kpi-card__value--red">{databaseCount('highPriority')}</strong>
           </div>
         </div>
       </div>
@@ -215,19 +206,19 @@ function SupportManagement() {
           </button>
         </div>
         <div className="admin-page__filters">
-        <input
+        <input aria-label="Search by ticket ID, customer, issue, reference"
           type="text"
           placeholder="Search by ticket ID, customer, issue, reference..."
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
         />
-        <select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as 'all' | SupportStatus)}>
+        <select aria-label="Filter by status" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value as 'all' | SupportStatus)}>
           <option value="all">All statuses</option>
           <option value="Open">Open</option>
           <option value="In Progress">In Progress</option>
           <option value="Resolved">Resolved</option>
         </select>
-        <select value={selectedPriority} onChange={(event) => setSelectedPriority(event.target.value as 'all' | SupportPriority)}>
+        <select aria-label="Filter by support priority" value={selectedPriority} onChange={(event) => setSelectedPriority(event.target.value as 'all' | SupportPriority)}>
           <option value="all">All priorities</option>
           <option value="High">High</option>
           <option value="Medium">Medium</option>
@@ -281,7 +272,7 @@ function SupportManagement() {
                 </td>
                 <td>
                   <span className={`admin-status ${ticket.status === 'Resolved' ? 'admin-status--success' : ticket.status === 'Open' ? 'admin-status--warning' : 'admin-status--info'}`}>
-                    {ticket.status}
+                    {formatStatus(ticket.status)}
                   </span>
                 </td>
                 <td>{ticket.assignedTo}</td>
@@ -358,10 +349,10 @@ function SupportManagement() {
 
       {activeTicket && (
         <div className="support-modal-overlay" onClick={() => setActiveTicket(null)}>
-          <div className="support-modal" onClick={(event) => event.stopPropagation()}>
+          <Dialog busy={noteBusy} onClose={() => setActiveTicket(null)} className="support-modal" onClick={(event) => event.stopPropagation()}>
             <div className="support-modal__header">
               <h2>{activeTicket.id}</h2>
-              <button className="support-modal__close" type="button" onClick={() => setActiveTicket(null)}>×</button>
+              <button aria-label="Close dialog" className="support-modal__close" type="button" onClick={() => setActiveTicket(null)}>×</button>
             </div>
             <div className="support-modal__content">
               <div className="support-modal__summary">
@@ -443,7 +434,7 @@ function SupportManagement() {
                 Close
               </button>
             </div>
-          </div>
+          </Dialog>
         </div>
       )}
     </div>

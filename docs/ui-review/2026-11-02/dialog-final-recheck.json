@@ -1,0 +1,22 @@
+[
+  {
+    "check": "Reverse Tab wraps to Cancel",
+    "pass": true
+  },
+  {
+    "check": "Tab wraps to close",
+    "pass": true
+  },
+  {
+    "check": "Nested Escape restores parent focus",
+    "pass": true
+  },
+  {
+    "check": "Busy blocks dismissal",
+    "pass": true
+  },
+  {
+    "check": "Close restores opener",
+    "pass": true
+  }
+]

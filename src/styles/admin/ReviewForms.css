@@ -1,0 +1,22 @@
+.review-forms { color: #16343a; }
+.review-forms > h1 { margin: 0 0 10px; font-size: 1.5rem; }
+.review-forms > p { max-width: 76ch; line-height: 1.7; color: #64748b; }
+.review-forms button { min-height: 40px; padding: 9px 16px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; color: #164e48; font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; }
+.review-forms button:disabled { opacity: .5; cursor: not-allowed; }
+.review-forms form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; gap: 18px 24px; padding: 24px; margin: 20px 0; border: 1px solid #e2e8f0; background: white; border-radius: 12px; }
+.review-forms label { display: flex; flex-direction: column; gap: 8px; font-size: .8125rem; font-weight: 600; color: #334155; margin: 0 !important; min-width: 0; }
+.review-forms input, .review-forms select, .review-forms textarea { width: 100%; box-sizing: border-box; min-height: 42px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; font: inherit; font-weight: 400; color: #0f172a; }
+.review-forms input[type=checkbox] { width: 18px; min-height: 18px; align-self: flex-start; }
+.review-forms textarea { min-height: 100px; resize: vertical; }
+.review-forms form > h2, .review-forms form > p, .review-forms form > button { grid-column: 1 / -1; }
+.review-forms form > button { justify-self: start; }
+.review-forms h2 { margin: 16px 0; font-size: 1.1rem; }
+.review-forms ul { padding-left: 22px; line-height: 1.9; }
+.review-forms pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+.review-status:empty { display: none; }
+.review-status:not(:empty) { padding: 12px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; }
+.review-forms :focus-visible { outline: 3px solid #5eead4; outline-offset: 2px; }
+@media(max-width:760px) { .review-forms form { grid-template-columns: minmax(0,1fr); padding: 18px; } }
+
+
+.um-application-review { margin: 0 0 20px; }

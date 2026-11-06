@@ -1,3 +1,4 @@
+import { formatStatus } from '../../utils/formatStatus'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -72,7 +73,7 @@ function getOrderedQuickActions() {
       ),
     },
     {
-      label: 'Reports', to: '/admin/reports', priority: { morning: 4, afternoon: 4, evening: 0 }, icon: (
+      label: 'Reports', to: '/admin/dashboard?view=reports', priority: { morning: 4, afternoon: 4, evening: 0 }, icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18">
           <path d="M4 20V8M12 20V4M20 20v-9"/>
         </svg>
@@ -351,7 +352,7 @@ function AdminDashboard() {
           <p className="ad-header__date">{getTodayLabel()}</p>
         </div>
         <div className="ad-header__right">
-          <Link to="/admin/reports" className="ad-header__cta">
+          <Link to="/admin/dashboard?view=reports" className="ad-header__cta">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16">
               <path d="M4 20V8M12 20V4M20 20v-9"/>
             </svg>
@@ -384,7 +385,7 @@ function AdminDashboard() {
             <h2>Today&apos;s Insights</h2>
             <p>Simple signals for what needs attention first.</p>
           </div>
-          <Link to="/admin/reports" className="ad-insights__link">Full reports →</Link>
+          <Link to="/admin/dashboard?view=reports" className="ad-insights__link">Full reports →</Link>
         </div>
         <div className="ad-insights__grid">
           {dashboardInsights.map((item) => (
@@ -427,12 +428,13 @@ function AdminDashboard() {
             <div className="ad-toolbar">
               <input
                 type="search"
+                aria-label="Search recent orders"
                 placeholder="Search orders…"
                 value={orderSearchTerm}
                 onChange={(e) => setOrderSearchTerm(e.target.value)}
                 className="ad-toolbar__input"
               />
-              <select
+              <select aria-label="Filter recent orders by status"
                 value={selectedOrderStatus}
                 onChange={(e) => setSelectedOrderStatus(e.target.value)}
                 className="ad-toolbar__select"
@@ -477,7 +479,7 @@ function AdminDashboard() {
                         <td className="ad-table__order-num">{order.order_number}</td>
                         <td>{order.customer_name}</td>
                         <td className="ad-table__amount">KSh {Number(order.total).toLocaleString()}</td>
-                        <td><span className={`ad-status ad-status--${order.status.toLowerCase()}`}>{order.status}</span></td>
+                        <td><span className={`ad-status ad-status--${order.status.toLowerCase()}`}>{formatStatus(order.status)}</span></td>
                         <td><Link to={`/admin/orders/${order.id}`} className="ad-table__view">View →</Link></td>
                       </tr>
                     ))

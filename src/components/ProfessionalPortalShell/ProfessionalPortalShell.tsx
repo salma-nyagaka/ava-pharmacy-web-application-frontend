@@ -1,3 +1,4 @@
+import Dialog from '../Dialog/Dialog'
 import { CSSProperties, ReactNode, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import favicon from '../../assets/images/logos/favicon.png'
@@ -102,12 +103,22 @@ function ProfessionalPortalShell({
 
   const initials = userInitials?.trim() || resolveInitials(userName)
 
+  const Sidebar = isCompact ? Dialog : 'aside'
+
   return (
     <div
       className={`portal-shell ${isSidebarCollapsed ? 'portal-shell--collapsed' : ''}`}
       style={shellStyle}
     >
-      <aside className="portal-shell__sidebar">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <header className="workspace-mobile-bar">
+        <button className="btn btn--outline" type="button" aria-label="Open navigation"
+          aria-expanded={!isSidebarCollapsed} aria-controls="professional-navigation"
+          onClick={() => setIsSidebarCollapsed(false)}>☰ Menu</button>
+        <strong>{roleLabel}</strong>
+      </header>
+      {isCompact && !isSidebarCollapsed && <button className="workspace-nav-backdrop" type="button" tabIndex={-1} aria-label="Close navigation" onClick={() => setIsSidebarCollapsed(true)} />}
+      {(!isCompact || !isSidebarCollapsed) && <Sidebar onClose={() => setIsSidebarCollapsed(true)} aria-label={`${roleLabel} navigation`} className="portal-shell__sidebar">
         <div className="portal-shell__sidebar-inner">
           <div className="portal-shell__brand-row">
             <Link className="portal-shell__brand" to="/">
@@ -123,6 +134,8 @@ function ProfessionalPortalShell({
             <button
               className="portal-shell__toggle"
               type="button"
+              aria-expanded={!isSidebarCollapsed}
+              aria-controls="professional-navigation"
               aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               onClick={() => setIsSidebarCollapsed((prev) => !prev)}
             >
@@ -144,7 +157,7 @@ function ProfessionalPortalShell({
             <div className="portal-shell__sidebar-extra">{sidebarHeaderContent}</div>
           ) : null}
 
-          <nav className="portal-shell__nav" aria-label={`${roleLabel} navigation`}>
+          <nav id="professional-navigation" className="portal-shell__nav" aria-label={`${roleLabel} navigation`}>
             {navItems.map((item) => {
               const isActive = item.id === activeItemId
 
@@ -153,7 +166,10 @@ function ProfessionalPortalShell({
                   key={item.id}
                   className={`portal-shell__link ${isActive ? 'portal-shell__link--active' : ''}`}
                   type="button"
-                  onClick={() => onNavChange(item.id)}
+                  aria-label={item.label}
+                  title={isSidebarCollapsed ? item.label : undefined}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => { onNavChange(item.id); if (isCompact) setIsSidebarCollapsed(true) }}
                 >
                   <span className="portal-shell__link-icon" aria-hidden>
                     {item.icon}
@@ -176,7 +192,7 @@ function ProfessionalPortalShell({
               </div>
             </div>
 
-            <button className="portal-shell__logout" type="button" onClick={onLogout}>
+            <button aria-label="Log out" title={isSidebarCollapsed ? 'Log out' : undefined} className="portal-shell__logout" type="button" onClick={onLogout}>
               <span className="portal-shell__logout-icon" aria-hidden>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -184,13 +200,13 @@ function ProfessionalPortalShell({
                   <path d="M21 12H9" />
                 </svg>
               </span>
-              <span className="portal-shell__logout-label">Logout</span>
+              <span className="portal-shell__logout-label">Log out</span>
             </button>
           </div>
         </div>
-      </aside>
+      </Sidebar>}
 
-      <main className="portal-shell__main">{children}</main>
+      <main id="main-content" tabIndex={-1} className="portal-shell__main">{children}</main>
     </div>
   )
 }

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
+import { kenyaCounties } from '../../data/kenyaLocations'
 import {
   createSavedAddress,
   deleteSavedAddress,
@@ -11,11 +13,18 @@ import '../../styles/pages/AccountAddressesPage.css'
 const EMPTY_FORM = { label: '', street: '', city: '', county: '' }
 
 function AccountAddressesPage() {
+  const { settings, isLoading: countiesLoading, error: countiesError, refresh: refreshCounties } = useSiteSettings()
+  const countyOptions = kenyaCounties.filter(county => settings.activeDeliveryZones.includes(county))
   const [addresses, setAddresses] = useState<SavedAddress[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof EMPTY_FORM, string>>>({})
+  const updateField = (field: keyof typeof EMPTY_FORM, value: string) => {
+    setForm(current => ({ ...current, [field]: value }))
+    setFieldErrors(current => ({ ...current, [field]: undefined }))
+  }
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -41,6 +50,7 @@ function AccountAddressesPage() {
     setEditingId(null)
     setForm(EMPTY_FORM)
     setError('')
+    setFieldErrors({})
     setShowForm(true)
   }
 
@@ -48,14 +58,25 @@ function AccountAddressesPage() {
     setEditingId(addr.id)
     setForm({ label: addr.label, street: addr.street, city: addr.city, county: addr.county })
     setError('')
+    setFieldErrors({})
     setShowForm(true)
   }
 
   const cancel = () => { setShowForm(false); setEditingId(null); setError('') }
 
   const save = async () => {
-    if (!form.label.trim() || !form.street.trim() || !form.city.trim() || !form.county.trim()) {
-      setError('Label, street, city, and county are required.')
+    const errors: Partial<Record<keyof typeof EMPTY_FORM, string>> = {}
+    const labels = { label: 'Label', street: 'Street / Area', city: 'City / Town', county: 'County' }
+    for (const field of Object.keys(EMPTY_FORM) as (keyof typeof EMPTY_FORM)[]) {
+      if (!form[field].trim()) errors[field] = `${labels[field]} is required.`
+    }
+    if (countiesLoading || countiesError || !countyOptions.includes(form.county)) {
+      errors.county = 'Select an active delivery county from the list.'
+    }
+    setFieldErrors(errors)
+    setError('')
+    if (Object.keys(errors).length) {
+      document.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="address-${Object.keys(errors)[0]}"]`)?.focus()
       return
     }
 
@@ -129,36 +150,54 @@ function AccountAddressesPage() {
             <h3 className="addr-form-card__title">{editingId ? 'Edit Address' : 'Add New Address'}</h3>
             <div className="addr-form-grid">
               <div className="addr-form-group">
-                <label>Label</label>
-                <input
+                <label htmlFor="field-accountaddressespage-132-4036">Label *</label>
+                <input id="field-accountaddressespage-132-4036"
+                  name="address-label" required aria-invalid={Boolean(fieldErrors.label)} aria-describedby={fieldErrors.label ? 'address-label-error' : undefined}
                   value={form.label}
-                  onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+                  onChange={e => updateField('label', e.target.value)}
                   placeholder="e.g. Home, Office"
                 />
+                {fieldErrors.label && <p id="address-label-error" role="alert" className="addr-field-error">{fieldErrors.label}</p>}
               </div>
               <div className="addr-form-group addr-form-group--full">
-                <label>Street / Area</label>
-                <input
+                <label htmlFor="field-accountaddressespage-140-4452">Street / Area *</label>
+                <input id="field-accountaddressespage-140-4452"
+                  name="address-street" required aria-invalid={Boolean(fieldErrors.street)} aria-describedby={fieldErrors.street ? 'address-street-error' : undefined}
                   value={form.street}
-                  onChange={e => setForm(f => ({ ...f, street: e.target.value }))}
+                  onChange={e => updateField('street', e.target.value)}
                   placeholder="14 Westlands Road"
                 />
+                {fieldErrors.street && <p id="address-street-error" role="alert" className="addr-field-error">{fieldErrors.street}</p>}
               </div>
               <div className="addr-form-group">
-                <label>City / Town</label>
-                <input
+                <label htmlFor="field-accountaddressespage-148-4856">City / Town *</label>
+                <input id="field-accountaddressespage-148-4856"
+                  name="address-city" required aria-invalid={Boolean(fieldErrors.city)} aria-describedby={fieldErrors.city ? 'address-city-error' : undefined}
                   value={form.city}
-                  onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                  onChange={e => updateField('city', e.target.value)}
                   placeholder="Nairobi"
                 />
+                {fieldErrors.city && <p id="address-city-error" role="alert" className="addr-field-error">{fieldErrors.city}</p>}
               </div>
               <div className="addr-form-group">
-                <label>County</label>
-                <input
+                <label htmlFor="field-accountaddressespage-156-5244">County *</label>
+                <select id="field-accountaddressespage-156-5244"
+                  name="address-county" required aria-invalid={Boolean(fieldErrors.county)} aria-describedby={fieldErrors.county ? 'address-county-error' : 'address-county-help'}
                   value={form.county}
-                  onChange={e => setForm(f => ({ ...f, county: e.target.value }))}
-                  placeholder="Nairobi"
-                />
+                  onChange={e => updateField('county', e.target.value)}
+                  disabled={countiesLoading || Boolean(countiesError) || countyOptions.length === 0}
+                >
+                  <option value="">{countiesLoading ? 'Loading delivery counties...' : 'Select delivery county'}</option>
+                  {form.county && !countyOptions.includes(form.county) && (
+                    <option value={form.county} disabled>{form.county} (select an active county)</option>
+                  )}
+                  {countyOptions.map(county => <option key={county} value={county}>{county}</option>)}
+                </select>
+                <p id="address-county-help">
+                  {countiesError ? 'Unable to load delivery counties.' : !countiesLoading && countyOptions.length === 0 ? 'No delivery counties are currently available.' : 'Choose a county currently available for delivery.'}
+                </p>
+                {countiesError && <button type="button" className="btn btn--ghost btn--sm" onClick={() => void refreshCounties()}>Retry loading counties</button>}
+                {fieldErrors.county && <p id="address-county-error" role="alert" className="addr-field-error">{fieldErrors.county}</p>}
               </div>
             </div>
             {error && <p className="addr-form-error">{error}</p>}

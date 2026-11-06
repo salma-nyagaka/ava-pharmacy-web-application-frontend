@@ -266,3 +266,18 @@
   .pharm-portal .cm-kpi-grid { grid-template-columns: 1fr; }
   .pharm-portal .admin-page__header h1 { font-size: 1.4rem; }
 }
+
+/* Match the admin page title and subtitle typography. */
+.pharm-portal .admin-page__header .cm-title-group h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.pharm-portal .admin-page__header .cm-title-group .cm-title-sub {
+  margin: 7px 0 0;
+  font-size: .875rem;
+  line-height: 1.6;
+  max-width: none;
+}

@@ -245,9 +245,9 @@
   }
 }
 
-/* ── Toggle: unify to brand accent ── */
+/* Active brand status. */
 .bm-page .cm-toggle--on {
-  background: var(--color-primary, #dc2626);
+  background: #16a34a;
 }
 
 /* ── Sort header buttons ── */
@@ -292,4 +292,18 @@
   color: #4b5563;
   font-size: 0.8125rem;
   line-height: 1.3;
+}
+
+/* Keep pagination to a single compact group, even for large catalogues. */
+.bm-page .cm-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 18px; }
+.bm-page .cm-pagination__controls { display: flex; align-items: center; width: auto; gap: 6px; flex-wrap: nowrap; }
+.bm-page .cm-pagination .pagination__pages { display: flex; align-items: center; flex-wrap: nowrap; gap: 4px; }
+.bm-page .cm-pagination :is(.pagination__page, .pagination__button) { min-width: 32px; height: 34px; padding: 0 9px; font-size: .8rem; }
+.bm-page .pagination__ellipsis { display: inline-flex; align-items: center; justify-content: center; width: 20px; color: #64748b; }
+@media (max-width: 480px) {
+  .bm-page .cm-pagination { padding: 12px; }
+  .bm-page .cm-pagination__controls { width: 100%; justify-content: center; gap: 3px; }
+  .bm-page .cm-pagination .pagination__pages { gap: 2px; }
+  .bm-page .cm-pagination :is(.pagination__page, .pagination__button) { min-width: 26px; padding: 0 5px; font-size: .75rem; }
+  .bm-page .pagination__ellipsis { width: 14px; }
 }

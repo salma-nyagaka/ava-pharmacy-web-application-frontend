@@ -1,8 +1,9 @@
+import { formatStatus } from '../../utils/formatStatus'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { cancelOrder, fetchOrder } from '../../services/orderService'
 import { cartService } from '../../services/cartService'
-import { STATUS_CFG, TRACK_STEPS, getRelativeTime, isPlacedApiOrder, mapApiOrder, type Order } from '../../data/ordersData'
+import { STATUS_CFG, TRACK_STEPS, isPlacedApiOrder, mapApiOrder, type Order } from '../../data/ordersData'
 import '../../styles/pages/OrderDetailPage.css'
 
 function downloadReceipt(order: Order) {
@@ -175,10 +176,10 @@ function OrderDetailPage() {
   }
 
   const handleReorder = async () => {
-    if (!order) return
+    if (!order || isReordering) return
 
     const reorderableItems = order.productItems.filter((item) => item.productId)
-    if (reorderableItems.length === 0) {
+    if (reorderableItems.length === 0 || reorderableItems.length !== order.productItems.length) {
       setError('These order items cannot be reordered automatically right now.')
       return
     }
@@ -189,14 +190,16 @@ function OrderDetailPage() {
       for (const item of reorderableItems) {
         await cartService.add({
           id: item.productId as number,
+          productId: item.productId as number,
+          variantId: item.variantId,
           name: item.name,
           brand: 'Reorder',
           price: item.price,
         }, item.qty)
       }
       navigate('/cart')
-    } catch {
-      setError('We could not add these items to your cart right now.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'We could not add these items to your cart right now.')
     } finally {
       setIsReordering(false)
     }
@@ -204,7 +207,7 @@ function OrderDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="od-page">
+      <div className="od-page customer-order-page">
         <div className="od-not-found">
           <h1>Loading order…</h1>
           <p>Please wait while we fetch your order details.</p>
@@ -215,7 +218,7 @@ function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="od-page">
+      <div className="od-page customer-order-page">
         <div className="od-not-found">
           <div className="od-not-found__icon">📦</div>
           <h1>Order not found</h1>
@@ -230,7 +233,7 @@ function OrderDetailPage() {
   const formatPrice = (n: number) => `KSh ${n.toLocaleString()}`
 
   return (
-    <div className="od-page">
+    <div className="od-page customer-order-page">
         <div className="od-breadcrumb">
           <Link to="/account">Account</Link>
           <span>›</span>
@@ -242,10 +245,10 @@ function OrderDetailPage() {
         <div className="od-header">
           <div>
             <h1 className="od-header__title">Order {order.id}</h1>
-            <p className="od-header__meta">Placed {order.date} · <span className="od-header__rel">{getRelativeTime(order.placedAt)}</span></p>
+            <p className="od-header__meta">Placed {order.date}</p>
           </div>
           <span className="od-status-badge" style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.color }}>
-            {cfg.emoji} {order.status}
+            {cfg.emoji} {formatStatus(order.status)}
           </span>
         </div>
 
@@ -268,24 +271,8 @@ function OrderDetailPage() {
             </div>
           </div>
         )}
-        {order.status === 'Processing' && (
-          <div className="od-banner od-banner--processing">
-            <span className="od-banner__icon">⚙️</span>
-            <div className="od-banner__info">
-              <p className="od-banner__title">We are preparing your order</p>
-              {order.estimatedDelivery && <p className="od-banner__sub">Estimated delivery window: {order.estimatedDelivery}</p>}
-            </div>
-          </div>
-        )}
-        {order.status === 'Pending' && (
-          <div className="od-banner od-banner--processing">
-            <span className="od-banner__icon">📝</span>
-            <div className="od-banner__info">
-              <p className="od-banner__title">Order received</p>
-              <p className="od-banner__sub">We are validating your order and payment details.</p>
-            </div>
-          </div>
-        )}
+
+
         {order.status === 'Confirmed' && (
           <div className="od-banner od-banner--processing">
             <span className="od-banner__icon">💳</span>
@@ -330,13 +317,6 @@ function OrderDetailPage() {
               {TRACK_STEPS.map((label, index) => {
                 const isDone = index < step
                 const isActive = index === step && step < TRACK_STEPS.length
-                const descs = [
-                  'Order submitted',
-                  'Payment confirmed',
-                  'Pharmacy preparing',
-                  'Courier picked up',
-                  'Delivered to you',
-                ]
                 return (
                   <div key={label} className="od-track__col">
                     <div className="od-track__row">
@@ -349,7 +329,6 @@ function OrderDetailPage() {
                       {index < TRACK_STEPS.length - 1 && <div className={`od-track__line${index < step ? ' od-track__line--done' : ''}`} />}
                     </div>
                     <p className={`od-track__label${isDone || isActive ? ' od-track__label--on' : ''}`}>{label}</p>
-                    <p className="od-track__desc">{descs[index]}</p>
                   </div>
                 )
               })}
@@ -364,7 +343,7 @@ function OrderDetailPage() {
               <div className="od-items">
                 {order.productItems.map((item) => (
                   <div key={`${item.name}-${item.qty}`} className="od-item">
-                    <div className="od-item__icon">💊</div>
+                    
                     <div className="od-item__info">
                       <p className="od-item__name">{item.name}</p>
                       <p className="od-item__qty">Qty: {item.qty}</p>
@@ -382,13 +361,12 @@ function OrderDetailPage() {
 
             <div className="od-card od-card--soft">
               <h2 className="od-section-title">Payment</h2>
-              <div className="od-detail-row"><span className="od-detail-label">Method</span><span className="od-detail-value">💳 {order.payment}</span></div>
-              <div className="od-detail-row"><span className="od-detail-label">Amount charged</span><span className="od-detail-value">{formatPrice(order.total)}</span></div>
+              <div className="od-detail-row"><span className="od-detail-label">Method</span><span className="od-detail-value">{order.payment}</span></div>
               <div className="od-detail-row"><span className="od-detail-label">Payment status</span><span className="od-detail-value od-paid">{order.paymentStatus}</span></div>
               {order.paymentReference && (
                 <div className="od-detail-row">
                   <span className="od-detail-label">Reference</span>
-                  <span className="od-detail-value">{order.paymentReference}</span>
+                  <span className="od-detail-value od-reference-value">{order.paymentReference}<button className="od-reference-copy" type="button" onClick={handleCopy}>{copied ? 'Copied' : 'Copy'}</button></span>
                 </div>
               )}
             </div>
@@ -397,7 +375,7 @@ function OrderDetailPage() {
           <div className="od-right">
             <div className="od-card od-card--soft">
               <h2 className="od-section-title">Delivery details</h2>
-              <div className="od-detail-row"><span className="od-detail-label">Address</span><span className="od-detail-value">📍 {order.address}</span></div>
+              <div className="od-detail-row"><span className="od-detail-label">Address</span><span className="od-detail-value">{order.address}</span></div>
               {order.estimatedDelivery && order.status !== 'Delivered' && (
                 <div className="od-detail-row"><span className="od-detail-label">Delivery window</span><span className="od-detail-value">{order.estimatedDelivery}</span></div>
               )}
@@ -406,24 +384,12 @@ function OrderDetailPage() {
               )}
             </div>
 
-            {order.paymentReference && (
-              <div className="od-card">
-                <h2 className="od-section-title">Reference</h2>
-                <div className="od-tracking">
-                  <code className="od-tracking__code">{order.paymentReference}</code>
-                  <button className="btn btn--ghost btn--sm" type="button" onClick={handleCopy}>
-                    {copied ? '✅ Copied!' : '📋 Copy'}
-                  </button>
-                </div>
-              </div>
-            )}
-
             <div className="od-card">
-              <h2 className="od-section-title">What would you like to do?</h2>
+              <h2 className="od-section-title">Order actions</h2>
               <div className="od-actions">
                 {order.status === 'Delivered' && (
                   <button className="btn btn--primary od-action-btn" type="button" onClick={() => void handleReorder()} disabled={isReordering}>
-                    {isReordering ? 'Adding items…' : '🔄 Reorder these items'}
+                    {isReordering ? 'Adding items…' : 'Reorder items'}
                   </button>
                 )}
                 {order.canCancel && (
@@ -442,10 +408,10 @@ function OrderDetailPage() {
                 )}
                 {canShowReceipt(order) && (
                   <button className="btn btn--outline od-action-btn" type="button" onClick={() => downloadReceipt(order)}>
-                    📄 Download receipt
+                    Download receipt
                   </button>
                 )}
-                <Link to="/help" className="btn btn--ghost od-action-btn">🙋 Get help with this order</Link>
+                <Link to="/help" className="btn btn--ghost od-action-btn">Get help</Link>
               </div>
             </div>
           </div>

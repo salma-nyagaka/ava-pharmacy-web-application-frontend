@@ -1,11 +1,15 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
+import { useSiteSettings } from '../../context/SiteSettingsContext'
+import { formatWhatsAppHref } from '../../services/siteSettingsService'
 import Header from '../Header/Header'
 import Footer from '../Footer/Footer'
 import '../../styles/components/Layout.css'
 
 function Layout() {
   const location = useLocation()
+  const { settings } = useSiteSettings()
+  const hideFooter = /^\/(login|register)\/?$/.test(location.pathname)
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })
@@ -13,12 +17,13 @@ function Layout() {
 
   return (
     <div className="layout">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <Header />
-      <main className="layout__main">
+      <main id="main-content" tabIndex={-1} className="layout__main">
         <Outlet />
       </main>
       <a
-        href="https://wa.me/254700000000"
+        href={`https://wa.me/${formatWhatsAppHref(settings.whatsappPhone || settings.supportPhone)}`}
         target="_blank"
         rel="noopener noreferrer"
         className="whatsapp-fab"
@@ -29,7 +34,7 @@ function Layout() {
         </svg>
         <span className="whatsapp-fab__tooltip">Chat with us</span>
       </a>
-      <Footer />
+      {!hideFooter && <Footer />}
     </div>
   )
 }

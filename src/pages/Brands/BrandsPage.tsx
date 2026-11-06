@@ -1,3 +1,4 @@
+import BrandDirectory from '../../components/BrandDirectory'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ImageWithFallback from '../../components/ImageWithFallback/ImageWithFallback'
@@ -22,6 +23,7 @@ const renderStars = (rating: number) => {
   )
 }
 
+
 const CARD_COLORS = ['blue','green','purple','amber','rose','cyan','indigo','teal','orange','pink'] as const
 const getColor = (name: string) => CARD_COLORS[name.charCodeAt(0) % CARD_COLORS.length]
 
@@ -39,7 +41,7 @@ function BrandsPage() {
 
   const brandDirectory = useMemo(() =>
     catalogBrands
-      .map(({ name, slug }) => ({ name, slug }))
+      .map(({ name, slug, logo, id }) => ({ name, slug, logo, id }))
       .sort((a, b) => a.name.localeCompare(b.name)),
     [catalogBrands]
   )
@@ -117,19 +119,6 @@ function BrandsPage() {
 
   /* ── Landing ─────────────────────────────────── */
   if (!brand) {
-    const filtered = brandSearch.trim()
-      ? brandDirectory.filter((e) => e.name.toLowerCase().includes(brandSearch.trim().toLowerCase()))
-      : brandDirectory
-
-    const grouped = filtered.reduce((acc, entry) => {
-      const letter = entry.name[0].toUpperCase()
-      if (!acc[letter]) acc[letter] = []
-      acc[letter].push(entry)
-      return acc
-    }, {} as Record<string, typeof filtered>)
-
-    const letters = Object.keys(grouped).sort()
-
     return (
       <div className="brand-page">
         <div className="brand-hero">
@@ -139,7 +128,7 @@ function BrandsPage() {
             <p className="brand-hero__sub">{brandDirectory.length} trusted pharmacy and beauty brands.</p>
             <div className="brand-search-wrap">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              <input
+              <input aria-label="Search brands"
                 type="text"
                 className="brand-search"
                 placeholder="Search brands…"
@@ -160,27 +149,8 @@ function BrandsPage() {
             <div className="brand-empty" role="alert">
               {brandsError} <button type="button" onClick={() => { void refreshCatalog(true) }}>Try again</button>
             </div>
-          ) : letters.length === 0 ? (
-            <div className="brand-empty">No brands match &ldquo;{brandSearch}&rdquo;</div>
-          ) : (
-            letters.map((letter) => (
-              <div key={letter} className="brand-alpha-group">
-                <div className="brand-alpha-letter">{letter}</div>
-                <div className="brand-alpha-cards">
-                  {grouped[letter].map((entry) => {
-                    const color = getColor(entry.name)
-                    return (
-                      <Link key={entry.slug} to={`/brands/${entry.slug}`} className={`brand-dir-card brand-dir-card--${color}`}>
-                        <span className="brand-dir-card__initial">{entry.name[0].toUpperCase()}</span>
-                        <span className="brand-dir-card__name">{entry.name}</span>
-                        <span className="brand-dir-card__count">View products</span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            ))
-          )}
+          ) : <BrandDirectory brands={brandDirectory} pageSize={48} query={brandSearch} />}
+
         </div>
       </div>
     )
@@ -240,9 +210,9 @@ function BrandsPage() {
               <div className="filter-panel__section">
                 <h4 className="filter-panel__heading">Price Range</h4>
                 <div className="price-inputs">
-                  <input type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
+                  <input aria-label="Minimum price in KSh" type="number" placeholder="Min" className="price-input" value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value) || 0)} />
                   <span className="price-sep">–</span>
-                  <input type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
+                  <input aria-label="Maximum price in KSh" type="number" placeholder="Max" className="price-input" value={maxPrice} onChange={(e) => setMaxPrice(Number(e.target.value) || 0)} />
                 </div>
               </div>
               <div className="filter-panel__section">
@@ -293,10 +263,10 @@ function BrandsPage() {
               <div className="plp__toolbar-right">
                 <div className="plp__search-wrap">
                   <svg className="plp__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  <input type="text" className="plp__search-input" placeholder={`Search ${selectedBrandLabel}…`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                  <input aria-label={`Search ${selectedBrandLabel}…`} type="text" className="plp__search-input" placeholder={`Search ${selectedBrandLabel}…`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                   {searchTerm && <button className="plp__search-clear" type="button" onClick={() => setSearchTerm('')}>×</button>}
                 </div>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="plp__sort-select">
+                <select aria-label="Sort products" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="plp__sort-select">
                   <option value="recommended">Recommended</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>

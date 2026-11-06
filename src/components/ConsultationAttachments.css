@@ -1,0 +1,20 @@
+.consultation-files { padding: 16px; border-top: 1px solid #e2e8f0; background: #fff; }
+.consultation-files__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.consultation-files h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: .875rem; font-weight: 700; color: #172b3a; }
+.consultation-files h3 span { padding: 2px 7px; border-radius: 12px; background: #eef7f4; color: #075b52; font-size: .65rem; }
+.consultation-files__header p { margin: 4px 0 0; font-size: .72rem; line-height: 1.5; color: #64748b; }
+.consultation-files__upload, .consultation-files__download { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 12px; min-height: 36px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #075b52; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.consultation-files button:hover:not(:disabled) { background: #eef7f4; border-color: #a6c8bd; }
+.consultation-files button:disabled { opacity: .55; cursor: wait; }
+.consultation-files button:focus-visible { outline: 2px solid #075b52; outline-offset: 3px; }
+.consultation-files button svg { width: 16px; height: 16px; }
+.consultation-files__list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; max-height: 200px; overflow-y: auto; }
+.consultation-files__list li { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+.consultation-files__icon { display: grid; place-items: center; width: 34px; height: 38px; flex-shrink: 0; border: 1px solid #e2e8f0; border-radius: 7px; background: #fff; color: #64748b; }
+.consultation-files__icon svg { width: 20px; height: 20px; }
+.consultation-files__info { flex: 1; min-width: 0; }
+.consultation-files__info strong { display: block; font-size: .75rem; font-weight: 600; color: #334155; overflow-wrap: anywhere; }
+.consultation-files__info small { display: block; margin-top: 3px; color: #64748b; font-size: .68rem; }
+.consultation-files__empty, .consultation-files__status { margin: 12px 0 0; font-size: .75rem; color: #64748b; }
+.consultation-files__error { margin: 10px 0 0; font-size: .75rem; color: #b91c1c; }
+@media (max-width: 560px) { .consultation-files__header { flex-wrap: wrap; } .consultation-files__list li { flex-wrap: wrap; } .consultation-files__download { margin-left: 44px; } }
